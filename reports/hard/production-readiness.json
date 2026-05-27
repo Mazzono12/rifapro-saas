@@ -1,95 +1,95 @@
 {
   "mode": "production-readiness",
   "success": true,
-  "startedAt": "2026-05-27T17:32:56.725Z",
-  "finishedAt": "2026-05-27T17:33:21.149Z",
-  "durationMs": 24424,
+  "startedAt": "2026-05-27T18:30:45.970Z",
+  "finishedAt": "2026-05-27T18:31:16.367Z",
+  "durationMs": 30397,
   "results": [
     {
       "name": "auditoria estatica de rotas e modulos",
       "status": "passed",
-      "durationMs": 6
+      "durationMs": 7
     },
     {
       "name": "modelo normalizado de gateway",
       "status": "passed",
-      "durationMs": 4
+      "durationMs": 6
     },
     {
       "name": "scripts/test-gateway-credentials-security.mjs",
       "status": "passed",
-      "durationMs": 82,
+      "durationMs": 103,
       "output": "PASS: credenciais de gateways cifradas em repouso, descriptografadas so no backend e mascaradas no frontend.\n"
     },
     {
       "name": "scripts/test-pix-multitenant.mjs",
       "status": "passed",
-      "durationMs": 2766,
+      "durationMs": 3462,
       "output": "PASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n"
     },
     {
       "name": "checkout usa reserva, pagamento e provider preservado",
       "status": "passed",
-      "durationMs": 3
+      "durationMs": 5
     },
     {
       "name": "scripts/test-purchase-concurrency.mjs",
       "status": "passed",
-      "durationMs": 2062,
+      "durationMs": 2769,
       "output": "PASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\n"
     },
     {
       "name": "scripts/test-pix-confirmation-safety.mjs",
       "status": "passed",
-      "durationMs": 2982,
+      "durationMs": 3855,
       "output": "PASS: botoes e endpoints de confirmacao PIX seguros, auditados e idempotentes.\n"
     },
     {
       "name": "scripts/test-payment-workers.mjs",
       "status": "passed",
-      "durationMs": 2728,
+      "durationMs": 3626,
       "output": "PASS: workers PIX/webhook com fila, idempotencia, retry, logs e isolamento multitenant.\n"
     },
     {
       "name": "scripts/test-pix-multitenant.mjs",
       "status": "passed",
-      "durationMs": 2816,
+      "durationMs": 3524,
       "output": "PASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n"
     },
     {
       "name": "scripts/test-production-hardening.mjs",
       "status": "passed",
-      "durationMs": 2707,
+      "durationMs": 3447,
       "output": "PASS: hardening de planos, auditoria, fila de pagamentos e dashboard superadmin validado.\n"
     },
     {
       "name": "scripts/test-superadmin-finance.mjs",
       "status": "passed",
-      "durationMs": 2404,
+      "durationMs": 2617,
       "output": "PASS: superadmin finance global, filtros e bloqueio para tenant admin validados.\n"
     },
     {
       "name": "scripts/test-tenant-domains.mjs",
       "status": "passed",
-      "durationMs": 2744,
+      "durationMs": 3412,
       "output": "PASS: dominios por tenant, unicidade, subdominio e custom domain validados.\n"
     },
     {
       "name": "scripts/test-impersonation-audit.mjs",
       "status": "passed",
-      "durationMs": 1618,
+      "durationMs": 1790,
       "output": "PASS: acesso assistido exige motivo, audita entrada/saida e nao apaga logs criticos.\n"
     },
     {
       "name": "scripts/test-reports-export.mjs",
       "status": "passed",
-      "durationMs": 1438,
+      "durationMs": 1750,
       "output": "PASS: exportacao CSV global/tenant e filtros de relatorio validados.\n"
     },
     {
       "name": "bundle sem service role quando dist existir",
       "status": "passed",
-      "durationMs": 57
+      "durationMs": 22
     }
   ]
 }
