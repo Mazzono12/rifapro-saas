@@ -1,22 +1,23 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-27T21:56:16.090Z
+Gerado em: 2026-05-27T22:19:04.234Z
 
 ## Totais
 
-- Rotas backend: 210
-- Paginas frontend: 44
-- Componentes: 27
-- Arquivos src: 116
-- Migrations: 23
-- Tabelas mapeadas: 41
-- Policies mapeadas: 41
+- Rotas backend: 221
+- Paginas frontend: 46
+- Componentes: 34
+- Arquivos src: 125
+- Migrations: 24
+- Tabelas mapeadas: 42
+- Policies mapeadas: 44
 - Providers/arquivos de integracao: 10
 
 ## Rotas Backend
 
 - GET /api/public/health
 - GET /api/public/tenant-debug
+- GET /api/public/branding
 - POST /api/auth/signup
 - POST /api/auth/login
 - POST /api/auth/admin/login
@@ -72,6 +73,11 @@ Gerado em: 2026-05-27T21:56:16.090Z
 - POST /api/superadmin/domains/:id/verify
 - PUT /api/superadmin/domains/:id/primary
 - DELETE /api/superadmin/domains/:id
+- GET /api/superadmin/tenants/:tenantId/branding
+- PUT /api/superadmin/tenants/:tenantId/branding
+- POST /api/superadmin/tenants/:tenantId/branding/logo
+- POST /api/superadmin/tenants/:tenantId/branding/favicon
+- POST /api/superadmin/tenants/:tenantId/branding/reset
 - GET /api/admin/me
 - GET /api/admin/dashboard
 - GET /api/admin/domains
@@ -199,6 +205,11 @@ Gerado em: 2026-05-27T21:56:16.090Z
 - PUT /api/admin/gateways
 - GET /api/settings
 - PUT /api/admin/settings
+- GET /api/admin/branding
+- PUT /api/admin/branding
+- POST /api/admin/branding/logo
+- POST /api/admin/branding/favicon
+- POST /api/admin/branding/reset
 - GET /api/admin/integrations/n8n
 - POST /api/admin/integrations/n8n/test
 - POST /api/admin/integrations/n8n/broadcast
@@ -266,11 +277,13 @@ Gerado em: 2026-05-27T21:56:16.090Z
 - integracoes
 - dominios
 - config
+- config/aparencia
 - /superadmin
 - integracoes
 - dominios
 - auditoria
 - tenants/:tenantId/financeiro
+- tenants/:tenantId/aparencia
 - *
 
 ## Tabelas Supabase/Postgres
@@ -305,6 +318,7 @@ Gerado em: 2026-05-27T21:56:16.090Z
 - security_audit_logs
 - superadmin_audit_logs
 - superadmin_impersonation_sessions
+- tenant_branding_settings
 - tenant_domains
 - tenant_feature_flags
 - tenant_maintenance_windows
@@ -342,6 +356,7 @@ Gerado em: 2026-05-27T21:56:16.090Z
 - supabase/migrations/20_hardcore_readiness_improvements.sql
 - supabase/migrations/21_clean_room_auth_compatibility.sql
 - supabase/migrations/22_whatsapp_auto_ticket_queue.sql
+- supabase/migrations/23_tenant_branding_settings.sql
 
 ## Middlewares, Workers e Webhooks
 
@@ -355,7 +370,7 @@ Gerado em: 2026-05-27T21:56:16.090Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 630 ocorrencias no backend
+- tenant_id: 641 ocorrencias no backend
 - user_id: 7 ocorrencias no backend
 - order_id: 3 ocorrencias no backend
 - purchaseId: 137 ocorrencias no backend

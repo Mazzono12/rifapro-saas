@@ -1,14 +1,18 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Bell, Hexagon, Instagram, MessageCircle, MoreVertical, User, Users, Ticket } from "lucide-react";
+import { Bell, Instagram, MessageCircle, MoreVertical, User, Users, Ticket } from "lucide-react";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { useCustomerStore } from "../store/useCustomerStore";
+import { TenantLogo } from "./branding/TenantLogo";
+import { TenantHeaderName } from "./branding/TenantHeaderName";
+import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
 
 export function Navbar() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<any>(null);
+  const { branding } = useTenantBranding();
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [heroVideoCinema, setHeroVideoCinema] = useState(false);
   const notifiedMessageIds = useRef<Set<string>>(new Set());
@@ -101,16 +105,9 @@ export function Navbar() {
       <nav className={`premium-site-header fixed top-0 inset-x-0 z-50 border-b border-[var(--theme-border)] bg-[var(--theme-surface-strong)]/90 backdrop-blur-2xl transition-transform duration-300 ${heroVideoCinema && !isAdmin ? "-translate-y-full" : "translate-y-0"}`}>
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" onClick={goHomeTop} className="flex items-center gap-3 group" aria-label="Ir para a página principal">
-            {settings?.branding?.logoUrl ? (
-              <img src={settings.branding.logoUrl} alt={settings.branding.logoAlt || settings.branding.companyName} className="h-9 w-9 rounded-lg object-cover border border-white/10" />
-            ) : (
-              <div className="relative flex items-center justify-center">
-                <Hexagon className="w-8 h-8 text-[var(--theme-primary)] relative z-10 group-hover:scale-110 transition-transform duration-300" />
-                <div className="absolute inset-0 bg-[var(--theme-glow)] blur-md rounded-full transition-colors" />
-              </div>
-            )}
+            <TenantLogo className="h-9 w-9" eager />
             <span className="font-display font-bold text-xl tracking-wider text-[var(--theme-text)]">
-              {settings?.branding?.companyName || "NexusDraw"}
+              <TenantHeaderName />
             </span>
           </Link>
           
@@ -157,17 +154,17 @@ export function Navbar() {
         </div>
       </nav>
 
-      {!isAdmin && !heroVideoCinema && settings?.socialLinks && (
+      {!isAdmin && !heroVideoCinema && (settings?.socialLinks || branding.support_whatsapp) && (
         <div className="fixed right-4 bottom-24 z-50 flex flex-col gap-3">
-          {settings.socialLinks.group && (
+          {settings?.socialLinks?.group && (
             <a href={settings.socialLinks.group} target="_blank" rel="noreferrer" className="premium-button h-12 w-12 rounded-full p-0" aria-label="Participar do grupo">
               <Users className="w-5 h-5" />
             </a>
           )}
-          {settings.socialLinks.whatsapp && <a href={settings.socialLinks.whatsapp} target="_blank" rel="noreferrer" className="premium-button h-12 w-12 rounded-full p-0" aria-label="WhatsApp">
+          {(branding.support_whatsapp || settings?.socialLinks?.whatsapp) && <a href={branding.support_whatsapp || settings.socialLinks.whatsapp} target="_blank" rel="noreferrer" className="premium-button h-12 w-12 rounded-full p-0" aria-label="WhatsApp">
             <MessageCircle className="w-6 h-6" />
           </a>}
-          {settings.socialLinks.instagram && <a href={settings.socialLinks.instagram} target="_blank" rel="noreferrer" className="premium-button h-12 w-12 rounded-full p-0" aria-label="Instagram">
+          {settings?.socialLinks?.instagram && <a href={settings.socialLinks.instagram} target="_blank" rel="noreferrer" className="premium-button h-12 w-12 rounded-full p-0" aria-label="Instagram">
             <Instagram className="w-6 h-6" />
           </a>}
         </div>

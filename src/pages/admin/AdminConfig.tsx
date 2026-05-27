@@ -6,6 +6,8 @@ import { useTheme } from "../../context/theme/ThemeContext";
 import { themes, type ThemeId } from "../../themes";
 import { MediaPicker } from "../../components/admin/MediaPicker";
 import { defaultVideoConfig, VideoSettingsEditor } from "../../components/admin/VideoSettingsEditor";
+import { BrandingSettingsForm } from "../../components/branding/BrandingSettingsForm";
+import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
 
 const paletteFields = [
   ["--theme-primary", "Primária", "#9bdcff"],
@@ -18,9 +20,11 @@ const paletteFields = [
   ["--theme-button-text", "Texto botão", "#030712"],
 ] as const;
 
-export function AdminConfig() {
+export function AdminConfig({ initialTab = "settings" }: { initialTab?: "settings" | "branding" }) {
   const { themeId, setThemeId, previewTheme, clearPreview, applyPaletteOverrides } = useTheme();
+  const { refresh: refreshTenantBranding } = useTenantBranding();
   const [loading, setLoading] = useState(true);
+  const [branding, setBranding] = useState<any>(null);
   const [settings, setSettings] = useState<any>({
     branding: {
       companyName: "NexusDraw",
@@ -87,6 +91,33 @@ export function AdminConfig() {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    fetch("/api/admin/branding")
+      .then(res => res.json())
+      .then(setBranding)
+      .catch(() => null);
+  }, []);
+
+  const saveBranding = async () => {
+    const res = await fetch("/api/admin/branding", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(branding)
+    });
+    if (!res.ok) throw new Error("Nao foi possivel salvar aparencia");
+    setBranding(await res.json());
+    await refreshTenantBranding();
+    toast.success("Aparencia salva");
+  };
+
+  const resetBranding = async () => {
+    const res = await fetch("/api/admin/branding/reset", { method: "POST" });
+    if (!res.ok) throw new Error("Nao foi possivel resetar aparencia");
+    setBranding(await res.json());
+    await refreshTenantBranding();
+    toast.success("Aparencia resetada");
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,6 +282,31 @@ export function AdminConfig() {
       }
     });
   };
+
+  if (initialTab === "branding") {
+    return (
+      <div className="space-y-6 fade-in">
+        <div>
+          <h1 className="text-3xl font-display font-medium text-white flex items-center gap-3">
+            <Settings className="w-8 h-8 text-emerald-300" /> Configuracoes de Aparencia
+          </h1>
+          <p className="mt-2 text-sm text-slate-400">Nome, logo, GIF animado, favicon, cores, slogan, WhatsApp e rodape do tenant.</p>
+        </div>
+        {branding ? (
+          <BrandingSettingsForm
+            value={branding}
+            onChange={setBranding}
+            onSave={() => saveBranding().catch(error => toast.error(error.message))}
+            onReset={() => resetBranding().catch(error => toast.error(error.message))}
+            logoEndpoint="/api/admin/branding/logo"
+            faviconEndpoint="/api/admin/branding/favicon"
+          />
+        ) : (
+          <div className="glass-card rounded-3xl p-8 text-slate-400">Carregando aparencia...</div>
+        )}
+      </div>
+    );
+  }
 
   if (loading) return null;
 

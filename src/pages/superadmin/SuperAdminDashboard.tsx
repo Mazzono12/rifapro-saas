@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Activity, AlertTriangle, Building2, CreditCard, DollarSign, Download, Eye, LifeBuoy, Pencil, Plus, RefreshCw, ShieldAlert, Ticket, Trophy, X } from "lucide-react";
+import { Activity, AlertTriangle, Building2, CreditCard, DollarSign, Download, Eye, LifeBuoy, Palette, Pencil, Plus, RefreshCw, ShieldAlert, Ticket, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminDataTable, AdminLoadingSkeleton, MetricCard, ChartCard } from "../../components/admin/AdminPremium";
 
@@ -300,6 +300,7 @@ export function SuperAdminDashboard() {
             money(tenant.platformCommission),
             <div key={`${tenant.id}-actions`} className="flex gap-2">
               <Link className="admin-icon-button" title="Ver financeiro" to={`/superadmin/tenants/${tenant.id}/financeiro`}><Eye className="h-4 w-4" /></Link>
+              <Link className="admin-icon-button" title="Aparência" to={`/superadmin/tenants/${tenant.id}/aparencia`}><Palette className="h-4 w-4" /></Link>
               <button type="button" className="admin-icon-button" title="Acessar como suporte" onClick={() => { setImpersonatingTenant(tenant); setSupportReason(""); }}><LifeBuoy className="h-4 w-4" /></button>
               <button type="button" className="admin-icon-button" title="Editar tenant" onClick={() => setForm({ ...tenant })}><Pencil className="h-4 w-4" /></button>
               <button type="button" className="admin-button-secondary" onClick={() => void toggleSuspension(tenant)}>

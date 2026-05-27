@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Menu,
   MessageSquare,
+  Palette,
   PlaySquare,
   Plug,
   Rocket,
@@ -30,12 +31,14 @@ import {
 import { AdminPageTransition, AdminThemeSwitcher } from "../../components/admin/AdminPremium";
 import { AdminThemeProvider, useAdminTheme } from "../../context/admin/AdminThemeContext";
 import { cn } from "../../lib/utils";
+import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
 import { supportSessionStorageKey } from "../../lib/authSession";
 
 function AdminLayoutContent() {
   const location = useLocation();
   const { theme } = useAdminTheme();
   const [settingsData, setSettingsData] = useState<any>(null);
+  const { branding } = useTenantBranding();
   const [notificationCount, setNotificationCount] = useState(0);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("rifapro.admin.sidebar") === "collapsed");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -122,6 +125,7 @@ function AdminLayoutContent() {
     { name: "Integrações", path: "/admin/integracoes", icon: Plug, group: "Controle" },
     { name: "Domínios", path: "/admin/dominios", icon: Globe2, group: "Controle" },
     { name: "Configurações", path: "/admin/config", icon: Settings, group: "Controle" },
+    { name: "Aparência", path: "/admin/config/aparencia", icon: Palette, group: "Controle" },
     { name: "Pagamentos PIX", path: "/admin/pagamentos", icon: CreditCard, group: "Controle" }
   ], []);
 
@@ -133,8 +137,8 @@ function AdminLayoutContent() {
     return acc;
   }, {});
 
-  const companyName = settingsData?.branding?.companyName || "NexusDraw";
-  const logo = settingsData?.branding?.logoUrl;
+  const companyName = branding.header_name || settingsData?.branding?.companyName || "RifaPro";
+  const logo = branding.logo_url || settingsData?.branding?.logoUrl;
 
   const sidebar = (mobile = false) => {
     const minimized = collapsed && !mobile;
@@ -146,7 +150,7 @@ function AdminLayoutContent() {
     )}>
       <div className={cn("flex min-h-[76px] items-center border-b border-[var(--admin-border)]", minimized ? "justify-center" : "gap-3")}>
         <Link to="/admin" className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--admin-primary)] text-white">
-          {logo ? <img src={logo} alt={companyName} className="h-full w-full object-cover" /> : <Hexagon className="h-7 w-7 text-white" />}
+          {logo ? <img src={logo} alt={companyName} className="h-full w-full object-contain" loading="lazy" /> : <Hexagon className="h-7 w-7 text-white" />}
         </Link>
         {!minimized && (
           <Link to="/admin" className="min-w-0">

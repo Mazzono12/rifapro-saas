@@ -159,6 +159,25 @@ async function startServer() {
     ativo: boolean;
     criado_em: string;
   };
+  type TenantBrandingMode = "dark" | "light" | "premium";
+  type TenantBrandingSettings = {
+    id: string;
+    tenant_id: string;
+    header_name: string;
+    logo_url: string;
+    logo_mime_type: string;
+    favicon_url: string;
+    primary_color: string;
+    secondary_color: string;
+    cta_color: string;
+    theme_mode: TenantBrandingMode;
+    slogan: string;
+    support_whatsapp: string;
+    footer_text: string;
+    metadata: Record<string, unknown>;
+    created_at: string;
+    updated_at: string;
+  };
   type AuthSession = {
     sub: string;
     role: AuthRole;
@@ -388,6 +407,124 @@ async function startServer() {
   }
 
   const tenantSettings: Record<string, typeof settings> = {};
+  const tenantBrandingSettings: Record<string, TenantBrandingSettings> = {};
+
+  function defaultTenantBranding(tenantId: string): TenantBrandingSettings {
+    const tenant = tenants.find(item => item.id === tenantId);
+    const tenantScopedSettings = tenantSettings[tenantId] || settings;
+    const now = new Date().toISOString();
+    return {
+      id: createPublicId("BRAND_"),
+      tenant_id: tenantId,
+      header_name: tenantScopedSettings.branding?.companyName || tenant?.nome || "RifaPro",
+      logo_url: tenantScopedSettings.branding?.logoUrl || tenant?.logo_url || "",
+      logo_mime_type: "",
+      favicon_url: "",
+      primary_color: tenant?.cor_primaria || "#00d66b",
+      secondary_color: "#0f2d1d",
+      cta_color: "#00d66b",
+      theme_mode: "premium",
+      slogan: "Sorteios premium com PIX automatico",
+      support_whatsapp: tenantScopedSettings.socialLinks?.whatsapp || "",
+      footer_text: tenantScopedSettings.footer?.mission || "RifaPro SaaS",
+      metadata: {},
+      created_at: now,
+      updated_at: now
+    };
+  }
+
+  function getTenantBranding(tenantId: string) {
+    tenantBrandingSettings[tenantId] ||= defaultTenantBranding(tenantId);
+    return tenantBrandingSettings[tenantId];
+  }
+
+  function isHexColor(value: unknown) {
+    return /^#[0-9a-f]{6}$/i.test(String(value || ""));
+  }
+
+  function normalizeTenantBranding(tenantId: string, incoming: Record<string, unknown>, current = getTenantBranding(tenantId)) {
+    const themeMode = String(incoming.theme_mode || current.theme_mode || "premium");
+    const next: TenantBrandingSettings = {
+      ...current,
+      header_name: String(incoming.header_name ?? current.header_name ?? "").trim().slice(0, 80) || defaultTenantBranding(tenantId).header_name,
+      logo_url: String(incoming.logo_url ?? current.logo_url ?? "").trim(),
+      logo_mime_type: String(incoming.logo_mime_type ?? current.logo_mime_type ?? "").trim(),
+      favicon_url: String(incoming.favicon_url ?? current.favicon_url ?? "").trim(),
+      primary_color: isHexColor(incoming.primary_color) ? String(incoming.primary_color) : current.primary_color,
+      secondary_color: isHexColor(incoming.secondary_color) ? String(incoming.secondary_color) : current.secondary_color,
+      cta_color: isHexColor(incoming.cta_color) ? String(incoming.cta_color) : current.cta_color,
+      theme_mode: ["dark", "light", "premium"].includes(themeMode) ? themeMode as TenantBrandingMode : "premium",
+      slogan: String(incoming.slogan ?? current.slogan ?? "").trim().slice(0, 140),
+      support_whatsapp: String(incoming.support_whatsapp ?? current.support_whatsapp ?? "").trim().slice(0, 80),
+      footer_text: String(incoming.footer_text ?? current.footer_text ?? "").trim().slice(0, 280),
+      metadata: typeof incoming.metadata === "object" && incoming.metadata ? incoming.metadata as Record<string, unknown> : current.metadata,
+      updated_at: new Date().toISOString()
+    };
+    tenantBrandingSettings[tenantId] = next;
+    const scopedSettings = getTenantSettings(tenantId);
+    scopedSettings.branding = { ...scopedSettings.branding, companyName: next.header_name, logoUrl: next.logo_url, logoAlt: next.header_name };
+    scopedSettings.socialLinks = { ...scopedSettings.socialLinks, whatsapp: next.support_whatsapp };
+    scopedSettings.footer = { ...scopedSettings.footer, companyName: next.header_name, mission: next.footer_text };
+    return next;
+  }
+
+  function publicTenantBranding(branding: TenantBrandingSettings) {
+    return {
+      header_name: branding.header_name,
+      logo_url: branding.logo_url,
+      logo_mime_type: branding.logo_mime_type,
+      favicon_url: branding.favicon_url,
+      colors: {
+        primary: branding.primary_color,
+        secondary: branding.secondary_color,
+        cta: branding.cta_color
+      },
+      theme_mode: branding.theme_mode,
+      slogan: branding.slogan,
+      footer_text: branding.footer_text,
+      support_whatsapp: branding.support_whatsapp
+    };
+  }
+
+  async function saveBrandingAsset(req: express.Request, tenantId: string, kind: "logo" | "favicon") {
+    const fileName = String(req.headers["x-file-name"] || kind).replace(/[^\w.\-]+/g, "-");
+    const contentType = String(req.headers["content-type"] || "").split(";")[0].toLowerCase();
+    const ext = path.extname(fileName).toLowerCase();
+    const allowedExtensions = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]);
+    const allowedMime = new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"]);
+    const maxBytes = Number(process.env.TENANT_BRANDING_MAX_BYTES || 4 * 1024 * 1024);
+    const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    if (!body.length) throw new Error("Arquivo vazio");
+    if (body.length > maxBytes) {
+      const error = new Error(`Arquivo acima de ${Math.round(maxBytes / 1024 / 1024)}MB`);
+      (error as Error & { statusCode?: number }).statusCode = 413;
+      throw error;
+    }
+    if (!allowedExtensions.has(ext) || !allowedMime.has(contentType)) {
+      const error = new Error("Formato nao suportado. Use PNG, JPG, JPEG, WEBP, SVG seguro ou GIF animado.");
+      (error as Error & { statusCode?: number }).statusCode = 415;
+      throw error;
+    }
+    if (contentType === "image/svg+xml") {
+      const svg = body.toString("utf8").toLowerCase();
+      if (/<script|javascript:|onload=|onerror=|<foreignobject/.test(svg)) {
+        const error = new Error("SVG contem conteudo potencialmente perigoso");
+        (error as Error & { statusCode?: number }).statusCode = 415;
+        throw error;
+      }
+    }
+    const uploadsDir = path.join(process.cwd(), "public", "uploads", "tenant-assets", tenantId, "branding");
+    await mkdir(uploadsDir, { recursive: true });
+    const storedName = `${kind}${ext}`;
+    await writeFile(path.join(uploadsDir, storedName), body);
+    return {
+      url: `/uploads/tenant-assets/${tenantId}/branding/${storedName}`,
+      mimeType: contentType,
+      size: body.length,
+      bucket: "tenant-assets",
+      path: `tenant-assets/${tenantId}/branding/${storedName}`
+    };
+  }
   function getTenantSettings(tenantId: string) {
     if (!tenantSettings[tenantId]) {
       tenantSettings[tenantId] = tenantId === legacyTenantId ? settings : deepClone(settings);
@@ -1902,6 +2039,17 @@ async function startServer() {
     res.json(await buildPublicTenantDebug(req));
   });
 
+  app.get("/api/public/branding", async (req, res) => {
+    const resolution = await resolveDomainTenantInfo(req);
+    const tenant = resolution.tenant || getRequestTenant(req) || tenants.find(item => item.id === legacyTenantId);
+    if (!tenant) {
+      res.status(404).json({ error: "Tenant nao encontrado para este dominio" });
+      return;
+    }
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    res.json(publicTenantBranding(getTenantBranding(tenant.id)));
+  });
+
   function adminCanAccessTenant(req: express.Request, tenantId: string) {
     const session = getAuthSession(req);
     return Boolean(session && (normalizeAuthRole(session.role) === "superadmin" || session.tenant_id === tenantId));
@@ -3203,6 +3351,58 @@ async function startServer() {
     tenantDomains = tenantDomains.filter(item => item.id !== domain.id);
     recordSuperadminAudit(req, "TENANT_DOMAIN_DELETED", { tenant_id: domain.tenant_id, resource_type: "tenant_domain", resource_id: domain.id, metadata: { domain: domain.domain } });
     res.json({ success: true });
+  });
+
+  app.get("/api/superadmin/tenants/:tenantId/branding", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
+    recordSuperadminAudit(req, "TENANT_BRANDING_VIEW", { tenant_id: tenant.id, resource_type: "tenant_branding_settings", resource_id: tenant.id });
+    res.json(getTenantBranding(tenant.id));
+  });
+
+  app.put("/api/superadmin/tenants/:tenantId/branding", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
+    const branding = normalizeTenantBranding(tenant.id, req.body || {});
+    tenant.logo_url = branding.logo_url;
+    tenant.cor_primaria = branding.primary_color;
+    recordSuperadminAudit(req, "TENANT_BRANDING_UPDATED", { tenant_id: tenant.id, resource_type: "tenant_branding_settings", resource_id: branding.id });
+    res.json(branding);
+  });
+
+  app.post("/api/superadmin/tenants/:tenantId/branding/logo", express.raw({ type: "*/*", limit: "5mb" }), async (req, res) => {
+    try {
+      const tenant = tenants.find(item => item.id === req.params.tenantId);
+      if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
+      const asset = await saveBrandingAsset(req, tenant.id, "logo");
+      const branding = normalizeTenantBranding(tenant.id, { logo_url: asset.url, logo_mime_type: asset.mimeType, metadata: { ...getTenantBranding(tenant.id).metadata, logoAsset: asset } });
+      tenant.logo_url = branding.logo_url;
+      recordSuperadminAudit(req, "TENANT_BRANDING_LOGO_UPLOADED", { tenant_id: tenant.id, resource_type: "tenant_branding_settings", resource_id: branding.id, metadata: { mimeType: asset.mimeType, size: asset.size } });
+      res.status(201).json({ branding, asset });
+    } catch (error) {
+      res.status((error as Error & { statusCode?: number }).statusCode || 400).json({ error: error instanceof Error ? error.message : "Erro ao enviar logo" });
+    }
+  });
+
+  app.post("/api/superadmin/tenants/:tenantId/branding/favicon", express.raw({ type: "*/*", limit: "5mb" }), async (req, res) => {
+    try {
+      const tenant = tenants.find(item => item.id === req.params.tenantId);
+      if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
+      const asset = await saveBrandingAsset(req, tenant.id, "favicon");
+      const branding = normalizeTenantBranding(tenant.id, { favicon_url: asset.url, metadata: { ...getTenantBranding(tenant.id).metadata, faviconAsset: asset } });
+      recordSuperadminAudit(req, "TENANT_BRANDING_FAVICON_UPLOADED", { tenant_id: tenant.id, resource_type: "tenant_branding_settings", resource_id: branding.id, metadata: { mimeType: asset.mimeType, size: asset.size } });
+      res.status(201).json({ branding, asset });
+    } catch (error) {
+      res.status((error as Error & { statusCode?: number }).statusCode || 400).json({ error: error instanceof Error ? error.message : "Erro ao enviar favicon" });
+    }
+  });
+
+  app.post("/api/superadmin/tenants/:tenantId/branding/reset", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
+    tenantBrandingSettings[tenant.id] = defaultTenantBranding(tenant.id);
+    recordSuperadminAudit(req, "TENANT_BRANDING_RESET", { tenant_id: tenant.id, resource_type: "tenant_branding_settings", resource_id: tenantBrandingSettings[tenant.id].id });
+    res.json(tenantBrandingSettings[tenant.id]);
   });
 
   app.use(resolveTenant);
@@ -8086,6 +8286,7 @@ async function startServer() {
       authUsers,
       settings,
       tenantSettings,
+      tenantBrandingSettings,
       lootboxGuaranteedPool,
       lootboxGuaranteedPools,
       affiliates,
@@ -8141,6 +8342,7 @@ async function startServer() {
       case "authUsers": replaceArray(authUsers, value); break;
       case "settings": settings = value || settings; break;
       case "tenantSettings": replaceObject(tenantSettings, value); break;
+      case "tenantBrandingSettings": replaceObject(tenantBrandingSettings, value); break;
       case "lootboxGuaranteedPool": lootboxGuaranteedPool = Array.isArray(value) ? value : []; break;
       case "lootboxGuaranteedPools": lootboxGuaranteedPools = value || {}; break;
       case "affiliates": affiliates = value || {}; break;
@@ -8435,6 +8637,55 @@ async function startServer() {
     tenantSettings[tenantId] = updatedSettings;
     if (tenantId === legacyTenantId) settings = updatedSettings;
     res.json(updatedSettings);
+  });
+
+  app.get("/api/admin/branding", (req, res) => {
+    res.json(getTenantBranding(resolveRequestTenantId(req)));
+  });
+
+  app.put("/api/admin/branding", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const branding = normalizeTenantBranding(tenantId, req.body || {});
+    const tenant = tenants.find(item => item.id === tenantId);
+    if (tenant) {
+      tenant.logo_url = branding.logo_url;
+      tenant.cor_primaria = branding.primary_color;
+    }
+    recordSecurityEvent({ tenant_id: tenantId, action: "TENANT_BRANDING_UPDATED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email, detail: branding.header_name });
+    res.json(branding);
+  });
+
+  app.post("/api/admin/branding/logo", express.raw({ type: "*/*", limit: "5mb" }), async (req, res) => {
+    try {
+      const tenantId = resolveRequestTenantId(req);
+      const asset = await saveBrandingAsset(req, tenantId, "logo");
+      const branding = normalizeTenantBranding(tenantId, { logo_url: asset.url, logo_mime_type: asset.mimeType, metadata: { ...getTenantBranding(tenantId).metadata, logoAsset: asset } });
+      const tenant = tenants.find(item => item.id === tenantId);
+      if (tenant) tenant.logo_url = branding.logo_url;
+      recordSecurityEvent({ tenant_id: tenantId, action: "TENANT_BRANDING_LOGO_UPLOADED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email, detail: asset.mimeType });
+      res.status(201).json({ branding, asset });
+    } catch (error) {
+      res.status((error as Error & { statusCode?: number }).statusCode || 400).json({ error: error instanceof Error ? error.message : "Erro ao enviar logo" });
+    }
+  });
+
+  app.post("/api/admin/branding/favicon", express.raw({ type: "*/*", limit: "5mb" }), async (req, res) => {
+    try {
+      const tenantId = resolveRequestTenantId(req);
+      const asset = await saveBrandingAsset(req, tenantId, "favicon");
+      const branding = normalizeTenantBranding(tenantId, { favicon_url: asset.url, metadata: { ...getTenantBranding(tenantId).metadata, faviconAsset: asset } });
+      recordSecurityEvent({ tenant_id: tenantId, action: "TENANT_BRANDING_FAVICON_UPLOADED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email, detail: asset.mimeType });
+      res.status(201).json({ branding, asset });
+    } catch (error) {
+      res.status((error as Error & { statusCode?: number }).statusCode || 400).json({ error: error instanceof Error ? error.message : "Erro ao enviar favicon" });
+    }
+  });
+
+  app.post("/api/admin/branding/reset", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    tenantBrandingSettings[tenantId] = defaultTenantBranding(tenantId);
+    recordSecurityEvent({ tenant_id: tenantId, action: "TENANT_BRANDING_RESET", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email });
+    res.json(tenantBrandingSettings[tenantId]);
   });
 
   app.get("/api/admin/integrations/n8n", (req, res) => {

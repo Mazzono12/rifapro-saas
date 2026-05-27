@@ -7,6 +7,7 @@ import { SupportChat } from "./components/SupportChat";
 import { PremiumAtmosphere } from "./components/PremiumAtmosphere";
 import { ThemeProvider } from "./context/theme/ThemeContext";
 import { AuthProvider } from "./context/auth/AuthContext";
+import { TenantBrandingProvider } from "./context/tenant-branding/TenantBrandingContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { useCustomerStore } from "./store/useCustomerStore";
 
@@ -121,6 +122,7 @@ const SuperAdminIntegrations = lazy(() => import("./pages/superadmin/SuperAdminI
 const SuperAdminDomains = lazy(() => import("./pages/superadmin/SuperAdminDomains").then(module => ({ default: module.SuperAdminDomains })));
 const SuperAdminAudit = lazy(() => import("./pages/superadmin/SuperAdminAudit").then(module => ({ default: module.SuperAdminAudit })));
 const SuperAdminTenantDetail = lazy(() => import("./pages/superadmin/SuperAdminTenantDetail").then(module => ({ default: module.SuperAdminTenantDetail })));
+const SuperAdminTenantBranding = lazy(() => import("./pages/superadmin/SuperAdminTenantBranding").then(module => ({ default: module.SuperAdminTenantBranding })));
 const Transparency = lazy(() => import("./pages/Transparency").then(module => ({ default: module.Transparency })));
 
 import { useDynamicBackground } from "./hooks/useDynamicBackground";
@@ -201,6 +203,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <TenantBrandingProvider>
         <Router>
           <RouteAtmosphere />
           <Toaster 
@@ -259,6 +262,7 @@ export default function App() {
                 <Route path="integracoes" element={<AdminIntegrations />} />
                 <Route path="dominios" element={<AdminDomains />} />
                 <Route path="config" element={<AdminConfig />} />
+                <Route path="config/aparencia" element={<AdminConfig initialTab="branding" />} />
               </Route>
               <Route path="/superadmin" element={<ProtectedRoute roles={["superadmin"]}><Suspense fallback={<AdminRouteFallback />}><SuperAdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={<SuperAdminDashboard />} />
@@ -266,12 +270,14 @@ export default function App() {
                 <Route path="dominios" element={<SuperAdminDomains />} />
                 <Route path="auditoria" element={<SuperAdminAudit />} />
                 <Route path="tenants/:tenantId/financeiro" element={<SuperAdminTenantDetail />} />
+                <Route path="tenants/:tenantId/aparencia" element={<SuperAdminTenantBranding />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </Suspense>
           </MainLayout>
         </Router>
+        </TenantBrandingProvider>
       </AuthProvider>
     </ThemeProvider>
   );

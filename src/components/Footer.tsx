@@ -1,8 +1,10 @@
 import { Mail, Building2, ExternalLink } from "lucide-react";
 import { useGlobalSettings } from "../hooks/useRaffles";
+import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
 
 export function Footer() {
   const { data: settings } = useGlobalSettings();
+  const { branding } = useTenantBranding();
   const footer = settings?.footer;
   if (!footer) return null;
 
@@ -11,19 +13,19 @@ export function Footer() {
       <div className="container mx-auto grid gap-8 px-4 py-10 md:grid-cols-[1.2fr_1fr_1fr]">
         <div>
           <div className="flex items-center gap-3">
-            {footer.ownerLogoUrl ? (
-              <img src={footer.ownerLogoUrl} alt={footer.ownerName} className="h-11 w-11 rounded-xl object-cover border border-white/10" />
+            {branding.logo_url || footer.ownerLogoUrl ? (
+              <img src={branding.logo_url || footer.ownerLogoUrl} alt={branding.header_name || footer.ownerName} className="h-11 w-11 rounded-xl object-contain border border-white/10" loading="lazy" />
             ) : (
               <div className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-white/[0.04]">
                 <Building2 className="h-5 w-5 text-[var(--theme-primary)]" />
               </div>
             )}
             <div>
-              <p className="font-display text-lg font-bold text-white">{footer.companyName}</p>
+              <p className="font-display text-lg font-bold text-white">{branding.header_name || footer.companyName}</p>
               <p className="text-xs font-mono text-slate-500">CNPJ {footer.cnpj}</p>
             </div>
           </div>
-          <p className="mt-5 max-w-xl text-sm leading-relaxed text-slate-400">{footer.mission}</p>
+          <p className="mt-5 max-w-xl text-sm leading-relaxed text-slate-400">{branding.footer_text || footer.mission}</p>
         </div>
 
         <div className="space-y-3">

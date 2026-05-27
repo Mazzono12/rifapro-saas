@@ -38,6 +38,9 @@ import { GamificationPanel } from "../components/GamificationPanel";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 import { checkoutService } from "../services/api";
 import { finishMetric, markPageLoaded, startMetric } from "../lib/performanceMetrics";
+import { TenantLogo } from "../components/branding/TenantLogo";
+import { TenantHeaderName } from "../components/branding/TenantHeaderName";
+import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
 
 type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
@@ -53,6 +56,7 @@ const casinoCards = [
 
 export function RaffleDetails() {
   const { id } = useParams();
+  const { branding } = useTenantBranding();
   const { customer, setCustomer } = useCustomerStore();
   const [raffle, setRaffle] = useState<Raffle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -330,7 +334,7 @@ export function RaffleDetails() {
     <div className="premium-page min-h-screen pb-32 text-white">
       <div className="premium-ambient" />
       <div className="relative z-10">
-        <PremiumRaffleHeader cartCount={tickets} />
+        <PremiumRaffleHeader cartCount={tickets} slogan={branding.slogan} />
 
         <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-3 pt-[calc(env(safe-area-inset-top)+5rem)] sm:px-5 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-7">
           <section className="space-y-4">
@@ -458,15 +462,15 @@ export function RaffleDetails() {
   );
 }
 
-function PremiumRaffleHeader({ cartCount }: { cartCount: number }) {
+function PremiumRaffleHeader({ cartCount, slogan }: { cartCount: number; slogan?: string }) {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-black/72 backdrop-blur-2xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-3 sm:px-5">
         <Link to="/" className="flex items-center gap-2">
-          <span className="premium-logo-mark">R</span>
+          <TenantLogo className="h-10 w-10" eager />
           <span className="leading-none">
-            <span className="block text-sm font-black tracking-wide">RifaPro</span>
-            <span className="block text-[10px] uppercase tracking-[0.2em] text-slate-400">premiacoes</span>
+            <TenantHeaderName className="block text-sm font-black tracking-wide" />
+            <span className="block text-[10px] uppercase tracking-[0.2em] text-slate-400">{slogan || "premiacoes"}</span>
           </span>
         </Link>
         <nav className="flex items-center gap-2">

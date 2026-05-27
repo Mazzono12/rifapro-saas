@@ -51,6 +51,8 @@
     ,"test:whatsapp-auto-ticket": "node scripts/test-whatsapp-auto-ticket.mjs"
     ,"test:whatsapp-queue-hard": "node scripts/test-whatsapp-queue-hard.mjs"
     ,"test:pix-confirmation-safety": "node scripts/test-pix-confirmation-safety.mjs"
+    ,"test:tenant-branding": "node scripts/test-tenant-branding.mjs"
+    ,"test:branding-assets": "node scripts/test-branding-assets.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
