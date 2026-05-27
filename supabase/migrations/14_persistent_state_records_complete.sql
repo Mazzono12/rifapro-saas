@@ -3,15 +3,36 @@ create table if not exists public.persistent_state_records (
   scope text not null,
   state_key text not null,
   state_value jsonb not null default '{}'::jsonb,
+  tenant_id text not null default 'platform',
+  collection text not null default 'legacy',
+  record_key text not null default 'singleton',
+  data jsonb not null default '{}'::jsonb,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
+alter table public.persistent_state_records
+  add column if not exists scope text not null default 'global',
+  add column if not exists state_key text not null default 'singleton',
+  add column if not exists state_value jsonb not null default '{}'::jsonb,
+  add column if not exists tenant_id text not null default 'platform',
+  add column if not exists collection text not null default 'legacy',
+  add column if not exists record_key text not null default 'singleton',
+  add column if not exists data jsonb not null default '{}'::jsonb,
+  add column if not exists created_at timestamptz default now(),
+  add column if not exists updated_at timestamptz default now();
+
 create unique index if not exists persistent_state_records_scope_state_key_unique
   on public.persistent_state_records (scope, state_key);
 
+create unique index if not exists persistent_state_records_tenant_collection_key_unique
+  on public.persistent_state_records (tenant_id, collection, record_key);
+
 create index if not exists idx_persistent_state_records_updated_at
   on public.persistent_state_records (updated_at desc);
+
+create index if not exists idx_persistent_state_records_collection
+  on public.persistent_state_records (collection);
 
 alter table public.persistent_state_records enable row level security;
 

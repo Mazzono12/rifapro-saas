@@ -92,16 +92,16 @@ create policy "modalidades ganhadores leitura publica" on public.modalidades_gan
 create policy "modalidades compras usuario" on public.modalidades_compras for select using (auth.uid() = usuario_id);
 
 create policy "modalidades admin all" on public.modalidades
-  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'))
-  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'));
+  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')))
+  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')));
 
 create policy "modalidades config admin all" on public.modalidades_configuracoes
-  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'))
-  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'));
+  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')))
+  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')));
 
 create policy "modalidades resultados admin all" on public.modalidades_resultados
-  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'))
-  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'));
+  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')))
+  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')));
 
 insert into public.modalidades (id, nome, tipo) values
   ('rifas', 'Rifas', 'rifa'),

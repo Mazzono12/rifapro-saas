@@ -92,6 +92,7 @@ const RecoverPassword = lazy(() => import("./pages/auth/RecoverPassword").then(m
 const Profile = lazy(() => import("./pages/auth/Profile").then(module => ({ default: module.Profile })));
 const UserDashboard = lazy(() => import("./pages/Dashboard").then(module => ({ default: module.Dashboard })));
 const Messages = lazy(() => import("./pages/Messages").then(module => ({ default: module.Messages })));
+const NotFoundPage = lazy(() => import("./pages/SystemStatus").then(module => ({ default: module.NotFoundPage })));
 
 // Admin
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout").then(module => ({ default: module.AdminLayout })));
@@ -266,6 +267,7 @@ export default function App() {
                 <Route path="auditoria" element={<SuperAdminAudit />} />
                 <Route path="tenants/:tenantId/financeiro" element={<SuperAdminTenantDetail />} />
               </Route>
+              <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </Suspense>
           </MainLayout>

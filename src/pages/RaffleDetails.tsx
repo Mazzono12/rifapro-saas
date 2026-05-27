@@ -352,6 +352,7 @@ export function RaffleDetails() {
         canUseBalance={canUseBalance}
         useBalance={useBalance}
         setUseBalance={setUseBalance}
+        settings={settings}
         copied={copied}
         onClose={() => setCheckoutOpen(false)}
         onSubmit={handleBuy}
@@ -646,6 +647,7 @@ function CheckoutModal(props: {
   canUseBalance: boolean;
   useBalance: boolean;
   setUseBalance: (value: boolean) => void;
+  settings?: any;
   copied: boolean;
   onClose: () => void;
   onSubmit: (event: React.FormEvent) => void;
@@ -736,14 +738,19 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
       )}
 
       <button type="submit" disabled={props.isSubmitting} className="premium-button flex min-h-14 w-full items-center justify-center gap-2 disabled:opacity-60">
-        <WalletCards className="h-5 w-5" /> {props.isSubmitting ? "Processando..." : "Gerar PIX seguro"}
+        <WalletCards className="h-5 w-5" /> {props.isSubmitting ? "Reservando cotas..." : "Concluir compra"}
       </button>
     </form>
   );
 }
 
 function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
-  const expiresIn = useCountdown(new Date(Date.now() + 15 * 60 * 1000).toISOString());
+  const expiresAt = useMemo(() => {
+    return props.purchase?.expiresAt || props.purchase?.expires_at || props.purchase?.pixExpiresAt || new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  }, [props.purchase?.expiresAt, props.purchase?.expires_at, props.purchase?.pixExpiresAt, props.purchase?.purchaseId]);
+  const expiresIn = useCountdown(expiresAt);
+  const supportUrl = props.settings?.socialLinks?.whatsapp || props.settings?.whatsappUrl || "";
+  const gateway = props.purchase?.pixGateway || props.purchase?.gateway || props.purchase?.paymentGateway || "PIX";
   return (
     <div className="space-y-5 p-4 text-center">
       <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-primary)]">
@@ -752,6 +759,11 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
       <div>
         <h3 className="text-3xl font-black">Pague com PIX</h3>
         <p className="mt-2 text-sm text-slate-400">Confirmacao automatica em tempo real. Pedido #{props.purchase?.purchaseId}</p>
+      </div>
+      <div className="grid gap-2 rounded-3xl border border-white/10 bg-white/[0.045] p-3 text-left sm:grid-cols-3">
+        <InfoCard label="Status" value={props.purchase?.status === "paid" ? "Pago" : "Aguardando"} />
+        <InfoCard label="Gateway" value={String(gateway).toUpperCase()} />
+        <InfoCard label="Total" value={formatCurrency(props.totalValue)} />
       </div>
       {props.purchase?.pixPayload ? (
         <div className="mx-auto w-fit rounded-[1.75rem] bg-white p-5 shadow-[0_0_42px_rgba(34,211,238,0.18)]">
@@ -763,30 +775,52 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
       <div className="rounded-3xl border border-white/10 bg-white/[0.045] p-4">
         <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Tempo para pagar</p>
         <p className="mt-1 text-2xl font-black text-[var(--theme-primary)]">{String(expiresIn.minutes).padStart(2, "0")}:{String(expiresIn.seconds).padStart(2, "0")}</p>
+        <p className="mt-2 text-xs text-slate-400">A tela atualiza sozinha quando o webhook confirmar o pagamento.</p>
       </div>
       <button type="button" onClick={props.onCopyPix} className={cn("flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-black transition", props.copied ? "premium-button" : "border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]")}>
         <Copy className="h-5 w-5" /> {props.copied ? "PIX copiado" : "Copiar PIX copia e cola"}
       </button>
-      <button type="button" onClick={props.onBackToReview} className="w-full rounded-2xl border border-white/10 py-3 text-sm font-bold text-slate-300">Alterar dados</button>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <button type="button" onClick={props.onBackToReview} className="min-h-12 rounded-2xl border border-white/10 py-3 text-sm font-bold text-slate-300">Alterar dados</button>
+        {supportUrl ? (
+          <a href={supportUrl} target="_blank" rel="noreferrer" className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 py-3 text-sm font-black text-emerald-100"><Headphones className="h-4 w-4" /> Suporte WhatsApp</a>
+        ) : (
+          <button type="button" disabled className="min-h-12 rounded-2xl border border-white/10 py-3 text-sm font-bold text-slate-500">Suporte indisponivel</button>
+        )}
+      </div>
     </div>
   );
 }
 
 function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
   const numbers = props.purchase?.numeros || [];
+  const buyer = props.purchase?.customer || props.customer || {};
+  const gateway = props.purchase?.pixGateway || props.purchase?.gateway || props.purchase?.paymentGateway || "PIX";
+  const paidAt = props.purchase?.paidAt || props.purchase?.paid_at || props.purchase?.createdAt || props.purchase?.created_at;
   return (
     <div className="space-y-5 p-4">
-      <div className="premium-card relative overflow-hidden rounded-[1.75rem] p-5">
-        <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+      <div className="premium-card relative overflow-hidden rounded-[1.75rem] border-emerald-200/25 bg-gradient-to-br from-emerald-300/14 via-white/[0.055] to-cyan-300/10 p-5">
+        <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-emerald-200/12 blur-2xl" />
+        <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-white/12" />
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--theme-primary)]">Pagamento confirmado</p>
+            <p className="inline-flex rounded-full border border-emerald-200/25 bg-emerald-300/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.25em] text-emerald-100">Compra Confirmada</p>
             <h3 className="mt-2 text-3xl font-black">{props.raffle.title}</h3>
             <p className="mt-2 text-sm text-slate-300">Pedido #{props.purchase?.purchaseId}</p>
           </div>
           <div className="rounded-2xl bg-white p-2">
             <QRCodeSVG value={String(props.purchase?.purchaseId || "rifapro")} size={86} bgColor="#ffffff" fgColor="#0f172a" />
           </div>
+        </div>
+        <div className="mt-6 grid gap-2 sm:grid-cols-2">
+          <InfoCard label="Comprador" value={buyer.name || props.customerForm.name || "Cliente"} />
+          <InfoCard label="WhatsApp" value={maskPhone(buyer.phone || props.customerForm.phone || props.purchase?.contact)} />
+          <InfoCard label="E-mail" value={maskEmail(buyer.email || props.purchase?.email || "")} />
+          <InfoCard label="Gateway" value={String(gateway).toUpperCase()} />
+          <InfoCard label="Cotas" value={String(props.tickets.toLocaleString("pt-BR"))} />
+          <InfoCard label="Valor pago" value={formatCurrency(props.totalValue)} />
+          <InfoCard label="Data" value={formatReceiptDate(paidAt)} />
+          <InfoCard label="Validacao" value={String(props.purchase?.purchaseId || "").slice(0, 12) || "rifapro"} />
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
           {numbers.slice(0, 18).map((number: number) => (
@@ -811,11 +845,11 @@ function FloatingActions({ settings }: { settings?: any }) {
   const groupUrl = settings?.socialLinks?.group || "";
   const whatsappUrl = settings?.socialLinks?.whatsapp || "";
   return (
-    <div className="fixed bottom-24 right-3 z-40 flex w-[132px] flex-col items-end gap-2 lg:bottom-5">
-      {groupUrl && <a href={groupUrl} target="_blank" rel="noreferrer" className="premium-button inline-flex h-11 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-black"><Users className="h-4 w-4" /> Grupo</a>}
-      <a href="#contato" className="premium-button inline-flex h-11 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-black"><Headphones className="h-4 w-4" /> Contato</a>
-      <Link to="/minhas-cotas" className="premium-button inline-flex h-11 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-black"><Ticket className="h-4 w-4" /> Meus Jogos</Link>
-      {whatsappUrl && <a href={whatsappUrl} target="_blank" rel="noreferrer" className="premium-button grid h-14 w-14 place-items-center rounded-full p-0" aria-label="WhatsApp"><Send className="h-5 w-5" /></a>}
+    <div className="fixed bottom-24 right-3 z-40 flex flex-col items-end gap-2 lg:bottom-5">
+      {groupUrl && <a href={groupUrl} target="_blank" rel="noreferrer" className="mobile-hidden-action premium-button h-11 w-[132px] items-center justify-center gap-2 rounded-full px-4 text-sm font-black sm:inline-flex"><Users className="h-4 w-4" /> Grupo</a>}
+      <a href="#contato" className="mobile-hidden-action premium-button h-11 w-[132px] items-center justify-center gap-2 rounded-full px-4 text-sm font-black sm:inline-flex"><Headphones className="h-4 w-4" /> Contato</a>
+      <Link to="/minhas-cotas" className="mobile-hidden-action premium-button h-11 w-[132px] items-center justify-center gap-2 rounded-full px-4 text-sm font-black sm:inline-flex"><Ticket className="h-4 w-4" /> Meus Jogos</Link>
+      {whatsappUrl && <a href={whatsappUrl} target="_blank" rel="noreferrer" className="premium-button grid h-12 w-12 place-items-center rounded-full p-0 sm:h-14 sm:w-14" aria-label="WhatsApp"><Send className="h-5 w-5" /></a>}
     </div>
   );
 }
@@ -847,7 +881,7 @@ function Field({ label, value, onChange, required, inputMode, maxLength }: { lab
   return (
     <label className="block">
       <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">{label}</span>
-      <input value={value} onChange={e => onChange(e.target.value)} required={required} inputMode={inputMode} maxLength={maxLength} className="min-h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-[var(--theme-primary)]" />
+      <input aria-label={label} value={value} onChange={e => onChange(e.target.value)} required={required} inputMode={inputMode} maxLength={maxLength} className="min-h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-[var(--theme-primary)] focus:ring-4 focus:ring-cyan-300/10" />
     </label>
   );
 }
@@ -917,6 +951,26 @@ function formatDrawDate(date?: string) {
   const parsed = new Date(date);
   if (!Number.isFinite(parsed.getTime())) return "Data em breve";
   return parsed.toLocaleString("pt-BR", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function maskPhone(value?: string) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length < 8) return "Nao informado";
+  return `(${digits.slice(0, 2)}) *****-${digits.slice(-4)}`;
+}
+
+function maskEmail(value?: string) {
+  const email = String(value || "");
+  const [user, domain] = email.split("@");
+  if (!user || !domain) return "Nao informado";
+  return `${user.slice(0, 2)}***@${domain}`;
+}
+
+function formatReceiptDate(value?: string) {
+  if (!value) return new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) return "Agora";
+  return parsed.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
 async function captureGeoLocation() {

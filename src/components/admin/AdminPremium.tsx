@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Check, Download, Palette, Search } from "lucide-react";
 import { adminThemes, AdminThemeId, useAdminTheme } from "../../context/admin/AdminThemeContext";
 import { cn } from "../../lib/utils";
+import { PremiumEmptyState } from "../premium/PremiumUI";
 
 export function AdminPageTransition({ children }: { children: React.ReactNode }) {
   return (
@@ -165,7 +166,7 @@ export function AdminLoadingSkeleton() {
   return (
     <div className="grid gap-4 md:grid-cols-4">
       {Array.from({ length: 8 }).map((_, index) => (
-        <div key={index} className="admin-card h-32 animate-pulse bg-gray-100/70" />
+        <div key={index} className="admin-card h-32 animate-pulse bg-white/[0.06]" />
       ))}
     </div>
   );
@@ -181,7 +182,7 @@ export function AdminDataTable({ columns, rows, empty = "Nenhum registro encontr
           </thead>
           <tbody className="divide-y divide-[var(--admin-border)]">
             {rows.length === 0 ? (
-              <tr><td className="px-5 py-8 text-center text-[var(--admin-muted)]" colSpan={columns.length}>{empty}</td></tr>
+              <tr><td className="px-5 py-8 text-center text-[var(--admin-muted)]" colSpan={columns.length}><PremiumEmptyState title={empty} description="Os dados aparecem aqui assim que houver movimentacao no tenant." /></td></tr>
             ) : rows.map((row, index) => (
               <tr key={index} className="transition hover:bg-gray-50/80">
                 {row.map((cell, cellIndex) => <td key={cellIndex} className="px-5 py-4 text-[var(--admin-text)]">{cell}</td>)}

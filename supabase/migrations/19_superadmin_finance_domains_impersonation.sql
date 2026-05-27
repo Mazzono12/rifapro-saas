@@ -62,7 +62,7 @@ create policy tenant_domains_select on public.tenant_domains
   for select using (
     public.is_service_role()
     or public.jwt_app_role() = 'superadmin'
-    or public.can_access_tenant(tenant_id)
+    or public.can_access_tenant(tenant_id::text)
   );
 
 drop policy if exists tenant_domains_write on public.tenant_domains;
@@ -70,12 +70,12 @@ create policy tenant_domains_write on public.tenant_domains
   for all using (
     public.is_service_role()
     or public.jwt_app_role() = 'superadmin'
-    or public.can_access_tenant(tenant_id)
+    or public.can_access_tenant(tenant_id::text)
   )
   with check (
     public.is_service_role()
     or public.jwt_app_role() = 'superadmin'
-    or public.can_access_tenant(tenant_id)
+    or public.can_access_tenant(tenant_id::text)
   );
 
 drop policy if exists superadmin_impersonation_superadmin_only on public.superadmin_impersonation_sessions;

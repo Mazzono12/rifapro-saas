@@ -1,14 +1,14 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-27T10:54:39.838Z
+Gerado em: 2026-05-27T13:37:20.195Z
 
 ## Totais
 
 - Rotas backend: 194
-- Paginas frontend: 43
+- Paginas frontend: 44
 - Componentes: 25
-- Arquivos src: 109
-- Migrations: 21
+- Arquivos src: 110
+- Migrations: 22
 - Tabelas mapeadas: 39
 - Policies mapeadas: 41
 - Providers/arquivos de integracao: 10
@@ -255,6 +255,7 @@ Gerado em: 2026-05-27T10:54:39.838Z
 - dominios
 - auditoria
 - tenants/:tenantId/financeiro
+- *
 
 ## Tabelas Supabase/Postgres
 
@@ -321,6 +322,7 @@ Gerado em: 2026-05-27T10:54:39.838Z
 - supabase/migrations/18_gateway_credentials_encryption_metadata.sql
 - supabase/migrations/19_superadmin_finance_domains_impersonation.sql
 - supabase/migrations/20_hardcore_readiness_improvements.sql
+- supabase/migrations/21_clean_room_auth_compatibility.sql
 
 ## Middlewares, Workers e Webhooks
 

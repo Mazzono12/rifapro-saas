@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
-import { CheckCircle2, Clock3, QrCode, ShieldCheck, Sparkles, Ticket, Trophy } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, Inbox, QrCode, ShieldCheck, Ticket, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "../../lib/utils";
@@ -10,6 +10,185 @@ export function PremiumPageLayout({ children, className = "" }: { children: Reac
     <div className={cn("premium-page min-h-screen text-white", className)}>
       <div className="premium-ambient" />
       <div className="relative z-10">{children}</div>
+    </div>
+  );
+}
+
+export function PremiumButton({
+  children,
+  variant = "primary",
+  className = "",
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "danger" | "ghost";
+}) {
+  const variantClass = {
+    primary: "premium-button",
+    secondary: "premium-button premium-button-secondary",
+    danger: "premium-button premium-button-danger",
+    ghost: "premium-button premium-button-ghost"
+  }[variant];
+
+  return (
+    <button type="button" className={cn(variantClass, className)} {...props}>
+      {children}
+    </button>
+  );
+}
+
+export function PremiumInput({
+  label,
+  helper,
+  error,
+  className = "",
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+  label: string;
+  helper?: string;
+  error?: string;
+}) {
+  return (
+    <label className="premium-field">
+      <span>{label}</span>
+      <input className={cn("premium-input", error && "premium-input-error", className)} aria-invalid={Boolean(error)} {...props} />
+      {(error || helper) && <small className={error ? "premium-field-error" : "premium-field-helper"}>{error || helper}</small>}
+    </label>
+  );
+}
+
+export function PremiumBadge({
+  children,
+  tone = "neutral"
+}: {
+  children: React.ReactNode;
+  tone?: "neutral" | "success" | "warning" | "danger" | "premium" | "gold";
+}) {
+  return <span className={cn("premium-badge", `premium-badge-${tone}`)}>{children}</span>;
+}
+
+export function PremiumStatsCard({
+  label,
+  value,
+  meta,
+  icon
+}: {
+  label: string;
+  value: React.ReactNode;
+  meta?: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <article className="premium-stats-card">
+      <div>
+        <p>{label}</p>
+        <strong>{value}</strong>
+        {meta && <span>{meta}</span>}
+      </div>
+      {icon && <div className="premium-stats-icon">{icon}</div>}
+    </article>
+  );
+}
+
+export function PremiumChartCard({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="premium-chart-card">
+      <header>
+        <h2>{title}</h2>
+        {action}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+export function PremiumEmptyState({
+  title = "Nada por aqui ainda",
+  description = "Assim que houver dados, eles aparecem aqui.",
+  action
+}: {
+  title?: string;
+  description?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="premium-empty-state">
+      <Inbox className="h-9 w-9" />
+      <h3>{title}</h3>
+      <p>{description}</p>
+      {action && <div>{action}</div>}
+    </div>
+  );
+}
+
+export function PremiumErrorState({
+  title = "Nao foi possivel carregar",
+  description = "Tente novamente em alguns instantes.",
+  action
+}: {
+  title?: string;
+  description?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="premium-error-state">
+      <AlertTriangle className="h-9 w-9" />
+      <h3>{title}</h3>
+      <p>{description}</p>
+      {action && <div>{action}</div>}
+    </div>
+  );
+}
+
+export function PremiumSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: rows }).map((_, index) => <div key={index} className="premium-skeleton" />)}
+    </div>
+  );
+}
+
+export function PremiumTable({ columns, rows, empty = "Nenhum registro encontrado." }: { columns: string[]; rows: React.ReactNode[][]; empty?: string }) {
+  return (
+    <div className="premium-table-wrap">
+      <table className="premium-table">
+        <thead>
+          <tr>{columns.map(column => <th key={column}>{column}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.length ? rows.map((row, index) => (
+            <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>
+          )) : (
+            <tr><td colSpan={columns.length}><PremiumEmptyState title={empty} description="Ajuste os filtros ou aguarde novas movimentacoes." /></td></tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function CheckoutSummary({ items, total }: { items: Array<[string, React.ReactNode]>; total: React.ReactNode }) {
+  return (
+    <div className="checkout-summary-card">
+      {items.map(([label, value]) => (
+        <div key={label}>
+          <span>{label}</span>
+          <strong>{value}</strong>
+        </div>
+      ))}
+      <div className="checkout-summary-total">
+        <span>Total</span>
+        <strong>{total}</strong>
+      </div>
+    </div>
+  );
+}
+
+export function WalletBalanceCard({ balance, label = "Saldo disponivel" }: { balance: React.ReactNode; label?: string }) {
+  return (
+    <div className="wallet-balance-card">
+      <ShieldCheck className="h-5 w-5" />
+      <span>{label}</span>
+      <strong>{balance}</strong>
     </div>
   );
 }

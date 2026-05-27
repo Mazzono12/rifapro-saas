@@ -80,21 +80,21 @@ create policy "fazendinha leitura publica resultados" on public.fazendinha_resul
   for select using (true);
 
 create policy "fazendinha admin controla configuracoes" on public.fazendinha_configuracoes
-  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'))
-  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'));
+  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')))
+  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')));
 
 create policy "fazendinha admin controla grupos" on public.fazendinha_grupos
-  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'))
-  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'));
+  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')))
+  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')));
 
 create policy "fazendinha admin controla compras" on public.fazendinha_compras
-  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'))
-  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'));
+  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')))
+  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')));
 
 create policy "fazendinha admin controla resultados" on public.fazendinha_resultados
-  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'))
-  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'));
+  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')))
+  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')));
 
 create policy "fazendinha admin controla ganhadores" on public.fazendinha_ganhadores
-  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'))
-  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role = 'admin'));
+  for all using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')))
+  with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.role in ('superadmin', 'admin', 'tenant_admin')));

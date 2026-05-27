@@ -9,7 +9,7 @@ import { FazendinhaSection } from "../components/FazendinhaSection";
 import { ModalidadesSection } from "../components/ModalidadesSection";
 import { useRaffles, useGlobalSettings } from "../hooks/useRaffles";
 import { cn } from "../lib/utils";
-import { PremiumPageLayout, TrustBadges } from "../components/premium/PremiumUI";
+import { PremiumEmptyState, PremiumPageLayout, TrustBadges } from "../components/premium/PremiumUI";
 
 export function Home() {
   const { data: raffles = [], isLoading: loadingRaffles } = useRaffles();
@@ -192,8 +192,8 @@ export function Home() {
   const heroPrimaryButton = featuredRaffle?.heroPrimaryButton || "Participar agora";
   const heroSecondaryText = featuredRaffle?.heroSecondaryText || "";
   const heroShowStats = featuredRaffle?.heroShowStats !== false;
-  const heroTextTone = heroPlacement === "below" ? "text-[var(--theme-text)]" : "text-white";
-  const heroMutedTone = heroPlacement === "below" ? "text-[var(--theme-muted)]" : "text-white/82";
+  const heroTextTone = "text-white";
+  const heroMutedTone = "text-slate-200";
   const heroStatsClass = heroPlacement === "below"
     ? "border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]"
     : "border-white/18 bg-black/34 text-white";
@@ -295,8 +295,32 @@ export function Home() {
         </section>
       )}
 
+      {!featuredRaffle && (
+        <section className="mx-auto max-w-3xl pt-28">
+          <PremiumEmptyState
+            title="Nenhuma campanha ativa no momento"
+            description="Quando uma nova campanha for publicada pelo tenant, ela aparece aqui com banner, cotas rapidas, PIX e CTA de compra."
+            action={<Link to="/transparencia" className="premium-button mt-4 px-5">Ver transparencia</Link>}
+          />
+        </section>
+      )}
+
       <ModalidadesSection />
       <FazendinhaSection />
+
+      <section className="grid gap-3 md:grid-cols-4">
+        {[
+          ["PIX automatico", "Pagamento com confirmacao em tempo real e reserva de cotas."],
+          ["Suporte WhatsApp", "Contato rapido antes, durante e depois da compra."],
+          ["Sorteio auditavel", "Campanhas com status, progresso e comprovantes rastreaveis."],
+          ["Gamificacao", "Roletas, caixinhas e raspadinhas integradas ao checkout."]
+        ].map(([title, description]) => (
+          <article key={title} className="premium-card p-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--theme-primary)]">{title}</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--theme-muted)]">{description}</p>
+          </article>
+        ))}
+      </section>
 
       <div className="flex items-center justify-between mb-8 pt-8 border-t border-[var(--theme-border)]">
         <h2 className="text-3xl md:text-5xl font-black flex items-center gap-3 text-[var(--theme-text)]">

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 
-const port = 3129;
+const port = Number(process.env.TEST_PIX_PORT || process.env.PORT || (3129 + Math.floor(Math.random() * 1000)));
 const baseUrl = `http://127.0.0.1:${port}`;
 const env = {
   ...process.env,

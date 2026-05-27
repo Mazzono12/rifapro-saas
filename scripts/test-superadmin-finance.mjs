@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 
-const port = 3139;
+const port = Number(process.env.PORT || (3139 + Math.floor(Math.random() * 1000)));
 const baseUrl = `http://127.0.0.1:${port}`;
 const env = { ...process.env, PORT: String(port), NODE_ENV: "production", SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", SUPERADMIN_EMAIL: "superadmin.finance@test.local", SUPERADMIN_PASSWORD: "SenhaSuper123!", JWT_SECRET: "test-superadmin-finance-secret", GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-superadmin-finance-gateway-key" };
 const server = spawn(process.execPath, ["dist/server.js"], { cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"] });

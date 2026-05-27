@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { uploadCustomerProfilePhoto } from "../utils/customerMedia";
-import { PremiumPageLayout, SectionTitle } from "../components/premium/PremiumUI";
+import { PremiumEmptyState, PremiumPageLayout, SectionTitle } from "../components/premium/PremiumUI";
 
 export function Dashboard() {
   const location = useLocation();
@@ -253,7 +253,13 @@ export function Dashboard() {
                 <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5"><Users className="w-5 h-5 text-neon-purple mb-3" /><p className="text-xs text-slate-500 font-mono uppercase">Link afiliado</p><p className="text-sm text-white truncate">?ref={customer.affiliateRefCode}</p></div>
               </div>
               <div className="space-y-4">
-                {purchases.length === 0 ? <p className="text-slate-500 text-center py-10">Nenhuma compra encontrada.</p> : purchases.map((item, idx) => (
+                {purchases.length === 0 ? (
+                  <PremiumEmptyState
+                    title="Nenhuma compra encontrada"
+                    description="Quando o primeiro PIX for confirmado, seus bilhetes, cotas e comprovantes aparecem aqui."
+                    action={<Link to="/" className="premium-button mt-4 px-5">Participar agora</Link>}
+                  />
+                ) : purchases.map((item, idx) => (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} key={item.purchaseId} className="bg-cyber-900/50 border border-white/5 p-5 rounded-xl">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div>

@@ -20,6 +20,7 @@ import {
   SectionTitle,
   TrustBadges
 } from "../components/premium/PremiumUI";
+import { NotFoundPage } from "./SystemStatus";
 
 const modeTitles: Record<NumberModeId, string> = {
   dezena: "Dezena",
@@ -29,7 +30,9 @@ const modeTitles: Record<NumberModeId, string> = {
 
 export function NumberModePage() {
   const params = useParams();
-  const mode = (params.mode || "dezena") as NumberModeId;
+  const requestedMode = (params.mode || "dezena") as NumberModeId;
+  const isValidMode = Object.prototype.hasOwnProperty.call(modeTitles, requestedMode);
+  const mode = isValidMode ? requestedMode : "dezena";
   const { customer, setCustomer } = useCustomerStore();
   const { data, isLoading } = useNumberMode(mode, customer?.id);
   const queryClient = useQueryClient();
@@ -170,6 +173,8 @@ export function NumberModePage() {
   if (!["dezena", "centena", "milhar"].includes(mode)) {
     return <div className="container mx-auto px-4 py-24 text-red-300">Modalidade inválida.</div>;
   }
+
+  if (!isValidMode) return <NotFoundPage />;
 
   if (isLoading || !data) {
     return <div className="container mx-auto px-4 py-24"><div className="h-96 rounded-3xl skeleton" /></div>;

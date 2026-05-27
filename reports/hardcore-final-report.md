@@ -1,6 +1,6 @@
 # RifaPro SaaS - Relatorio Final Hardcore
 
-Gerado em: 2026-05-27T10:55:43.084Z
+Gerado em: 2026-05-27T13:38:13.447Z
 Status: aprovado com ressalvas para homologacao controlada
 
 ## Resumo Executivo
@@ -34,25 +34,25 @@ A auditoria hardcore mapeou rotas, paginas, tabelas, migrations, providers, work
 
 ## Resultado por Modulo
 
-- PASS: mapa completo do sistema (29ms)
+- PASS: mapa completo do sistema (37ms)
+- PASS: melhorias hardcore preparadas (3ms)
 - PASS: melhorias hardcore preparadas (4ms)
-- PASS: melhorias hardcore preparadas (4ms)
-- PASS: scripts/test-purchase-concurrency.mjs (2255ms)
-- PASS: scripts/test-pix-multitenant.mjs (3105ms)
-- PASS: scripts/test-payment-workers.mjs (2670ms)
-- PASS: melhorias hardcore preparadas (11ms)
-- PASS: scripts/test-gamification-modules.mjs (2244ms)
-- PASS: roletas e caixinhas calculadas no backend (8ms)
-- PASS: scripts/test-gamification-modules.mjs (2546ms)
-- PASS: chance em dobro e pesos de cotas (2ms)
-- PASS: scripts/test-gamification-modules.mjs (2263ms)
-- PASS: raspadinha antifraude (2ms)
-- PASS: scripts/test-gamification-modules.mjs (2468ms)
+- PASS: scripts/test-purchase-concurrency.mjs (2149ms)
+- PASS: scripts/test-pix-multitenant.mjs (2237ms)
+- PASS: scripts/test-payment-workers.mjs (2177ms)
+- PASS: melhorias hardcore preparadas (8ms)
+- PASS: scripts/test-gamification-modules.mjs (2350ms)
+- PASS: roletas e caixinhas calculadas no backend (3ms)
+- PASS: scripts/test-gamification-modules.mjs (2368ms)
+- PASS: chance em dobro e pesos de cotas (3ms)
+- PASS: scripts/test-gamification-modules.mjs (2098ms)
+- PASS: raspadinha antifraude (3ms)
+- PASS: scripts/test-gamification-modules.mjs (2170ms)
 - PASS: afiliados, saque e compra com saldo (2ms)
-- PASS: scripts/test-hard-suite.mjs production-readiness (21306ms)
-- PASS: melhorias hardcore preparadas (4ms)
-- PASS: ledger financeiro imutavel preparado (0ms)
-- PASS: scripts/test-hard-suite.mjs all-hard (24348ms)
+- PASS: scripts/test-hard-suite.mjs production-readiness (18012ms)
+- PASS: melhorias hardcore preparadas (7ms)
+- PASS: ledger financeiro imutavel preparado (1ms)
+- PASS: scripts/test-hard-suite.mjs all-hard (19652ms)
 
 ## Checklist de Producao
 
