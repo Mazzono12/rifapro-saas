@@ -35,6 +35,8 @@ import { PostPurchaseLootboxModal } from "../components/PostPurchaseLootboxModal
 import { PixPaymentResultModal } from "../components/PixPaymentResultModal";
 import { MessageVideoPlayer } from "../components/MessageVideoPlayer";
 import { GamificationPanel } from "../components/GamificationPanel";
+import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
+import { checkoutService } from "../services/api";
 
 type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
@@ -57,6 +59,8 @@ export function RaffleDetails() {
   const [tickets, setTickets] = useState(100);
   const [selectedQuick, setSelectedQuick] = useState(100);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [checkoutPreview, setCheckoutPreview] = useState<CheckoutPreview | null>(null);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("review");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [purchase, setPurchase] = useState<any>(null);
@@ -190,39 +194,74 @@ export function RaffleDetails() {
     toast.success("Cupom aplicado");
   };
 
-  const handleBuy = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const buildCheckoutCustomer = async () => {
+    const geoLocation = await captureGeoLocation();
+    return customer
+      ? {
+          ...customerForm,
+          name: customer.name,
+          phone: customer.phone,
+          cpf: customer.cpf,
+          city: customer.city || customerForm.city,
+          state: customer.state || customerForm.state,
+          browserId: customer.browserId,
+          geoLocation
+        }
+      : { ...customerForm, geoLocation };
+  };
+
+  const validateCheckoutForm = () => {
     if (!raffle) return;
     const phone = (customer?.phone || customerForm.phone || "").replace(/\D/g, "");
     if (!phone) {
       toast.error("Informe seu WhatsApp");
-      return;
+      return false;
     }
     if ((!customer || requireIdentity) && !/^\d{6}$/.test(customerForm.accessPassword)) {
       toast.error("Informe uma senha de acesso com 6 digitos");
-      return;
+      return false;
     }
+    return true;
+  };
+
+  const openPrePaymentReceipt = async (event?: React.FormEvent) => {
+    event?.preventDefault();
+    if (!raffle || !validateCheckoutForm()) return;
     setIsSubmitting(true);
     try {
-      const geoLocation = await captureGeoLocation();
-      const checkoutCustomer = customer
-        ? {
-            ...customerForm,
-            name: customer.name,
-            phone: customer.phone,
-            cpf: customer.cpf,
-            city: customer.city || customerForm.city,
-            state: customer.state || customerForm.state,
-            browserId: customer.browserId
-          }
-        : customerForm;
+      const preview = await checkoutService.preview({
+        type: "raffle",
+        raffleId: id,
+        tickets,
+        customer: customer ? { ...customerForm, name: customer.name, phone: customer.phone, cpf: customer.cpf } : customerForm,
+        refCode: localStorage.getItem("refCode") || undefined,
+        useBalance,
+        couponCode: couponCode || undefined,
+        addon: acceptAddon && addonSuggestion ? { raffleId: addonSuggestion.raffle.id, tickets: addonSuggestion.tickets } : undefined,
+        orderBumpAccepted: acceptOrderBump
+      });
+      setCheckoutPreview(preview);
+      setReceiptOpen(true);
+    } catch (err: any) {
+      toast.error("Revise sua compra", { description: err.message || "Nao foi possivel calcular o resumo." });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const executeBuy = async () => {
+    if (!raffle || !validateCheckoutForm()) return;
+    setIsSubmitting(true);
+    try {
+      const checkoutCustomer = await buildCheckoutCustomer();
+      const phone = (customer?.phone || customerForm.phone || "").replace(/\D/g, "");
       const res = await fetch(`/api/raffles/${id}/buy`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tickets,
           contact: phone,
-          customer: { ...checkoutCustomer, geoLocation },
+          customer: checkoutCustomer,
           refCode: localStorage.getItem("refCode") || undefined,
           useBalance,
           couponCode: couponCode || undefined,
@@ -235,6 +274,7 @@ export function RaffleDetails() {
       setPurchase(data);
       if (data.customer) setCustomer(data.customer);
       setRequireIdentity(false);
+      setReceiptOpen(false);
       setCheckoutStep(data.status === "paid" ? "ticket" : "payment");
       toast.success("PIX gerado", { description: `${tickets} cotas reservadas para voce.` });
     } catch (err: any) {
@@ -355,11 +395,34 @@ export function RaffleDetails() {
         settings={settings}
         copied={copied}
         onClose={() => setCheckoutOpen(false)}
-        onSubmit={handleBuy}
+        onSubmit={openPrePaymentReceipt}
         onCopyPix={copyPix}
         onBackToReview={() => setCheckoutStep("review")}
         onShare={shareTicket}
         onShowNumbers={() => setShowNumbers(true)}
+      />
+      <PrePaymentReceiptModal
+        open={receiptOpen}
+        campaign={raffle.title}
+        raffle={raffle.title}
+        selectedQuantity={tickets}
+        selectedPackage={checkoutPreview?.packageLabel || `${tickets.toLocaleString("pt-BR")} cotas`}
+        calculatedPrice={totalValue}
+        customerData={{
+          name: customer?.name || customerForm.name,
+          phone: customer?.phone || customerForm.phone,
+          email: (customer as any)?.email || "",
+          cpf: customer?.cpf || customerForm.cpf
+        }}
+        bonuses={checkoutPreview?.bonuses}
+        affiliateInfo={checkoutPreview?.affiliateInfo}
+        walletUsage={checkoutPreview?.walletUsage}
+        gatewayInfo={checkoutPreview?.gateway}
+        preview={checkoutPreview}
+        loading={isSubmitting}
+        onConfirm={executeBuy}
+        onEdit={() => setReceiptOpen(false)}
+        onClose={() => setReceiptOpen(false)}
       />
       </div>
 
@@ -738,7 +801,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
       )}
 
       <button type="submit" disabled={props.isSubmitting} className="premium-button flex min-h-14 w-full items-center justify-center gap-2 disabled:opacity-60">
-        <WalletCards className="h-5 w-5" /> {props.isSubmitting ? "Reservando cotas..." : "Concluir compra"}
+        <WalletCards className="h-5 w-5" /> {props.isSubmitting ? "Calculando resumo..." : "Revisar compra"}
       </button>
     </form>
   );

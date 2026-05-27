@@ -4777,6 +4777,159 @@ async function startServer() {
     res.json({ success: true, customer: buildAdminCustomerProfile(customer), accessPassword });
   });
 
+  app.post("/api/checkout/preview", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const tenant = tenants.find(item => item.id === tenantId);
+    if (!tenant || tenant.status !== "active") {
+      res.status(403).json({ error: "Tenant inativo ou indisponivel para compras" });
+      return;
+    }
+
+    const type = String(req.body.type || "raffle");
+    const warnings: string[] = [];
+    const defaultGateway = getDefaultPaymentGatewayConfig(tenantId);
+    const tenantPixGateways = getTenantGateways(tenantId);
+    const gateway = normalizePaymentProvider(defaultGateway.provider || tenantPixGateways.active || "mercadopago");
+    const walletUsage = { enabled: false, amount: 0 };
+    const affiliateInfo = req.body.refCode ? { refCode: String(req.body.refCode) } : undefined;
+
+    try {
+      if (type === "raffle") {
+        const raffleId = String(req.body.raffleId || req.body.id || "");
+        const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === raffleId);
+        const tickets = normalizeTickets(req.body.tickets);
+        if (!raffle) return res.status(404).json({ error: "Rifa nao encontrada" });
+        if (raffle.status !== "active") return res.status(403).json({ error: "Rifa encerrada ou indisponivel" });
+        if (tickets === null) return res.status(400).json({ error: "Quantidade invalida" });
+        expirePendingReservations(tenantId, raffle.id);
+        const pixConfig = getRafflePixConfig(raffle);
+        if (!pixConfig.enabled) return res.status(503).json({ error: "Gateway PIX indisponivel para este sorteio" });
+
+        const addonTickets = normalizeTickets(req.body.addon?.tickets) || 0;
+        const addonRaffle = req.body.addon?.raffleId ? raffles.find(item => item.tenant_id === tenantId && item.id === req.body.addon.raffleId) : null;
+        if (addonRaffle) expirePendingReservations(tenantId, addonRaffle.id);
+
+        let coupon: CampaignCoupon | null = null;
+        if (req.body.couponCode) coupon = getActiveCoupon(req.body.couponCode, raffle.id, tickets, tenantId);
+        const gamificationConfig = getGamificationConfig(tenantId, raffle.id);
+        const orderBump = req.body.orderBumpAccepted || req.body.upsellAccepted ? getActiveOrderBump(gamificationConfig) : null;
+        const orderBumpTickets = orderBump ? Math.max(1, Math.floor(Number(orderBump.tickets || 0))) : 0;
+        const orderBumpDiscount = orderBump ? Math.max(0, Math.min(100, Number(orderBump.discountPercent || 0))) : 0;
+        const orderBumpAmount = orderBump ? Number((orderBumpTickets * raffle.price * (1 - orderBumpDiscount / 100)).toFixed(2)) : 0;
+        const luckyHour = getActiveLuckyHour(gamificationConfig);
+        const luckyDiscount = luckyHour?.type === "discount" ? Math.max(0, Number(luckyHour.value || 0)) : 0;
+        const luckyBonusTickets = luckyHour?.type === "bonus" ? Math.max(0, Math.floor(Number(luckyHour.value || 0))) : 0;
+        const luckyExtraChance = luckyHour?.type === "extraChance" ? Math.max(0, Math.floor(Number(luckyHour.value || 0))) : 0;
+        const subtotal = tickets * raffle.price + (addonRaffle ? addonTickets * addonRaffle.price : 0) + orderBumpAmount;
+        const couponBenefit = calculateCouponBenefit(coupon, subtotal, tickets);
+        const total = Math.max(0, Number((subtotal - couponBenefit.discount - luckyDiscount).toFixed(2)));
+        const quantity = tickets + couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets;
+        if (raffle.soldTickets + quantity > raffle.totalTickets) return res.status(409).json({ error: "Cotas insuficientes para esta compra" });
+        if (addonRaffle && addonRaffle.soldTickets + addonTickets > addonRaffle.totalTickets) return res.status(409).json({ error: "Cotas adicionais insuficientes" });
+
+        const customerPayload = req.body.customer || {};
+        const phone = normalizePhone(customerPayload.phone || req.body.contact);
+        const existingCustomer = phone ? findCustomerByPhone(phone, tenantId) : undefined;
+        if (existingCustomer && req.body.useBalance) {
+          const ownAffiliate = ensureAffiliateForCustomer(existingCustomer);
+          const walletBalance = (ownAffiliate.commissionBalance || 0) + (ownAffiliate.prizeBalance || 0);
+          const tenantScopedSettings = getTenantSettings(tenantId);
+          walletUsage.enabled = Boolean(tenantScopedSettings.affiliateProgram.allowBalancePayments && ownAffiliate.useBalanceForPurchases && walletBalance > 0);
+          walletUsage.amount = walletUsage.enabled ? Math.min(total, walletBalance) : 0;
+        }
+
+        if (couponBenefit.bonusTickets || luckyBonusTickets || luckyExtraChance) warnings.push("Bonus recalculado pelo servidor antes da reserva.");
+        res.json({
+          quantity,
+          subtotal,
+          total,
+          pixAmount: Math.max(0, Number((total - walletUsage.amount).toFixed(2))),
+          gateway: pixConfig.gateway,
+          packageLabel: tickets >= 100 ? `${tickets.toLocaleString("pt-BR")} cotas` : undefined,
+          bonuses: {
+            bonusTickets: couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets,
+            doubleChance: Boolean(gamificationConfig.modules.doubleChance && isWithinWindow(Date.now(), gamificationConfig.doubleChance.startsAt, gamificationConfig.doubleChance.endsAt) && quantity >= gamificationConfig.doubleChance.minTickets),
+            roulettes: Math.floor(quantity / 700),
+            lootboxes: raffle.lootboxEnabled ? Math.floor(quantity / 1000) : 0,
+            scratchcards: Math.floor(quantity / 1800),
+            description: orderBump ? "Compra em dobro aplicada no resumo" : undefined
+          },
+          walletUsage,
+          affiliateInfo,
+          warnings
+        });
+        return;
+      }
+
+      if (type === "fazendinha") {
+        if (!fazendinhaConfig.enabled || fazendinhaConfig.status !== "active") return res.status(403).json({ error: "A Fazendinha nao esta ativa no momento" });
+        if (!tenantPixGateways.pix?.enabled) return res.status(503).json({ error: "Gateway PIX indisponivel" });
+        const groupIds = Array.from(new Set((Array.isArray(req.body.groupIds) ? req.body.groupIds : []).map(String).filter(Boolean)));
+        const selectedGroups = groupIds.map(groupId => fazendinhaGroups.find(item => item.tenant_id === tenantId && item.id === groupId)).filter((group): group is FazendinhaGroup => Boolean(group));
+        if (!selectedGroups.length || selectedGroups.length !== groupIds.length) return res.status(404).json({ error: "Selecione grupos validos da Fazendinha" });
+        const unavailable = selectedGroups.find(group => group.status !== "available");
+        if (unavailable) return res.status(409).json({ error: `${unavailable.nomeBicho} ja foi reservado ou vendido` });
+        const subtotal = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
+        const addonTickets = normalizeTickets(req.body.addon?.tickets) || 0;
+        const addonRaffle = req.body.addon?.raffleId ? raffles.find(item => item.tenant_id === tenantId && item.id === req.body.addon.raffleId) : null;
+        const addonAmount = addonRaffle ? addonTickets * addonRaffle.price : 0;
+        const total = Number((subtotal + addonAmount).toFixed(2));
+        res.json({
+          quantity: selectedGroups.flatMap(group => group.numeros).length,
+          subtotal,
+          total,
+          pixAmount: total,
+          gateway,
+          packageLabel: `${selectedGroups.length} grupo(s)`,
+          bonuses: {
+            lootboxes: fazendinhaConfig.lootboxEnabled ? selectedGroups.length : 0,
+            roulettes: Math.floor(selectedGroups.length / 2),
+            description: addonRaffle ? "Rifa adicional incluida no resumo" : undefined
+          },
+          walletUsage,
+          affiliateInfo,
+          warnings
+        });
+        return;
+      }
+
+      if (type === "modalidade") {
+        const mode = String(req.body.mode || "") as NumberModeId;
+        const config = numberModeConfigs[mode];
+        if (!config || config.tenant_id !== tenantId) return res.status(404).json({ error: "Modalidade nao encontrada" });
+        if (!config.enabled || config.status !== "active") return res.status(403).json({ error: "Modalidade indisponivel no momento" });
+        if (!tenantPixGateways.pix?.enabled) return res.status(503).json({ error: "Gateway PIX indisponivel" });
+        const requestedNumbers: unknown[] = Array.isArray(req.body.numbers) ? req.body.numbers : [];
+        const numbers = Array.from(new Set(requestedNumbers.map(item => normalizeModeNumber(mode, item)).filter((number): number is string => Boolean(number))));
+        if (!numbers.length) return res.status(400).json({ error: "Selecione ao menos um numero valido" });
+        const sold = new Set(numberModeBets.filter(bet => bet.tenant_id === tenantId && bet.mode === mode).map(bet => bet.number));
+        const duplicate = numbers.find(number => sold.has(number));
+        if (duplicate) return res.status(409).json({ error: `Numero ${duplicate} ja foi reservado ou vendido` });
+        const total = Number((numbers.length * config.price).toFixed(2));
+        res.json({
+          quantity: numbers.length,
+          subtotal: total,
+          total,
+          pixAmount: total,
+          gateway,
+          packageLabel: `${numbers.length} numero(s)`,
+          bonuses: {
+            lootboxes: config.lootboxEnabled ? Math.floor(numbers.length / 5) : 0,
+            scratchcards: Math.floor(numbers.length / 10)
+          },
+          walletUsage,
+          affiliateInfo,
+          warnings
+        });
+        return;
+      }
+
+      res.status(400).json({ error: "Tipo de checkout invalido" });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Nao foi possivel calcular o checkout" });
+    }
+  });
+
   app.post("/api/raffles/:id/buy", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const { id } = req.params;

@@ -6,7 +6,7 @@ import confetti from "canvas-confetti";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { useNumberMode } from "../hooks/useRaffles";
-import { modalidadesService } from "../services/api";
+import { checkoutService, modalidadesService } from "../services/api";
 import { PostPurchaseLootboxModal } from "../components/PostPurchaseLootboxModal";
 import type { NumberModeId } from "../types";
 import { cn } from "../lib/utils";
@@ -21,6 +21,7 @@ import {
   TrustBadges
 } from "../components/premium/PremiumUI";
 import { NotFoundPage } from "./SystemStatus";
+import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 
 const modeTitles: Record<NumberModeId, string> = {
   dezena: "Dezena",
@@ -40,6 +41,8 @@ export function NumberModePage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [form, setForm] = useState({ name: "", phone: "", cpf: "", city: "", state: "", accessPassword: "" });
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [checkoutPreview, setCheckoutPreview] = useState<CheckoutPreview | null>(null);
   const [requireIdentity, setRequireIdentity] = useState(false);
   const [buying, setBuying] = useState(false);
   const [pendingPix, setPendingPix] = useState<{ purchase: any; pixPayload: string } | null>(null);
@@ -69,28 +72,57 @@ export function NumberModePage() {
 
   const toggleNumber = (number: string) => {
     setConfirmedReceipt(null);
+    setCheckoutPreview(null);
     setSelected(current => current.includes(number) ? current.filter(item => item !== number) : [...current, number]);
   };
 
-  const buy = async () => {
+  const checkoutCustomerPayload = () => customer
+    ? {
+        ...form,
+        name: customer.name,
+        phone: customer.phone,
+        cpf: customer.cpf,
+        city: customer.city || form.city,
+        state: customer.state || form.state,
+        browserId: customer.browserId
+      }
+    : form;
+
+  const validateBeforeReceipt = () => {
     if (!selected.length) return toast.error("Selecione ao menos um número");
     if ((!customer || requireIdentity) && !/^\d{6}$/.test(form.accessPassword)) return toast.error("Informe uma senha de acesso com 6 dígitos");
+    return true;
+  };
+
+  const openPrePaymentReceipt = async () => {
+    if (!validateBeforeReceipt()) return;
     setBuying(true);
     try {
-      const checkoutCustomer = customer
-        ? {
-            ...form,
-            name: customer.name,
-            phone: customer.phone,
-            cpf: customer.cpf,
-            city: customer.city || form.city,
-            state: customer.state || form.state,
-            browserId: customer.browserId
-          }
-        : form;
+      const preview = await checkoutService.preview({
+        type: "modalidade",
+        mode,
+        numbers: selected,
+        customer: checkoutCustomerPayload(),
+        refCode: localStorage.getItem("refCode") || undefined
+      });
+      setCheckoutPreview(preview);
+      setReceiptOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nao foi possivel calcular o resumo");
+    } finally {
+      setBuying(false);
+    }
+  };
+
+  const buy = async () => {
+    if (!validateBeforeReceipt()) return;
+    setBuying(true);
+    try {
+      const checkoutCustomer = checkoutCustomerPayload();
       const result = await modalidadesService.buyMode(mode, selected, checkoutCustomer, false);
       if (result.purchase?.customer) setCustomer(result.purchase.customer);
       setRequireIdentity(false);
+      setReceiptOpen(false);
       setConfirmedReceipt(null);
       setPendingPix({ purchase: result.purchase, pixPayload: result.pixPayload });
       setCopiedPix(false);
@@ -349,8 +381,8 @@ export function NumberModePage() {
                 </div>
               )}
 
-              <button type="button" onClick={buy} disabled={buying || !selected.length} className="premium-button min-h-14 w-full disabled:opacity-50">
-                <CheckCircle2 className="h-5 w-5" /> {buying ? "Gerando PIX..." : `Gerar PIX - R$ ${total.toFixed(2)}`}
+              <button type="button" onClick={openPrePaymentReceipt} disabled={buying || !selected.length} className="premium-button min-h-14 w-full disabled:opacity-50">
+                <CheckCircle2 className="h-5 w-5" /> {buying ? "Calculando resumo..." : `Revisar compra - R$ ${total.toFixed(2)}`}
               </button>
               <p className="flex items-center justify-center gap-2 text-center text-xs font-semibold text-slate-400">
                 <ShieldCheck className="h-4 w-4 text-emerald-200" /> Compra segura, PIX automático e bilhete liberado após confirmação.
@@ -359,6 +391,30 @@ export function NumberModePage() {
           )}
         </div>
       </PremiumCheckoutModal>
+
+      <PrePaymentReceiptModal
+        open={receiptOpen}
+        campaign={data.config.name || modeTitles[mode]}
+        raffle={modeTitles[mode]}
+        selectedQuantity={selected.length}
+        selectedPackage={`${selected.length} numero(s)`}
+        calculatedPrice={total}
+        customerData={{
+          name: customer?.name || form.name,
+          phone: customer?.phone || form.phone,
+          email: (customer as any)?.email || "",
+          cpf: customer?.cpf || form.cpf
+        }}
+        preview={checkoutPreview}
+        bonuses={checkoutPreview?.bonuses}
+        gatewayInfo={checkoutPreview?.gateway}
+        affiliateInfo={checkoutPreview?.affiliateInfo}
+        walletUsage={checkoutPreview?.walletUsage}
+        loading={buying}
+        onConfirm={buy}
+        onEdit={() => setReceiptOpen(false)}
+        onClose={() => setReceiptOpen(false)}
+      />
 
       <FloatingCTA
         label="Finalizar compra"

@@ -325,6 +325,13 @@ async function routesHardcore() {
 
 async function purchaseHardcore() {
   await staticReadinessChecks();
+  await step("recibo pre-pagamento obrigatorio antes do PIX", () => {
+    assertContains("server.ts", ["app.post(\"/api/checkout/preview\"", "pixGateway: pixConfig.gateway"]);
+    assertContains("src/components/checkout/PrePaymentReceiptModal.tsx", ["Confirme seus dados", "O pedido e o PIX so serao gerados apos esta confirmacao."]);
+    assertContains("src/pages/RaffleDetails.tsx", ["checkoutService.preview", "executeBuy"]);
+    assertContains("src/pages/NumberModePage.tsx", ["checkoutService.preview", "onConfirm={buy}"]);
+    assertContains("src/pages/Fazendinha.tsx", ["checkoutService.preview", "onConfirm={confirmBuy}"]);
+  });
   await runNodeScript("scripts/test-purchase-concurrency.mjs");
   await runNodeScript("scripts/test-pix-multitenant.mjs");
   await runNodeScript("scripts/test-payment-workers.mjs");

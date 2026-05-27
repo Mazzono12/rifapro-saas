@@ -8,7 +8,7 @@ import { FazendinhaCard } from "../components/FazendinhaCard";
 import { PostPurchaseLootboxModal } from "../components/PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "../components/PixPaymentResultModal";
 import { useFazendinha } from "../hooks/useRaffles";
-import { fazendinhaService } from "../services/api";
+import { checkoutService, fazendinhaService } from "../services/api";
 import { useCustomerStore } from "../store/useCustomerStore";
 import type { FazendinhaGroup, FazendinhaGroupStatus, FazendinhaPurchase, Raffle } from "../types";
 import { cn } from "../lib/utils";
@@ -26,6 +26,7 @@ import {
   SectionTitle,
   TrustBadges
 } from "../components/premium/PremiumUI";
+import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 
 export function Fazendinha() {
   const { data, isLoading } = useFazendinha();
@@ -34,6 +35,8 @@ export function Fazendinha() {
   const [filter, setFilter] = useState<FazendinhaGroupStatus | "all">("all");
   const [selectedGroups, setSelectedGroups] = useState<FazendinhaGroup[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [checkoutPreview, setCheckoutPreview] = useState<CheckoutPreview | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", cpf: "", city: "", state: "", accessPassword: "" });
   const [customerMode, setCustomerMode] = useState<"existing" | "new">("existing");
   const [requireIdentity, setRequireIdentity] = useState(false);
@@ -84,6 +87,7 @@ export function Fazendinha() {
   const toggleGroup = (group: FazendinhaGroup) => {
     if (group.status !== "available") return;
     setConfirmedReceipt(null);
+    setCheckoutPreview(null);
     setSelectedGroups(current =>
       current.some(item => item.id === group.id)
         ? current.filter(item => item.id !== group.id)
@@ -91,32 +95,58 @@ export function Fazendinha() {
     );
   };
 
-  const confirmBuy = async () => {
+  const validateFazendinhaCheckout = () => {
     if (!selectedGroups.length) {
       toast.error("Selecione ao menos um bichinho");
-      return;
+      return false;
     }
     if (!canUseSavedCustomer) {
       if (customerMode === "existing") {
         if (!hasSavedCustomer && !form.phone.trim() && !form.cpf.trim()) {
           toast.error("Informe telefone ou CPF para localizar seu cadastro");
-          return;
+          return false;
         }
         if (!/^\d{6}$/.test(form.accessPassword)) {
           toast.error("Informe sua senha de acesso com 6 dígitos");
-          return;
+          return false;
         }
       } else {
         if (!form.name.trim() || !form.phone.trim() || !form.cpf.trim() || !form.city.trim()) {
           toast.error("Preencha nome, WhatsApp, CPF e cidade para participar");
-          return;
+          return false;
         }
         if (!/^\d{6}$/.test(form.accessPassword)) {
           toast.error("Crie uma senha de acesso com 6 dígitos");
-          return;
+          return false;
         }
       }
     }
+    return true;
+  };
+
+  const openPrePaymentReceipt = async () => {
+    if (!validateFazendinhaCheckout()) return;
+    setBuying(true);
+    try {
+      const preview = await checkoutService.preview({
+        type: "fazendinha",
+        groupIds: selectedGroups.map(group => group.id),
+        customer: customer && (canUseSavedCustomer || isReturningCustomerVerification)
+          ? { ...form, name: customer.name, phone: customer.phone, cpf: customer.cpf }
+          : form,
+        addon: acceptAddon && addonSuggestion ? { raffleId: addonSuggestion.raffle.id, tickets: addonSuggestion.tickets } : undefined
+      });
+      setCheckoutPreview(preview);
+      setReceiptOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nao foi possivel calcular o resumo");
+    } finally {
+      setBuying(false);
+    }
+  };
+
+  const confirmBuy = async () => {
+    if (!validateFazendinhaCheckout()) return;
     setBuying(true);
     try {
       const checkoutCustomer = customer && (canUseSavedCustomer || isReturningCustomerVerification)
@@ -137,6 +167,7 @@ export function Fazendinha() {
         acceptAddon && addonSuggestion ? { raffleId: addonSuggestion.raffle.id, tickets: addonSuggestion.tickets } : undefined
       );
       if (result.purchase?.customer) setCustomer(result.purchase.customer);
+      setReceiptOpen(false);
       setConfirmedReceipt(null);
       setPendingPix({ purchase: result.purchase, pixPayload: result.pixPayload });
       setCopiedPix(false);
@@ -486,8 +517,8 @@ export function Fazendinha() {
                 </label>
               )}
 
-              <button type="button" onClick={confirmBuy} disabled={buying} className="premium-button min-h-14 w-full disabled:opacity-50">
-                {buying ? "Gerando PIX..." : `Gerar PIX - ${formatCurrency(totalValue)}`}
+              <button type="button" onClick={openPrePaymentReceipt} disabled={buying} className="premium-button min-h-14 w-full disabled:opacity-50">
+                {buying ? "Calculando resumo..." : `Revisar compra - ${formatCurrency(totalValue)}`}
               </button>
               <p className="flex items-center justify-center gap-2 text-center text-xs font-semibold text-slate-400">
                 <ShieldCheck className="h-4 w-4 text-emerald-200" /> Compra segura, PIX automático e bilhete liberado após confirmação.
@@ -496,6 +527,29 @@ export function Fazendinha() {
           )}
         </div>
       </PremiumCheckoutModal>
+      <PrePaymentReceiptModal
+        open={receiptOpen}
+        campaign={data.config.name || "Fazendinha"}
+        raffle={data.config.name || "Fazendinha"}
+        selectedQuantity={selectedGroups.flatMap(group => group.numeros).length}
+        selectedPackage={`${selectedGroups.length} grupo(s)`}
+        calculatedPrice={totalValue}
+        customerData={{
+          name: customer?.name || form.name,
+          phone: customer?.phone || form.phone,
+          email: (customer as any)?.email || "",
+          cpf: customer?.cpf || form.cpf
+        }}
+        preview={checkoutPreview}
+        bonuses={checkoutPreview?.bonuses}
+        gatewayInfo={checkoutPreview?.gateway}
+        affiliateInfo={checkoutPreview?.affiliateInfo}
+        walletUsage={checkoutPreview?.walletUsage}
+        loading={buying}
+        onConfirm={confirmBuy}
+        onEdit={() => setReceiptOpen(false)}
+        onClose={() => setReceiptOpen(false)}
+      />
       </div>
       <FloatingCTA
         label="Participar"

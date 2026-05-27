@@ -38,6 +38,37 @@ export const globalSettingsService = {
   }
 };
 
+export const checkoutService = {
+  async preview(payload: Record<string, unknown>) {
+    const res = await fetch("/api/checkout/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Nao foi possivel calcular o resumo da compra");
+    return data as Promise<{
+      quantity: number;
+      total: number;
+      subtotal: number;
+      pixAmount: number;
+      gateway: string;
+      packageLabel?: string;
+      bonuses?: {
+        bonusTickets?: number;
+        doubleChance?: boolean;
+        roulettes?: number;
+        lootboxes?: number;
+        scratchcards?: number;
+        description?: string;
+      };
+      walletUsage?: { enabled: boolean; amount: number };
+      affiliateInfo?: { refCode?: string; name?: string };
+      warnings?: string[];
+    }>;
+  }
+};
+
 export const fazendinhaService = {
   async getState() {
     const res = await fetch("/api/fazendinha");

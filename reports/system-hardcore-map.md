@@ -1,13 +1,13 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-27T13:37:20.195Z
+Gerado em: 2026-05-27T16:07:25.172Z
 
 ## Totais
 
-- Rotas backend: 194
+- Rotas backend: 195
 - Paginas frontend: 44
-- Componentes: 25
-- Arquivos src: 110
+- Componentes: 26
+- Arquivos src: 111
 - Migrations: 22
 - Tabelas mapeadas: 39
 - Policies mapeadas: 41
@@ -110,6 +110,7 @@ Gerado em: 2026-05-27T13:37:20.195Z
 - PUT /api/admin/customers/:id/full
 - POST /api/admin/customers/:id/block
 - POST /api/admin/customers/:id/reset-password
+- POST /api/checkout/preview
 - POST /api/raffles/:id/buy
 - GET /api/raffles/:id/addon-suggestion
 - GET /api/fazendinha
@@ -336,14 +337,14 @@ Gerado em: 2026-05-27T13:37:20.195Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 579 ocorrencias no backend
+- tenant_id: 585 ocorrencias no backend
 - user_id: 7 ocorrencias no backend
 - order_id: 0 ocorrencias no backend
 - purchaseId: 132 ocorrencias no backend
-- raffleId: 132 ocorrencias no backend
-- affiliate: 283 ocorrencias no backend
-- gateway: 384 ocorrencias no backend
-- wallet: 6 ocorrencias no backend
+- raffleId: 139 ocorrencias no backend
+- affiliate: 293 ocorrencias no backend
+- gateway: 400 ocorrencias no backend
+- wallet: 17 ocorrencias no backend
 - saldo: 1 ocorrencias no backend
 - webhook: 199 ocorrencias no backend
 - idempotencyKey: 7 ocorrencias no backend
