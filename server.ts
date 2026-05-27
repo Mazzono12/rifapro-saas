@@ -8024,6 +8024,29 @@ async function startServer() {
     }
   }
 
+  function normalizePersistentCollection(collection: unknown) {
+    const value = String(collection || "").trim();
+    return value || "default";
+  }
+
+  function buildPersistentRows() {
+    const now = new Date().toISOString();
+    return Object.entries(persistentCollections()).map(([collection, value]) => {
+      const safeCollection = normalizePersistentCollection(collection);
+      const serialized = serializePersistentValue(value);
+      return {
+        scope: "platform",
+        state_key: safeCollection,
+        state_value: serialized,
+        tenant_id: "platform",
+        collection: safeCollection,
+        record_key: "singleton",
+        data: serialized,
+        updated_at: now
+      };
+    });
+  }
+
   async function hydratePersistentState() {
     if (!supabaseAdmin) {
       console.warn("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY ausentes; usando seed em memoria sem persistencia Postgres.");
@@ -8034,16 +8057,29 @@ async function startServer() {
       .from("persistent_state_records")
       .select("state_key,state_value")
       .eq("scope", "platform");
-    if (error) {
-      console.warn("Falha ao hidratar estado persistente do Supabase:", error.message);
+    if (!error && data?.length) {
+      data.forEach(row => assignPersistentCollection(normalizePersistentCollection(row.state_key), row.state_value));
       persistentStateReady = true;
       return;
     }
-    if (data?.length) {
-      data.forEach(row => assignPersistentCollection(String(row.state_key), row.state_value));
-    } else {
-      await persistAllState("initial-seed");
+    if (error) {
+      const fallback = await supabaseAdmin
+        .from("persistent_state_records")
+        .select("collection,data")
+        .eq("tenant_id", "platform")
+        .eq("record_key", "singleton");
+      if (fallback.error) {
+        console.warn("Falha ao hidratar estado persistente do Supabase:", fallback.error.message);
+        persistentStateReady = true;
+        return;
+      }
+      if (fallback.data?.length) {
+        fallback.data.forEach(row => assignPersistentCollection(normalizePersistentCollection(row.collection), row.data));
+        persistentStateReady = true;
+        return;
+      }
     }
+    await persistAllState("initial-seed");
     persistentStateReady = true;
   }
 
@@ -8059,16 +8095,23 @@ async function startServer() {
     if (!supabaseAdmin || persistentStateSaving) return;
     persistentStateSaving = true;
     try {
-      const rows = Object.entries(persistentCollections()).map(([collection, value]) => ({
-        scope: "platform",
-        state_key: collection,
-        state_value: serializePersistentValue(value),
-        updated_at: new Date().toISOString()
-      }));
+      const rows = buildPersistentRows();
       const { error } = await supabaseAdmin
         .from("persistent_state_records")
         .upsert(rows, { onConflict: "scope,state_key" });
-      if (error) console.warn(`Falha ao persistir estado (${reason}):`, error.message);
+      if (error) {
+        const fallbackRows = rows.map(row => ({
+          tenant_id: row.tenant_id,
+          collection: row.collection || "default",
+          record_key: row.record_key,
+          data: row.data,
+          updated_at: row.updated_at
+        }));
+        const fallback = await supabaseAdmin
+          .from("persistent_state_records")
+          .upsert(fallbackRows, { onConflict: "tenant_id,collection,record_key" });
+        if (fallback.error) console.warn(`Falha ao persistir estado (${reason}):`, fallback.error.message);
+      }
     } finally {
       persistentStateSaving = false;
     }
@@ -8857,17 +8900,28 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const staticRoot = [
+    const staticCandidates = Array.from(new Set([
       path.join(process.cwd(), "dist", "client"),
       path.join(process.cwd(), "dist"),
+      path.join(process.cwd(), "client", "dist"),
+      process.cwd(),
       path.join(__dirname, "client"),
-      __dirname
-    ].find(candidate => existsSync(path.join(candidate, "index.html"))) || path.join(process.cwd(), "dist");
+      __dirname,
+      path.join(__dirname, "..", "dist", "client"),
+      path.join(__dirname, "..", "dist")
+    ].map(candidate => path.resolve(candidate))));
+    const staticRoot = staticCandidates.find(candidate => existsSync(path.join(candidate, "index.html"))) || __dirname;
     const indexHtmlPath = path.join(staticRoot, "index.html");
+    console.info(`[spa] build dir detectado: ${staticRoot}`);
+    console.info(`[spa] index path detectado: ${indexHtmlPath}`);
     app.use(express.static(staticRoot));
     app.get("*", (req, res) => {
       if (req.path.startsWith("/api/")) {
         res.status(404).json({ error: "Endpoint nao encontrado" });
+        return;
+      }
+      if (!existsSync(indexHtmlPath)) {
+        res.status(500).send("Frontend build nao encontrado");
         return;
       }
       res.sendFile(indexHtmlPath);
