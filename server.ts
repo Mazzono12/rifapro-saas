@@ -1764,6 +1764,11 @@ async function startServer() {
       delete req.body.tenant_id;
     }
 
+    if (req.path.startsWith("/api/public/")) {
+      next();
+      return;
+    }
+
     if (req.path.startsWith("/api/teste/")) {
       next();
       return;
@@ -1807,6 +1812,50 @@ async function startServer() {
     res.setHeader("X-Tenant-Slug", tenant.slug);
     next();
   }
+
+  async function buildPublicTenantDebug(req: express.Request) {
+    const hostHeader = firstHeaderValue(req.headers.host || "");
+    const forwardedHost = firstHeaderValue(req.headers["x-forwarded-host"] || "");
+    const originalHost = firstHeaderValue(req.headers["x-original-host"] || "");
+    const hostRecebido = getRawRequestHost(req);
+    const hostNormalizado = normalizeDomainName(hostRecebido);
+    const dominioRailwayEsperado = "rifapro-saas-production.up.railway.app";
+    const tenantFromDomains = await findTenantFromSupabaseTenantDomains(hostNormalizado) || findTenantFromLocalTenantDomains(hostNormalizado);
+    const tenantFromDominio = await findTenantFromSupabaseTenantsDominio(hostNormalizado) || findTenantFromLocalTenantsDominio(hostNormalizado);
+    const tenant = tenantFromDomains || tenantFromDominio;
+    const motivoFalha = tenant
+      ? ""
+      : !hostNormalizado
+        ? "host_vazio"
+        : hostNormalizado === "admin" || hostNormalizado.startsWith("admin.")
+          ? "host_superadmin_nao_resolve_tenant_publico"
+          : "dominio_nao_encontrado_em_tenant_domains_verified_ou_tenants_dominio";
+
+    if (isProductionRuntime) console.warn(`[tenant-resolve] host=${hostNormalizado} reason=${tenant ? "public_debug_match" : motivoFalha}`);
+
+    return {
+      hostRecebido,
+      xForwardedHost: forwardedHost,
+      xOriginalHost: originalHost,
+      host: hostHeader,
+      hostNormalizado,
+      dominioRailwayEsperado,
+      encontrouEmTenantDomains: Boolean(tenantFromDomains),
+      encontrouEmTenantsDominio: Boolean(tenantFromDominio),
+      slugEncontrado: tenant?.slug || "",
+      tenantEncontrado: Boolean(tenant),
+      fonte: tenantFromDomains ? "tenant_domains" : tenantFromDominio ? "tenants.dominio" : "none",
+      motivoFalha
+    };
+  }
+
+  app.get("/api/public/health", (_req, res) => {
+    res.json({ ok: true });
+  });
+
+  app.get("/api/public/tenant-debug", async (req, res) => {
+    res.json(await buildPublicTenantDebug(req));
+  });
 
   function adminCanAccessTenant(req: express.Request, tenantId: string) {
     const session = getAuthSession(req);
@@ -3028,18 +3077,6 @@ async function startServer() {
     tenantDomains = tenantDomains.filter(item => item.id !== domain.id);
     recordSuperadminAudit(req, "TENANT_DOMAIN_DELETED", { tenant_id: domain.tenant_id, resource_type: "tenant_domain", resource_id: domain.id, metadata: { domain: domain.domain } });
     res.json({ success: true });
-  });
-
-  app.get("/api/public/tenant-debug", async (req, res) => {
-    const resolution = await resolveDomainTenantInfo(req);
-    if (isProductionRuntime) console.warn(`[tenant-resolve] host=${resolution.hostNormalizado} reason=${resolution.reason}`);
-    res.json({
-      hostRecebido: resolution.hostRecebido,
-      hostNormalizado: resolution.hostNormalizado,
-      tenantEncontrado: Boolean(resolution.tenant),
-      slug: resolution.tenant?.slug || "",
-      fonte: resolution.fonte
-    });
   });
 
   app.use(resolveTenant);
