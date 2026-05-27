@@ -1540,52 +1540,205 @@ async function startServer() {
     next();
   }
 
-  function getRequestHost(req: express.Request) {
-    return String(req.headers["x-forwarded-host"] || req.headers.host || "")
-      .split(":")[0]
+  function firstHeaderValue(value: unknown) {
+    const raw = Array.isArray(value) ? value[0] : value;
+    return String(raw || "").split(",")[0].trim();
+  }
+
+  function normalizeDomainName(value: unknown) {
+    let host = firstHeaderValue(value)
       .trim()
-      .toLowerCase();
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/\/.*$/, "");
+    if (host.startsWith("[") && host.includes("]")) {
+      return host.slice(1, host.indexOf("]"));
+    }
+    host = host.replace(/:\d+$/, "");
+    return host;
+  }
+
+  function getRawRequestHost(req: express.Request) {
+    return firstHeaderValue(req.headers["x-forwarded-host"] || req.headers["x-original-host"] || req.headers.host || "");
+  }
+
+  function getRequestHost(req: express.Request) {
+    return normalizeDomainName(getRawRequestHost(req));
   }
 
   function getRequestTenant(req: express.Request) {
     return (req as express.Request & { resolvedTenant?: TenantRecord }).resolvedTenant;
   }
 
-  function normalizeDomainName(value: unknown) {
-    return String(value || "")
-      .trim()
-      .toLowerCase()
-      .replace(/^https?:\/\//, "")
-      .replace(/\/.*$/, "")
-      .replace(/:\d+$/, "");
+  type TenantResolutionSource = "tenant_domains" | "tenants.dominio" | "none";
+  type TenantResolution = {
+    hostRecebido: string;
+    hostNormalizado: string;
+    tenant: TenantRecord | null;
+    fonte: TenantResolutionSource;
+    reason: string;
+  };
+
+  function isLocalhost(host: string) {
+    return !host || host === "localhost" || host === "127.0.0.1" || host === "::1";
+  }
+
+  function isActiveTenantRecord(tenant: Partial<TenantRecord> & { ativo?: boolean } | null | undefined) {
+    if (!tenant) return false;
+    if ("status" in tenant && tenant.status) return tenant.status === "active";
+    if ("ativo" in tenant) return tenant.ativo !== false;
+    return true;
+  }
+
+  function normalizeTenantRecord(row: Record<string, any>): TenantRecord {
+    const now = new Date().toISOString();
+    const active = row.status ? row.status === "active" : row.ativo !== false;
+    return {
+      id: String(row.id || ""),
+      nome: String(row.nome || row.name || row.slug || "Tenant"),
+      slug: String(row.slug || row.id || "tenant").trim().toLowerCase(),
+      dominio: row.dominio ? normalizeDomainName(row.dominio) : undefined,
+      dominio_customizado: normalizeDomainName(row.dominio_customizado || row.dominio || ""),
+      status: active ? "active" : "inactive",
+      logo_url: String(row.logo_url || ""),
+      cor_primaria: String(row.cor_primaria || "#06b6d4"),
+      plano: String(row.plano || "basico"),
+      percentual_plataforma: Number(row.percentual_plataforma || 0),
+      criado_em: String(row.criado_em || row.created_at || now),
+      atualizado_em: String(row.atualizado_em || row.updated_at || row.created_at || now)
+    };
+  }
+
+  function upsertTenantRecord(tenant: TenantRecord) {
+    const index = tenants.findIndex(item => item.id === tenant.id);
+    if (index >= 0) tenants[index] = { ...tenants[index], ...tenant };
+    else tenants.push(tenant);
+    return tenants.find(item => item.id === tenant.id) || tenant;
+  }
+
+  function upsertTenantDomainRecord(row: Record<string, any>, host: string) {
+    const normalizedDomain = normalizeDomainName(row.domain || host);
+    if (!normalizedDomain) return;
+    const record: TenantDomainRecord = {
+      id: String(row.id || `db:${row.tenant_id}:${normalizedDomain}`),
+      tenant_id: String(row.tenant_id || ""),
+      domain: normalizedDomain,
+      type: row.type === "custom_domain" ? "custom_domain" : "subdomain",
+      status: row.status === "verified" ? "verified" : row.status === "failed" ? "failed" : row.status === "disabled" ? "disabled" : "pending",
+      verification_token: String(row.verification_token || ""),
+      dns_target: String(row.dns_target || ""),
+      ssl_status: String(row.ssl_status || "pending"),
+      is_primary: Boolean(row.is_primary),
+      created_at: String(row.created_at || new Date().toISOString()),
+      verified_at: row.verified_at ? String(row.verified_at) : undefined
+    };
+    const index = tenantDomains.findIndex(item => item.id === record.id || normalizeDomainName(item.domain) === normalizedDomain);
+    if (index >= 0) tenantDomains[index] = { ...tenantDomains[index], ...record };
+    else tenantDomains.push(record);
   }
 
   function tenantDomainMatchesHost(domain: TenantDomainRecord, host: string) {
     return domain.status === "verified" &&
       normalizeDomainName(domain.domain) === host &&
-      tenants.some(tenant => tenant.id === domain.tenant_id && tenant.status === "active");
+      tenants.some(tenant => tenant.id === domain.tenant_id && isActiveTenantRecord(tenant));
   }
 
-  function resolveDomainTenant(req: express.Request) {
-    const host = getRequestHost(req);
-    if (!host || host === "localhost" || host === "127.0.0.1" || host === "::1") {
-      return tenants.find(tenant => tenant.id === legacyTenantId && tenant.status === "active") ||
-        tenants.find(tenant => tenant.slug === "dev" && tenant.status === "active") ||
-        tenants.find(tenant => tenant.status === "active") ||
-        null;
+  async function findTenantFromSupabaseTenantDomains(host: string) {
+    if (!supabaseAdmin || !host) return null;
+    try {
+      const { data: domains, error } = await supabaseAdmin
+        .from("tenant_domains")
+        .select("*")
+        .ilike("domain", host)
+        .eq("status", "verified")
+        .limit(5);
+      if (error) throw error;
+      for (const domain of domains || []) {
+        const tenantId = String(domain.tenant_id || "");
+        if (!tenantId) continue;
+        const { data: tenantRow, error: tenantError } = await supabaseAdmin
+          .from("tenants")
+          .select("*")
+          .eq("id", tenantId)
+          .maybeSingle();
+        if (tenantError) throw tenantError;
+        if (isActiveTenantRecord(tenantRow as any)) {
+          upsertTenantDomainRecord(domain, host);
+          return upsertTenantRecord(normalizeTenantRecord(tenantRow as Record<string, any>));
+        }
+      }
+    } catch {
+      console.warn(`[tenant-resolve] host=${host} reason=supabase_tenant_domains_error`);
     }
-    if (host === "admin" || host.startsWith("admin.")) return null;
+    return null;
+  }
+
+  async function findTenantFromSupabaseTenantsDominio(host: string) {
+    if (!supabaseAdmin || !host) return null;
+    try {
+      const { data: tenantRows, error } = await supabaseAdmin
+        .from("tenants")
+        .select("*")
+        .ilike("dominio", host)
+        .limit(5);
+      if (error) throw error;
+      const tenantRow = (tenantRows || []).find(row => isActiveTenantRecord(row as any));
+      if (tenantRow) return upsertTenantRecord(normalizeTenantRecord(tenantRow as Record<string, any>));
+    } catch {
+      console.warn(`[tenant-resolve] host=${host} reason=supabase_tenants_dominio_error`);
+    }
+    return null;
+  }
+
+  function findTenantFromLocalTenantDomains(host: string) {
     const domainTenant = tenantDomains.find(domain => tenantDomainMatchesHost(domain, host));
-    if (domainTenant) return tenants.find(tenant => tenant.id === domainTenant.tenant_id && tenant.status === "active") || null;
-    const matched = tenants.find(tenant =>
-      tenant.status === "active" &&
-      Boolean(tenant.dominio || tenant.dominio_customizado) &&
-      String(tenant.dominio || tenant.dominio_customizado).toLowerCase() === host
-    ) || tenants.find(tenant =>
-      tenant.status === "active" &&
-      host.split(".")[0] === tenant.slug
-    );
-    return matched || null;
+    if (!domainTenant) return null;
+    return tenants.find(tenant => tenant.id === domainTenant.tenant_id && isActiveTenantRecord(tenant)) || null;
+  }
+
+  function findTenantFromLocalTenantsDominio(host: string) {
+    return tenants.find(tenant =>
+      isActiveTenantRecord(tenant) &&
+      [tenant.dominio, tenant.dominio_customizado].some(domain => normalizeDomainName(domain) === host)
+    ) || null;
+  }
+
+  async function resolveDomainTenantInfo(req: express.Request): Promise<TenantResolution> {
+    const hostRecebido = getRawRequestHost(req);
+    const host = normalizeDomainName(hostRecebido);
+    if (isLocalhost(host)) {
+      const tenant = tenants.find(item => item.id === legacyTenantId && isActiveTenantRecord(item)) ||
+        tenants.find(item => item.slug === "dev" && isActiveTenantRecord(item)) ||
+        tenants.find(item => isActiveTenantRecord(item)) ||
+        null;
+      return { hostRecebido, hostNormalizado: host, tenant, fonte: tenant ? "tenants.dominio" : "none", reason: tenant ? "localhost_fallback" : "localhost_no_active_tenant" };
+    }
+    if (host === "admin" || host.startsWith("admin.")) {
+      return { hostRecebido, hostNormalizado: host, tenant: null, fonte: "none", reason: "superadmin_host" };
+    }
+
+    const supabaseDomainTenant = await findTenantFromSupabaseTenantDomains(host);
+    if (supabaseDomainTenant) return { hostRecebido, hostNormalizado: host, tenant: supabaseDomainTenant, fonte: "tenant_domains", reason: "supabase_tenant_domains_verified" };
+
+    const supabaseDominioTenant = await findTenantFromSupabaseTenantsDominio(host);
+    if (supabaseDominioTenant) return { hostRecebido, hostNormalizado: host, tenant: supabaseDominioTenant, fonte: "tenants.dominio", reason: "supabase_tenants_dominio" };
+
+    const localDomainTenant = findTenantFromLocalTenantDomains(host);
+    if (localDomainTenant) return { hostRecebido, hostNormalizado: host, tenant: localDomainTenant, fonte: "tenant_domains", reason: "local_tenant_domains_verified" };
+
+    const localDominioTenant = findTenantFromLocalTenantsDominio(host);
+    if (localDominioTenant) return { hostRecebido, hostNormalizado: host, tenant: localDominioTenant, fonte: "tenants.dominio", reason: "local_tenants_dominio" };
+
+    if (!isProductionRuntime) {
+      const slugTenant = tenants.find(tenant => isActiveTenantRecord(tenant) && host.split(".")[0] === tenant.slug);
+      if (slugTenant) return { hostRecebido, hostNormalizado: host, tenant: slugTenant, fonte: "tenants.dominio", reason: "dev_slug_fallback" };
+    }
+
+    return { hostRecebido, hostNormalizado: host, tenant: null, fonte: "none", reason: "no_domain_match" };
+  }
+
+  async function resolveDomainTenant(req: express.Request) {
+    return (await resolveDomainTenantInfo(req)).tenant;
   }
 
   function resolveRequestTenantId(req: express.Request) {
@@ -1606,7 +1759,7 @@ async function startServer() {
     throw new Error("Tenant nao resolvido para esta requisicao");
   }
 
-  function resolveTenant(req: express.Request, res: express.Response, next: express.NextFunction) {
+  async function resolveTenant(req: express.Request, res: express.Response, next: express.NextFunction) {
     if (req.body && typeof req.body === "object" && "tenant_id" in req.body) {
       delete req.body.tenant_id;
     }
@@ -1637,9 +1790,11 @@ async function startServer() {
     const sessionTenant = ["admin", "operador", "afiliado"].includes(normalizeAuthRole(session?.role)) && session?.tenant_id
       ? tenants.find(tenant => tenant.id === session.tenant_id && tenant.status === "active")
       : null;
-    const tenant = sessionTenant || resolveDomainTenant(req);
+    const resolution = await resolveDomainTenantInfo(req);
+    const tenant = sessionTenant || resolution.tenant;
 
     if (!tenant) {
+      if (isProductionRuntime) console.warn(`[tenant-resolve] host=${resolution.hostNormalizado} reason=${resolution.reason}`);
       if (req.path.startsWith("/api/")) {
         res.status(404).json({ error: "Tenant nao encontrado para este dominio" });
       } else {
@@ -1871,7 +2026,7 @@ async function startServer() {
       const canUsePrivilegedSignupFields = !isProductionRuntime || process.env.ALLOW_PUBLIC_PRIVILEGED_SIGNUP === "true";
       const role = canUsePrivilegedSignupFields ? requestedRole : requestedRole === "superadmin" ? "superadmin" : "admin";
       const requestedTenantId = req.body.tenant_id ? String(req.body.tenant_id) : undefined;
-      const tenant = resolveDomainTenant(req);
+      const tenant = await resolveDomainTenant(req);
       const tenantId = role === "superadmin"
         ? null
         : canUsePrivilegedSignupFields
@@ -2873,6 +3028,18 @@ async function startServer() {
     tenantDomains = tenantDomains.filter(item => item.id !== domain.id);
     recordSuperadminAudit(req, "TENANT_DOMAIN_DELETED", { tenant_id: domain.tenant_id, resource_type: "tenant_domain", resource_id: domain.id, metadata: { domain: domain.domain } });
     res.json({ success: true });
+  });
+
+  app.get("/api/public/tenant-debug", async (req, res) => {
+    const resolution = await resolveDomainTenantInfo(req);
+    if (isProductionRuntime) console.warn(`[tenant-resolve] host=${resolution.hostNormalizado} reason=${resolution.reason}`);
+    res.json({
+      hostRecebido: resolution.hostRecebido,
+      hostNormalizado: resolution.hostNormalizado,
+      tenantEncontrado: Boolean(resolution.tenant),
+      slug: resolution.tenant?.slug || "",
+      fonte: resolution.fonte
+    });
   });
 
   app.use(resolveTenant);
