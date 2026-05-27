@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from "crypto";
+import { existsSync } from "fs";
 import { mkdir, writeFile } from "fs/promises";
 import { config as loadEnv } from "dotenv";
 import bcrypt from "bcryptjs";
@@ -1788,6 +1789,11 @@ async function startServer() {
         res.status(404).json({ error: "Tenant nao encontrado para este dominio" });
         return;
       }
+      next();
+      return;
+    }
+
+    if (!req.path.startsWith("/api/")) {
       next();
       return;
     }
@@ -8851,9 +8857,20 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.join(__dirname, "dist")));
+    const staticRoot = [
+      path.join(process.cwd(), "dist", "client"),
+      path.join(process.cwd(), "dist"),
+      path.join(__dirname, "client"),
+      __dirname
+    ].find(candidate => existsSync(path.join(candidate, "index.html"))) || path.join(process.cwd(), "dist");
+    const indexHtmlPath = path.join(staticRoot, "index.html");
+    app.use(express.static(staticRoot));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
+      if (req.path.startsWith("/api/")) {
+        res.status(404).json({ error: "Endpoint nao encontrado" });
+        return;
+      }
+      res.sendFile(indexHtmlPath);
     });
   }
 
