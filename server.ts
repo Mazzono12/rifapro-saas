@@ -29,6 +29,16 @@ import {
   type SaaSAuthRole,
   type UsuarioRecord
 } from "./src/server/authRepository";
+import {
+  buildTicketConfirmationIdempotencyKey,
+  buildTicketConfirmationMessage,
+  isValidBrazilianWhatsAppPhone,
+  maskPhone,
+  normalizeBrazilianPhone,
+  type TicketConfirmationOrder
+} from "./src/server/whatsapp/whatsappService";
+import { sendMockWhatsAppMessage } from "./src/server/whatsapp/providers/mockWhatsAppProvider";
+import { sendMetaCloudWhatsAppMessage } from "./src/server/whatsapp/providers/metaCloudWhatsAppProvider";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -498,6 +508,39 @@ async function startServer() {
     duplicateReceipt?: boolean;
     createdAt: string;
     updatedAt: string;
+  };
+  type WhatsAppProviderConfigRecord = {
+    id: string;
+    tenant_id: string;
+    provider: "mock" | "meta_cloud";
+    enabled: boolean;
+    environment: "sandbox" | "production";
+    phone_number_id?: string;
+    business_account_id?: string;
+    access_token_encrypted?: string;
+    webhook_verify_token_encrypted?: string;
+    template_namespace?: string;
+    default_language: string;
+    created_at: string;
+    updated_at: string;
+  };
+  type WhatsAppMessageQueueRecord = {
+    id: string;
+    tenant_id: string;
+    order_id?: string;
+    customer_id?: string;
+    phone: string;
+    message_type: "ticket_confirmation" | string;
+    message_body: string;
+    provider: "mock" | "meta_cloud" | string;
+    status: "pending" | "sent" | "failed" | "retrying";
+    attempts: number;
+    max_attempts: number;
+    last_error?: string;
+    sent_at?: string;
+    created_at: string;
+    updated_at: string;
+    idempotency_key: string;
   };
   type TenantDomainRecord = {
     id: string;
@@ -1325,6 +1368,8 @@ async function startServer() {
   const planAliases: Record<string, SaaSPlanId> = { free: "gratis", basic: "basico", pro: "profissional", profissional: "profissional", teste: "premium", enterprise: "white-label", whitelabel: "white-label" };
   const securityLogs: SecurityLog[] = [];
   let paymentQueue: PaymentQueueJob[] = [];
+  let whatsappProviderConfigs: WhatsAppProviderConfigRecord[] = [];
+  let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
   
   // Basic Rate Limiter Dictionary
   const requestCounts = new Map<string, { count: number, resetAt: number }>();
@@ -2493,6 +2538,51 @@ async function startServer() {
     res.json(paymentQueue.map(job => ({
       ...job,
       tenant: tenants.find(tenant => tenant.id === job.tenant_id)?.nome || job.tenant_id
+    })));
+  });
+
+  app.get("/api/superadmin/whatsapp/overview", (_req, res) => {
+    const sent = whatsappMessageQueue.filter(message => message.status === "sent").length;
+    const failed = whatsappMessageQueue.filter(message => message.status === "failed").length;
+    const pending = whatsappMessageQueue.filter(message => ["pending", "retrying"].includes(message.status)).length;
+    res.json({
+      metrics: {
+        sent,
+        failed,
+        pending,
+        activeTenants: whatsappProviderConfigs.filter(config => config.enabled).length,
+        tenantsWithWhatsapp: whatsappProviderConfigs.length
+      },
+      byProvider: Object.values(whatsappMessageQueue.reduce<Record<string, { provider: string; total: number; sent: number; failed: number; pending: number }>>((acc, message) => {
+        acc[message.provider] ||= { provider: message.provider, total: 0, sent: 0, failed: 0, pending: 0 };
+        acc[message.provider].total += 1;
+        if (message.status === "sent") acc[message.provider].sent += 1;
+        else if (message.status === "failed") acc[message.provider].failed += 1;
+        else acc[message.provider].pending += 1;
+        return acc;
+      }, {})),
+      tenants: tenants.map(tenant => {
+        const config = getWhatsAppConfig(tenant.id);
+        const messages = whatsappMessageQueue.filter(message => message.tenant_id === tenant.id);
+        return {
+          tenant_id: tenant.id,
+          tenant: tenant.nome,
+          enabled: Boolean(config?.enabled),
+          provider: config?.provider || "mock",
+          environment: config?.environment || "sandbox",
+          sent: messages.filter(message => message.status === "sent").length,
+          failed: messages.filter(message => message.status === "failed").length,
+          pending: messages.filter(message => ["pending", "retrying"].includes(message.status)).length
+        };
+      })
+    });
+  });
+
+  app.get("/api/superadmin/whatsapp/messages", (_req, res) => {
+    res.json(whatsappMessageQueue.map(message => ({
+      ...message,
+      phone: maskPhone(message.phone),
+      tenant: tenants.find(tenant => tenant.id === message.tenant_id)?.nome || message.tenant_id
     })));
   });
 
@@ -5308,43 +5398,8 @@ async function startServer() {
   });
 
   app.post("/api/modalidades/purchases/:purchaseId/confirm-payment", (req, res) => {
-    const purchase = numberModePurchases.find(item => item.tenant_id === resolveRequestTenantId(req) && item.id === req.params.purchaseId);
-    if (!purchase) {
-      res.status(404).json({ error: "Compra da modalidade nao encontrada" });
-      return;
-    }
-    if (!requestHasAdminSession(req, purchase.tenant_id) && !requestOwnsCustomer(req, purchase.customer)) {
-      res.status(403).json({ error: "Voce nao tem permissao para confirmar esta compra" });
-      return;
-    }
-    if (purchase.status !== "paid") {
-      purchase.status = "paid";
-      numberModeBets
-        .filter(bet => bet.tenant_id === purchase.tenant_id && bet.purchaseId === purchase.id)
-        .forEach(bet => {
-          bet.status = "paid";
-        });
-      purchase.customer.totalTickets = Math.max(
-        purchase.customer.totalTickets || 0,
-        numberModePurchases
-          .filter(item => item.tenant_id === purchase.tenant_id && item.customer.id === purchase.customer.id && item.status === "paid")
-          .reduce((sum, item) => sum + item.numbers.length, 0)
-      );
-      notifyCustomer(
-        purchase.customer,
-        "Pagamento confirmado",
-        `Sua compra de ${purchase.numbers.length} numero(s) em ${numberModeConfigs[purchase.mode]?.name || purchase.mode} foi confirmada.`,
-        "Ver meus bilhetes",
-        "/dashboard"
-      );
-      const config = numberModeConfigs[purchase.mode];
-      config.lootboxConfig = createScopedLootboxConfig(config.lootboxConfig);
-      purchase.earnedLootboxes = config.lootboxEnabled
-        ? processLootboxDrops(purchase.customer.phone, purchase.numbers.length, purchase.id, config.lootboxConfig, `mode:${purchase.mode}`, purchase.mode, purchase.tenant_id)
-        : 0;
-    }
-  res.json(stripSensitiveCustomerFields({ purchase, pixPayload: buildPixPayload(purchase.amount, undefined, purchase.id, purchase.tenant_id), earnedLootboxes: purchase.earnedLootboxes || 0 }));
-});
+    res.status(403).json({ error: "Confirmacao manual pelo cliente nao e permitida. Use Verificar pagamento e aguarde o webhook do gateway." });
+  });
 
   function createFazendinhaPurchase(req: express.Request, res: express.Response, requestedGroupIds: string[]) {
     const tenantId = resolveRequestTenantId(req);
@@ -5484,20 +5539,7 @@ async function startServer() {
   });
 
   app.post("/api/fazendinha/purchases/:purchaseId/confirm-payment", (req, res) => {
-    const purchase = fazendinhaCompras.find(item => item.tenant_id === resolveRequestTenantId(req) && item.id === req.params.purchaseId);
-    if (!purchase) {
-      res.status(404).json({ error: "Compra da Fazendinha nao encontrada" });
-      return;
-    }
-    if (!requestHasAdminSession(req, purchase.tenant_id) && !requestOwnsCustomer(req, purchase.customer)) {
-      res.status(403).json({ error: "Voce nao tem permissao para confirmar esta compra" });
-      return;
-    }
-    try {
-      res.json(stripSensitiveCustomerFields(confirmFazendinhaPurchase(purchase)));
-    } catch {
-      res.status(409).json({ error: "Falha ao confirmar pagamento da Fazendinha" });
-    }
+    res.status(403).json({ error: "Confirmacao manual pelo cliente nao e permitida. Use Verificar pagamento e aguarde o webhook do gateway." });
   });
 
   app.get("/api/admin/fazendinha", (req, res) => {
@@ -5802,8 +5844,225 @@ async function startServer() {
      return processLootboxDrops(contact, selectedGroupIds.length, purchaseId, config, "fazendinha", "fazendinha", tenantId);
    }
 
+  function getWhatsAppConfig(tenantId: string) {
+    return whatsappProviderConfigs.find(config => config.tenant_id === tenantId) || null;
+  }
+
+  function sanitizeWhatsAppConfig(config: WhatsAppProviderConfigRecord | null) {
+    if (!config) {
+      return {
+        provider: "mock",
+        enabled: false,
+        environment: "sandbox",
+        phone_number_id: "",
+        business_account_id: "",
+        access_token: "",
+        webhook_verify_token: "",
+        template_namespace: "",
+        default_language: "pt_BR"
+      };
+    }
+    return {
+      id: config.id,
+      tenant_id: config.tenant_id,
+      provider: config.provider,
+      enabled: config.enabled,
+      environment: config.environment,
+      phone_number_id: config.phone_number_id || "",
+      business_account_id: config.business_account_id || "",
+      access_token: config.access_token_encrypted ? maskGatewaySecret(config.access_token_encrypted) : "",
+      webhook_verify_token: config.webhook_verify_token_encrypted ? maskGatewaySecret(config.webhook_verify_token_encrypted) : "",
+      template_namespace: config.template_namespace || "",
+      default_language: config.default_language || "pt_BR",
+      created_at: config.created_at,
+      updated_at: config.updated_at
+    };
+  }
+
+  function buildPublicTicketUrl(purchase: PurchaseRecord) {
+    const tenant = tenants.find(item => item.id === purchase.tenant_id);
+    const verifiedDomain = tenantDomains.find(domain => domain.tenant_id === purchase.tenant_id && domain.status === "verified" && domain.is_primary);
+    const host = verifiedDomain?.domain || tenant?.dominio_customizado || tenant?.dominio || `${tenant?.slug || "rifapro"}.meudominio.com`;
+    const protocol = host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
+    return `${protocol}://${host}/rifa/${purchase.raffleId}?pedido=${encodeURIComponent(purchase.purchaseId)}`;
+  }
+
+  function getTicketConfirmationOrder(purchase: PurchaseRecord): TicketConfirmationOrder {
+    const raffle = raffles.find(item => item.tenant_id === purchase.tenant_id && item.id === purchase.raffleId);
+    return {
+      orderId: purchase.purchaseId,
+      tenantId: purchase.tenant_id,
+      campaignName: raffle?.title || purchase.raffleId,
+      quantity: purchase.tickets,
+      numbers: purchase.numeros,
+      amount: purchase.amount,
+      phone: purchase.customer?.phone || purchase.contact,
+      ticketUrl: buildPublicTicketUrl(purchase)
+    };
+  }
+
+  function enqueueWhatsAppTicketConfirmation(purchaseOrOrderId: PurchaseRecord | string) {
+    const purchase = typeof purchaseOrOrderId === "string"
+      ? purchases.find(item => item.purchaseId === purchaseOrOrderId)
+      : purchaseOrOrderId;
+    if (!purchase || purchase.status !== "paid") return null;
+    const config = getWhatsAppConfig(purchase.tenant_id);
+    if (!config?.enabled) return null;
+
+    const idempotencyKey = buildTicketConfirmationIdempotencyKey(purchase.purchaseId);
+    const duplicate = whatsappMessageQueue.find(message => message.idempotency_key === idempotencyKey);
+    if (duplicate) return duplicate;
+
+    const order = getTicketConfirmationOrder(purchase);
+    const phone = normalizeBrazilianPhone(order.phone);
+    const now = new Date().toISOString();
+    const message: WhatsAppMessageQueueRecord = {
+      id: createPublicId("WAPP_"),
+      tenant_id: purchase.tenant_id,
+      order_id: purchase.purchaseId,
+      customer_id: purchase.customer?.id,
+      phone,
+      message_type: "ticket_confirmation",
+      message_body: buildTicketConfirmationMessage(order),
+      provider: config.provider || "mock",
+      status: isValidBrazilianWhatsAppPhone(phone) ? "pending" : "failed",
+      attempts: 0,
+      max_attempts: 3,
+      last_error: isValidBrazilianWhatsAppPhone(phone) ? "" : "Telefone invalido para WhatsApp",
+      created_at: now,
+      updated_at: now,
+      idempotency_key: idempotencyKey
+    };
+    whatsappMessageQueue.unshift(message);
+    whatsappMessageQueue = whatsappMessageQueue.slice(0, 1000);
+    auditLogs.unshift({
+      id: createPublicId("AUD_"),
+      tenant_id: purchase.tenant_id,
+      action: message.status === "failed" ? "WHATSAPP_TICKET_FAILED" : "WHATSAPP_TICKET_ENQUEUED",
+      method: "SYSTEM",
+      path: "/whatsapp/ticket-confirmation",
+      status: message.status === "failed" ? 422 : 202,
+      actor: "payment-worker",
+      ip: "system",
+      createdAt: now,
+      detail: `${purchase.purchaseId}:${maskPhone(phone)}`
+    });
+    if (message.status === "pending") {
+      setTimeout(() => { void processWhatsAppQueue(10); }, 0);
+    }
+    return message;
+  }
+
+  async function sendQueuedWhatsAppMessage(messageId: string) {
+    const message = whatsappMessageQueue.find(item => item.id === messageId);
+    if (!message) throw new Error("Mensagem WhatsApp nao encontrada");
+    if (message.status === "sent") return message;
+    if (message.attempts >= message.max_attempts) {
+      message.status = "failed";
+      message.updated_at = new Date().toISOString();
+      return message;
+    }
+    const config = getWhatsAppConfig(message.tenant_id);
+    if (!config?.enabled) {
+      message.status = "failed";
+      message.last_error = "Envio automatico WhatsApp desativado para este tenant";
+      message.updated_at = new Date().toISOString();
+      return message;
+    }
+    if (!isValidBrazilianWhatsAppPhone(message.phone)) {
+      message.status = "failed";
+      message.last_error = "Telefone invalido para WhatsApp";
+      message.updated_at = new Date().toISOString();
+      return message;
+    }
+
+    message.attempts += 1;
+    message.status = "retrying";
+    message.updated_at = new Date().toISOString();
+    try {
+      if (message.provider === "meta_cloud") {
+        await sendMetaCloudWhatsAppMessage({
+          to: message.phone,
+          body: message.message_body,
+          tenantId: message.tenant_id,
+          messageId: message.id
+        }, {
+          enabled: config.enabled,
+          environment: config.environment,
+          phone_number_id: config.phone_number_id,
+          access_token: decryptGatewaySecret(config.access_token_encrypted || ""),
+          default_language: config.default_language,
+          template_namespace: config.template_namespace
+        });
+      } else {
+        await sendMockWhatsAppMessage({
+          to: message.phone,
+          body: message.message_body,
+          tenantId: message.tenant_id,
+          messageId: message.id
+        });
+      }
+      message.status = "sent";
+      message.sent_at = new Date().toISOString();
+      message.last_error = "";
+      message.updated_at = message.sent_at;
+      auditLogs.unshift({
+        id: createPublicId("AUD_"),
+        tenant_id: message.tenant_id,
+        action: "WHATSAPP_TICKET_SENT",
+        method: "SYSTEM",
+        path: "/whatsapp/queue",
+        status: 200,
+        actor: message.provider,
+        ip: "system",
+        createdAt: message.sent_at,
+        detail: `${message.order_id}:${maskPhone(message.phone)}`
+      });
+    } catch (error) {
+      message.last_error = error instanceof Error ? error.message : "Falha desconhecida no WhatsApp";
+      message.status = message.attempts >= message.max_attempts ? "failed" : "pending";
+      message.updated_at = new Date().toISOString();
+      auditLogs.unshift({
+        id: createPublicId("AUD_"),
+        tenant_id: message.tenant_id,
+        action: message.status === "failed" ? "WHATSAPP_TICKET_FAILED" : "WHATSAPP_TICKET_RETRYING",
+        method: "SYSTEM",
+        path: "/whatsapp/queue",
+        status: message.status === "failed" ? 500 : 202,
+        actor: message.provider,
+        ip: "system",
+        createdAt: message.updated_at,
+        detail: message.last_error
+      });
+    }
+    return message;
+  }
+
+  let whatsappWorkerRunning = false;
+  async function processWhatsAppQueue(limit = 20) {
+    if (whatsappWorkerRunning) return 0;
+    whatsappWorkerRunning = true;
+    let processed = 0;
+    try {
+      const ready = whatsappMessageQueue
+        .filter(message => ["pending", "retrying"].includes(message.status) && message.attempts < message.max_attempts)
+        .slice(0, limit);
+      for (const message of ready) {
+        await sendQueuedWhatsAppMessage(message.id);
+        processed += 1;
+      }
+      schedulePersistentStateSave("whatsapp-worker");
+      return processed;
+    } finally {
+      whatsappWorkerRunning = false;
+    }
+  }
+
   function confirmPurchase(purchase: PurchaseRecord) {
-    if (purchase.status === "paid" && purchase.numeros.length > 0) return purchase;
+    if (purchase.status === "paid" && purchase.numeros.length > 0) {
+      enqueueWhatsAppTicketConfirmation(purchase);
+      return purchase;
+    }
     const raffle = raffles.find(r => r.tenant_id === purchase.tenant_id && r.id === purchase.raffleId);
     if (!raffle) throw new Error("Raffle not found");
 
@@ -5916,7 +6175,45 @@ async function startServer() {
     if (getTenantSettings(purchase.tenant_id).n8nIntegration?.sendPurchaseTickets && isRaffleN8nEnabled(raffle)) {
       queueN8nEvent("purchase.tickets_confirmed", buildPurchaseN8nPayload(purchase), { target: purchase.contact, tenantId: purchase.tenant_id });
     }
+    enqueueWhatsAppTicketConfirmation(purchase);
     return purchase;
+  }
+
+  function manuallyConfirmPurchasePayment(purchase: PurchaseRecord, req: express.Request, reason: string) {
+    const normalizedReason = String(reason || "").trim();
+    if (!normalizedReason) throw new Error("Motivo da confirmacao manual e obrigatorio");
+    if (purchase.status === "cancelled") throw new Error("Pedido cancelado nao pode ser confirmado");
+    if (purchase.status === "paid") {
+      recordSecurityEvent({
+        tenant_id: purchase.tenant_id,
+        action: "PAYMENT_MANUAL_CONFIRM_DUPLICATE",
+        ip: String(req.ip || req.socket.remoteAddress || ""),
+        status: "INFO",
+        severity: "low",
+        actor: getAuthSession(req)?.email,
+        detail: purchase.purchaseId
+      });
+      return purchase;
+    }
+    const confirmed = confirmPurchase(purchase);
+    purchase.linkedPurchases?.forEach(confirmPurchase);
+    const alreadyLogged = purchase.paymentHistory?.some(item => item.status === "paid" && item.admin && item.reason === normalizedReason);
+    if (!alreadyLogged) {
+      purchase.paymentHistory = [
+        ...(purchase.paymentHistory || []),
+        { status: "paid", label: "Pagamento confirmado manualmente", date: new Date().toISOString(), admin: true, reason: normalizedReason }
+      ];
+    }
+    recordSecurityEvent({
+      tenant_id: purchase.tenant_id,
+      action: "PAYMENT_MANUAL_CONFIRMED",
+      ip: String(req.ip || req.socket.remoteAddress || ""),
+      status: "WARN",
+      severity: "medium",
+      actor: getAuthSession(req)?.email,
+      detail: `${purchase.purchaseId}: ${normalizedReason}`
+    });
+    return confirmed;
   }
 
   function recordPaymentWebhookLog(log: Omit<PaymentWebhookLog, "id" | "createdAt">) {
@@ -6240,17 +6537,12 @@ async function startServer() {
         return;
     }
 
-    if (purchase.status === "paid") {
-        res.json(stripSensitiveCustomerFields(purchase));
-        return;
-    }
-
     try {
-      confirmPurchase(purchase);
-      purchase.linkedPurchases?.forEach(confirmPurchase);
-      recordSecurityEvent({ tenant_id: purchase.tenant_id, action: "PAYMENT_CONFIRMED_MANUAL", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "medium", actor: getAuthSession(req)?.email, detail: purchase.purchaseId });
-    } catch {
-      res.status(409).json({ error: "Falha na alocação, tente novamente ou solicite reembolso" });
+      const reason = String(req.body?.reason || "").trim();
+      manuallyConfirmPurchasePayment(purchase, req, reason);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha na alocação, tente novamente ou solicite reembolso";
+      res.status(message.includes("obrigatorio") ? 400 : 409).json({ error: message });
       return;
     }
     
@@ -6258,6 +6550,58 @@ async function startServer() {
     const finalPurchase = { ...purchase, earnedLootboxes: purchase.earnedLootboxes };
 
     res.json(stripSensitiveCustomerFields(finalPurchase));
+  });
+
+  app.get("/api/checkout/orders/:orderId/status", (req, res) => {
+    const orderId = String(req.params.orderId || "");
+    const tenantId = resolveRequestTenantId(req);
+    const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === orderId);
+    if (purchase) {
+      const expired = purchase.status === "pending" && Boolean(purchase.reservedUntil) && new Date(purchase.reservedUntil || "").getTime() <= Date.now();
+      const status = expired ? "expired" : purchase.status;
+      res.json(stripSensitiveCustomerFields({
+        orderId,
+        type: "raffle",
+        status,
+        paymentStatus: status,
+        paid: purchase.status === "paid",
+        expired,
+        pixPayload: purchase.status === "pending" && !expired ? purchase.pixPayload : "",
+        purchase,
+        ticketUrl: purchase.status === "paid" ? buildPublicTicketUrl(purchase) : "",
+        message: purchase.status === "paid" ? "Pagamento confirmado" : expired ? "PIX expirado" : purchase.status === "cancelled" ? "Pedido cancelado" : "Aguardando pagamento"
+      }));
+      return;
+    }
+    const modePurchase = numberModePurchases.find(item => item.tenant_id === tenantId && item.id === orderId);
+    if (modePurchase) {
+      res.json(stripSensitiveCustomerFields({
+        orderId,
+        type: "modalidade",
+        status: modePurchase.status,
+        paymentStatus: modePurchase.status === "paid" ? "paid" : "pending",
+        paid: modePurchase.status === "paid",
+        expired: false,
+        purchase: modePurchase,
+        message: modePurchase.status === "paid" ? "Pagamento confirmado" : "Aguardando pagamento"
+      }));
+      return;
+    }
+    const farmPurchase = fazendinhaCompras.find(item => item.tenant_id === tenantId && item.id === orderId);
+    if (farmPurchase) {
+      res.json(stripSensitiveCustomerFields({
+        orderId,
+        type: "fazendinha",
+        status: farmPurchase.statusPagamento === "paid" ? "paid" : "reserved",
+        paymentStatus: farmPurchase.statusPagamento === "paid" ? "paid" : "pending",
+        paid: farmPurchase.statusPagamento === "paid",
+        expired: false,
+        purchase: farmPurchase,
+        message: farmPurchase.statusPagamento === "paid" ? "Pagamento confirmado" : "Aguardando pagamento"
+      }));
+      return;
+    }
+    res.status(404).json({ error: "Pedido nao encontrado" });
   });
 
   app.get("/api/purchases/:purchaseId", (req, res) => {
@@ -6338,6 +6682,85 @@ async function startServer() {
       },
       issues
     });
+  });
+
+  app.get("/api/admin/whatsapp/config", (req, res) => {
+    res.json(sanitizeWhatsAppConfig(getWhatsAppConfig(resolveRequestTenantId(req))));
+  });
+
+  app.post("/api/admin/whatsapp/config", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const now = new Date().toISOString();
+    const existing = getWhatsAppConfig(tenantId);
+    const provider = String(req.body.provider || existing?.provider || "mock") === "meta_cloud" ? "meta_cloud" : "mock";
+    const environment = String(req.body.environment || existing?.environment || "sandbox") === "production" ? "production" : "sandbox";
+    const mergeSecret = (incoming: unknown, current?: string) => {
+      const value = String(incoming || "").trim();
+      if (!value || isMaskedGatewaySecret(value)) return current || "";
+      return encryptGatewaySecret(value);
+    };
+    const config: WhatsAppProviderConfigRecord = {
+      id: existing?.id || createPublicId("WCFG_"),
+      tenant_id: tenantId,
+      provider,
+      enabled: Boolean(req.body.enabled),
+      environment,
+      phone_number_id: String(req.body.phone_number_id || existing?.phone_number_id || "").trim(),
+      business_account_id: String(req.body.business_account_id || existing?.business_account_id || "").trim(),
+      access_token_encrypted: mergeSecret(req.body.access_token, existing?.access_token_encrypted),
+      webhook_verify_token_encrypted: mergeSecret(req.body.webhook_verify_token, existing?.webhook_verify_token_encrypted),
+      template_namespace: String(req.body.template_namespace || existing?.template_namespace || "").trim(),
+      default_language: String(req.body.default_language || existing?.default_language || "pt_BR").trim() || "pt_BR",
+      created_at: existing?.created_at || now,
+      updated_at: now
+    };
+    whatsappProviderConfigs = existing
+      ? whatsappProviderConfigs.map(item => item.id === existing.id ? config : item)
+      : [config, ...whatsappProviderConfigs];
+    recordSecurityEvent({ tenant_id: tenantId, action: "WHATSAPP_CONFIG_UPDATED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "medium", actor: getAuthSession(req)?.email, detail: `${config.provider}:${config.environment}:${config.enabled}` });
+    res.json(sanitizeWhatsAppConfig(config));
+  });
+
+  app.post("/api/admin/whatsapp/test", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const config = getWhatsAppConfig(tenantId);
+    if (!config?.enabled) return res.status(409).json({ error: "Ative a integracao WhatsApp antes de testar" });
+    if (config.environment === "production" && isProductionRuntime) return res.status(403).json({ error: "Teste WhatsApp bloqueado em producao" });
+    const phone = normalizeBrazilianPhone(String(req.body.phone || ""));
+    const now = new Date().toISOString();
+    const message: WhatsAppMessageQueueRecord = {
+      id: createPublicId("WAPP_"),
+      tenant_id: tenantId,
+      phone,
+      message_type: "test",
+      message_body: "Mensagem de teste RifaPro/CIFHER via WhatsApp sandbox.",
+      provider: config.provider,
+      status: "pending",
+      attempts: 0,
+      max_attempts: 1,
+      last_error: "",
+      created_at: now,
+      updated_at: now,
+      idempotency_key: `whatsapp:test:${tenantId}:${Date.now()}`
+    };
+    whatsappMessageQueue.unshift(message);
+    await sendQueuedWhatsAppMessage(message.id);
+    res.status(String(message.status) === "sent" ? 200 : 502).json({ message: { ...message, phone: maskPhone(message.phone) } });
+  });
+
+  app.get("/api/admin/whatsapp/messages", (req, res) => {
+    res.json(scoped(whatsappMessageQueue, req).map(message => ({ ...message, phone: maskPhone(message.phone) })));
+  });
+
+  app.post("/api/admin/whatsapp/messages/:id/resend", async (req, res) => {
+    const message = whatsappMessageQueue.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!message) return res.status(404).json({ error: "Mensagem WhatsApp nao encontrada para este tenant" });
+    message.status = "pending";
+    message.attempts = 0;
+    message.last_error = "";
+    message.updated_at = new Date().toISOString();
+    await sendQueuedWhatsAppMessage(message.id);
+    res.status(String(message.status) === "sent" ? 200 : 502).json({ message: { ...message, phone: maskPhone(message.phone) } });
   });
 
   app.get("/api/admin/finance-summary", (req, res) => {
@@ -6762,23 +7185,29 @@ async function startServer() {
       res.status(404).json({ error: "Purchase not found" });
       return;
     }
-    if (purchase.status === "cancelled") {
-      res.status(409).json({ error: "Compra rejeitada nao pode ser aprovada" });
+    try {
+      manuallyConfirmPurchasePayment(purchase, req, String(req.body?.reason || ""));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao alocar cotas para esta compra";
+      res.status(message.includes("obrigatorio") ? 400 : 409).json({ error: message });
+      return;
+    }
+    res.json(purchase);
+  });
+
+  app.post("/api/admin/orders/:orderId/manual-confirm-payment", (req, res) => {
+    const purchase = purchases.find(p => p.purchaseId === req.params.orderId && adminCanAccessTenant(req, p.tenant_id));
+    if (!purchase) {
+      res.status(404).json({ error: "Pedido nao encontrado" });
       return;
     }
     try {
-      confirmPurchase(purchase);
-      purchase.linkedPurchases?.forEach(confirmPurchase);
-      recordSecurityEvent({ tenant_id: purchase.tenant_id, action: "PAYMENT_APPROVED_ADMIN", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "medium", actor: getAuthSession(req)?.email, detail: purchase.purchaseId });
-    } catch {
-      res.status(409).json({ error: "Falha ao alocar cotas para esta compra" });
-      return;
+      const confirmed = manuallyConfirmPurchasePayment(purchase, req, String(req.body?.reason || ""));
+      res.json(stripSensitiveCustomerFields({ purchase: confirmed, audit: "Esta ação será auditada" }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao confirmar pagamento manualmente";
+      res.status(message.includes("obrigatorio") ? 400 : 409).json({ error: message });
     }
-    purchase.paymentHistory = [
-      ...(purchase.paymentHistory || []),
-      { status: "paid", label: "Pagamento PIX aprovado", date: new Date().toISOString(), admin: true }
-    ];
-    res.json(purchase);
   });
 
   app.post("/api/admin/purchases/:purchaseId/reject", (req, res) => {
@@ -7324,7 +7753,9 @@ async function startServer() {
       paymentGatewayConfigs,
       tenantDomains,
       superadminImpersonationSessions,
-      superadminAuditLogs
+      superadminAuditLogs,
+      whatsappProviderConfigs,
+      whatsappMessageQueue
     };
   }
 
@@ -7378,6 +7809,8 @@ async function startServer() {
       case "tenantDomains": tenantDomains = Array.isArray(value) ? value : tenantDomains; break;
       case "superadminImpersonationSessions": superadminImpersonationSessions = Array.isArray(value) ? value : []; break;
       case "superadminAuditLogs": superadminAuditLogs = Array.isArray(value) ? value : []; break;
+      case "whatsappProviderConfigs": whatsappProviderConfigs = Array.isArray(value) ? value : []; break;
+      case "whatsappMessageQueue": whatsappMessageQueue = Array.isArray(value) ? value : []; break;
     }
   }
 

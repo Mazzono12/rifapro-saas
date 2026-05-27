@@ -66,6 +66,24 @@ export const checkoutService = {
       affiliateInfo?: { refCode?: string; name?: string };
       warnings?: string[];
     }>;
+  },
+
+  async checkPixPaymentStatus(orderId: string) {
+    const res = await fetch(`/api/checkout/orders/${orderId}/status`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Nao foi possivel verificar o pagamento");
+    return data as Promise<{
+      orderId: string;
+      type: "raffle" | "fazendinha" | "modalidade";
+      status: "pending" | "paid" | "cancelled" | "expired" | "reserved";
+      paymentStatus: "pending" | "paid" | "cancelled" | "expired";
+      paid: boolean;
+      expired: boolean;
+      pixPayload?: string;
+      purchase?: any;
+      ticketUrl?: string;
+      message: string;
+    }>;
   }
 };
 

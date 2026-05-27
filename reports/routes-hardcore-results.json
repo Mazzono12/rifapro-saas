@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-27T16:07:25.186Z",
-  "totalRoutes": 195,
+  "generatedAt": "2026-05-27T17:31:41.631Z",
+  "totalRoutes": 204,
   "directRuntimeNote": "Cobertura runtime profunda delegada aos scripts hardcore por modulo; este arquivo garante inventario e contrato de todas as rotas detectadas.",
   "results": [
     {
@@ -270,6 +270,30 @@
     {
       "method": "GET",
       "path": "/api/superadmin/payments/queue",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/superadmin/whatsapp/overview",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/superadmin/whatsapp/messages",
       "status": "mapped_static",
       "expectedSecurity": "superadmin_only",
       "checks": [
@@ -1421,6 +1445,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/checkout/orders/:orderId/status",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "rota_publica_ou_contextual",
+        "sem_tenant_explicito"
+      ]
+    },
+    {
+      "method": "GET",
       "path": "/api/purchases/:purchaseId",
       "status": "mapped_static",
       "expectedSecurity": "public_or_tenant_context",
@@ -1475,6 +1511,66 @@
       "checks": [
         "metodo_http_mapeado",
         "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/whatsapp/config",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/whatsapp/config",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/whatsapp/test",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/whatsapp/messages",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/whatsapp/messages/:id/resend",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
         "exige_tenant_admin",
         "tenant_scope_revisado"
       ]
@@ -1758,6 +1854,18 @@
     {
       "method": "POST",
       "path": "/api/admin/purchases/:purchaseId/approve",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/orders/:orderId/manual-confirm-payment",
       "status": "mapped_static",
       "expectedSecurity": "tenant_admin_only",
       "checks": [

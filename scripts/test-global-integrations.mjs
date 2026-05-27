@@ -178,7 +178,7 @@ try {
 
   const raffleA = await createRaffle(headersA, "Rifa Conversao Integracao A");
   const purchaseA = await buy("cliente-a.meudominio.com", raffleA.id);
-  const confirmed = await json(`/api/purchases/${purchaseA.purchaseId}/confirm`, { method: "POST", headers: headersA });
+  const confirmed = await json(`/api/admin/orders/${purchaseA.purchaseId}/manual-confirm-payment`, { method: "POST", headers: headersA, body: JSON.stringify({ reason: "Teste de integracao global" }) });
   assert.equal(confirmed.response.status, 200);
   await new Promise(resolve => setTimeout(resolve, 250));
 

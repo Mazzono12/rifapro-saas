@@ -140,10 +140,11 @@ try {
   const boxAgain = await json(`/api/gamification/mystery-boxes/${purchaseWin.gamification.mysteryBoxEventId}/open`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" }, body: JSON.stringify({ boxId: "box-a" }) });
   assert.equal(boxAgain.response.status, 409, "Caixinha nao pode abrir duas vezes.");
 
-  const confirmWin = await json(`/api/purchases/${purchaseWin.purchaseId}/confirm`, { method: "POST", headers: headersA });
+  const confirmWin = await json(`/api/admin/orders/${purchaseWin.purchaseId}/manual-confirm-payment`, { method: "POST", headers: headersA, body: JSON.stringify({ reason: "Teste hard de gamificacao" }) });
   assert.equal(confirmWin.response.status, 200);
-  assert.equal(confirmWin.body.ticketWeights.every(item => item.weight === 2), true, "Chance em dobro deve alterar peso.");
-  assert.ok(confirmWin.body.gamification.autoPrizes?.length > 0, "Bilhete premiado deve registrar premio automatico.");
+  const confirmedWinPurchase = confirmWin.body.purchase || confirmWin.body;
+  assert.equal(confirmedWinPurchase.ticketWeights.every(item => item.weight === 2), true, "Chance em dobro deve alterar peso.");
+  assert.ok(confirmedWinPurchase.gamification.autoPrizes?.length > 0, "Bilhete premiado deve registrar premio automatico.");
 
   await configure(headersA, raffleA.id, {
     scratchcard: { winProbability: 0, prizes: [{ id: "scr-lose", name: "PIX 99", type: "pix", value: 99, stock: 1, probability: 100 }] },
@@ -154,7 +155,7 @@ try {
   assert.equal(purchaseLose.gamification.orderBump.accepted, false, "Upsell recusado deve ser registrado.");
   const scratchLose = await json(`/api/gamification/scratchcards/${purchaseLose.gamification.scratchcardEventId}/reveal`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" } });
   assert.equal(scratchLose.body.event.status, "lost", "Comprador nao deve ganhar raspadinha com probabilidade 0.");
-  await json(`/api/purchases/${purchaseLose.purchaseId}/confirm`, { method: "POST", headers: headersA });
+  await json(`/api/admin/orders/${purchaseLose.purchaseId}/manual-confirm-payment`, { method: "POST", headers: headersA, body: JSON.stringify({ reason: "Teste hard de gamificacao" }) });
 
   const ranking = await json(`/api/raffles/${raffleA.id}/ranking`, { headers: { "x-forwarded-host": "cliente-a.meudominio.com" } });
   assert.equal(ranking.response.status, 200);

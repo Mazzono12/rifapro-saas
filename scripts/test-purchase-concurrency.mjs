@@ -151,12 +151,13 @@ try {
   assert.deepEqual([...new Set(persistedNumbers)].sort((a, b) => a - b), [...new Set(reservedNumbers)].sort((a, b) => a - b));
 
   const paid = successes[0].body;
-  const confirm = await json(`/api/purchases/${paid.purchaseId}/confirm`, {
+  const confirm = await json(`/api/admin/orders/${paid.purchaseId}/manual-confirm-payment`, {
     method: "POST",
-    headers: tenantHeaders
+    headers: tenantHeaders,
+    body: JSON.stringify({ reason: "Teste de concorrencia de compra" })
   });
   assert.equal(confirm.response.status, 200, "Confirmacao deve usar a cota ja reservada.");
-  assert.deepEqual(confirm.body.numeros, paid.numeros, "Pagamento nao pode realocar a cota reservada.");
+  assert.deepEqual((confirm.body.purchase || confirm.body).numeros, paid.numeros, "Pagamento nao pode realocar a cota reservada.");
 
   const afterConfirm = await json("/api/admin/purchases", { headers: tenantHeaders });
   const finalNumbers = afterConfirm.body.filter(item => item.raffleId === raffle.id).flatMap(item => item.numeros || []);

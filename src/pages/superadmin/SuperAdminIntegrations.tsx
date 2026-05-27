@@ -1,20 +1,26 @@
 import { useEffect, useState } from "react";
-import { Activity, AlertTriangle, PlugZap } from "lucide-react";
+import { Activity, AlertTriangle, MessageCircle, PlugZap } from "lucide-react";
 
 export function SuperAdminIntegrations() {
   const [data, setData] = useState<any>({ integrations: [], summary: [] });
   const [logs, setLogs] = useState<any[]>([]);
   const [webhooks, setWebhooks] = useState<any>({ endpoints: [], events: [] });
+  const [whatsapp, setWhatsapp] = useState<any>({ metrics: {}, tenants: [], byProvider: [] });
+  const [whatsappMessages, setWhatsappMessages] = useState<any[]>([]);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/superadmin/integrations").then(res => res.json()),
       fetch("/api/superadmin/integration-logs").then(res => res.json()),
-      fetch("/api/superadmin/webhooks").then(res => res.json())
-    ]).then(([integrations, logsData, webhooksData]) => {
+      fetch("/api/superadmin/webhooks").then(res => res.json()),
+      fetch("/api/superadmin/whatsapp/overview").then(res => res.json()),
+      fetch("/api/superadmin/whatsapp/messages").then(res => res.json())
+    ]).then(([integrations, logsData, webhooksData, whatsappOverview, messages]) => {
       setData(integrations);
       setLogs(logsData);
       setWebhooks(webhooksData);
+      setWhatsapp(whatsappOverview);
+      setWhatsappMessages(messages);
     }).catch(() => null);
   }, []);
 
@@ -25,6 +31,28 @@ export function SuperAdminIntegrations() {
         <div className="admin-card"><AlertTriangle className="mb-3 h-5 w-5 text-amber-500" /><p className="text-sm text-[var(--admin-muted)]">Erros recentes</p><p className="text-3xl font-semibold">{logs.filter((item: any) => !item.success).length}</p></div>
         <div className="admin-card"><Activity className="mb-3 h-5 w-5 text-emerald-500" /><p className="text-sm text-[var(--admin-muted)]">Chamadas registradas</p><p className="text-3xl font-semibold">{logs.length}</p></div>
       </div>
+
+      <section className="admin-card">
+        <div className="mb-4 flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-emerald-500" />
+          <h2 className="text-lg font-semibold text-[var(--admin-text)]">WhatsApp global</h2>
+        </div>
+        <div className="grid gap-3 md:grid-cols-4">
+          <MiniMetric label="Enviadas" value={whatsapp.metrics?.sent || 0} />
+          <MiniMetric label="Pendentes" value={whatsapp.metrics?.pending || 0} />
+          <MiniMetric label="Falhas" value={whatsapp.metrics?.failed || 0} />
+          <MiniMetric label="Tenants ativos" value={whatsapp.metrics?.activeTenants || 0} />
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {(whatsapp.tenants || []).map((tenant: any) => (
+            <div key={tenant.tenant_id} className="rounded-lg border border-[var(--admin-border)] p-4">
+              <p className="font-semibold">{tenant.tenant}</p>
+              <p className="text-sm text-[var(--admin-muted)]">{tenant.provider} / {tenant.environment} / {tenant.enabled ? "ativo" : "inativo"}</p>
+              <p className="mt-3 text-sm">Enviadas: {tenant.sent} | Pendentes: {tenant.pending} | Falhas: {tenant.failed}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="admin-card">
         <h2 className="mb-4 text-lg font-semibold text-[var(--admin-text)]">Integrações por tenant</h2>
@@ -63,6 +91,29 @@ export function SuperAdminIntegrations() {
           ))}
         </div>
       </section>
+
+      <section className="admin-card overflow-x-auto">
+        <h2 className="mb-4 text-lg font-semibold text-[var(--admin-text)]">Fila WhatsApp</h2>
+        <table className="w-full min-w-[860px] text-left text-sm">
+          <thead className="text-xs uppercase text-[var(--admin-muted)]"><tr><th className="py-2">Tenant</th><th>Pedido</th><th>Telefone</th><th>Provider</th><th>Status</th><th>Erro</th></tr></thead>
+          <tbody>
+            {whatsappMessages.slice(0, 20).map(message => (
+              <tr key={message.id} className="border-t border-[var(--admin-border)]">
+                <td className="py-2">{message.tenant}</td><td>{message.order_id || "-"}</td><td>{message.phone}</td><td>{message.provider}</td><td>{message.status}</td><td className="max-w-xs truncate">{message.last_error || "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-[var(--admin-border)] p-4">
+      <p className="text-sm text-[var(--admin-muted)]">{label}</p>
+      <p className="text-2xl font-semibold">{value}</p>
     </div>
   );
 }

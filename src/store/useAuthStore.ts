@@ -9,10 +9,7 @@ type AuthRole = 'superadmin' | 'tenant_admin' | 'tenant_user';
 function shouldAttachAuthToken(input: RequestInfo | URL) {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.pathname : input.url;
   return url.startsWith('/api/admin') ||
-    url.startsWith('/api/superadmin') ||
-    /^\/api\/purchases\/[^/]+\/confirm$/.test(url) ||
-    /^\/api\/fazendinha\/purchases\/[^/]+\/confirm-payment$/.test(url) ||
-    /^\/api\/modalidades\/purchases\/[^/]+\/confirm-payment$/.test(url);
+    url.startsWith('/api/superadmin');
 }
 
 function installAuthenticatedFetch() {

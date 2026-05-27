@@ -10,12 +10,13 @@ export function usePurchasePolling(purchaseId: string | undefined, interval = 30
 
     const checkStatus = async () => {
       try {
-        const res = await fetch(`/api/purchases/${purchaseId}`);
+        const res = await fetch(`/api/checkout/orders/${purchaseId}/status`);
         if (!res.ok) throw new Error('Falha ao buscar status do pedido');
         const data = await res.json();
-        setPurchase(data);
+        const nextPurchase = data.purchase || data;
+        setPurchase(nextPurchase);
         
-        if (data.status === 'paid' || data.status === 'cancelled') {
+        if (nextPurchase.status === 'paid' || nextPurchase.status === 'cancelled' || data.status === 'expired') {
             return true; // stop polling
         }
         return false;

@@ -1,15 +1,15 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-27T16:07:25.172Z
+Gerado em: 2026-05-27T17:31:41.629Z
 
 ## Totais
 
-- Rotas backend: 195
+- Rotas backend: 204
 - Paginas frontend: 44
 - Componentes: 26
-- Arquivos src: 111
-- Migrations: 22
-- Tabelas mapeadas: 39
+- Arquivos src: 114
+- Migrations: 23
+- Tabelas mapeadas: 41
 - Policies mapeadas: 41
 - Providers/arquivos de integracao: 10
 
@@ -38,6 +38,8 @@ Gerado em: 2026-05-27T16:07:25.172Z
 - GET /api/superadmin/payments/pix
 - GET /api/superadmin/payments/webhooks
 - GET /api/superadmin/payments/queue
+- GET /api/superadmin/whatsapp/overview
+- GET /api/superadmin/whatsapp/messages
 - POST /api/superadmin/payments/queue/process
 - POST /api/superadmin/payments/reconcile
 - GET /api/superadmin/users
@@ -133,11 +135,17 @@ Gerado em: 2026-05-27T16:07:25.172Z
 - POST /api/admin/fazendinha/reset
 - POST /api/webhooks/payment/:gateway
 - POST /api/purchases/:purchaseId/confirm
+- GET /api/checkout/orders/:orderId/status
 - GET /api/purchases/:purchaseId
 - GET /api/admin/stats
 - GET /api/admin/notifications
 - GET /api/admin/audit-logs
 - GET /api/admin/system-health
+- GET /api/admin/whatsapp/config
+- POST /api/admin/whatsapp/config
+- POST /api/admin/whatsapp/test
+- GET /api/admin/whatsapp/messages
+- POST /api/admin/whatsapp/messages/:id/resend
 - GET /api/admin/finance-summary
 - GET /api/admin/reports/export
 - GET /api/admin/purchases
@@ -162,6 +170,7 @@ Gerado em: 2026-05-27T16:07:25.172Z
 - GET /api/admin/raffles/:id/accounting
 - PUT /api/admin/purchases/:purchaseId
 - POST /api/admin/purchases/:purchaseId/approve
+- POST /api/admin/orders/:orderId/manual-confirm-payment
 - POST /api/admin/purchases/:purchaseId/reject
 - GET /api/admin/tickets/search
 - POST /api/admin/raffles/:id/draw
@@ -299,6 +308,8 @@ Gerado em: 2026-05-27T16:07:25.172Z
 - webhook_endpoints
 - webhook_events
 - webhook_jobs
+- whatsapp_message_queue
+- whatsapp_provider_configs
 
 ## Migrations
 
@@ -324,6 +335,7 @@ Gerado em: 2026-05-27T16:07:25.172Z
 - supabase/migrations/19_superadmin_finance_domains_impersonation.sql
 - supabase/migrations/20_hardcore_readiness_improvements.sql
 - supabase/migrations/21_clean_room_auth_compatibility.sql
+- supabase/migrations/22_whatsapp_auto_ticket_queue.sql
 
 ## Middlewares, Workers e Webhooks
 
@@ -337,17 +349,17 @@ Gerado em: 2026-05-27T16:07:25.172Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 585 ocorrencias no backend
+- tenant_id: 610 ocorrencias no backend
 - user_id: 7 ocorrencias no backend
-- order_id: 0 ocorrencias no backend
-- purchaseId: 132 ocorrencias no backend
-- raffleId: 139 ocorrencias no backend
+- order_id: 3 ocorrencias no backend
+- purchaseId: 137 ocorrencias no backend
+- raffleId: 142 ocorrencias no backend
 - affiliate: 293 ocorrencias no backend
-- gateway: 400 ocorrencias no backend
+- gateway: 407 ocorrencias no backend
 - wallet: 17 ocorrencias no backend
 - saldo: 1 ocorrencias no backend
-- webhook: 199 ocorrencias no backend
-- idempotencyKey: 7 ocorrencias no backend
+- webhook: 209 ocorrencias no backend
+- idempotencyKey: 12 ocorrencias no backend
 
 ## Riscos Observados
 

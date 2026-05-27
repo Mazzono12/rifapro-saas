@@ -184,14 +184,19 @@ export function FazendinhaSection() {
     toast.success("Localização vinculada ao cadastro");
   };
 
-  const confirmPixPayment = async () => {
+  const checkPixPayment = async () => {
     if (!pendingPix) return;
     setBuying(true);
     try {
-      const result = await fazendinhaService.confirmPayment(pendingPix.purchase.id);
-      if (result.purchase?.customer) setCustomer(result.purchase.customer);
+      const status = await checkoutService.checkPixPaymentStatus(pendingPix.purchase.id);
+      if (!status.paid) {
+        toast.info(status.message || "Aguardando pagamento", { description: "Assim que o webhook confirmar, seu bilhete sera liberado." });
+        return;
+      }
+      const paidPurchase = status.purchase || pendingPix.purchase;
+      if (paidPurchase?.customer) setCustomer(paidPurchase.customer);
       confetti({ particleCount: 120, spread: 70, origin: { y: 0.75 } });
-      toast.success("Pagamento PIX confirmado", {
+      toast.success("Pagamento confirmado", {
         description: "Compra concluída com sucesso."
       });
       setSelectedGroups([]);
@@ -200,15 +205,15 @@ export function FazendinhaSection() {
       setPendingPix(null);
       queryClient.invalidateQueries({ queryKey: ["fazendinha"] });
       setPaymentResult("approved");
-      if (result.earnedLootboxes > 0) {
+      if (Number(paidPurchase.earnedLootboxes || 0) > 0) {
         setPendingLootbox({
-          count: result.earnedLootboxes,
-          contact: result.purchase?.customer?.phone || form.phone
+          count: Number(paidPurchase.earnedLootboxes || 0),
+          contact: paidPurchase?.customer?.phone || form.phone
         });
       }
     } catch (error) {
       setPaymentResult("rejected");
-      toast.error(error instanceof Error ? error.message : "Erro ao confirmar PIX");
+      toast.error(error instanceof Error ? error.message : "Erro ao verificar pagamento");
     } finally {
       setBuying(false);
     }
@@ -552,8 +557,8 @@ export function FazendinhaSection() {
                   <strong className="font-display text-xl text-white">{formatCurrency(totalValue)}</strong>
                 </div>
               </div>
-              <button onClick={pendingPix ? confirmPixPayment : openPrePaymentReceipt} disabled={buying} className="neon-button sticky bottom-0 z-20 mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-black shadow-[0_-18px_45px_rgba(0,0,0,0.38)] disabled:opacity-50">
-                <CheckCircle2 className="h-5 w-5" /> {buying ? "Processando..." : pendingPix ? "Confirmar pagamento PIX" : "Revisar compra"}
+              <button onClick={pendingPix ? checkPixPayment : openPrePaymentReceipt} disabled={buying} className="neon-button sticky bottom-0 z-20 mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-black shadow-[0_-18px_45px_rgba(0,0,0,0.38)] disabled:opacity-50">
+                <CheckCircle2 className="h-5 w-5" /> {buying ? "Processando..." : pendingPix ? "Verificar pagamento" : "Revisar compra"}
               </button>
             </div>
             </motion.div>

@@ -157,6 +157,7 @@ async function checkoutHard() {
     assertContains("src/components/FazendinhaSection.tsx", ["openPrePaymentReceipt", "PrePaymentReceiptModal", "checkoutService.preview"]);
   });
   await runNodeScript("scripts/test-purchase-concurrency.mjs");
+  await runNodeScript("scripts/test-pix-confirmation-safety.mjs");
 }
 
 async function rafflesHard() {

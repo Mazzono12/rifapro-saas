@@ -300,17 +300,30 @@ export function AdminSales() {
   };
 
   const updatePurchaseStatus = async (purchaseId: string, action: "approve" | "reject") => {
-    const res = await fetch(`/api/admin/purchases/${purchaseId}/${action}`, {
+    const reason = action === "approve"
+      ? window.prompt("Motivo da confirmação")
+      : "Rejeitada pelo admin";
+    if (action === "approve") {
+      if (!reason?.trim()) {
+        toast.error("Motivo da confirmação é obrigatório");
+        return;
+      }
+      if (!window.confirm("Confirmar pagamento manualmente? Esta ação será auditada.")) return;
+    }
+    const path = action === "approve"
+      ? `/api/admin/orders/${purchaseId}/manual-confirm-payment`
+      : `/api/admin/purchases/${purchaseId}/reject`;
+    const res = await fetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: action === "reject" ? JSON.stringify({ reason: "Rejeitada pelo admin" }) : undefined,
+      body: JSON.stringify({ reason }),
     });
     const data = await res.json();
     if (!res.ok) {
       toast.error(data.error || "Erro ao atualizar compra");
       return;
     }
-    toast.success(action === "approve" ? "Pagamento PIX aprovado" : "Pagamento PIX rejeitado");
+    toast.success(action === "approve" ? "Pagamento confirmado manualmente" : "Pagamento PIX rejeitado");
     loadData();
   };
 
@@ -883,15 +896,15 @@ export function AdminSales() {
                         <td className="py-4 px-6 text-right">
                           {p.status === "pending" ? (
                             <div className="flex justify-end gap-2">
-                              <button onClick={() => updatePurchaseStatus(p.purchaseId, "approve")} className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/30 px-3 py-2 text-xs text-emerald-300 hover:bg-emerald-400/10">
-                                <CheckCircle2 className="w-3 h-3" /> Aprovar
+                              <button onClick={() => updatePurchaseStatus(p.purchaseId, "approve")} className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/30 px-3 py-2 text-xs text-emerald-300 hover:bg-emerald-400/10" title="Esta ação será auditada">
+                                <CheckCircle2 className="w-3 h-3" /> Confirmar pagamento manualmente
                               </button>
                               <button onClick={() => updatePurchaseStatus(p.purchaseId, "reject")} className="inline-flex items-center gap-1 rounded-lg border border-red-400/30 px-3 py-2 text-xs text-red-300 hover:bg-red-400/10">
                                 <XCircle className="w-3 h-3" /> Rejeitar
                               </button>
                             </div>
                           ) : (
-                            <span className="text-[10px] text-slate-500 uppercase tracking-widest">Finalizada</span>
+                            <span className="text-[10px] text-slate-500 uppercase tracking-widest">{p.status === "paid" ? "Pagamento já confirmado" : "Finalizada"}</span>
                           )}
                         </td>
                      </tr>

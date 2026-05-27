@@ -48,6 +48,9 @@
     "test:wallet-hardcore": "node scripts/test-hardcore-suite.mjs wallet-hardcore",
     "test:harmony-hardcore": "node scripts/test-hardcore-suite.mjs harmony-hardcore",
     "test:readiness-hardcore": "node scripts/test-hardcore-suite.mjs readiness-hardcore"
+    ,"test:whatsapp-auto-ticket": "node scripts/test-whatsapp-auto-ticket.mjs"
+    ,"test:whatsapp-queue-hard": "node scripts/test-whatsapp-queue-hard.mjs"
+    ,"test:pix-confirmation-safety": "node scripts/test-pix-confirmation-safety.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

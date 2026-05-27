@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CheckCircle, Eye, Plug, Save, Send, ShieldCheck } from "lucide-react";
+import { CheckCircle, Eye, MessageCircle, Plug, Save, Send, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 type Integration = {
@@ -33,6 +33,9 @@ export function AdminIntegrations() {
   const [providers, setProviders] = useState<ProviderCatalogEntry[]>([]);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const [whatsappConfig, setWhatsappConfig] = useState<any>({ provider: "mock", enabled: false, environment: "sandbox", default_language: "pt_BR" });
+  const [whatsappMessages, setWhatsappMessages] = useState<any[]>([]);
+  const [testPhone, setTestPhone] = useState("");
   const [selected, setSelected] = useState("primepag");
   const [credentials, setCredentials] = useState("{}");
   const [settings, setSettings] = useState("{\"sandbox\":true,\"mock\":true}");
@@ -41,14 +44,18 @@ export function AdminIntegrations() {
   const selectedProvider = useMemo(() => providers.find(item => item.provider === selected), [providers, selected]);
 
   const load = async () => {
-    const [integrationsRes, logsRes] = await Promise.all([
+    const [integrationsRes, logsRes, whatsappConfigRes, whatsappMessagesRes] = await Promise.all([
       fetch("/api/admin/integrations/global"),
-      fetch("/api/admin/integrations/global/logs")
+      fetch("/api/admin/integrations/global/logs"),
+      fetch("/api/admin/whatsapp/config"),
+      fetch("/api/admin/whatsapp/messages")
     ]);
     const data = await integrationsRes.json();
     setProviders(data.providers || []);
     setIntegrations(data.integrations || []);
     setLogs(await logsRes.json());
+    setWhatsappConfig(await whatsappConfigRes.json());
+    setWhatsappMessages(await whatsappMessagesRes.json());
   };
 
   useEffect(() => {
@@ -85,6 +92,34 @@ export function AdminIntegrations() {
     const data = await res.json();
     if (!res.ok || !data.success) toast.error(data.error || "Falha no teste");
     else toast.success("Conexao validada");
+    await load();
+  };
+
+  const saveWhatsApp = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const res = await fetch("/api/admin/whatsapp/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(whatsappConfig)
+    });
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Erro ao salvar WhatsApp");
+    else {
+      toast.success("WhatsApp salvo");
+      setWhatsappConfig(data);
+      await load();
+    }
+  };
+
+  const testWhatsApp = async () => {
+    const res = await fetch("/api/admin/whatsapp/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: testPhone })
+    });
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || data.message?.last_error || "Falha no teste WhatsApp");
+    else toast.success("Mensagem WhatsApp enviada no sandbox/mock");
     await load();
   };
 
@@ -166,6 +201,64 @@ export function AdminIntegrations() {
 
       <section className="admin-card">
         <div className="mb-4 flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-emerald-500" />
+          <h2 className="text-lg font-semibold text-[var(--admin-text)]">WhatsApp automático</h2>
+        </div>
+        <form onSubmit={saveWhatsApp} className="grid gap-4 lg:grid-cols-3">
+          <label className="block text-sm font-medium text-[var(--admin-muted)]">
+            Envio automático
+            <select value={whatsappConfig.enabled ? "true" : "false"} onChange={event => setWhatsappConfig((current: any) => ({ ...current, enabled: event.target.value === "true" }))} className="admin-input mt-1 w-full">
+              <option value="false">Desativado</option>
+              <option value="true">Ativado</option>
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-[var(--admin-muted)]">
+            Provider
+            <select value={whatsappConfig.provider || "mock"} onChange={event => setWhatsappConfig((current: any) => ({ ...current, provider: event.target.value }))} className="admin-input mt-1 w-full">
+              <option value="mock">Mock/Sandbox</option>
+              <option value="meta_cloud">Meta WhatsApp Cloud API</option>
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-[var(--admin-muted)]">
+            Ambiente
+            <select value={whatsappConfig.environment || "sandbox"} onChange={event => setWhatsappConfig((current: any) => ({ ...current, environment: event.target.value }))} className="admin-input mt-1 w-full">
+              <option value="sandbox">Sandbox</option>
+              <option value="production">Produção</option>
+            </select>
+          </label>
+          <GatewayField label="Phone number ID" value={whatsappConfig.phone_number_id || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, phone_number_id: value }))} />
+          <GatewayField label="Business account ID" value={whatsappConfig.business_account_id || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, business_account_id: value }))} />
+          <GatewayField label="Access token" type="password" value={whatsappConfig.access_token || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, access_token: value }))} />
+          <GatewayField label="Verify token" type="password" value={whatsappConfig.webhook_verify_token || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, webhook_verify_token: value }))} />
+          <GatewayField label="Template padrão" value={whatsappConfig.template_namespace || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, template_namespace: value }))} />
+          <GatewayField label="Idioma" value={whatsappConfig.default_language || "pt_BR"} onChange={value => setWhatsappConfig((current: any) => ({ ...current, default_language: value }))} />
+          <div className="flex gap-2 lg:col-span-3">
+            <button className="admin-button-primary"><Save className="h-4 w-4" />Salvar WhatsApp</button>
+            <input value={testPhone} onChange={event => setTestPhone(event.target.value)} className="admin-input flex-1" placeholder="Telefone para teste sandbox/mock" />
+            <button type="button" onClick={testWhatsApp} className="admin-button-secondary"><Send className="h-4 w-4" />Testar envio</button>
+          </div>
+        </form>
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="text-xs uppercase text-[var(--admin-muted)]"><tr><th className="py-2">Pedido</th><th>Telefone</th><th>Tipo</th><th>Provider</th><th>Status</th><th>Erro</th></tr></thead>
+            <tbody>
+              {whatsappMessages.slice(0, 10).map(message => (
+                <tr key={message.id} className="border-t border-[var(--admin-border)]">
+                  <td className="py-2">{message.order_id || "-"}</td>
+                  <td>{message.phone}</td>
+                  <td>{message.message_type}</td>
+                  <td>{message.provider}</td>
+                  <td>{message.status}</td>
+                  <td className="max-w-xs truncate">{message.last_error || "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="admin-card">
+        <div className="mb-4 flex items-center gap-2">
           <Eye className="h-5 w-5 text-[var(--admin-primary)]" />
           <h2 className="text-lg font-semibold text-[var(--admin-text)]">Últimos logs</h2>
         </div>
@@ -193,5 +286,14 @@ export function AdminIntegrations() {
         </button>
       </section>
     </div>
+  );
+}
+
+function GatewayField({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
+  return (
+    <label className="block text-sm font-medium text-[var(--admin-muted)]">
+      {label}
+      <input type={type} value={value} onChange={event => onChange(event.target.value)} className="admin-input mt-1 w-full" />
+    </label>
   );
 }

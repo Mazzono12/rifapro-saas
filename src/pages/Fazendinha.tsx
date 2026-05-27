@@ -187,23 +187,26 @@ export function Fazendinha() {
     }
   };
 
-  const confirmPixPayment = async () => {
+  const checkPixPayment = async () => {
     if (!pendingPix) return;
     setBuying(true);
     try {
-      const result = await fazendinhaService.confirmPayment(pendingPix.purchase.id);
-      if (result.purchase?.customer) setCustomer(result.purchase.customer);
-      toast.success("Pagamento PIX confirmado", {
-        description: "Compra concluída com sucesso."
-      });
-      if (result.earnedLootboxes > 0) {
+      const status = await checkoutService.checkPixPaymentStatus(pendingPix.purchase.id);
+      if (!status.paid) {
+        toast.info(status.message || "Aguardando pagamento", { description: "Assim que o webhook confirmar, seu bilhete sera liberado." });
+        return;
+      }
+      const paidPurchase = status.purchase || pendingPix.purchase;
+      if (paidPurchase?.customer) setCustomer(paidPurchase.customer);
+      toast.success("Pagamento confirmado", { description: "Compra concluida com sucesso." });
+      if (Number(paidPurchase.earnedLootboxes || 0) > 0) {
         setPendingLootbox({
-          count: result.earnedLootboxes,
-          contact: result.purchase?.customer?.phone || form.phone
+          count: Number(paidPurchase.earnedLootboxes || 0),
+          contact: paidPurchase?.customer?.phone || form.phone
         });
       }
       confetti({ particleCount: 120, spread: 70, origin: { y: 0.75 } });
-      setConfirmedReceipt({ purchase: result.purchase, groups: selectedGroups });
+      setConfirmedReceipt({ purchase: paidPurchase, groups: selectedGroups });
       setSelectedGroups([]);
       setAcceptAddon(false);
       setPendingPix(null);
@@ -211,7 +214,7 @@ export function Fazendinha() {
       setPaymentResult("approved");
     } catch (error) {
       setPaymentResult("rejected");
-      toast.error(error instanceof Error ? error.message : "Erro ao confirmar PIX");
+      toast.error(error instanceof Error ? error.message : "Erro ao verificar pagamento");
     } finally {
       setBuying(false);
     }
@@ -420,8 +423,8 @@ export function Fazendinha() {
                 <p className="mt-2 text-sm text-slate-300">Use o código abaixo e confirme o pagamento para liberar seu bilhete premium.</p>
               </div>
               <PixPaymentCard payload={pendingPix.pixPayload} copied={copiedPix} onCopy={copyPixPayload} />
-              <button type="button" onClick={confirmPixPayment} disabled={buying} className="premium-button min-h-14 w-full disabled:opacity-50">
-                {buying ? "Confirmando PIX..." : "Confirmar pagamento PIX"}
+              <button type="button" onClick={checkPixPayment} disabled={buying} className="premium-button min-h-14 w-full disabled:opacity-50">
+                {buying ? "Verificando pagamento..." : "Verificar pagamento"}
               </button>
             </>
           ) : (
