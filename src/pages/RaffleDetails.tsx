@@ -33,10 +33,11 @@ import { usePurchasePolling } from "../hooks/usePurchasePolling";
 import { NumberRevealModal } from "../components/NumberRevealModal";
 import { PostPurchaseLootboxModal } from "../components/PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "../components/PixPaymentResultModal";
-import { MessageVideoPlayer } from "../components/MessageVideoPlayer";
+import { CampaignMediaHero } from "../components/CampaignMediaHero";
 import { GamificationPanel } from "../components/GamificationPanel";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 import { checkoutService } from "../services/api";
+import { finishMetric, markPageLoaded, startMetric } from "../lib/performanceMetrics";
 
 type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
@@ -82,9 +83,10 @@ export function RaffleDetails() {
   const [useBalance, setUseBalance] = useState(false);
   const [customerForm, setCustomerForm] = useState({ name: "", phone: "", cpf: "", city: "", state: "", accessPassword: "" });
   const notifiedPrizePurchase = useRef<string | null>(null);
-  const { purchase: polledPurchase } = usePurchasePolling(purchase?.purchaseId, 2500);
+  const { purchase: polledPurchase } = usePurchasePolling(purchase?.purchaseId, 7000);
 
   useEffect(() => {
+    startMetric("public_page_load");
     fetch(`/api/raffles/${id}`)
       .then(res => {
         if (!res.ok) throw new Error("Rifa nao encontrada");
@@ -95,7 +97,10 @@ export function RaffleDetails() {
         setError(err.message || "Nao foi possivel carregar esta rifa");
         toast.error("Erro ao carregar rifa", { description: err.message });
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        markPageLoaded({ page: "raffle-details", raffleId: id });
+      });
   }, [id]);
 
   useEffect(() => {
@@ -227,6 +232,7 @@ export function RaffleDetails() {
   const openPrePaymentReceipt = async (event?: React.FormEvent) => {
     event?.preventDefault();
     if (!raffle || !validateCheckoutForm()) return;
+    startMetric("checkout_modal_open");
     setIsSubmitting(true);
     try {
       const preview = await checkoutService.preview({
@@ -242,6 +248,7 @@ export function RaffleDetails() {
       });
       setCheckoutPreview(preview);
       setReceiptOpen(true);
+      finishMetric("checkout_modal_open", { raffleId: id });
     } catch (err: any) {
       toast.error("Revise sua compra", { description: err.message || "Nao foi possivel calcular o resumo." });
     } finally {
@@ -251,6 +258,7 @@ export function RaffleDetails() {
 
   const executeBuy = async () => {
     if (!raffle || !validateCheckoutForm()) return;
+    startMetric("pix_generation");
     setIsSubmitting(true);
     try {
       const checkoutCustomer = await buildCheckoutCustomer();
@@ -276,6 +284,7 @@ export function RaffleDetails() {
       setRequireIdentity(false);
       setReceiptOpen(false);
       setCheckoutStep(data.status === "paid" ? "ticket" : "payment");
+      finishMetric("pix_generation", { raffleId: id, status: data.status });
       toast.success("PIX gerado", { description: `${tickets} cotas reservadas para voce.` });
     } catch (err: any) {
       if (/senha/i.test(err.message || "")) {
@@ -483,17 +492,15 @@ function PremiumRaffleHeader({ cartCount }: { cartCount: number }) {
 function HeroCard({ raffle, mediaUrl, mediaType, mediaFit, progress }: { raffle: Raffle; mediaUrl: string; mediaType?: any; mediaFit: "cover" | "contain" | "fill"; progress: number }) {
   return (
     <motion.article initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.045] shadow-[0_34px_120px_rgba(0,0,0,0.45)]">
-      <div className="relative aspect-[4/5] overflow-hidden bg-slate-950 sm:aspect-[16/9]">
-        {mediaUrl ? (
-          mediaType && mediaType !== "image" ? (
-            <MessageVideoPlayer mediaUrl={mediaUrl} mediaType={mediaType} config={raffle.videoConfig} mediaFit={mediaFit} className="h-full w-full" />
-          ) : (
-            <img src={mediaUrl} alt={raffle.title} loading="eager" decoding="async" className={cn("h-full w-full", mediaFit === "contain" ? "object-contain" : mediaFit === "fill" ? "object-fill" : "object-cover")} />
-          )
-        ) : (
-          <div className="grid h-full place-items-center bg-gradient-to-br from-slate-900 to-black text-sm text-slate-400">Banner da campanha</div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/28 to-transparent" />
+      <CampaignMediaHero
+        mediaUrl={mediaUrl}
+        mediaType={(mediaType || "image") as any}
+        mediaFit={mediaFit === "fill" ? "fill" : "cover"}
+        title={raffle.title}
+        subtitle={(raffle as any).subtitle || "Premio principal"}
+        priority
+        className="relative aspect-[4/5] bg-slate-950 sm:aspect-[16/9]"
+      >
         <div className="absolute left-4 right-4 top-4 flex items-center justify-between">
           <span className="rounded-full border border-amber-200/30 bg-amber-200/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-amber-100">Premium</span>
           <span className="rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[var(--theme-text)]">Em andamento</span>
@@ -511,7 +518,7 @@ function HeroCard({ raffle, mediaUrl, mediaType, mediaFit, progress }: { raffle:
             </div>
           </div>
         </div>
-      </div>
+      </CampaignMediaHero>
     </motion.article>
   );
 }

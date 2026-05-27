@@ -1,14 +1,14 @@
 # RifaPro SaaS - Resumo Hardcore de Rotas
 
-Gerado em: 2026-05-27T17:31:41.631Z
+Gerado em: 2026-05-27T21:56:16.093Z
 
-Total de rotas mapeadas: 204
+Total de rotas mapeadas: 210
 
 ## Classificacao
 
-- public_or_tenant_context: 64
-- superadmin_only: 43
-- tenant_admin_only: 97
+- public_or_tenant_context: 66
+- superadmin_only: 45
+- tenant_admin_only: 99
 
 ## Observacao
 

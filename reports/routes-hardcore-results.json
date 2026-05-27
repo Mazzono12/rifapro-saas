@@ -1,8 +1,32 @@
 {
-  "generatedAt": "2026-05-27T17:31:41.631Z",
-  "totalRoutes": 204,
+  "generatedAt": "2026-05-27T21:56:16.093Z",
+  "totalRoutes": 210,
   "directRuntimeNote": "Cobertura runtime profunda delegada aos scripts hardcore por modulo; este arquivo garante inventario e contrato de todas as rotas detectadas.",
   "results": [
+    {
+      "method": "GET",
+      "path": "/api/public/health",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "rota_publica_ou_contextual",
+        "sem_tenant_explicito"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/tenant-debug",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "rota_publica_ou_contextual",
+        "tenant_scope_revisado"
+      ]
+    },
     {
       "method": "POST",
       "path": "/api/auth/signup",
@@ -155,6 +179,30 @@
       "checks": [
         "metodo_http_mapeado",
         "sem_parametro_dinamico",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/superadmin/tenants/:tenantId/admins",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/superadmin/tenants/:tenantId/admins/:userId/reset-password",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
         "exige_role_superadmin",
         "tenant_scope_revisado"
       ]
@@ -636,6 +684,30 @@
         "metodo_http_mapeado",
         "parametros_identificados",
         "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/me",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/dashboard",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
         "tenant_scope_revisado"
       ]
     },

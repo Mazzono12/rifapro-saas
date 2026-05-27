@@ -384,9 +384,9 @@ export function FazendinhaSection() {
                   autoPlay={false}
                   muted={true}
                   interactive={true}
-                  mediaFit="contain"
+                  mediaFit="cover"
                   className="h-full w-full"
-                  fallback={<img src="/fazendinha-animais-premium.png" alt={data.config.name} className="aspect-video w-full object-contain" />}
+                  fallback={<img src="/fazendinha-animais-premium.png" alt={data.config.name} loading="lazy" decoding="async" className="aspect-video w-full object-cover" />}
                 />
               </div>
 
@@ -456,10 +456,10 @@ export function FazendinhaSection() {
                 </div>
               )}
 
-              <div className="mt-5 rounded-2xl border border-neon-cyan/25 bg-neon-cyan/10 p-4">
+              <div className="mt-5 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4">
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-neon-cyan">Bilhete de compra</p>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.24em] text-emerald-200">Bilhete de compra</p>
                     <h3 className="mt-1 font-display text-xl font-bold text-white">Fazendinha Premiada</h3>
                   </div>
                   <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-mono text-slate-300">
@@ -484,7 +484,7 @@ export function FazendinhaSection() {
                   <div className="mt-3 border-t border-white/10 pt-3">
                     <div className="flex items-end justify-between gap-4">
                       <span className="text-xs font-mono uppercase tracking-widest text-slate-400">Total do bilhete</span>
-                      <strong className="font-display text-3xl text-neon-cyan">{formatCurrency(totalValue)}</strong>
+                      <strong className="font-display text-3xl text-emerald-200">{formatCurrency(totalValue)}</strong>
                     </div>
                   </div>
                 </div>
@@ -506,7 +506,7 @@ export function FazendinhaSection() {
               </div>
 
               {addonSuggestion && (
-                <label className="mt-5 block cursor-pointer rounded-2xl border border-neon-purple/30 bg-neon-purple/10 p-4">
+                <label className="mt-5 block cursor-pointer rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4">
                   <div className="flex items-start gap-3">
                     <input type="checkbox" checked={acceptAddon} onChange={e => setAcceptAddon(e.target.checked)} className="mt-1 h-5 w-5 shrink-0" />
                     <div>
@@ -518,16 +518,16 @@ export function FazendinhaSection() {
               )}
 
               {pendingPix && (
-                <div className="mt-5 rounded-2xl border border-cyan-300/25 bg-cyan-300/10 p-4 text-center">
-                  <p className="text-xs font-mono uppercase tracking-widest text-cyan-200">PIX gerado</p>
+                <div className="mt-5 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4 text-center">
+                  <p className="text-xs font-mono uppercase tracking-widest text-emerald-200">PIX gerado</p>
                   <p className="mt-1 text-sm text-slate-300">Escaneie o QR Code ou copie o código PIX.</p>
-                  <div className="mx-auto mt-4 w-fit rounded-2xl bg-white p-4 shadow-[0_0_35px_rgba(6,182,212,0.22)]">
+                  <div className="mx-auto mt-4 w-fit rounded-2xl bg-white p-4 shadow-[0_0_35px_rgba(16,185,129,0.22)]">
                     <QRCodeSVG value={pendingPix.pixPayload} size={210} bgColor="#ffffff" fgColor="#0f172a" level="M" />
                   </div>
-                  <p className="mt-4 max-h-24 overflow-y-auto break-all rounded-xl bg-black/35 p-3 text-left font-mono text-xs text-cyan-50">
+                  <p className="mt-4 max-h-24 overflow-y-auto break-all rounded-xl bg-black/35 p-3 text-left font-mono text-xs text-emerald-50">
                     {pendingPix.pixPayload}
                   </p>
-                  <button type="button" onClick={copyPixPayload} className={cn("mt-3 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 font-bold transition-colors", copiedPix ? "border-emerald-300 bg-emerald-300 text-black" : "border-cyan-300/40 bg-black/20 text-cyan-100 hover:bg-cyan-300 hover:text-black")}>
+                  <button type="button" onClick={copyPixPayload} className={cn("mt-3 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 font-bold transition-colors", copiedPix ? "border-emerald-300 bg-emerald-300 text-black" : "border-emerald-300/40 bg-black/20 text-emerald-100 hover:bg-emerald-300 hover:text-black")}>
                     {copiedPix ? "PIX copiado" : "Copiar código PIX"} {!copiedPix && <Copy className="h-4 w-4" />}
                   </button>
                 </div>
@@ -547,8 +547,8 @@ export function FazendinhaSection() {
                   ))}
                   {acceptAddon && addonSuggestion && (
                     <div className="flex items-center justify-between gap-3 text-xs">
-                      <span className="text-purple-200">Adicional: {addonSuggestion.tickets} cotas em {addonSuggestion.raffle.title}</span>
-                      <span className="font-semibold text-purple-100">{formatCurrency(addonValue)}</span>
+                      <span className="text-emerald-100">Adicional: {addonSuggestion.tickets} cotas em {addonSuggestion.raffle.title}</span>
+                      <span className="font-semibold text-emerald-50">{formatCurrency(addonValue)}</span>
                     </div>
                   )}
                 </div>

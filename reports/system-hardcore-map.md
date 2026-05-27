@@ -1,13 +1,13 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-27T17:31:41.629Z
+Gerado em: 2026-05-27T21:56:16.090Z
 
 ## Totais
 
-- Rotas backend: 204
+- Rotas backend: 210
 - Paginas frontend: 44
-- Componentes: 26
-- Arquivos src: 114
+- Componentes: 27
+- Arquivos src: 116
 - Migrations: 23
 - Tabelas mapeadas: 41
 - Policies mapeadas: 41
@@ -15,6 +15,8 @@ Gerado em: 2026-05-27T17:31:41.629Z
 
 ## Rotas Backend
 
+- GET /api/public/health
+- GET /api/public/tenant-debug
 - POST /api/auth/signup
 - POST /api/auth/login
 - POST /api/auth/admin/login
@@ -28,6 +30,8 @@ Gerado em: 2026-05-27T17:31:41.629Z
 - GET /api/superadmin/tenants
 - GET /api/superadmin/plans
 - POST /api/superadmin/tenants
+- POST /api/superadmin/tenants/:tenantId/admins
+- POST /api/superadmin/tenants/:tenantId/admins/:userId/reset-password
 - PUT /api/superadmin/tenants/:id
 - PATCH /api/superadmin/tenants/:id/status
 - GET /api/superadmin/overview
@@ -68,6 +72,8 @@ Gerado em: 2026-05-27T17:31:41.629Z
 - POST /api/superadmin/domains/:id/verify
 - PUT /api/superadmin/domains/:id/primary
 - DELETE /api/superadmin/domains/:id
+- GET /api/admin/me
+- GET /api/admin/dashboard
 - GET /api/admin/domains
 - POST /api/admin/domains
 - POST /api/admin/domains/:id/verify
@@ -349,12 +355,12 @@ Gerado em: 2026-05-27T17:31:41.629Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 610 ocorrencias no backend
+- tenant_id: 630 ocorrencias no backend
 - user_id: 7 ocorrencias no backend
 - order_id: 3 ocorrencias no backend
 - purchaseId: 137 ocorrencias no backend
 - raffleId: 142 ocorrencias no backend
-- affiliate: 293 ocorrencias no backend
+- affiliate: 297 ocorrencias no backend
 - gateway: 407 ocorrencias no backend
 - wallet: 17 ocorrencias no backend
 - saldo: 1 ocorrencias no backend

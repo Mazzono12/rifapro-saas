@@ -1,25 +1,25 @@
 {
   "mode": "checkout-hard",
   "success": true,
-  "startedAt": "2026-05-27T17:28:40.764Z",
-  "finishedAt": "2026-05-27T17:28:46.054Z",
-  "durationMs": 5290,
+  "startedAt": "2026-05-27T21:57:52.841Z",
+  "finishedAt": "2026-05-27T21:58:03.111Z",
+  "durationMs": 10270,
   "results": [
     {
       "name": "checkout usa reserva, pagamento e provider preservado",
       "status": "passed",
-      "durationMs": 4
+      "durationMs": 28
     },
     {
       "name": "scripts/test-purchase-concurrency.mjs",
       "status": "passed",
-      "durationMs": 2280,
+      "durationMs": 5108,
       "output": "PASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\n"
     },
     {
       "name": "scripts/test-pix-confirmation-safety.mjs",
       "status": "passed",
-      "durationMs": 3001,
+      "durationMs": 5126,
       "output": "PASS: botoes e endpoints de confirmacao PIX seguros, auditados e idempotentes.\n"
     }
   ]

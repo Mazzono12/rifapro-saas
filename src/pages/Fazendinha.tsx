@@ -338,7 +338,7 @@ export function Fazendinha() {
             ["reserved", "Reservados"],
             ["sold", "Vendidos"],
           ].map(([value, label]) => (
-            <button key={value} onClick={() => setFilter(value as typeof filter)} className={cn("rounded-full border px-4 py-2 text-xs font-mono uppercase", filter === value ? "border-neon-cyan bg-neon-cyan/15 text-neon-cyan" : "border-white/10 text-slate-400")}>
+            <button key={value} onClick={() => setFilter(value as typeof filter)} className={cn("rounded-full border px-4 py-2 text-xs font-mono uppercase", filter === value ? "border-emerald-300 bg-emerald-300/15 text-emerald-100" : "border-white/10 text-slate-400")}>
               {label}
             </button>
           ))}
@@ -374,7 +374,7 @@ export function Fazendinha() {
 
       <section className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="glass-card p-6">
-          <h2 className="flex items-center gap-2 font-display text-2xl font-bold"><History className="h-5 w-5 text-neon-cyan" /> Meu historico</h2>
+          <h2 className="flex items-center gap-2 font-display text-2xl font-bold"><History className="h-5 w-5 text-emerald-300" /> Meu historico</h2>
           <div className="mt-5 space-y-3">
             {history.length === 0 ? <p className="text-slate-500">Nenhum bichinho comprado neste cadastro.</p> : history.map(item => (
               <div key={item.id} className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
@@ -417,8 +417,8 @@ export function Fazendinha() {
             </>
           ) : pendingPix ? (
             <>
-              <div className="premium-card border-cyan-300/20 bg-cyan-300/[0.07] text-center">
-                <p className="premium-eyebrow text-cyan-100">PIX gerado</p>
+              <div className="premium-card border-emerald-300/20 bg-emerald-300/[0.07] text-center">
+                <p className="premium-eyebrow text-emerald-100">PIX gerado</p>
                 <h3 className="mt-2 text-2xl font-black text-white">{formatCurrency(totalValue || pendingPix.purchase.valorPago)}</h3>
                 <p className="mt-2 text-sm text-slate-300">Use o código abaixo e confirme o pagamento para liberar seu bilhete premium.</p>
               </div>

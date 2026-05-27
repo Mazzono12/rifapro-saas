@@ -329,8 +329,8 @@ export function NumberModePage() {
             </>
           ) : pendingPix ? (
             <>
-              <div className="premium-card border-cyan-300/20 bg-cyan-300/[0.07] text-center">
-                <p className="premium-eyebrow text-cyan-100">PIX gerado</p>
+              <div className="premium-card border-emerald-300/20 bg-emerald-300/[0.07] text-center">
+                <p className="premium-eyebrow text-emerald-100">PIX gerado</p>
                 <h3 className="mt-2 text-2xl font-black text-white">R$ {checkoutTotal.toFixed(2)}</h3>
                 <p className="mt-2 text-sm text-slate-300">Escaneie o QR Code ou copie o código PIX.</p>
               </div>

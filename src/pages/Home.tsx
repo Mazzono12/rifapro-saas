@@ -4,12 +4,14 @@ import { motion } from "motion/react";
 import { Zap, Activity, Terminal, ChevronRight, PlayCircle } from "lucide-react";
 import { StoriesSection } from "../components/StoriesSection";
 import { WinnersGallery } from "../components/WinnersGallery";
-import { MessageVideoPlayer, normalizeMessageVideoConfig } from "../components/MessageVideoPlayer";
+import { normalizeMessageVideoConfig } from "../components/MessageVideoPlayer";
+import { CampaignMediaHero } from "../components/CampaignMediaHero";
 import { FazendinhaSection } from "../components/FazendinhaSection";
 import { ModalidadesSection } from "../components/ModalidadesSection";
 import { useRaffles, useGlobalSettings } from "../hooks/useRaffles";
 import { cn } from "../lib/utils";
 import { PremiumEmptyState, PremiumPageLayout, TrustBadges } from "../components/premium/PremiumUI";
+import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
 
 export function Home() {
   const { data: raffles = [], isLoading: loadingRaffles } = useRaffles();
@@ -98,7 +100,7 @@ export function Home() {
     syncVisibleVideo();
     window.addEventListener("scroll", syncVisibleVideo, { passive: true });
     window.addEventListener("resize", syncVisibleVideo);
-    const interval = window.setInterval(syncVisibleVideo, 900);
+    const interval = window.setInterval(syncVisibleVideo, 2500);
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener("scroll", syncVisibleVideo);
@@ -108,6 +110,14 @@ export function Home() {
   }, []);
 
   const loading = loadingRaffles || loadingSettings;
+
+  useEffect(() => {
+    startMetric("public_page_load");
+  }, []);
+
+  useEffect(() => {
+    if (!loading) markPageLoaded({ page: "home", raffles: activeRaffles.length });
+  }, [activeRaffles.length, loading]);
 
   if (loading) {
     return (
@@ -268,19 +278,15 @@ export function Home() {
               heroPlacement === "below" ? "min-h-[62svh]" : "absolute inset-0",
               heroCinemaMode && "absolute inset-0 z-[45] min-h-[100svh]"
             )}>
-              {featuredRaffle.mediaType ? (
-                <MessageVideoPlayer
-                  mediaUrl={featuredRaffle.mediaUrl!}
-                  mediaType={featuredRaffle.mediaType}
-                  config={featuredRaffle.videoConfig || settings.mainVideoPlayer}
-                  mediaFit={featuredRaffle.mediaFit === "fill" ? "fill" : "contain"}
-                  className="absolute inset-0 h-full w-full"
-                  onCinemaModeChange={setHeroCinemaMode}
-                  singleAutoplayGroup="home-raffles"
-                />
-              ) : (
-                <img src={featuredRaffle.image} alt={featuredRaffle.title} className={`absolute inset-0 h-full w-full ${featuredRaffle.mediaFit === "fill" ? "object-fill" : "object-contain"}`} />
-              )}
+              <CampaignMediaHero
+                mediaUrl={featuredRaffle.mediaUrl || featuredRaffle.image}
+                mediaType={(featuredRaffle.mediaType || "image") as any}
+                mediaFit={featuredRaffle.mediaFit === "fill" ? "fill" : "cover"}
+                title={featuredRaffle.title}
+                overlay={false}
+                priority
+                className="absolute inset-0 h-full w-full"
+              />
               {!heroCinemaMode && (
                 <>
                   <div className={cn("pointer-events-none absolute inset-0", heroPlacement === "below" ? "bg-gradient-to-t from-[var(--theme-bg)]/40 via-transparent to-transparent" : "bg-[linear-gradient(90deg,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.44)_44%,rgba(0,0,0,0.14)_100%)]")} />
@@ -332,7 +338,6 @@ export function Home() {
       <div className="space-y-14">
         {secondaryRaffles.map((raffle, idx) => {
           const progress = raffle.progressOverride ?? (raffle.soldTickets / raffle.totalTickets) * 100;
-          const raffleVideoConfig = normalizeMessageVideoConfig(raffle.videoConfig || settings.mainVideoPlayer);
           return (
             <motion.section
               key={raffle.id}
@@ -343,33 +348,14 @@ export function Home() {
               className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden bg-[var(--theme-bg)]"
             >
               <div className="relative min-h-[68svh] overflow-hidden bg-black md:min-h-[82svh]">
-                {raffle.mediaType ? (
-                  <MessageVideoPlayer
-                    mediaUrl={raffle.mediaUrl!}
-                    mediaType={raffle.mediaType}
-                    mediaFit={raffle.mediaFit === "fill" ? "fill" : "contain"}
-                    className="absolute inset-0 h-full w-full"
-                    config={{
-                      ...raffleVideoConfig,
-                      autoplay: true,
-                      startMuted: false,
-                      tapToUnmute: false,
-                      tapToTogglePlay: true,
-                      pauseAudioOnScroll: false,
-                      showControls: false,
-                      focusModeEnabled: false,
-                      hideHeaderOnPlay: false,
-                      hideHeroInfoOnPlay: false
-                    }}
-                    singleAutoplayGroup="home-raffles"
-                  />
-                ) : (
-                  <img 
-                    src={raffle.image} 
-                    alt={raffle.title}
-                    className={`absolute inset-0 h-full w-full ${raffle.mediaFit === "fill" ? "object-fill" : "object-contain"}`}
-                  />
-                )}
+                <CampaignMediaHero
+                  mediaUrl={raffle.mediaUrl || raffle.image}
+                  mediaType={(raffle.mediaType || "image") as any}
+                  mediaFit={raffle.mediaFit === "fill" ? "fill" : "cover"}
+                  title={raffle.title}
+                  overlay={false}
+                  className="absolute inset-0 h-full w-full"
+                />
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[var(--theme-bg)] via-[var(--theme-bg)]/70 to-transparent" />
                 <div className="pointer-events-none absolute right-4 top-4 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg backdrop-blur-xl">
                   <Activity className="w-3.5 h-3.5" />

@@ -11,9 +11,13 @@ interface Props {
   visibilityThreshold?: number;
   mediaFit?: 'cover' | 'contain' | 'fill';
   interactive?: boolean;
+  priority?: boolean;
+  preload?: 'none' | 'metadata' | 'auto';
+  onLoad?: () => void;
+  onError?: () => void;
 }
 
-export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true, muted = true, playWhenVisible = false, visibilityThreshold = 0.55, mediaFit = 'cover', interactive = true }: Props) {
+export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true, muted = true, playWhenVisible = false, visibilityThreshold = 0.55, mediaFit = 'cover', interactive = true, priority = false, preload = 'metadata', onLoad, onError }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [visible, setVisible] = useState(!playWhenVisible);
@@ -52,7 +56,10 @@ export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true,
         src={mediaUrl} 
         alt="Media" 
         className={`${fitClass} ${className}`}
-        loading="lazy" 
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+        onLoad={onLoad}
+        onError={onError}
       />
     );
   }
@@ -80,9 +87,12 @@ export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true,
         data-rifapro-autoplay={String(autoPlay)}
         data-rifapro-muted={String(muted)}
         muted={muted}
+        preload={preload}
         loop 
         playsInline 
         onClick={interactive ? toggleVideo : undefined}
+        onLoadedData={onLoad}
+        onError={onError}
       />
     );
   }

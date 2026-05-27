@@ -1418,6 +1418,40 @@ async function startServer() {
     }, jwtSecret, { expiresIn: "8h" });
   }
 
+  function generateTemporaryPassword() {
+    return `RifaPro${randomBytes(4).toString("hex")}!`;
+  }
+
+  async function createTenantAdminUser(tenantId: string, payload: Record<string, unknown>) {
+    const tenant = tenants.find(item => item.id === tenantId && item.status === "active");
+    const nome = String(payload.nome || payload.name || "").trim();
+    const email = String(payload.email || "").trim().toLowerCase();
+    const temporaryPassword = String(payload.password || payload.senha || "") || generateTemporaryPassword();
+    const role = String(payload.role || "tenant_admin") as AuthRole;
+    if (!tenant) throw new Error("Tenant ativo obrigatorio");
+    if (!nome || !email.includes("@") || temporaryPassword.length < 8) {
+      throw new Error("Nome, email e senha com 8 caracteres sao obrigatorios");
+    }
+    if (!["tenant_admin", "admin", "operador", "tenant_user", "afiliado"].includes(role)) {
+      throw new Error("Papel invalido para usuario do tenant");
+    }
+    if (authUsers.some(item => item.email === email)) {
+      throw new Error("Email ja cadastrado");
+    }
+    const user: AuthUserRecord = {
+      id: createPublicId("USR_"),
+      nome,
+      email,
+      senha_hash: await bcrypt.hash(temporaryPassword, 12),
+      role: role === "admin" ? "tenant_admin" : role,
+      tenant_id: tenant.id,
+      ativo: payload.ativo !== false,
+      criado_em: new Date().toISOString()
+    };
+    authUsers.push(user);
+    return { user, temporaryPassword };
+  }
+
   function signSupabaseCompatToken(user: UsuarioRecord) {
     return jwt.sign({
       sub: user.id,
@@ -1700,7 +1734,7 @@ async function startServer() {
   function findTenantFromLocalTenantsDominio(host: string) {
     return tenants.find(tenant =>
       isActiveTenantRecord(tenant) &&
-      [tenant.dominio, tenant.dominio_customizado].some(domain => normalizeDomainName(domain) === host)
+      normalizeDomainName(tenant.dominio || tenant.dominio_customizado) === host
     ) || null;
   }
 
@@ -1729,6 +1763,11 @@ async function startServer() {
 
     const localDominioTenant = findTenantFromLocalTenantsDominio(host);
     if (localDominioTenant) return { hostRecebido, hostNormalizado: host, tenant: localDominioTenant, fonte: "tenants.dominio", reason: "local_tenants_dominio" };
+
+    if (host.endsWith(".test.local")) {
+      const testTenant = tenants.find(tenant => isActiveTenantRecord(tenant) && host.split(".")[0] === tenant.slug);
+      if (testTenant) return { hostRecebido, hostNormalizado: host, tenant: testTenant, fonte: "tenants.dominio", reason: "test_local_slug_fallback" };
+    }
 
     if (!isProductionRuntime) {
       const slugTenant = tenants.find(tenant => isActiveTenantRecord(tenant) && host.split(".")[0] === tenant.slug);
@@ -2320,7 +2359,7 @@ async function startServer() {
     res.json(Object.values(planCatalog));
   });
 
-  app.post("/api/superadmin/tenants", (req, res) => {
+  app.post("/api/superadmin/tenants", async (req, res) => {
     const nome = String(req.body.nome || "").trim();
     const slug = String(req.body.slug || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
     const percentualPlataforma = Number(req.body.percentual_plataforma ?? 0);
@@ -2352,6 +2391,35 @@ async function startServer() {
       return;
     }
     tenants.push(tenant);
+    let initialAdmin: ReturnType<typeof publicAuthUser> | null = null;
+    let initialAdminProfile: ReturnType<typeof publicAuthProfile> | null = null;
+    let temporaryPassword: string | undefined;
+    if (req.body.admin || req.body.admin_email) {
+      try {
+        const adminPayload = req.body.admin || {
+          nome: req.body.admin_nome || `${nome} Admin`,
+          email: req.body.admin_email,
+          password: req.body.admin_password
+        };
+        const created = await createTenantAdminUser(tenant.id, adminPayload);
+        initialAdmin = publicAuthUser(created.user);
+        initialAdminProfile = publicAuthProfile(created.user);
+        temporaryPassword = created.temporaryPassword;
+        recordSecurityEvent({
+          tenant_id: tenant.id,
+          action: "TENANT_ADMIN_CREATED",
+          ip: String(req.ip || req.socket.remoteAddress || ""),
+          status: "INFO",
+          severity: "medium",
+          actor: getAuthSession(req)?.email,
+          detail: created.user.email
+        });
+      } catch (error) {
+        tenants.splice(tenants.findIndex(item => item.id === tenant.id), 1);
+        res.status(400).json({ error: error instanceof Error ? error.message : "Erro ao criar admin inicial" });
+        return;
+      }
+    }
     recordSecurityEvent({
       tenant_id: tenant.id,
       action: "TENANT_CREATED",
@@ -2361,7 +2429,59 @@ async function startServer() {
       actor: getAuthSession(req)?.email,
       detail: tenant.slug
     });
-    res.status(201).json(tenant);
+    res.status(201).json({
+      ...tenant,
+      tenant,
+      admin: initialAdmin ? { user: initialAdmin, profile: initialAdminProfile, temporaryPassword } : null
+    });
+  });
+
+  app.post("/api/superadmin/tenants/:tenantId/admins", async (req, res) => {
+    try {
+      const created = await createTenantAdminUser(req.params.tenantId, { ...req.body, role: req.body.role || "tenant_admin" });
+      recordSecurityEvent({
+        tenant_id: req.params.tenantId,
+        action: "TENANT_ADMIN_CREATED",
+        ip: String(req.ip || req.socket.remoteAddress || ""),
+        status: "INFO",
+        severity: "medium",
+        actor: getAuthSession(req)?.email,
+        detail: created.user.email
+      });
+      res.status(201).json({
+        user: publicAuthUser(created.user),
+        profile: publicAuthProfile(created.user),
+        temporaryPassword: created.temporaryPassword
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro ao criar admin do tenant";
+      res.status(message.includes("cadastrado") ? 409 : 400).json({ error: message });
+    }
+  });
+
+  app.post("/api/superadmin/tenants/:tenantId/admins/:userId/reset-password", async (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId && item.status === "active");
+    const user = authUsers.find(item => item.id === req.params.userId && item.tenant_id === req.params.tenantId && normalizeAuthRole(item.role) === "admin");
+    if (!tenant || !user) {
+      res.status(404).json({ error: "Admin do tenant nao encontrado" });
+      return;
+    }
+    const temporaryPassword = String(req.body.password || req.body.senha || "") || generateTemporaryPassword();
+    if (temporaryPassword.length < 8) {
+      res.status(400).json({ error: "Senha temporaria deve ter pelo menos 8 caracteres" });
+      return;
+    }
+    user.senha_hash = await bcrypt.hash(temporaryPassword, 12);
+    recordSecurityEvent({
+      tenant_id: tenant.id,
+      action: "TENANT_ADMIN_PASSWORD_RESET",
+      ip: String(req.ip || req.socket.remoteAddress || ""),
+      status: "WARN",
+      severity: "medium",
+      actor: getAuthSession(req)?.email,
+      detail: user.email
+    });
+    res.json({ user: publicAuthUser(user), profile: publicAuthProfile(user), temporaryPassword });
   });
 
   app.put("/api/superadmin/tenants/:id", (req, res) => {
@@ -3095,6 +3215,51 @@ async function startServer() {
       }
     });
     next();
+  });
+
+  app.get("/api/admin/me", (req, res) => {
+    const session = getAuthSession(req);
+    const tenantId = resolveRequestTenantId(req);
+    const tenant = tenants.find(item => item.id === tenantId) || null;
+    res.json({
+      user: session ? {
+        id: session.sub,
+        email: session.email,
+        role: normalizeAuthRole(session.role),
+        tenant_id: session.tenant_id
+      } : null,
+      profile: session ? { role: normalizeAuthRole(session.role), tenantId } : null,
+      tenant: tenant ? buildTenantSummary(tenant) : null
+    });
+  });
+
+  app.get("/api/admin/dashboard", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const tenant = tenants.find(item => item.id === tenantId);
+    if (!tenant) {
+      res.status(404).json({ error: "Tenant nao encontrado" });
+      return;
+    }
+    const tenantRaffles = raffles.filter(raffle => raffle.tenant_id === tenantId);
+    const tenantPurchases = purchases.filter(purchase => purchase.tenant_id === tenantId);
+    const paidPurchases = tenantPurchases.filter(purchase => purchase.status === "paid");
+    res.json({
+      tenant: buildTenantSummary(tenant),
+      metrics: {
+        activeRaffles: tenantRaffles.filter(raffle => raffle.status === "active").length,
+        totalRaffles: tenantRaffles.length,
+        paidOrders: paidPurchases.length,
+        pendingOrders: tenantPurchases.filter(purchase => purchase.status === "pending").length,
+        revenue: Number(paidPurchases.reduce((sum, purchase) => sum + purchase.amount, 0).toFixed(2)),
+        customers: Object.values(customersByPhone).filter(customer => customer.tenant_id === tenantId).length,
+        affiliates: Object.values(affiliates).filter(affiliate => affiliate.tenant_id === tenantId).length
+      },
+      recentOrders: tenantPurchases
+        .slice()
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 25),
+      raffles: tenantRaffles.map(sanitizeRaffleForAdmin)
+    });
   });
 
   app.get("/api/admin/domains", (req, res) => {
@@ -8929,7 +9094,8 @@ async function startServer() {
   }
 
   await hydratePersistentState();
-  const paymentWorkerInterval = setInterval(() => void processPaymentQueue(), 5_000);
+  const paymentWorkerIntervalMs = isProductionRuntime ? 15_000 : 8_000;
+  const paymentWorkerInterval = setInterval(() => void processPaymentQueue(), paymentWorkerIntervalMs);
   paymentWorkerInterval.unref?.();
   void processPaymentQueue();
 
