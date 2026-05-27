@@ -1,0 +1,20 @@
+{
+  "mode": "checkout-hard",
+  "success": true,
+  "startedAt": "2026-05-27T05:17:00.542Z",
+  "finishedAt": "2026-05-27T05:17:06.370Z",
+  "durationMs": 5829,
+  "results": [
+    {
+      "name": "checkout usa reserva, pagamento e provider preservado",
+      "status": "passed",
+      "durationMs": 16
+    },
+    {
+      "name": "scripts/test-purchase-concurrency.mjs",
+      "status": "passed",
+      "durationMs": 5804,
+      "output": "PASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\n"
+    }
+  ]
+}

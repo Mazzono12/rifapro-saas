@@ -1,0 +1,20 @@
+{
+  "mode": "gateways-hard",
+  "success": true,
+  "startedAt": "2026-05-26T19:14:57.114Z",
+  "finishedAt": "2026-05-26T19:15:00.338Z",
+  "durationMs": 3224,
+  "results": [
+    {
+      "name": "modelo normalizado de gateway",
+      "status": "passed",
+      "durationMs": 4
+    },
+    {
+      "name": "scripts/test-pix-multitenant.mjs",
+      "status": "passed",
+      "durationMs": 3210,
+      "output": "PASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+import { useQuery } from '@tanstack/react-query';
+import { raffleService, globalSettingsService, fazendinhaService, modalidadesService } from '../services/api';
+import type { NumberModeId } from '../types';
+
+export function useRaffles() {
+  return useQuery({
+    queryKey: ['raffles'],
+    queryFn: () => raffleService.getRaffles(),
+    staleTime: 1000 * 60 * 5, // 5 minutos de cache super rápido!
+  });
+}
+
+export function useRaffle(id: string) {
+  return useQuery({
+    queryKey: ['raffle', id],
+    queryFn: () => raffleService.getRaffleById(id),
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useGlobalSettings() {
+  return useQuery({
+    queryKey: ['settings'],
+    queryFn: () => globalSettingsService.getSettings(),
+    staleTime: 1000 * 60 * 5, 
+  });
+}
+
+export function useFazendinha() {
+  return useQuery({
+    queryKey: ['fazendinha'],
+    queryFn: () => fazendinhaService.getState(),
+    staleTime: 1000 * 30,
+  });
+}
+
+export function useModalidades() {
+  return useQuery({
+    queryKey: ['modalidades'],
+    queryFn: () => modalidadesService.getLanding(),
+    staleTime: 1000 * 30,
+  });
+}
+
+export function useNumberMode(mode: NumberModeId, customerId?: string) {
+  return useQuery({
+    queryKey: ['number-mode', mode, customerId],
+    queryFn: () => modalidadesService.getMode(mode, customerId),
+    staleTime: 1000 * 20,
+  });
+}

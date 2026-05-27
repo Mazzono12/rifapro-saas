@@ -1,0 +1,353 @@
+# RifaPro SaaS - Mapa Hardcore do Sistema
+
+Gerado em: 2026-05-27T10:54:39.838Z
+
+## Totais
+
+- Rotas backend: 194
+- Paginas frontend: 43
+- Componentes: 25
+- Arquivos src: 109
+- Migrations: 21
+- Tabelas mapeadas: 39
+- Policies mapeadas: 41
+- Providers/arquivos de integracao: 10
+
+## Rotas Backend
+
+- POST /api/auth/signup
+- POST /api/auth/login
+- POST /api/auth/admin/login
+- POST /api/auth/refresh
+- POST /api/auth/logout
+- POST /api/auth/reset-password
+- GET /api/teste/auth-debug
+- POST /api/auth/admin/session
+- GET /api/auth/session
+- GET /api/auth/me
+- GET /api/superadmin/tenants
+- GET /api/superadmin/plans
+- POST /api/superadmin/tenants
+- PUT /api/superadmin/tenants/:id
+- PATCH /api/superadmin/tenants/:id/status
+- GET /api/superadmin/overview
+- GET /api/superadmin/audit/security
+- GET /api/superadmin/raffles
+- GET /api/superadmin/sales
+- GET /api/superadmin/commissions
+- GET /api/superadmin/payments/pix
+- GET /api/superadmin/payments/webhooks
+- GET /api/superadmin/payments/queue
+- POST /api/superadmin/payments/queue/process
+- POST /api/superadmin/payments/reconcile
+- GET /api/superadmin/users
+- POST /api/superadmin/users
+- GET /api/superadmin/clientes
+- GET /api/superadmin/clientes/:id
+- POST /api/superadmin/clientes
+- PUT /api/superadmin/clientes/:id
+- DELETE /api/superadmin/clientes/:id
+- GET /api/superadmin/integrations
+- GET /api/superadmin/integration-logs
+- GET /api/superadmin/webhooks
+- GET /api/superadmin/reports/revenue
+- GET /api/superadmin/reports/revenue/export
+- GET /api/superadmin/tenants/:tenantId/reports/revenue
+- GET /api/superadmin/tenants/:tenantId/reports/revenue/export
+- GET /api/superadmin/tenants/:tenantId/financeiro
+- GET /api/superadmin/tenants/:tenantId/raffles
+- GET /api/superadmin/tenants/:tenantId/orders
+- GET /api/superadmin/tenants/:tenantId/customers
+- POST /api/superadmin/tenants/:tenantId/impersonate/start
+- POST /api/superadmin/impersonate/end
+- GET /api/superadmin/audit-logs
+- GET /api/superadmin/domains
+- POST /api/superadmin/tenants/:tenantId/domains
+- POST /api/superadmin/domains/:id/verify
+- PUT /api/superadmin/domains/:id/primary
+- DELETE /api/superadmin/domains/:id
+- GET /api/admin/domains
+- POST /api/admin/domains
+- POST /api/admin/domains/:id/verify
+- PUT /api/admin/domains/:id/primary
+- DELETE /api/admin/domains/:id
+- GET /api/admin/integrations/global
+- POST /api/admin/integrations/global
+- PUT /api/admin/integrations/global/:id
+- POST /api/admin/integrations/global/:id/test
+- POST /api/admin/integrations/global/:id/action/:action
+- GET /api/admin/integrations/global/logs
+- POST /api/admin/integrations/global/webhook-endpoints
+- GET /api/admin/integrations/global/webhook-events
+- POST /api/integrations/webhooks/:provider/:endpointId
+- GET /api/stories
+- GET /api/winners
+- GET /api/transparency
+- GET /api/raffles
+- GET /api/raffles/:id
+- GET /api/raffles/:id/ranking
+- GET /api/raffles/:id/gamification
+- POST /api/gamification/scratchcards/:eventId/reveal
+- POST /api/gamification/mystery-boxes/:eventId/open
+- GET /api/raffles/:id/instant-prizes
+- GET /api/customers/by-phone/:phone
+- POST /api/customers/:id/photo
+- PUT /api/customers/:id
+- GET /api/customers/:id/purchases
+- GET /api/customers/:id/messages
+- POST /api/customers/:id/messages/:messageId/read
+- POST /api/customers/password-reset/request
+- POST /api/customers/password-reset/confirm
+- POST /api/integrations/n8n/inbound
+- GET /api/support/tickets
+- POST /api/support/tickets
+- POST /api/support/tickets/:id/messages
+- GET /api/admin/customers
+- GET /api/admin/messages
+- POST /api/admin/messages
+- GET /api/admin/customers/search
+- PUT /api/admin/customers/:id
+- PUT /api/admin/customers/:id/full
+- POST /api/admin/customers/:id/block
+- POST /api/admin/customers/:id/reset-password
+- POST /api/raffles/:id/buy
+- GET /api/raffles/:id/addon-suggestion
+- GET /api/fazendinha
+- GET /api/fazendinha/customer/:customerId/history
+- GET /api/fazendinha/addon-suggestion
+- GET /api/modalidades
+- GET /api/modalidades/:mode
+- POST /api/modalidades/:mode/buy
+- POST /api/modalidades/purchases/:purchaseId/confirm-payment
+- POST /api/fazendinha/buy
+- POST /api/fazendinha/groups/:groupId/buy
+- POST /api/fazendinha/purchases/:purchaseId/confirm-payment
+- GET /api/admin/fazendinha
+- PUT /api/admin/fazendinha/config
+- POST /api/admin/fazendinha/result
+- GET /api/admin/modalidades
+- PUT /api/admin/modalidades/:mode/config
+- POST /api/admin/modalidades/result
+- POST /api/admin/modalidades/:mode/result
+- POST /api/admin/fazendinha/reset
+- POST /api/webhooks/payment/:gateway
+- POST /api/purchases/:purchaseId/confirm
+- GET /api/purchases/:purchaseId
+- GET /api/admin/stats
+- GET /api/admin/notifications
+- GET /api/admin/audit-logs
+- GET /api/admin/system-health
+- GET /api/admin/finance-summary
+- GET /api/admin/reports/export
+- GET /api/admin/purchases
+- GET /api/admin/clientes
+- GET /api/admin/clientes/:id
+- POST /api/admin/clientes
+- PUT /api/admin/clientes/:id
+- DELETE /api/admin/clientes/:id
+- POST /api/teste/clientes
+- GET /api/teste/clientes
+- GET /api/teste/supabase
+- GET /api/teste/supabase/health
+- GET /api/admin/payments/webhooks
+- GET /api/admin/payments/queue
+- POST /api/admin/payments/queue/process
+- GET /api/admin/audit/security
+- POST /api/admin/payments/reconcile
+- GET /api/admin/gamification
+- GET /api/admin/gamification/:raffleId
+- PUT /api/admin/gamification/:raffleId
+- POST /api/admin/gamification/:raffleId/extreme-tickets/calculate
+- GET /api/admin/raffles/:id/accounting
+- PUT /api/admin/purchases/:purchaseId
+- POST /api/admin/purchases/:purchaseId/approve
+- POST /api/admin/purchases/:purchaseId/reject
+- GET /api/admin/tickets/search
+- POST /api/admin/raffles/:id/draw
+- POST /api/admin/tickets/assign
+- POST /api/admin/stories
+- PUT /api/admin/stories/:id
+- DELETE /api/admin/stories/:id
+- GET /api/admin/raffles
+- POST /api/admin/raffles
+- PUT /api/admin/raffles/:id
+- DELETE /api/admin/raffles/:id
+- POST /api/admin/winners
+- DELETE /api/admin/winners/:id
+- GET /api/admin/instant-prizes
+- POST /api/admin/instant-prizes
+- PUT /api/admin/instant-prizes/:id
+- DELETE /api/admin/instant-prizes/:id
+- GET /api/admin/gateways
+- POST /api/admin/gateways/test
+- PUT /api/admin/gateways
+- GET /api/settings
+- PUT /api/admin/settings
+- GET /api/admin/integrations/n8n
+- POST /api/admin/integrations/n8n/test
+- POST /api/admin/integrations/n8n/broadcast
+- GET /api/admin/campaigns
+- POST /api/admin/campaigns
+- PUT /api/admin/campaigns/:id
+- DELETE /api/admin/campaigns/:id
+- POST /api/coupons/validate
+- POST /api/admin/media/upload
+- POST /api/affiliates/register
+- GET /api/affiliates/:refCode
+- GET /api/admin/affiliates/search
+- GET /api/admin/affiliates/withdrawals
+- POST /api/admin/affiliates/withdrawals/:id/status
+- GET /api/admin/support/tickets
+- POST /api/admin/support/tickets/:id/reply
+- PUT /api/admin/support/tickets/:id
+- POST /api/admin/affiliates/manual
+- POST /api/admin/affiliates/:refCode/wallet
+- PUT /api/admin/affiliates/:refCode/full
+- PUT /api/affiliates/:refCode
+- POST /api/affiliates/:refCode/withdrawals
+- POST /api/affiliates/:refCode/click
+- GET /api/lootboxes/:userId
+- POST /api/lootboxes/:userId/open
+- GET *
+
+## Paginas Frontend
+
+- /
+- /raffle/:id
+- /fazendinha
+- /auth
+- /login
+- /cadastro
+- /recuperar-senha
+- /dashboard
+- /painel
+- /perfil-saas
+- /minhas-cotas
+- /perfil
+- /afiliado
+- /afiliados
+- /mensagens
+- /transparencia
+- /caixinhas
+- /:mode
+- /admin
+- crm
+- usuarios
+- rifas
+- stories
+- ganhadores
+- cotas
+- vendas
+- pagamentos
+- fazendinha
+- caixinhas
+- gamificacao
+- modalidades
+- sorteio
+- mensagens
+- relatorios
+- operacoes
+- integracoes
+- dominios
+- config
+- /superadmin
+- integracoes
+- dominios
+- auditoria
+- tenants/:tenantId/financeiro
+
+## Tabelas Supabase/Postgres
+
+- clientes
+- fazendinha_compras
+- fazendinha_configuracoes
+- fazendinha_ganhadores
+- fazendinha_grupos
+- fazendinha_resultados
+- gamification_audit_logs
+- gamification_events
+- gamification_module_configs
+- gamification_winners
+- idempotency_keys
+- integration_logs
+- integrations
+- modalidades
+- modalidades_apostas
+- modalidades_compras
+- modalidades_configuracoes
+- modalidades_ganhadores
+- modalidades_resultados
+- modalidades_rodadas
+- pagamentos_pix
+- payment_gateway_configs
+- payment_queue_jobs
+- persistent_state_records
+- platform_health_snapshots
+- raffle_ticket_reservations
+- saas_plans
+- security_audit_logs
+- superadmin_audit_logs
+- superadmin_impersonation_sessions
+- tenant_domains
+- tenant_feature_flags
+- tenant_maintenance_windows
+- tenants
+- usuarios
+- wallet_ledger
+- webhook_endpoints
+- webhook_events
+- webhook_jobs
+
+## Migrations
+
+- supabase/migrations/00_initial_schema.sql
+- supabase/migrations/01_refactor_caixinha_premiada.sql
+- supabase/migrations/02_fazendinha.sql
+- supabase/migrations/03_modalidades_individuais.sql
+- supabase/migrations/04_multitenant_auth.sql
+- supabase/migrations/05_operational_tenant_scope.sql
+- supabase/migrations/06_gamification_modules.sql
+- supabase/migrations/07_global_integrations.sql
+- supabase/migrations/08_saas_production_hardening.sql
+- supabase/migrations/09_persistent_state_records.sql
+- supabase/migrations/10_strong_multitenant_rls.sql
+- supabase/migrations/11_payment_webhook_workers.sql
+- supabase/migrations/12_concurrent_ticket_reservations.sql
+- supabase/migrations/13_clientes.sql
+- supabase/migrations/14_persistent_state_records_complete.sql
+- supabase/migrations/15_saas_multitenant_foundation.sql
+- supabase/migrations/16_supabase_auth_usuarios.sql
+- supabase/migrations/17_payment_gateway_configs.sql
+- supabase/migrations/18_gateway_credentials_encryption_metadata.sql
+- supabase/migrations/19_superadmin_finance_domains_impersonation.sql
+- supabase/migrations/20_hardcore_readiness_improvements.sql
+
+## Middlewares, Workers e Webhooks
+
+- Webhook
+- webhook
+- PaymentQueue
+- paymentQueue
+- payments/reconcile
+- enqueuePaymentJob
+- processPaymentJob
+
+## Campos e Identificadores Criticos
+
+- tenant_id: 579 ocorrencias no backend
+- user_id: 7 ocorrencias no backend
+- order_id: 0 ocorrencias no backend
+- purchaseId: 132 ocorrencias no backend
+- raffleId: 132 ocorrencias no backend
+- affiliate: 283 ocorrencias no backend
+- gateway: 384 ocorrencias no backend
+- wallet: 6 ocorrencias no backend
+- saldo: 1 ocorrencias no backend
+- webhook: 199 ocorrencias no backend
+- idempotencyKey: 7 ocorrencias no backend
+
+## Riscos Observados
+
+- O ambiente local ainda possui fallback em memoria quando Supabase nao esta configurado; os testes hard usam esse modo isolado para nao tocar dinheiro/dados reais.
+- Homologacao real de gateways depende de credenciais sandbox oficiais de cada provedor.
+- Wallet ledger foi preparado por migration, mas a consolidacao total do saldo historico ainda exige migracao operacional dos saldos legados.

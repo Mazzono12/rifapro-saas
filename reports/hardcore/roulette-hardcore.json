@@ -1,0 +1,20 @@
+{
+  "mode": "roulette-hardcore",
+  "success": true,
+  "startedAt": "2026-05-27T05:37:58.833Z",
+  "finishedAt": "2026-05-27T05:38:01.086Z",
+  "durationMs": 2253,
+  "results": [
+    {
+      "name": "roletas e caixinhas calculadas no backend",
+      "status": "passed",
+      "durationMs": 2
+    },
+    {
+      "name": "scripts/test-gamification-modules.mjs",
+      "status": "passed",
+      "durationMs": 2250,
+      "output": "PASS: modulos de gamificacao multitenant ativados/desativados e fluxos obrigatorios validados.\n"
+    }
+  ]
+}

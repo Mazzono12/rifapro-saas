@@ -1,0 +1,41 @@
+{
+  "mode": "readiness-hardcore",
+  "success": true,
+  "startedAt": "2026-05-27T05:40:42.034Z",
+  "finishedAt": "2026-05-27T05:41:00.615Z",
+  "durationMs": 18581,
+  "results": [
+    {
+      "name": "mapa completo do sistema",
+      "status": "passed",
+      "durationMs": 46,
+      "detail": {
+        "backendRoutes": 194,
+        "frontendPages": 43,
+        "sourceFiles": 109,
+        "components": 25,
+        "migrations": 21,
+        "tables": 39,
+        "policies": 41,
+        "providerFiles": 10,
+        "scriptFiles": 21
+      }
+    },
+    {
+      "name": "melhorias hardcore preparadas",
+      "status": "passed",
+      "durationMs": 4
+    },
+    {
+      "name": "scripts/test-hard-suite.mjs production-readiness",
+      "status": "passed",
+      "durationMs": 18522,
+      "output": "\n[hard] auditoria estatica de rotas e modulos\n\n[hard] modelo normalizado de gateway\nPASS: credenciais de gateways cifradas em repouso, descriptografadas so no backend e mascaradas no frontend.\nPASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n\n[hard] checkout usa reserva, pagamento e provider preservado\nPASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\nPASS: workers PIX/webhook com fila, idempotencia, retry, logs e isolamento multitenant.\nPASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\nPASS: hardening de planos, auditoria, fila de pagamentos e dashboard superadmin validado.\nPASS: superadmin finance global, filtros e bloqueio para tenant admin validados.\nPASS: dominios por tenant, unicidade, subdominio e custom domain validados.\nPASS: acesso assistido exige motivo, audita entrada/saida e nao apaga logs criticos.\nPASS: exportacao CSV global/tenant e filtros de relatorio validados.\n\n[hard] bundle sem service role quando dist existir\n\n[hard] Suite production-readiness passou. Relatorio: reports/hard/production-readiness.json\n"
+    },
+    {
+      "name": "relatorio final hardcore",
+      "status": "passed",
+      "durationMs": 6
+    }
+  ]
+}

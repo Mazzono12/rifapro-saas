@@ -1,0 +1,19 @@
+{
+  "mode": "wallet-hardcore",
+  "success": true,
+  "startedAt": "2026-05-27T05:39:22.600Z",
+  "finishedAt": "2026-05-27T05:39:22.605Z",
+  "durationMs": 5,
+  "results": [
+    {
+      "name": "melhorias hardcore preparadas",
+      "status": "passed",
+      "durationMs": 3
+    },
+    {
+      "name": "ledger financeiro imutavel preparado",
+      "status": "passed",
+      "durationMs": 1
+    }
+  ]
+}

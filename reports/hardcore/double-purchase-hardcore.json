@@ -1,0 +1,20 @@
+{
+  "mode": "double-purchase-hardcore",
+  "success": true,
+  "startedAt": "2026-05-27T05:38:21.876Z",
+  "finishedAt": "2026-05-27T05:38:24.104Z",
+  "durationMs": 2228,
+  "results": [
+    {
+      "name": "chance em dobro e pesos de cotas",
+      "status": "passed",
+      "durationMs": 3
+    },
+    {
+      "name": "scripts/test-gamification-modules.mjs",
+      "status": "passed",
+      "durationMs": 2224,
+      "output": "PASS: modulos de gamificacao multitenant ativados/desativados e fluxos obrigatorios validados.\n"
+    }
+  ]
+}

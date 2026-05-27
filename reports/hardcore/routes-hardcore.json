@@ -1,0 +1,30 @@
+{
+  "mode": "routes-hardcore",
+  "success": true,
+  "startedAt": "2026-05-27T05:42:45.325Z",
+  "finishedAt": "2026-05-27T05:42:45.362Z",
+  "durationMs": 37,
+  "results": [
+    {
+      "name": "mapa completo do sistema",
+      "status": "passed",
+      "durationMs": 35,
+      "detail": {
+        "backendRoutes": 194,
+        "frontendPages": 43,
+        "sourceFiles": 109,
+        "components": 25,
+        "migrations": 21,
+        "tables": 39,
+        "policies": 41,
+        "providerFiles": 10,
+        "scriptFiles": 21
+      }
+    },
+    {
+      "name": "contratos de seguranca de rotas",
+      "status": "passed",
+      "durationMs": 2
+    }
+  ]
+}

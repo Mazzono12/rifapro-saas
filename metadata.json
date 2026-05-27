@@ -1,0 +1,6 @@
+{
+  "name": "RifaPro SaaS",
+  "description": "Premium full-stack raffle application with PIX integration, Admin panel, and dark aesthetic.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

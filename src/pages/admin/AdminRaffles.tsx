@@ -1,0 +1,677 @@
+import React, { useEffect, useState } from "react";
+import { Plus, Edit2, Trash2, Ticket, X, Check, BarChart3, DollarSign, Users, Package, Star, ArrowLeft, CreditCard, Download } from "lucide-react";
+import type { PixGatewayId, Raffle, RafflePixConfig } from "../../types";
+import { inferMediaType } from "../../utils/media";
+import { cn } from "../../lib/utils";
+import { MediaPicker } from "../../components/admin/MediaPicker";
+import { LootboxRulesEditor, normalizeLootboxConfig, RewardExperienceSelector } from "../../components/admin/LootboxRulesEditor";
+import { defaultVideoConfig, mergeVideoConfig, VideoSettingsEditor } from "../../components/admin/VideoSettingsEditor";
+import { toast } from "sonner";
+
+export function AdminRaffles() {
+  const [raffles, setRaffles] = useState<Raffle[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentRaffle, setCurrentRaffle] = useState<Partial<Raffle>>({});
+  const [selectedRaffle, setSelectedRaffle] = useState<Raffle | null>(null);
+  const [raffleAdmin, setRaffleAdmin] = useState<any | null>(null);
+
+  const defaultPixConfig: RafflePixConfig = {
+    inheritGlobal: true,
+    enabled: true,
+    gateway: "mercadopago",
+    sandbox: true,
+    apiKey: "",
+    accessToken: "",
+    publicKey: "",
+    clientId: "",
+    clientSecret: "",
+    webhookUrl: "",
+    webhookSecret: "",
+    webhookEvents: "payment.created,payment.updated,payment.paid"
+  };
+
+  const loadRaffles = () => {
+    fetch("/api/admin/raffles")
+      .then(res => res.json())
+      .then(setRaffles);
+  };
+
+  useEffect(() => {
+    loadRaffles();
+  }, []);
+
+  const openRaffleAdmin = (raffle: Raffle) => {
+    setSelectedRaffle(raffle);
+    setRaffleAdmin(null);
+    fetch(`/api/admin/raffles/${raffle.id}/accounting`)
+      .then(res => res.json())
+      .then(setRaffleAdmin)
+      .catch(() => setRaffleAdmin(null));
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const method = currentRaffle.id ? "PUT" : "POST";
+    const url = currentRaffle.id ? `/api/admin/raffles/${currentRaffle.id}` : "/api/admin/raffles";
+    
+    const payload = {
+      ...currentRaffle,
+      mediaType: currentRaffle.mediaUrl ? inferMediaType(currentRaffle.mediaUrl) : currentRaffle.mediaType,
+      checkoutMediaType: currentRaffle.checkoutMediaUrl ? inferMediaType(currentRaffle.checkoutMediaUrl) : currentRaffle.checkoutMediaType,
+    };
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Falha ao salvar rifa");
+
+      toast.success("Rifa salva com sucesso");
+      setIsEditing(false);
+      setCurrentRaffle({});
+      loadRaffles();
+    } catch (error) {
+      toast.error("Erro ao salvar rifa", {
+        description: error instanceof Error ? error.message : "Verifique sua sessão e tente novamente."
+      });
+    }
+  };
+
+  const updatePixConfig = (patch: Partial<RafflePixConfig>) => {
+    setCurrentRaffle({
+      ...currentRaffle,
+      pixConfig: {
+        ...defaultPixConfig,
+        ...(currentRaffle.pixConfig || {}),
+        ...patch
+      }
+    });
+  };
+
+  const updateVideoConfig = (patch: Record<string, any>) => {
+    setCurrentRaffle({
+      ...currentRaffle,
+      videoConfig: {
+        ...mergeVideoConfig(currentRaffle.videoConfig as any),
+        ...patch
+      }
+    });
+  };
+
+  const updateVideoLabel = (field: string, value: string) => {
+    const config = mergeVideoConfig(currentRaffle.videoConfig as any);
+    updateVideoConfig({
+      labels: {
+        ...config.labels,
+        [field]: value
+      }
+    });
+  };
+
+  const downloadCsv = (filename: string, headers: string[], rows: Array<Array<string | number>>) => {
+    const escape = (value: string | number) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const csvContent = [headers.map(escape).join(","), ...rows.map(row => row.map(escape).join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const exportSelectedBuyers = () => {
+    if (!selectedRaffle || !raffleAdmin) return;
+    downloadCsv(
+      `participantes-${selectedRaffle.id}.csv`,
+      ["Nome completo", "Telefone", "Cidade", "Data da compra", "Codigo do sorteio", "Quantidade de cotas"],
+      raffleAdmin.buyers.map((buyer: any) => [
+        buyer.name,
+        buyer.phone,
+        buyer.city || "",
+        buyer.lastPurchaseAt || "",
+        selectedRaffle.id,
+        buyer.tickets
+      ])
+    );
+  };
+
+  const exportSelectedPayments = () => {
+    if (!selectedRaffle || !raffleAdmin) return;
+    downloadCsv(
+      `pagamentos-${selectedRaffle.id}.csv`,
+      ["Nome completo", "Telefone", "Cidade", "Data da compra", "Codigo do sorteio", "Quantidade de cotas"],
+      raffleAdmin.purchases.map((purchase: any) => [
+        purchase.customer?.name || "",
+        purchase.customer?.phone || purchase.contact,
+        purchase.customer?.city || "",
+        purchase.createdAt,
+        purchase.raffleId,
+        purchase.tickets
+      ])
+    );
+  };
+
+  return (
+    <div className="space-y-6 fade-in">
+       <div className="flex justify-between items-center">
+         <div>
+            <h1 className="text-3xl font-display font-bold text-white">Gerenciar Rifas</h1>
+         </div>
+         <button 
+           onClick={() => { setCurrentRaffle({ status: 'active', pixConfig: defaultPixConfig, n8nEnabled: false, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Plataforma de rifas premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
+           className="bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/50 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
+         >
+           <Plus className="w-4 h-4" /> Nova Rifa
+         </button>
+       </div>
+
+       {selectedRaffle ? (
+         <div className="space-y-6">
+           <div className="glass-card p-5 border border-neon-cyan/20 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+             <div>
+               <button onClick={() => { setSelectedRaffle(null); setRaffleAdmin(null); }} className="mb-3 inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white">
+                 <ArrowLeft className="w-4 h-4" /> Voltar para rifas
+               </button>
+               <h2 className="text-3xl font-display font-bold text-white">{selectedRaffle.title}</h2>
+               <p className="text-slate-400 text-sm mt-1">Administração e contabilidade individual do sorteio #{selectedRaffle.id}</p>
+             </div>
+             <button onClick={() => { setCurrentRaffle(selectedRaffle); setIsEditing(true); setSelectedRaffle(null); }} className="neon-button px-5 py-3 rounded-xl flex items-center gap-2">
+               <Edit2 className="w-4 h-4" /> Editar sorteio
+             </button>
+           </div>
+
+           {!raffleAdmin ? (
+             <div className="glass-card p-10 text-center text-slate-500">Carregando contabilidade...</div>
+           ) : (
+             <>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                  <AdminMetric icon={DollarSign} label="Receita paga" value={`R$ ${raffleAdmin.accounting.grossRevenue.toFixed(2)}`} />
+                  <AdminMetric icon={Ticket} label="Cotas pagas" value={String(raffleAdmin.accounting.soldTickets)} />
+                  <AdminMetric icon={Users} label="Compradores únicos" value={String(raffleAdmin.accounting.uniqueBuyers)} />
+                  <AdminMetric icon={Package} label="Caixinhas geradas" value={String(raffleAdmin.accounting.lootboxesGenerated)} />
+                </div>
+
+                <div className="glass-card p-6 border border-cyan-300/10 rounded-3xl">
+                  <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <h3 className="text-xl font-display font-bold text-white flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-cyan-300" /> PIX deste sorteio
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={exportSelectedBuyers} className="rounded-xl border border-emerald-300/20 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-300/10">
+                        <Download className="mr-1 inline h-4 w-4" /> Clientes
+                      </button>
+                      <button onClick={exportSelectedPayments} className="rounded-xl border border-cyan-300/20 px-3 py-2 text-xs text-cyan-200 hover:bg-cyan-300/10">
+                        <Download className="mr-1 inline h-4 w-4" /> Pagamentos
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <MiniStat label="Status PIX" value={raffleAdmin.pix.enabled ? "Habilitado" : "Desabilitado"} />
+                    <MiniStat label="Gateway" value={raffleAdmin.pix.gateway} />
+                    <MiniStat label="Ambiente" value={raffleAdmin.pix.sandbox ? "Sandbox" : "Produção"} />
+                    <MiniStat label="Webhook" value={raffleAdmin.pix.webhookUrl || "Não configurado"} />
+                  </div>
+                </div>
+
+               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                 <div className="glass-card p-6 lg:col-span-2">
+                   <h3 className="text-xl font-display font-bold text-white mb-4 flex items-center gap-2">
+                     <BarChart3 className="w-5 h-5 text-neon-cyan" /> Fluxo financeiro do sorteio
+                   </h3>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                     <MiniStat label="Vendas pagas" value={raffleAdmin.accounting.paidPurchases} />
+                     <MiniStat label="Vendas pendentes" value={raffleAdmin.accounting.pendingPurchases} />
+                     <MiniStat label="Receita pendente" value={`R$ ${raffleAdmin.accounting.pendingRevenue.toFixed(2)}`} />
+                     <MiniStat label="Ticket médio" value={`R$ ${raffleAdmin.accounting.averageTicket.toFixed(2)}`} />
+                     <MiniStat label="Prêmios previstos" value={`R$ ${raffleAdmin.accounting.instantPrizeLiability.toFixed(2)}`} />
+                     <MiniStat label="Prêmios pagos" value={`R$ ${raffleAdmin.accounting.instantPrizePaid.toFixed(2)}`} />
+                   </div>
+                 </div>
+
+                 <div className="glass-card p-6">
+                   <h3 className="text-xl font-display font-bold text-white mb-4 flex items-center gap-2">
+                     <Star className="w-5 h-5 text-amber-300" /> Cotas premiadas
+                   </h3>
+                   <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                     {raffleAdmin.instantPrizes.length === 0 ? (
+                       <p className="text-sm text-slate-500">Nenhuma cota premiada nesta rifa.</p>
+                     ) : raffleAdmin.instantPrizes.map((prize: any) => (
+                       <div key={prize.id} className={cn("rounded-xl border px-3 py-2 text-sm", prize.status === "claimed" ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200")}>
+                         #{String(prize.numeroPremiado).padStart(6, "0")} • R$ {prize.valorPremio.toFixed(2)} • {prize.status}
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+               </div>
+
+               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                 <AdminTable
+                   title="Compradores deste sorteio"
+                   empty="Nenhum comprador pago ainda."
+                   rows={raffleAdmin.buyers.map((buyer: any) => [buyer.name, buyer.phone, `${buyer.tickets} cotas`, `R$ ${buyer.amount.toFixed(2)}`, buyer.lastPurchaseAt ? new Date(buyer.lastPurchaseAt).toLocaleString("pt-BR") : "-"])}
+                 />
+                 <AdminTable
+                   title="Vendas deste sorteio"
+                   empty="Nenhuma venda registrada."
+                   rows={raffleAdmin.purchases.slice(0, 12).map((purchase: any) => [purchase.purchaseId, purchase.customer?.name || "-", purchase.customer?.phone || purchase.contact, purchase.status, `${purchase.tickets} cotas`, `R$ ${purchase.amount.toFixed(2)}`])}
+                 />
+               </div>
+             </>
+           )}
+         </div>
+       ) : isEditing ? (
+         <div className="glass-card p-6 rounded-2xl border border-neon-cyan/30">
+            <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
+               <h2 className="text-xl font-bold">{currentRaffle.id ? 'Editar Rifa' : 'Criar Nova Rifa'}</h2>
+               <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-white"><X className="w-6 h-6" /></button>
+            </div>
+            
+            <form onSubmit={handleSave} className="space-y-4">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Título</label>
+                    <input required type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
+                           value={currentRaffle.title || ''} onChange={e => setCurrentRaffle({...currentRaffle, title: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Descrição</label>
+                    <input required type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
+                           value={currentRaffle.description || ''} onChange={e => setCurrentRaffle({...currentRaffle, description: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Preço (R$)</label>
+                    <input required type="number" step="0.01" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
+                           value={currentRaffle.price || ''} onChange={e => setCurrentRaffle({...currentRaffle, price: parseFloat(e.target.value)})} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Total de Bilhetes</label>
+                    <input required type="number" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
+                           value={currentRaffle.totalTickets || ''} onChange={e => setCurrentRaffle({...currentRaffle, totalTickets: parseInt(e.target.value)})} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Cotas vendidas / reservadas</label>
+                    <input type="number" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                           value={currentRaffle.soldTickets ?? ''} onChange={e => setCurrentRaffle({...currentRaffle, soldTickets: parseInt(e.target.value) || 0})} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Progresso manual (%)</label>
+                    <input type="number" min="0" max="100" step="0.1" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                           value={currentRaffle.progressOverride ?? ''} onChange={e => setCurrentRaffle({...currentRaffle, progressOverride: e.target.value === "" ? undefined : Number(e.target.value)})} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <MediaPicker
+                      label="Imagem principal / fallback"
+                      value={currentRaffle.image || ""}
+                      required
+                      onChange={(mediaUrl) => setCurrentRaffle({ ...currentRaffle, image: mediaUrl })}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <MediaPicker
+                      label="Mídia da landing page"
+                      value={currentRaffle.mediaUrl || ""}
+                      mediaType={currentRaffle.mediaType}
+                      onChange={(mediaUrl, mediaType) => setCurrentRaffle({ ...currentRaffle, mediaUrl, mediaType })}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <MediaPicker
+                      label="Mídia exclusiva do checkout"
+                      value={currentRaffle.checkoutMediaUrl || ""}
+                      mediaType={currentRaffle.checkoutMediaType}
+                      onChange={(checkoutMediaUrl, checkoutMediaType) => setCurrentRaffle({ ...currentRaffle, checkoutMediaUrl, checkoutMediaType })}
+                    />
+                    <p className="mt-2 text-[11px] text-slate-500">
+                      Se este campo ficar vazio, o checkout usa automaticamente a mídia da landing page.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Media Type</label>
+                    <select className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
+                            value={currentRaffle.mediaType || ''} onChange={e => setCurrentRaffle({...currentRaffle, mediaType: e.target.value as any})}>
+                       <option value="">Nenhum</option>
+                       <option value="image">Imagem (JPEG/GIF)</option>
+                       <option value="video">Vídeo (MP4)</option>
+                       <option value="youtube">YouTube</option>
+                       <option value="vimeo">Vimeo</option>
+                       <option value="bunny">Bunny.net</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Proporção da landing</label>
+                    <select
+                      className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                      value={currentRaffle.mediaAspect || "wide"}
+                      onChange={e => setCurrentRaffle({ ...currentRaffle, mediaAspect: e.target.value as any })}
+                    >
+                      <option value="auto">Automático / tela cheia</option>
+                      <option value="wide">Horizontal 16:9</option>
+                      <option value="cinematic">Cinema 21:9</option>
+                      <option value="square">Quadrado 1:1</option>
+                      <option value="portrait">Vertical 4:5</option>
+                      <option value="story">Stories 9:16</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Encaixe da landing</label>
+                    <select
+                      className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                      value={currentRaffle.mediaFit || "cover"}
+                      onChange={e => setCurrentRaffle({ ...currentRaffle, mediaFit: e.target.value as any })}
+                    >
+                      <option value="cover">Preencher cortando bordas</option>
+                      <option value="contain">Mostrar inteiro sem cortar</option>
+                      <option value="fill">Esticar para ocupar tudo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Proporção do checkout</label>
+                    <select
+                      className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                      value={currentRaffle.checkoutMediaAspect || currentRaffle.mediaAspect || "wide"}
+                      onChange={e => setCurrentRaffle({ ...currentRaffle, checkoutMediaAspect: e.target.value as any })}
+                    >
+                      <option value="auto">Automático / altura real</option>
+                      <option value="wide">Horizontal 16:9</option>
+                      <option value="cinematic">Cinema 21:9</option>
+                      <option value="square">Quadrado 1:1</option>
+                      <option value="portrait">Vertical 4:5</option>
+                      <option value="story">Stories 9:16</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Encaixe do checkout</label>
+                    <select
+                      className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                      value={currentRaffle.checkoutMediaFit || currentRaffle.mediaFit || "contain"}
+                      onChange={e => setCurrentRaffle({ ...currentRaffle, checkoutMediaFit: e.target.value as any })}
+                    >
+                      <option value="contain">Mostrar inteiro sem cortar</option>
+                      <option value="cover">Preencher cortando bordas</option>
+                      <option value="fill">Esticar para ocupar tudo</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2 rounded-3xl border border-sky-300/15 bg-sky-300/[0.03] p-5">
+                    <h3 className="font-display text-lg font-bold text-white">Player isolado desta rifa</h3>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Essas regras valem somente para a midia deste sorteio na landing page e no checkout, evitando conflito com outros players.
+                    </p>
+                    <VideoSettingsEditor
+                      config={mergeVideoConfig(currentRaffle.videoConfig as any)}
+                      onChange={updateVideoConfig}
+                      onLabelChange={updateVideoLabel}
+                    />
+                  </div>
+                  <div className="md:col-span-2 rounded-3xl border border-fuchsia-300/15 bg-fuchsia-300/[0.03] p-5">
+                    <h3 className="font-display text-lg font-bold text-white">Textos e botões do vídeo principal</h3>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Configure se a chamada fica em cima do vídeo ou abaixo dele na tela principal.
+                    </p>
+                    <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <label>
+                        <span className="block text-xs font-mono text-slate-400 mb-1">Posição dos textos e botões</span>
+                        <select
+                          className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                          value={currentRaffle.heroContentPlacement || "below"}
+                          onChange={e => setCurrentRaffle({ ...currentRaffle, heroContentPlacement: e.target.value as any })}
+                        >
+                          <option value="overlay">Sobre o vídeo/banner</option>
+                          <option value="below">Abaixo do vídeo/banner</option>
+                        </select>
+                      </label>
+                      <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                        <input
+                          type="checkbox"
+                          checked={currentRaffle.heroShowStats !== false}
+                          onChange={e => setCurrentRaffle({ ...currentRaffle, heroShowStats: e.target.checked })}
+                        />
+                        <span className="text-sm text-white">Mostrar preço e progresso ao lado do botão</span>
+                      </label>
+                      <TextField label="Etiqueta pequena" value={currentRaffle.heroEyebrow || ""} onChange={value => setCurrentRaffle({ ...currentRaffle, heroEyebrow: value })} placeholder="Plataforma de rifas premium" />
+                      <TextField label="Texto do botão principal" value={currentRaffle.heroPrimaryButton || ""} onChange={value => setCurrentRaffle({ ...currentRaffle, heroPrimaryButton: value })} placeholder="Participar agora" />
+                      <label className="md:col-span-2">
+                        <span className="block text-xs font-mono text-slate-400 mb-1">Título principal</span>
+                        <input
+                          className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                          value={currentRaffle.heroTitle || ""}
+                          onChange={e => setCurrentRaffle({ ...currentRaffle, heroTitle: e.target.value })}
+                          placeholder="Sorteios com experiência cinematográfica."
+                        />
+                      </label>
+                      <label className="md:col-span-2">
+                        <span className="block text-xs font-mono text-slate-400 mb-1">Texto de apoio</span>
+                        <textarea
+                          className="min-h-24 w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                          value={currentRaffle.heroSubtitle || ""}
+                          onChange={e => setCurrentRaffle({ ...currentRaffle, heroSubtitle: e.target.value })}
+                          placeholder="Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa."
+                        />
+                      </label>
+                      <label className="md:col-span-2">
+                        <span className="block text-xs font-mono text-slate-400 mb-1">Texto secundário opcional</span>
+                        <input
+                          className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                          value={currentRaffle.heroSecondaryText || ""}
+                          onChange={e => setCurrentRaffle({ ...currentRaffle, heroSecondaryText: e.target.value })}
+                          placeholder="Ex: PIX instantâneo e cotas liberadas após confirmação"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Status</label>
+                    <select className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
+                            value={currentRaffle.status || 'active'} onChange={e => setCurrentRaffle({...currentRaffle, status: e.target.value as any})}>
+                       <option value="active">Ativo</option>
+                       <option value="completed">Finalizado</option>
+                    </select>
+                  </div>
+                   <div>
+                     <label className="block text-xs font-mono text-slate-400 mb-1">Data Sorteio (YYYY-MM-DD)</label>
+                     <input type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
+                            value={currentRaffle.drawDate || ''} onChange={e => setCurrentRaffle({...currentRaffle, drawDate: e.target.value})} />
+                   </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Texto do time regressivo</label>
+                    <input type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                            value={currentRaffle.countdownLabel || ''} onChange={e => setCurrentRaffle({...currentRaffle, countdownLabel: e.target.value})} placeholder="Ex: Encerra hoje as 20h" />
+                   </div>
+                </div>
+
+                <div className="rounded-3xl border border-amber-300/15 bg-amber-300/[0.03] p-5">
+                  <label className="mb-4 flex items-start gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.05] p-4">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={Boolean(currentRaffle.n8nEnabled)}
+                      onChange={e => setCurrentRaffle({ ...currentRaffle, n8nEnabled: e.target.checked })}
+                    />
+                    <span>
+                      <span className="block text-sm font-bold text-white">Ligar integração n8n neste sorteio</span>
+                      <span className="mt-1 block text-xs text-slate-400">
+                        Quando ligado, compras confirmadas deste sorteio podem enviar cotas ao WhatsApp/e-mail pelo webhook global configurado em Operações.
+                      </span>
+                    </span>
+                  </label>
+                  <div className="mb-4">
+                    <RewardExperienceSelector
+                      enabled={currentRaffle.lootboxEnabled !== false}
+                      value={currentRaffle.lootboxConfig}
+                      onChange={(lootboxEnabled, lootboxConfig) => setCurrentRaffle({ ...currentRaffle, lootboxEnabled, lootboxConfig })}
+                    />
+                  </div>
+                  <LootboxRulesEditor
+                    title="Regras da premiação deste sorteio"
+                    value={currentRaffle.lootboxConfig}
+                    onChange={lootboxConfig => setCurrentRaffle({ ...currentRaffle, lootboxConfig })}
+                    showExperienceSelector={false}
+                  />
+                </div>
+
+                <div className="rounded-3xl border border-cyan-300/15 bg-cyan-300/[0.03] p-5">
+                  <div className="mb-4 flex items-center gap-3">
+                    <CreditCard className="w-5 h-5 text-cyan-300" />
+                    <div>
+                      <h3 className="font-display text-lg font-bold text-white">PIX individual do sorteio</h3>
+                      <p className="text-xs text-slate-400">Configure gateway, API e webhooks específicos para esta rifa.</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                      <input type="checkbox" checked={(currentRaffle.pixConfig || defaultPixConfig).inheritGlobal} onChange={e => updatePixConfig({ inheritGlobal: e.target.checked })} />
+                      <span className="text-sm text-white">Usar configuração global de PIX</span>
+                    </label>
+                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                      <input type="checkbox" checked={(currentRaffle.pixConfig || defaultPixConfig).enabled} onChange={e => updatePixConfig({ enabled: e.target.checked })} />
+                      <span className="text-sm text-white">Habilitar PIX neste sorteio</span>
+                    </label>
+                    <label>
+                      <span className="block text-xs font-mono text-slate-400 mb-1">Gateway específico</span>
+                      <select className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" value={(currentRaffle.pixConfig || defaultPixConfig).gateway} onChange={e => updatePixConfig({ gateway: e.target.value as PixGatewayId })}>
+                        <option value="mercadopago">Mercado Pago</option>
+                        <option value="pagbank">PagBank</option>
+                        <option value="asaas">Asaas</option>
+                        <option value="infinitypay">InfinityPay</option>
+                        <option value="pay2m">Pay2M</option>
+                        <option value="cora">Cora</option>
+                      </select>
+                    </label>
+                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                      <input type="checkbox" checked={(currentRaffle.pixConfig || defaultPixConfig).sandbox} onChange={e => updatePixConfig({ sandbox: e.target.checked })} />
+                      <span className="text-sm text-white">Modo sandbox</span>
+                    </label>
+                    <PixField label="Chave PIX" value={(currentRaffle.pixConfig || defaultPixConfig).pixKey || (currentRaffle.pixConfig || defaultPixConfig).apiKey || ""} onChange={value => updatePixConfig({ pixKey: value, apiKey: value })} />
+                    <PixField label="Access token" value={(currentRaffle.pixConfig || defaultPixConfig).accessToken || ""} onChange={value => updatePixConfig({ accessToken: value })} />
+                    <PixField label="Public key" value={(currentRaffle.pixConfig || defaultPixConfig).publicKey || ""} onChange={value => updatePixConfig({ publicKey: value })} />
+                    <PixField label="Client ID" value={(currentRaffle.pixConfig || defaultPixConfig).clientId || ""} onChange={value => updatePixConfig({ clientId: value })} />
+                    <PixField label="Client secret" value={(currentRaffle.pixConfig || defaultPixConfig).clientSecret || ""} onChange={value => updatePixConfig({ clientSecret: value })} />
+                    <PixField label="Webhook URL" value={(currentRaffle.pixConfig || defaultPixConfig).webhookUrl || ""} onChange={value => updatePixConfig({ webhookUrl: value })} />
+                    <PixField label="Webhook secret" value={(currentRaffle.pixConfig || defaultPixConfig).webhookSecret || ""} onChange={value => updatePixConfig({ webhookSecret: value })} />
+                    <PixField label="Eventos do webhook" value={(currentRaffle.pixConfig || defaultPixConfig).webhookEvents || ""} onChange={value => updatePixConfig({ webhookEvents: value })} />
+                  </div>
+                </div>
+               
+               <div className="flex justify-end pt-4">
+                 <button type="submit" className="bg-neon-cyan text-black px-6 py-3 rounded-lg font-bold font-mono tracking-wider flex items-center gap-2 hover:bg-white transition-colors">
+                    <Check className="w-5 h-5" /> Salvar Rifa
+                 </button>
+               </div>
+            </form>
+         </div>
+       ) : (
+         <div className="grid gap-4">
+            {raffles.map(r => (
+               <div key={r.id} className="glass-card p-4 rounded-xl border border-white/5 flex flex-col md:flex-row gap-6 items-center">
+                  <div className="w-full md:w-48 h-32 rounded-lg bg-cyber-900 overflow-hidden relative shrink-0">
+                     <img src={r.image} alt={r.title} className="w-full h-full object-cover" />
+                     <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-md px-2 py-1 rounded text-[10px] font-mono border border-white/10 uppercase">
+                        {r.status}
+                     </div>
+                  </div>
+                  <div className="flex-1">
+                     <h3 className="text-xl font-bold text-white mb-2">{r.title}</h3>
+                     <p className="text-sm text-slate-400 line-clamp-2 max-w-lg mb-4">{r.description}</p>
+                     <div className="flex gap-4 font-mono text-xs text-slate-500">
+                        <span>Preço: R$ {r.price.toFixed(2)}</span>
+                        <span>|</span>
+                        <span>Progresso: {((r.progressOverride ?? (r.soldTickets / r.totalTickets) * 100)).toFixed(1)}%</span>
+                        <span>|</span>
+                        <span>Bilhetes: {r.soldTickets}/{r.totalTickets}</span>
+                        <span>|</span>
+                        <span className={r.n8nEnabled ? "text-emerald-300" : "text-slate-500"}>n8n {r.n8nEnabled ? "ligado" : "desligado"}</span>
+                     </div>
+                  </div>
+                  <div className="flex gap-2">
+                     <button onClick={() => openRaffleAdmin(r)} className="p-3 bg-cyber-800 rounded-lg border border-white/10 hover:border-emerald-400 transition-colors text-slate-300 hover:text-emerald-300" title="Administração individual">
+                        <BarChart3 className="w-4 h-4" />
+                     </button>
+                     <button onClick={() => { setCurrentRaffle(r); setIsEditing(true); }} className="p-3 bg-cyber-800 rounded-lg border border-white/10 hover:border-neon-cyan transition-colors text-slate-300 hover:text-neon-cyan">
+                        <Edit2 className="w-4 h-4" />
+                     </button>
+                     <button onClick={async () => { await fetch(`/api/admin/raffles/${r.id}`, {method: 'DELETE'}); loadRaffles(); }} className="p-3 bg-cyber-800 rounded-lg border border-white/10 hover:border-red-500 transition-colors text-slate-300 hover:text-red-500">
+                        <Trash2 className="w-4 h-4" />
+                     </button>
+                  </div>
+               </div>
+            ))}
+         </div>
+       )}
+    </div>
+  );
+}
+
+function AdminMetric({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+  return (
+    <div className="glass-card p-5 border border-white/5">
+      <Icon className="w-5 h-5 text-neon-cyan mb-3" />
+      <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{label}</p>
+      <p className="text-2xl font-display font-bold text-white mt-1">{value}</p>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+      <p className="text-[10px] font-mono uppercase text-slate-500">{label}</p>
+      <p className="text-lg font-bold text-white mt-1">{value}</p>
+    </div>
+  );
+}
+
+function PixField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label>
+      <span className="block text-xs font-mono text-slate-400 mb-1">{label}</span>
+      <input
+        type={label.toLowerCase().includes("secret") || label.toLowerCase().includes("token") || label.toLowerCase().includes("api") ? "password" : "text"}
+        className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      />
+    </label>
+  );
+}
+
+function TextField({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
+  return (
+    <label>
+      <span className="block text-xs font-mono text-slate-400 mb-1">{label}</span>
+      <input
+        className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+    </label>
+  );
+}
+
+function AdminTable({ title, rows, empty }: { title: string; rows: Array<Array<string>>; empty: string }) {
+  return (
+    <div className="glass-card p-6 overflow-hidden">
+      <h3 className="text-xl font-display font-bold text-white mb-4">{title}</h3>
+      {rows.length === 0 ? (
+        <p className="text-sm text-slate-500">{empty}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <tbody>
+              {rows.map((row, index) => (
+                <tr key={index} className="border-t border-white/5">
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex} className="py-3 pr-4 text-slate-300 whitespace-nowrap">{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

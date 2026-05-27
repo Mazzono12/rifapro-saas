@@ -1,0 +1,32 @@
+{
+  "mode": "purchase-hardcore",
+  "success": true,
+  "startedAt": "2026-05-27T05:36:43.943Z",
+  "finishedAt": "2026-05-27T05:36:54.778Z",
+  "durationMs": 10835,
+  "results": [
+    {
+      "name": "melhorias hardcore preparadas",
+      "status": "passed",
+      "durationMs": 6
+    },
+    {
+      "name": "scripts/test-purchase-concurrency.mjs",
+      "status": "passed",
+      "durationMs": 1897,
+      "output": "PASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\n"
+    },
+    {
+      "name": "scripts/test-pix-multitenant.mjs",
+      "status": "passed",
+      "durationMs": 2188,
+      "output": "PASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n"
+    },
+    {
+      "name": "scripts/test-payment-workers.mjs",
+      "status": "passed",
+      "durationMs": 6740,
+      "output": "PASS: workers PIX/webhook com fila, idempotencia, retry, logs e isolamento multitenant.\n"
+    }
+  ]
+}
