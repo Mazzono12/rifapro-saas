@@ -11,6 +11,7 @@ export function AdminSales() {
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerSearchInput, setCustomerSearchInput] = useState("");
   const [editingCustomer, setEditingCustomer] = useState<any | null>(null);
+  const [customerEditReason, setCustomerEditReason] = useState("");
   const [ticketSearch, setTicketSearch] = useState({ raffleId: "1", number: "" });
   const [ticketResult, setTicketResult] = useState<any | null>(null);
   const [assignCustomerId, setAssignCustomerId] = useState("");
@@ -154,14 +155,19 @@ export function AdminSales() {
         editableNumbers: purchase.editableNumbers ?? (purchase.numeros || []).join(", ")
       }))
     });
+    setCustomerEditReason("");
   };
 
   const saveCustomer = async () => {
     if (!editingCustomer) return;
+    if (customerEditReason.trim().length < 6) {
+      toast.error("Informe um motivo para auditoria");
+      return;
+    }
     const res = await fetch(`/api/admin/customers/${editingCustomer.id}/full`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(editingCustomer),
+      body: JSON.stringify({ ...editingCustomer, reason: customerEditReason }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -170,6 +176,7 @@ export function AdminSales() {
     }
     toast.success("Cadastro atualizado pelo admin");
     setEditingCustomer(null);
+    setCustomerEditReason("");
     loadData();
   };
 
@@ -762,6 +769,15 @@ export function AdminSales() {
                <input type="number" value={editingCustomer.totalTickets || 0} disabled className="w-full p-3 opacity-60" />
              </label>
            </div>
+           <label className="block space-y-2 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
+             <span className="text-xs font-bold uppercase text-amber-100">Motivo obrigatório para auditoria</span>
+             <textarea
+               value={customerEditReason}
+               onChange={event => setCustomerEditReason(event.target.value)}
+               className="min-h-20 w-full rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-white"
+               placeholder="Descreva por que dados, pedidos ou cotas foram alterados."
+             />
+           </label>
            <div className="grid gap-4 xl:grid-cols-2">
              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                <h3 className="font-display text-lg font-bold text-white">Cotas de rifas editáveis</h3>
@@ -835,7 +851,7 @@ export function AdminSales() {
              </div>
            </div>
            <div className="flex justify-end gap-3">
-             <button onClick={() => setEditingCustomer(null)} className="admin-button-secondary">Cancelar</button>
+             <button onClick={() => { setEditingCustomer(null); setCustomerEditReason(""); }} className="admin-button-secondary">Cancelar</button>
              <button onClick={saveCustomer} className="admin-button"><Save className="w-4 h-4" /> Salvar ficha</button>
            </div>
          </div>

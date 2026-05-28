@@ -1,15 +1,15 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-28T12:30:54.294Z
+Gerado em: 2026-05-28T15:11:05.162Z
 
 ## Totais
 
-- Rotas backend: 222
-- Paginas frontend: 46
+- Rotas backend: 241
+- Paginas frontend: 51
 - Componentes: 36
-- Arquivos src: 130
-- Migrations: 24
-- Tabelas mapeadas: 42
+- Arquivos src: 132
+- Migrations: 25
+- Tabelas mapeadas: 48
 - Policies mapeadas: 44
 - Providers/arquivos de integracao: 10
 
@@ -55,6 +55,8 @@ Gerado em: 2026-05-28T12:30:54.294Z
 - POST /api/superadmin/clientes
 - PUT /api/superadmin/clientes/:id
 - DELETE /api/superadmin/clientes/:id
+- GET /api/superadmin/customers
+- PUT /api/superadmin/customers/:id
 - GET /api/superadmin/integrations
 - GET /api/superadmin/integration-logs
 - GET /api/superadmin/webhooks
@@ -69,6 +71,9 @@ Gerado em: 2026-05-28T12:30:54.294Z
 - POST /api/superadmin/tenants/:tenantId/impersonate/start
 - POST /api/superadmin/impersonate/end
 - GET /api/superadmin/audit-logs
+- GET /api/superadmin/audit-ledger
+- GET /api/superadmin/compliance
+- GET /api/superadmin/antifraud
 - GET /api/superadmin/domains
 - POST /api/superadmin/tenants/:tenantId/domains
 - POST /api/superadmin/domains/:id/verify
@@ -125,6 +130,16 @@ Gerado em: 2026-05-28T12:30:54.294Z
 - PUT /api/admin/customers/:id/full
 - POST /api/admin/customers/:id/block
 - POST /api/admin/customers/:id/reset-password
+- GET /api/admin/audit-ledger
+- GET /api/admin/ticket-adjustments
+- GET /api/admin/wallet-ledger
+- POST /api/admin/wallet-ledger/manual
+- GET /api/admin/compliance
+- POST /api/admin/compliance/customers/:customerId/export
+- POST /api/admin/compliance/customers/:customerId/anonymize
+- POST /api/public/consents
+- GET /api/admin/antifraud
+- POST /api/admin/antifraud/scan
 - POST /api/checkout/preview
 - POST /api/raffles/:id/buy
 - GET /api/raffles/:id/addon-suggestion
@@ -187,7 +202,11 @@ Gerado em: 2026-05-28T12:30:54.294Z
 - POST /api/admin/purchases/:purchaseId/reject
 - GET /api/admin/tickets/search
 - POST /api/admin/raffles/:id/draw
+- GET /api/public/raffles/:raffleId/draw-audit
+- GET /api/admin/raffles/:raffleId/draw-audit
 - POST /api/admin/tickets/assign
+- POST /api/admin/purchases/:purchaseId/tickets/adjust
+- POST /api/admin/purchases/:purchaseId/tickets/resend-whatsapp
 - POST /api/admin/stories
 - PUT /api/admin/stories/:id
 - DELETE /api/admin/stories/:id
@@ -256,6 +275,7 @@ Gerado em: 2026-05-28T12:30:54.294Z
 - /afiliados
 - /mensagens
 - /transparencia
+- /sorteio/:raffleId/auditoria
 - /caixinhas
 - /:mode
 - /admin
@@ -277,6 +297,10 @@ Gerado em: 2026-05-28T12:30:54.294Z
 - operacoes
 - integracoes
 - dominios
+- auditoria
+- compliance
+- antifraude
+- gerenciar-cotas
 - config
 - config/aparencia
 - /superadmin
@@ -289,12 +313,16 @@ Gerado em: 2026-05-28T12:30:54.294Z
 
 ## Tabelas Supabase/Postgres
 
+- audit_event_ledger
 - clientes
+- customer_consents
+- data_privacy_requests
 - fazendinha_compras
 - fazendinha_configuracoes
 - fazendinha_ganhadores
 - fazendinha_grupos
 - fazendinha_resultados
+- fraud_signals
 - gamification_audit_logs
 - gamification_events
 - gamification_module_configs
@@ -314,6 +342,7 @@ Gerado em: 2026-05-28T12:30:54.294Z
 - payment_queue_jobs
 - persistent_state_records
 - platform_health_snapshots
+- raffle_draw_audit
 - raffle_ticket_reservations
 - saas_plans
 - security_audit_logs
@@ -324,6 +353,7 @@ Gerado em: 2026-05-28T12:30:54.294Z
 - tenant_feature_flags
 - tenant_maintenance_windows
 - tenants
+- ticket_adjustments
 - usuarios
 - wallet_ledger
 - webhook_endpoints
@@ -358,6 +388,7 @@ Gerado em: 2026-05-28T12:30:54.294Z
 - supabase/migrations/21_clean_room_auth_compatibility.sql
 - supabase/migrations/22_whatsapp_auto_ticket_queue.sql
 - supabase/migrations/23_tenant_branding_settings.sql
+- supabase/migrations/24_compliance_audit_ticket_ledger.sql
 
 ## Middlewares, Workers e Webhooks
 
@@ -371,15 +402,15 @@ Gerado em: 2026-05-28T12:30:54.294Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 641 ocorrencias no backend
-- user_id: 7 ocorrencias no backend
-- order_id: 3 ocorrencias no backend
-- purchaseId: 137 ocorrencias no backend
-- raffleId: 142 ocorrencias no backend
-- affiliate: 297 ocorrencias no backend
+- tenant_id: 730 ocorrencias no backend
+- user_id: 16 ocorrencias no backend
+- order_id: 6 ocorrencias no backend
+- purchaseId: 157 ocorrencias no backend
+- raffleId: 155 ocorrencias no backend
+- affiliate: 304 ocorrencias no backend
 - gateway: 407 ocorrencias no backend
-- wallet: 17 ocorrencias no backend
-- saldo: 1 ocorrencias no backend
+- wallet: 36 ocorrencias no backend
+- saldo: 2 ocorrencias no backend
 - webhook: 209 ocorrencias no backend
 - idempotencyKey: 12 ocorrencias no backend
 

@@ -116,6 +116,7 @@ const AdminReports = lazy(() => import("./pages/admin/AdminReports").then(module
 const AdminOperations = lazy(() => import("./pages/admin/AdminOperations").then(module => ({ default: module.AdminOperations })));
 const AdminIntegrations = lazy(() => import("./pages/admin/AdminIntegrations").then(module => ({ default: module.AdminIntegrations })));
 const AdminDomains = lazy(() => import("./pages/admin/AdminDomains").then(module => ({ default: module.AdminDomains })));
+const AdminComplianceCenter = lazy(() => import("./pages/admin/AdminComplianceCenter").then(module => ({ default: module.AdminComplianceCenter })));
 const SuperAdminLayout = lazy(() => import("./pages/superadmin/SuperAdminLayout").then(module => ({ default: module.SuperAdminLayout })));
 const SuperAdminDashboard = lazy(() => import("./pages/superadmin/SuperAdminDashboard").then(module => ({ default: module.SuperAdminDashboard })));
 const SuperAdminIntegrations = lazy(() => import("./pages/superadmin/SuperAdminIntegrations").then(module => ({ default: module.SuperAdminIntegrations })));
@@ -124,6 +125,7 @@ const SuperAdminAudit = lazy(() => import("./pages/superadmin/SuperAdminAudit").
 const SuperAdminTenantDetail = lazy(() => import("./pages/superadmin/SuperAdminTenantDetail").then(module => ({ default: module.SuperAdminTenantDetail })));
 const SuperAdminTenantBranding = lazy(() => import("./pages/superadmin/SuperAdminTenantBranding").then(module => ({ default: module.SuperAdminTenantBranding })));
 const Transparency = lazy(() => import("./pages/Transparency").then(module => ({ default: module.Transparency })));
+const DrawAudit = lazy(() => import("./pages/DrawAudit").then(module => ({ default: module.DrawAudit })));
 
 import { useDynamicBackground } from "./hooks/useDynamicBackground";
 
@@ -238,6 +240,7 @@ export default function App() {
               <Route path="/afiliados" element={<Affiliates />} />
               <Route path="/mensagens" element={<Messages />} />
               <Route path="/transparencia" element={<Transparency />} />
+              <Route path="/sorteio/:raffleId/auditoria" element={<DrawAudit />} />
               <Route path="/caixinhas" element={<Navigate to="/" replace />} />
               <Route path="/:mode" element={<NumberModePage />} />
             
@@ -261,6 +264,10 @@ export default function App() {
                 <Route path="operacoes" element={<AdminOperations />} />
                 <Route path="integracoes" element={<AdminIntegrations />} />
                 <Route path="dominios" element={<AdminDomains />} />
+                <Route path="auditoria" element={<AdminComplianceCenter />} />
+                <Route path="compliance" element={<AdminComplianceCenter />} />
+                <Route path="antifraude" element={<AdminComplianceCenter />} />
+                <Route path="gerenciar-cotas" element={<AdminComplianceCenter />} />
                 <Route path="config" element={<AdminConfig />} />
                 <Route path="config/aparencia" element={<AdminConfig initialTab="branding" />} />
               </Route>

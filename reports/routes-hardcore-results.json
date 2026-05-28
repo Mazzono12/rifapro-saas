@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-28T12:30:54.332Z",
-  "totalRoutes": 222,
+  "generatedAt": "2026-05-28T15:11:05.165Z",
+  "totalRoutes": 241,
   "directRuntimeNote": "Cobertura runtime profunda delegada aos scripts hardcore por modulo; este arquivo garante inventario e contrato de todas as rotas detectadas.",
   "results": [
     {
@@ -485,6 +485,30 @@
     },
     {
       "method": "GET",
+      "path": "/api/superadmin/customers",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/superadmin/customers/:id",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
       "path": "/api/superadmin/integrations",
       "status": "mapped_static",
       "expectedSecurity": "superadmin_only",
@@ -642,6 +666,42 @@
     {
       "method": "GET",
       "path": "/api/superadmin/audit-logs",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/superadmin/audit-ledger",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/superadmin/compliance",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/superadmin/antifraud",
       "status": "mapped_static",
       "expectedSecurity": "superadmin_only",
       "checks": [
@@ -1319,6 +1379,126 @@
       "checks": [
         "metodo_http_mapeado",
         "parametros_identificados",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/audit-ledger",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ticket-adjustments",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/wallet-ledger",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/wallet-ledger/manual",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/compliance",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/compliance/customers/:customerId/export",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/compliance/customers/:customerId/anonymize",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/consents",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "rota_publica_ou_contextual",
+        "sem_tenant_explicito"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/antifraud",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/antifraud/scan",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
         "exige_tenant_admin",
         "tenant_scope_revisado"
       ]
@@ -2068,6 +2248,30 @@
       ]
     },
     {
+      "method": "GET",
+      "path": "/api/public/raffles/:raffleId/draw-audit",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "rota_publica_ou_contextual",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/raffles/:raffleId/draw-audit",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
       "method": "POST",
       "path": "/api/admin/tickets/assign",
       "status": "mapped_static",
@@ -2075,6 +2279,30 @@
       "checks": [
         "metodo_http_mapeado",
         "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/purchases/:purchaseId/tickets/adjust",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/purchases/:purchaseId/tickets/resend-whatsapp",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
         "exige_tenant_admin",
         "tenant_scope_revisado"
       ]

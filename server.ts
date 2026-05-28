@@ -1175,6 +1175,99 @@ async function startServer() {
     createdAt: string;
     semGanhador?: boolean;
   };
+  type AuditEventLedgerRecord = {
+    id: string;
+    tenant_id?: string;
+    actor_user_id?: string;
+    actor_role?: string;
+    action: string;
+    resource_type: string;
+    resource_id?: string;
+    before_data?: unknown;
+    after_data?: unknown;
+    reason: string;
+    ip_address?: string;
+    user_agent?: string;
+    request_id?: string;
+    hash: string;
+    previous_hash?: string;
+    created_at: string;
+  };
+  type TicketAdjustmentRecord = {
+    id: string;
+    tenant_id: string;
+    order_id: string;
+    customer_id?: string;
+    raffle_id: string;
+    adjustment_type: "add" | "remove" | "swap" | "move";
+    old_numbers: number[];
+    new_numbers: number[];
+    reason: string;
+    financial_impact: number;
+    actor_user_id?: string;
+    created_at: string;
+  };
+  type WalletLedgerRecord = {
+    id: string;
+    tenant_id: string;
+    customer_id?: string;
+    affiliate_ref?: string;
+    source_type: "purchase" | "affiliate_commission" | "cashback" | "instant_prize" | "manual_credit" | "manual_debit" | "withdrawal_requested" | "withdrawal_approved" | "withdrawal_rejected" | "refund" | "ticket_adjustment";
+    source_id?: string;
+    amount: number;
+    reason: string;
+    actor_user_id?: string;
+    created_at: string;
+  };
+  type RaffleDrawAuditRecord = {
+    id: string;
+    tenant_id: string;
+    raffle_id: string;
+    draw_method: string;
+    public_seed: string;
+    server_seed_hash: string;
+    server_seed_revealed: string;
+    external_reference?: string;
+    eligible_numbers_hash: string;
+    winning_number: string;
+    algorithm_version: string;
+    result_hash: string;
+    audit_pdf_url?: string;
+    created_at: string;
+  };
+  type CustomerConsentRecord = {
+    id: string;
+    tenant_id: string;
+    customer_id: string;
+    consent_type: string;
+    status: "accepted" | "revoked";
+    terms_version: string;
+    ip_address?: string;
+    user_agent?: string;
+    created_at: string;
+  };
+  type DataPrivacyRequestRecord = {
+    id: string;
+    tenant_id: string;
+    customer_id: string;
+    request_type: "export" | "anonymize" | "block" | "logical_delete";
+    status: "requested" | "completed" | "rejected";
+    reason: string;
+    result?: unknown;
+    created_at: string;
+    completed_at?: string;
+  };
+  type FraudSignalRecord = {
+    id: string;
+    tenant_id: string;
+    customer_id?: string;
+    order_id?: string;
+    signal_type: string;
+    severity: "low" | "medium" | "high";
+    metadata: Record<string, unknown>;
+    status: "open" | "reviewed" | "dismissed";
+    created_at: string;
+  };
 
   let lootboxGuaranteedPool: GatewayPrize[] = [];
   let lootboxGuaranteedPools: Record<string, GatewayPrize[]> = {};
@@ -1188,6 +1281,13 @@ async function startServer() {
   let supportTickets: SupportTicket[] = [];
   let auditLogs: AuditLog[] = [];
   let paymentWebhookLogs: PaymentWebhookLog[] = [];
+  let auditEventLedger: AuditEventLedgerRecord[] = [];
+  let ticketAdjustments: TicketAdjustmentRecord[] = [];
+  let walletLedger: WalletLedgerRecord[] = [];
+  let raffleDrawAudits: RaffleDrawAuditRecord[] = [];
+  let customerConsents: CustomerConsentRecord[] = [];
+  let dataPrivacyRequests: DataPrivacyRequestRecord[] = [];
+  let fraudSignals: FraudSignalRecord[] = [];
   let n8nEventLogs: N8nEventLog[] = [];
   const integrationManager = new IntegrationManager();
   createDefaultProviders().forEach(provider => integrationManager.register(provider));
@@ -2115,6 +2215,71 @@ async function startServer() {
     securityLogs.unshift(event);
     securityLogs.splice(500);
     return event;
+  }
+
+  function requireAuditReason(reason: unknown) {
+    const normalized = String(reason || "").trim();
+    if (normalized.length < 6) {
+      const error = new Error("Motivo obrigatorio com pelo menos 6 caracteres");
+      (error as Error & { statusCode?: number }).statusCode = 400;
+      throw error;
+    }
+    return normalized;
+  }
+
+  function recordAuditLedger(req: express.Request, input: {
+    tenant_id?: string;
+    action: string;
+    resource_type: string;
+    resource_id?: string;
+    before_data?: unknown;
+    after_data?: unknown;
+    reason: string;
+  }) {
+    const session = getAuthSession(req);
+    const previous = auditEventLedger[0];
+    const created_at = new Date().toISOString();
+    const base = {
+      id: createPublicId("AEL_"),
+      tenant_id: input.tenant_id || resolveRequestTenantId(req),
+      actor_user_id: session?.sub || "system",
+      actor_role: normalizeAuthRole(session?.role || "admin"),
+      action: input.action,
+      resource_type: input.resource_type,
+      resource_id: input.resource_id,
+      before_data: input.before_data,
+      after_data: input.after_data,
+      reason: requireAuditReason(input.reason),
+      ip_address: String(req.ip || req.socket.remoteAddress || ""),
+      user_agent: String(req.headers["user-agent"] || ""),
+      request_id: String((req as express.Request & { requestId?: string }).requestId || req.headers["x-request-id"] || ""),
+      previous_hash: previous?.hash,
+      created_at
+    };
+    const hash = createHash("sha256").update(JSON.stringify(base)).digest("hex");
+    const event: AuditEventLedgerRecord = { ...base, hash };
+    auditEventLedger.unshift(event);
+    auditEventLedger = auditEventLedger.slice(0, 5000);
+    return event;
+  }
+
+  function appendWalletLedger(req: express.Request, entry: Omit<WalletLedgerRecord, "id" | "created_at" | "actor_user_id"> & { actor_user_id?: string }) {
+    const record: WalletLedgerRecord = {
+      id: createPublicId("WAL_"),
+      actor_user_id: entry.actor_user_id || getAuthSession(req)?.sub || "system",
+      created_at: new Date().toISOString(),
+      ...entry
+    };
+    const balance = walletLedger
+      .filter(item => item.tenant_id === record.tenant_id && (record.customer_id ? item.customer_id === record.customer_id : item.affiliate_ref === record.affiliate_ref))
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    if (balance + record.amount < -0.00001) {
+      const error = new Error("Ledger financeiro nao permite saldo negativo");
+      (error as Error & { statusCode?: number }).statusCode = 409;
+      throw error;
+    }
+    walletLedger.unshift(record);
+    return record;
   }
 
   function scoped<T extends { tenant_id: string }>(items: T[], req: express.Request) {
@@ -3215,6 +3380,46 @@ async function startServer() {
     }
   });
 
+  app.get("/api/superadmin/customers", (req, res) => {
+    recordSuperadminAudit(req, "GLOBAL_CUSTOMERS_VIEW", { resource_type: "customer" });
+    res.json(Object.values(customersByPhone).map(customer => ({ ...buildAdminCustomerProfile(customer), tenant: findTenantName(customer.tenant_id) })));
+  });
+
+  app.put("/api/superadmin/customers/:id", (req, res) => {
+    const customer = Object.values(customersByPhone).find(item => item.id === req.params.id);
+    if (!customer) return res.status(404).json({ error: "Cliente nao encontrado" });
+    let reason = "";
+    try {
+      reason = requireAuditReason(req.body.reason);
+    } catch (error) {
+      return res.status(400).json({ error: error instanceof Error ? error.message : "Motivo obrigatorio" });
+    }
+    const before = deepClone(customer);
+    const oldPhone = customer.phone;
+    const oldCpf = customer.cpf;
+    customer.name = req.body.name ?? customer.name;
+    customer.phone = req.body.phone ? normalizePhone(req.body.phone) : customer.phone;
+    customer.cpf = req.body.cpf ? normalizeCpf(req.body.cpf) : customer.cpf;
+    customer.city = req.body.city ?? customer.city;
+    customer.state = req.body.state ?? customer.state;
+    customer.blocked = req.body.blocked !== undefined ? Boolean(req.body.blocked) : customer.blocked;
+    customer.blockedReason = req.body.blockedReason ?? customer.blockedReason;
+    delete customersByPhone[tenantCustomerKey(customer.tenant_id, oldPhone)];
+    delete customersByCpf[tenantCustomerKey(customer.tenant_id, oldCpf)];
+    customersByPhone[tenantCustomerKey(customer.tenant_id, customer.phone)] = customer;
+    customersByCpf[tenantCustomerKey(customer.tenant_id, customer.cpf)] = customer;
+    purchases.forEach(purchase => {
+      if (purchase.tenant_id === customer.tenant_id && purchase.customer?.id === customer.id) {
+        purchase.customer = customer;
+        purchase.contact = customer.phone;
+      }
+    });
+    const after = buildAdminCustomerProfile(customer);
+    recordSuperadminAudit(req, "GLOBAL_CUSTOMER_UPDATED", { tenant_id: customer.tenant_id, resource_type: "customer", resource_id: customer.id });
+    recordAuditLedger(req, { tenant_id: customer.tenant_id, action: "SUPERADMIN_CUSTOMER_UPDATED", resource_type: "customer", resource_id: customer.id, before_data: before, after_data: after, reason });
+    res.json(after);
+  });
+
   app.get("/api/superadmin/integrations", (req, res) => {
     res.json({
       integrations: integrations.map(item => ({
@@ -3352,6 +3557,26 @@ async function startServer() {
 
   app.get("/api/superadmin/audit-logs", (req, res) => {
     res.json(superadminAuditLogs);
+  });
+
+  app.get("/api/superadmin/audit-ledger", (req, res) => {
+    recordSuperadminAudit(req, "GLOBAL_AUDIT_LEDGER_VIEW", { resource_type: "audit_event_ledger" });
+    res.json(auditEventLedger.map(event => ({ ...event, tenant: event.tenant_id ? findTenantName(event.tenant_id) : "platform" })));
+  });
+
+  app.get("/api/superadmin/compliance", (req, res) => {
+    recordSuperadminAudit(req, "GLOBAL_COMPLIANCE_VIEW", { resource_type: "compliance" });
+    res.json({
+      consents: customerConsents,
+      privacyRequests: dataPrivacyRequests,
+      ticketAdjustments,
+      drawAudits: raffleDrawAudits
+    });
+  });
+
+  app.get("/api/superadmin/antifraud", (req, res) => {
+    recordSuperadminAudit(req, "GLOBAL_ANTIFRAUD_VIEW", { resource_type: "fraud_signals" });
+    res.json(fraudSignals.map(signal => ({ ...signal, tenant: findTenantName(signal.tenant_id) })));
   });
 
   app.get("/api/superadmin/domains", (_req, res) => {
@@ -5358,7 +5583,15 @@ async function startServer() {
       res.status(404).json({ error: "Customer not found" });
       return;
     }
+    let reason = "";
+    try {
+      reason = requireAuditReason(req.body.reason);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Motivo obrigatorio" });
+      return;
+    }
 
+    const before = deepClone(customer);
     const oldPhone = customer.phone;
     const oldCpf = customer.cpf;
     customer.name = req.body.name ?? customer.name;
@@ -5391,7 +5624,9 @@ async function startServer() {
     });
 
     recalculateCustomerPaidTickets(customer);
-    res.json(buildAdminCustomerProfile(customer));
+    const after = buildAdminCustomerProfile(customer);
+    recordAuditLedger(req, { tenant_id: customer.tenant_id, action: "CUSTOMER_UPDATED", resource_type: "customer", resource_id: customer.id, before_data: before, after_data: after, reason });
+    res.json(after);
   });
 
   app.put("/api/admin/customers/:id/full", (req, res) => {
@@ -5400,7 +5635,15 @@ async function startServer() {
       res.status(404).json({ error: "Customer not found" });
       return;
     }
+    let reason = "";
+    try {
+      reason = requireAuditReason(req.body.reason);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Motivo obrigatorio" });
+      return;
+    }
 
+    const before = buildAdminCustomerProfile(customer);
     const oldPhone = customer.phone;
     const oldCpf = customer.cpf;
     customer.name = req.body.name ?? customer.name;
@@ -5451,7 +5694,9 @@ async function startServer() {
     }
 
     recalculateCustomerPaidTickets(customer);
-    res.json(buildAdminCustomerProfile(customer));
+    const after = buildAdminCustomerProfile(customer);
+    recordAuditLedger(req, { tenant_id: customer.tenant_id, action: "CUSTOMER_FULL_UPDATED", resource_type: "customer", resource_id: customer.id, before_data: before, after_data: after, reason });
+    res.json(after);
   });
 
   app.post("/api/admin/customers/:id/block", (req, res) => {
@@ -5460,10 +5705,20 @@ async function startServer() {
       res.status(404).json({ error: "Customer not found" });
       return;
     }
+    let reason = "";
+    try {
+      reason = requireAuditReason(req.body.reason);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Motivo obrigatorio" });
+      return;
+    }
+    const before = deepClone(customer);
     customer.blocked = Boolean(req.body.blocked ?? true);
-    customer.blockedReason = customer.blocked ? String(req.body.reason || "Bloqueado pelo administrador") : "";
+    customer.blockedReason = customer.blocked ? reason : "";
     recordAudit(customer.blocked ? "CUSTOMER_BLOCKED" : "CUSTOMER_UNBLOCKED", req, 200, customer.id);
-    res.json(buildAdminCustomerProfile(customer));
+    const after = buildAdminCustomerProfile(customer);
+    recordAuditLedger(req, { tenant_id: customer.tenant_id, action: customer.blocked ? "CUSTOMER_BLOCKED" : "CUSTOMER_UNBLOCKED", resource_type: "customer", resource_id: customer.id, before_data: before, after_data: after, reason });
+    res.json(after);
   });
 
   app.post("/api/admin/customers/:id/reset-password", (req, res) => {
@@ -5481,6 +5736,125 @@ async function startServer() {
     notifyCustomer(customer, "Senha redefinida pelo suporte", "Sua senha de acesso foi atualizada pelo administrador.", "Acessar conta", "/auth");
     recordAudit("CUSTOMER_PASSWORD_RESET", req, 200, customer.id);
     res.json({ success: true, customer: buildAdminCustomerProfile(customer), accessPassword });
+  });
+
+  app.get("/api/admin/audit-ledger", (req, res) => {
+    res.json(scoped(auditEventLedger.filter(event => event.tenant_id) as Array<AuditEventLedgerRecord & { tenant_id: string }>, req));
+  });
+
+  app.get("/api/admin/ticket-adjustments", (req, res) => {
+    res.json(scoped(ticketAdjustments, req));
+  });
+
+  app.get("/api/admin/wallet-ledger", (req, res) => {
+    res.json(scoped(walletLedger, req));
+  });
+
+  app.post("/api/admin/wallet-ledger/manual", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const customer = req.body.customerId ? Object.values(customersByPhone).find(item => item.tenant_id === tenantId && item.id === req.body.customerId) : undefined;
+    const amount = Number(req.body.amount || 0);
+    let reason = "";
+    try {
+      reason = requireAuditReason(req.body.reason);
+      if (!amount) throw new Error("Valor obrigatorio");
+      const record = appendWalletLedger(req, {
+        tenant_id: tenantId,
+        customer_id: customer?.id,
+        affiliate_ref: req.body.affiliateRef ? String(req.body.affiliateRef) : undefined,
+        source_type: amount > 0 ? "manual_credit" : "manual_debit",
+        source_id: createPublicId("MAN_"),
+        amount,
+        reason
+      });
+      recordAuditLedger(req, { tenant_id: tenantId, action: amount > 0 ? "WALLET_MANUAL_CREDIT" : "WALLET_MANUAL_DEBIT", resource_type: "wallet_ledger", resource_id: record.id, before_data: null, after_data: record, reason });
+      res.json(record);
+    } catch (error) {
+      res.status((error as Error & { statusCode?: number }).statusCode || 400).json({ error: error instanceof Error ? error.message : "Ajuste financeiro invalido" });
+    }
+  });
+
+  app.get("/api/admin/compliance", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const tenantSettings = getTenantSettings(tenantId) as any;
+    res.json({
+      terms: tenantSettings.terms || tenantSettings.footer?.terms || "",
+      privacyPolicy: tenantSettings.privacyPolicy || "Politica de privacidade por tenant.",
+      consents: customerConsents.filter(item => item.tenant_id === tenantId),
+      requests: dataPrivacyRequests.filter(item => item.tenant_id === tenantId)
+    });
+  });
+
+  app.post("/api/admin/compliance/customers/:customerId/export", (req, res) => {
+    const customer = Object.values(customersByPhone).find(item => item.id === req.params.customerId && adminCanAccessTenant(req, item.tenant_id));
+    if (!customer) return res.status(404).json({ error: "Cliente nao encontrado" });
+    const reason = requireAuditReason(req.body.reason || "Exportacao LGPD solicitada");
+    const result = buildAdminCustomerProfile(customer);
+    const request: DataPrivacyRequestRecord = { id: createPublicId("DPR_"), tenant_id: customer.tenant_id, customer_id: customer.id, request_type: "export", status: "completed", reason, result, created_at: new Date().toISOString(), completed_at: new Date().toISOString() };
+    dataPrivacyRequests.unshift(request);
+    recordAuditLedger(req, { tenant_id: customer.tenant_id, action: "LGPD_EXPORT_COMPLETED", resource_type: "customer", resource_id: customer.id, before_data: null, after_data: { requestId: request.id }, reason });
+    res.json({ request, data: result });
+  });
+
+  app.post("/api/admin/compliance/customers/:customerId/anonymize", (req, res) => {
+    const customer = Object.values(customersByPhone).find(item => item.id === req.params.customerId && adminCanAccessTenant(req, item.tenant_id));
+    if (!customer) return res.status(404).json({ error: "Cliente nao encontrado" });
+    const reason = requireAuditReason(req.body.reason || "Anonimizacao LGPD solicitada");
+    const before = deepClone(customer);
+    customer.name = `Cliente anonimizado ${customer.id.slice(-6)}`;
+    customer.phone = `anon-${customer.id}`;
+    customer.cpf = "";
+    customer.city = "";
+    customer.state = "";
+    customer.photoUrl = "";
+    customer.blocked = true;
+    customer.blockedReason = "Anonimizado por LGPD";
+    const request: DataPrivacyRequestRecord = { id: createPublicId("DPR_"), tenant_id: customer.tenant_id, customer_id: customer.id, request_type: "anonymize", status: "completed", reason, result: { preservedFinancialRecords: true }, created_at: new Date().toISOString(), completed_at: new Date().toISOString() };
+    dataPrivacyRequests.unshift(request);
+    recordAuditLedger(req, { tenant_id: customer.tenant_id, action: "LGPD_CUSTOMER_ANONYMIZED", resource_type: "customer", resource_id: customer.id, before_data: before, after_data: customer, reason });
+    res.json({ request, customer: buildAdminCustomerProfile(customer) });
+  });
+
+  app.post("/api/public/consents", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const customerId = String(req.body.customerId || "");
+    const status = req.body.status === "revoked" ? "revoked" : "accepted";
+    const consent: CustomerConsentRecord = {
+      id: createPublicId("CNS_"),
+      tenant_id: tenantId,
+      customer_id: customerId,
+      consent_type: String(req.body.consentType || "terms_privacy"),
+      status,
+      terms_version: String(req.body.termsVersion || "v1"),
+      ip_address: String(req.ip || req.socket.remoteAddress || ""),
+      user_agent: String(req.headers["user-agent"] || ""),
+      created_at: new Date().toISOString()
+    };
+    customerConsents.unshift(consent);
+    res.json(consent);
+  });
+
+  app.get("/api/admin/antifraud", (req, res) => {
+    res.json(scoped(fraudSignals, req));
+  });
+
+  app.post("/api/admin/antifraud/scan", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const now = new Date().toISOString();
+    const byIp = auditEventLedger.filter(item => item.tenant_id === tenantId && item.ip_address).reduce<Record<string, number>>((acc, item) => {
+      acc[item.ip_address || ""] = (acc[item.ip_address || ""] || 0) + 1;
+      return acc;
+    }, {});
+    Object.entries(byIp).filter(([, count]) => count >= 5).forEach(([ip, count]) => {
+      fraudSignals.unshift({ id: createPublicId("FRD_"), tenant_id: tenantId, signal_type: "many_actions_same_ip", severity: count > 20 ? "high" : "medium", metadata: { ip, count }, status: "open", created_at: now });
+    });
+    Object.values(customersByPhone)
+      .filter(customer => customer.tenant_id === tenantId)
+      .forEach(customer => {
+        const samePhone = Object.values(customersByPhone).filter(item => item.tenant_id === tenantId && item.phone === customer.phone).length;
+        if (samePhone > 1) fraudSignals.unshift({ id: createPublicId("FRD_"), tenant_id: tenantId, customer_id: customer.id, signal_type: "telefone_repetido", severity: "medium", metadata: { phone: maskPhone(customer.phone), count: samePhone }, status: "open", created_at: now });
+      });
+    res.json({ signals: scoped(fraudSignals, req) });
   });
 
   app.post("/api/checkout/preview", (req, res) => {
@@ -7781,6 +8155,14 @@ async function startServer() {
       res.status(404).json({ error: "Purchase not found" });
       return;
     }
+    let reason = "";
+    try {
+      reason = requireAuditReason(req.body.reason);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Motivo obrigatorio" });
+      return;
+    }
+    const before = deepClone(purchase);
     const customer = req.body.customerId ? Object.values(customersByPhone).find(c => c.tenant_id === purchase.tenant_id && c.id === req.body.customerId) : purchase.customer;
     if (req.body.customerId && !customer) {
       res.status(404).json({ error: "Customer not found" });
@@ -7792,6 +8174,7 @@ async function startServer() {
       purchase.customer = customer;
       purchase.contact = customer.phone;
     }
+    recordAuditLedger(req, { tenant_id: purchase.tenant_id, action: "PURCHASE_UPDATED", resource_type: "purchase", resource_id: purchase.purchaseId, before_data: before, after_data: purchase, reason });
     res.json(purchase);
   });
 
@@ -7803,6 +8186,7 @@ async function startServer() {
     }
     try {
       manuallyConfirmPurchasePayment(purchase, req, String(req.body?.reason || ""));
+      recordAuditLedger(req, { tenant_id: purchase.tenant_id, action: "PAYMENT_MANUALLY_CONFIRMED", resource_type: "purchase", resource_id: purchase.purchaseId, before_data: null, after_data: purchase, reason: String(req.body?.reason || "") });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha ao alocar cotas para esta compra";
       res.status(message.includes("obrigatorio") ? 400 : 409).json({ error: message });
@@ -7819,6 +8203,7 @@ async function startServer() {
     }
     try {
       const confirmed = manuallyConfirmPurchasePayment(purchase, req, String(req.body?.reason || ""));
+      recordAuditLedger(req, { tenant_id: purchase.tenant_id, action: "PAYMENT_MANUALLY_CONFIRMED", resource_type: "purchase", resource_id: purchase.purchaseId, before_data: null, after_data: confirmed, reason: String(req.body?.reason || "") });
       res.json(stripSensitiveCustomerFields({ purchase: confirmed, audit: "Esta ação será auditada" }));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha ao confirmar pagamento manualmente";
@@ -7836,13 +8221,21 @@ async function startServer() {
       res.status(409).json({ error: "Compra ja paga nao pode ser rejeitada" });
       return;
     }
+    let reason = "";
+    try {
+      reason = requireAuditReason(req.body.reason);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Motivo obrigatorio" });
+      return;
+    }
+    const before = deepClone(purchase);
     const raffle = raffles.find(item => item.tenant_id === purchase.tenant_id && item.id === purchase.raffleId);
     if (raffle && purchase.numeros.length) releaseReservedNumbers(raffle, purchase.numeros);
     purchase.status = "cancelled";
     purchase.rejectedReason = req.body.reason || "Rejeitada pelo admin";
     purchase.paymentHistory = [
       ...(purchase.paymentHistory || []),
-      { status: "cancelled", label: "Pagamento PIX rejeitado", date: new Date().toISOString(), admin: true, reason: purchase.rejectedReason }
+      { status: "cancelled", label: "Pagamento PIX rejeitado", date: new Date().toISOString(), admin: true, reason }
     ];
     purchase.linkedPurchases?.forEach(linked => {
       const linkedRaffle = raffles.find(item => item.tenant_id === linked.tenant_id && item.id === linked.raffleId);
@@ -7851,9 +8244,10 @@ async function startServer() {
       linked.rejectedReason = purchase.rejectedReason;
       linked.paymentHistory = [
         ...(linked.paymentHistory || []),
-        { status: "cancelled", label: "Pagamento PIX rejeitado", date: new Date().toISOString(), admin: true, reason: purchase.rejectedReason }
+        { status: "cancelled", label: "Pagamento PIX rejeitado", date: new Date().toISOString(), admin: true, reason }
       ];
     });
+    recordAuditLedger(req, { tenant_id: purchase.tenant_id, action: "PURCHASE_CANCELLED", resource_type: "purchase", resource_id: purchase.purchaseId, before_data: before, after_data: purchase, reason });
     res.json(purchase);
   });
 
@@ -7881,6 +8275,39 @@ async function startServer() {
     });
   });
 
+  function createRaffleDrawAudit(req: express.Request, raffle: typeof raffles[number], winningNumber: number, method = "manual_admin") {
+    const existing = raffleDrawAudits.find(item => item.tenant_id === raffle.tenant_id && item.raffle_id === raffle.id);
+    if (existing) return existing;
+    const eligibleNumbers = purchases
+      .filter(purchase => purchase.tenant_id === raffle.tenant_id && purchase.raffleId === raffle.id && purchase.status === "paid")
+      .flatMap(purchase => purchase.numeros)
+      .sort((a, b) => a - b);
+    const publicSeed = String((req.body && (req.body.publicSeed || req.body.public_seed)) || new Date().toISOString());
+    const serverSeed = randomUUID();
+    const serverSeedHash = createHash("sha256").update(serverSeed).digest("hex");
+    const eligibleHash = createHash("sha256").update(JSON.stringify(eligibleNumbers)).digest("hex");
+    const resultHash = createHash("sha256").update(JSON.stringify({ raffleId: raffle.id, publicSeed, serverSeed, winningNumber, eligibleHash })).digest("hex");
+    const record: RaffleDrawAuditRecord = {
+      id: createPublicId("RDA_"),
+      tenant_id: raffle.tenant_id,
+      raffle_id: raffle.id,
+      draw_method: method,
+      public_seed: publicSeed,
+      server_seed_hash: serverSeedHash,
+      server_seed_revealed: serverSeed,
+      external_reference: req.body?.externalReference || req.body?.external_reference || "",
+      eligible_numbers_hash: eligibleHash,
+      winning_number: String(winningNumber),
+      algorithm_version: "rifapro-provably-fair-v1",
+      result_hash: resultHash,
+      audit_pdf_url: "",
+      created_at: new Date().toISOString()
+    };
+    raffleDrawAudits.unshift(record);
+    recordAuditLedger(req, { tenant_id: raffle.tenant_id, action: "RAFFLE_DRAW_AUDIT_CREATED", resource_type: "raffle", resource_id: raffle.id, before_data: { serverSeedHash }, after_data: record, reason: "Sorteio auditavel executado" });
+    return record;
+  }
+
   app.post("/api/admin/raffles/:id/draw", (req, res) => {
     const raffle = raffles.find(r => r.id === req.params.id && adminCanAccessTenant(req, r.tenant_id));
     const number = Number(req.body.number);
@@ -7899,15 +8326,30 @@ async function startServer() {
       return;
     }
     recordSecurityEvent({ tenant_id: raffle.tenant_id, action: "DRAW_EXECUTED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "medium", actor: getAuthSession(req)?.email, detail: `${raffle.id}:${number}` });
+    const drawAudit = createRaffleDrawAudit(req, raffle, number);
     res.json({
       status: purchase.status === "paid" ? "winner" : "reserved",
       number,
+      drawAudit,
       raffle: sanitizeRaffleForAdmin(raffle),
       purchase,
       customer: purchase.customer,
       customerProfile: purchase.customer ? buildAdminCustomerProfile(purchase.customer) : null,
       message: purchase.status === "paid" ? "Cota contemplada encontrada." : "Cota reservada, pagamento ainda nao aprovado."
     });
+  });
+
+  app.get("/api/public/raffles/:raffleId/draw-audit", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const audit = raffleDrawAudits.find(item => item.tenant_id === tenantId && item.raffle_id === req.params.raffleId);
+    if (!audit) return res.status(404).json({ error: "Auditoria de sorteio nao encontrada" });
+    res.json(audit);
+  });
+
+  app.get("/api/admin/raffles/:raffleId/draw-audit", (req, res) => {
+    const audit = raffleDrawAudits.find(item => item.raffle_id === req.params.raffleId && adminCanAccessTenant(req, item.tenant_id));
+    if (!audit) return res.status(404).json({ error: "Auditoria de sorteio nao encontrada" });
+    res.json(audit);
   });
 
   app.post("/api/admin/tickets/assign", (req, res) => {
@@ -7967,6 +8409,136 @@ async function startServer() {
     }
 
     res.json({ status: status === "paid" ? "sold" : "reserved", purchase, customer });
+  });
+
+  function parseTicketNumbers(input: unknown) {
+    return Array.from(new Set((Array.isArray(input) ? input : String(input || "").split(/[,\s]+/))
+      .map(value => Number(value))
+      .filter(value => Number.isInteger(value) && value > 0)));
+  }
+
+  function assertTicketsAvailable(tenantId: string, raffleId: string, numbers: number[], ignorePurchaseId?: string) {
+    const duplicated = purchases.find(purchase =>
+      purchase.tenant_id === tenantId &&
+      purchase.raffleId === raffleId &&
+      purchase.purchaseId !== ignorePurchaseId &&
+      purchase.status !== "cancelled" &&
+      purchase.numeros.some(number => numbers.includes(number))
+    );
+    if (duplicated) throw new Error("Cota ja vinculada a outro pedido do tenant");
+  }
+
+  function recordTicketAdjustment(req: express.Request, purchase: PurchaseRecord, type: TicketAdjustmentRecord["adjustment_type"], oldNumbers: number[], newNumbers: number[], reason: string, financialImpact: number) {
+    const adjustment: TicketAdjustmentRecord = {
+      id: createPublicId("TAD_"),
+      tenant_id: purchase.tenant_id,
+      order_id: purchase.purchaseId,
+      customer_id: purchase.customer?.id,
+      raffle_id: purchase.raffleId,
+      adjustment_type: type,
+      old_numbers: oldNumbers,
+      new_numbers: newNumbers,
+      reason,
+      financial_impact: financialImpact,
+      actor_user_id: getAuthSession(req)?.sub || "system",
+      created_at: new Date().toISOString()
+    };
+    ticketAdjustments.unshift(adjustment);
+    recordAuditLedger(req, {
+      tenant_id: purchase.tenant_id,
+      action: `TICKET_${type.toUpperCase()}`,
+      resource_type: "purchase",
+      resource_id: purchase.purchaseId,
+      before_data: { numeros: oldNumbers, amount: purchase.amount },
+      after_data: { numeros: newNumbers, financialImpact },
+      reason
+    });
+    if (financialImpact !== 0) {
+      appendWalletLedger(req, {
+        tenant_id: purchase.tenant_id,
+        customer_id: purchase.customer?.id,
+        source_type: "ticket_adjustment",
+        source_id: adjustment.id,
+        amount: financialImpact,
+        reason
+      });
+    }
+    return adjustment;
+  }
+
+  app.post("/api/admin/purchases/:purchaseId/tickets/adjust", (req, res) => {
+    const purchase = purchases.find(p => p.purchaseId === req.params.purchaseId && adminCanAccessTenant(req, p.tenant_id));
+    if (!purchase) {
+      res.status(404).json({ error: "Pedido nao encontrado" });
+      return;
+    }
+    const raffle = raffles.find(item => item.tenant_id === purchase.tenant_id && item.id === purchase.raffleId);
+    if (!raffle) {
+      res.status(404).json({ error: "Rifa nao encontrada" });
+      return;
+    }
+    if (raffle.status !== "active" && !req.body.overrideClosed) {
+      res.status(409).json({ error: "Rifa encerrada bloqueia alteracao de cotas por padrao" });
+      return;
+    }
+    if (raffleDrawAudits.some(item => item.tenant_id === purchase.tenant_id && item.raffle_id === purchase.raffleId)) {
+      res.status(409).json({ error: "Sorteio ja realizado bloqueia alteracao de cotas" });
+      return;
+    }
+    let reason = "";
+    try {
+      reason = requireAuditReason(req.body.reason);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Motivo obrigatorio" });
+      return;
+    }
+    if (req.body.confirmation !== "CONFIRMAR AJUSTE") {
+      res.status(400).json({ error: "Confirmacao dupla obrigatoria" });
+      return;
+    }
+    const type = String(req.body.adjustmentType || req.body.adjustment_type || "swap") as TicketAdjustmentRecord["adjustment_type"];
+    const oldNumbers = [...purchase.numeros];
+    const requested = parseTicketNumbers(req.body.numbers ?? req.body.newNumbers);
+    let nextNumbers = oldNumbers;
+    if (type === "add") nextNumbers = Array.from(new Set([...oldNumbers, ...requested]));
+    if (type === "remove") nextNumbers = oldNumbers.filter(number => !requested.includes(number));
+    if (type === "swap") nextNumbers = requested;
+    if (type === "move") nextNumbers = oldNumbers.filter(number => !requested.includes(number));
+    try {
+      if (!nextNumbers.length) throw new Error("Pedido precisa manter ao menos uma cota");
+      if (nextNumbers.some(number => number < 1 || number > raffle.totalTickets)) throw new Error("Cota fora do intervalo da rifa");
+      assertTicketsAvailable(purchase.tenant_id, purchase.raffleId, nextNumbers, purchase.purchaseId);
+    } catch (error) {
+      res.status(409).json({ error: error instanceof Error ? error.message : "Ajuste invalido" });
+      return;
+    }
+    oldNumbers.forEach(number => raffle.soldNumbers.delete(number));
+    nextNumbers.forEach(number => raffle.soldNumbers.add(number));
+    raffle.soldTickets = raffle.soldNumbers.size;
+    purchase.numeros = nextNumbers;
+    purchase.tickets = nextNumbers.length;
+    const financialImpact = purchase.status === "paid" ? Number(((nextNumbers.length - oldNumbers.length) * raffle.price).toFixed(2)) : 0;
+    const adjustment = recordTicketAdjustment(req, purchase, type, oldNumbers, nextNumbers, reason, financialImpact);
+    if (purchase.customer) recalculateCustomerPaidTickets(purchase.customer);
+    res.json({ purchase, adjustment, ticketUrl: `/api/tickets/${purchase.purchaseId}`, whatsappQueued: Boolean(purchase.customer?.phone) });
+  });
+
+  app.post("/api/admin/purchases/:purchaseId/tickets/resend-whatsapp", (req, res) => {
+    const purchase = purchases.find(p => p.purchaseId === req.params.purchaseId && adminCanAccessTenant(req, p.tenant_id));
+    if (!purchase || !purchase.customer) {
+      res.status(404).json({ error: "Pedido nao encontrado" });
+      return;
+    }
+    let reason = "";
+    try {
+      reason = requireAuditReason(req.body.reason || "Reenvio de bilhete solicitado pelo admin");
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Motivo obrigatorio" });
+      return;
+    }
+    enqueueWhatsAppTicketConfirmation(purchase);
+    recordAuditLedger(req, { tenant_id: purchase.tenant_id, action: "TICKET_WHATSAPP_RESENT", resource_type: "purchase", resource_id: purchase.purchaseId, before_data: null, after_data: { phone: maskPhone(purchase.customer.phone) }, reason });
+    res.json({ success: true, purchaseId: purchase.purchaseId });
   });
 
   // Admin: Stories CRUD
@@ -8338,6 +8910,13 @@ async function startServer() {
       passwordResetCodes,
       supportTickets,
       auditLogs,
+      auditEventLedger,
+      ticketAdjustments,
+      walletLedger,
+      raffleDrawAudits,
+      customerConsents,
+      dataPrivacyRequests,
+      fraudSignals,
       paymentWebhookLogs,
       n8nEventLogs,
       integrations,
@@ -8394,6 +8973,13 @@ async function startServer() {
       case "passwordResetCodes": passwordResetCodes = Array.isArray(value) ? value : []; break;
       case "supportTickets": supportTickets = Array.isArray(value) ? value : []; break;
       case "auditLogs": auditLogs = Array.isArray(value) ? value : []; break;
+      case "auditEventLedger": auditEventLedger = Array.isArray(value) ? value : []; break;
+      case "ticketAdjustments": ticketAdjustments = Array.isArray(value) ? value : []; break;
+      case "walletLedger": walletLedger = Array.isArray(value) ? value : []; break;
+      case "raffleDrawAudits": raffleDrawAudits = Array.isArray(value) ? value : []; break;
+      case "customerConsents": customerConsents = Array.isArray(value) ? value : []; break;
+      case "dataPrivacyRequests": dataPrivacyRequests = Array.isArray(value) ? value : []; break;
+      case "fraudSignals": fraudSignals = Array.isArray(value) ? value : []; break;
       case "paymentWebhookLogs": paymentWebhookLogs = Array.isArray(value) ? value : []; break;
       case "n8nEventLogs": n8nEventLogs = Array.isArray(value) ? value : []; break;
       case "integrations": integrations = Array.isArray(value) ? value : []; break;

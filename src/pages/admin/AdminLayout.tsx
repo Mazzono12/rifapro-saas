@@ -8,6 +8,7 @@ import {
   CreditCard,
   Activity,
   FileBarChart,
+  FileSearch,
   Gamepad2,
   Gift,
   Globe2,
@@ -26,6 +27,8 @@ import {
   Ticket,
   Trophy,
   Users,
+  Scale,
+  ShieldAlert,
   X
 } from "lucide-react";
 import { AdminPageTransition, AdminThemeSwitcher } from "../../components/admin/AdminPremium";
@@ -121,6 +124,10 @@ function AdminLayoutContent() {
     { name: "Ganhadores", path: "/admin/ganhadores", icon: Trophy, group: "Conteudo" },
     { name: "Mensagens", path: "/admin/mensagens", icon: MessageSquare, group: "Conteudo" },
     { name: "Relatórios", path: "/admin/relatorios", icon: FileBarChart, group: "Controle" },
+    { name: "Gerenciar Cotas", path: "/admin/gerenciar-cotas", icon: Scale, group: "Controle" },
+    { name: "Auditoria", path: "/admin/auditoria", icon: FileSearch, group: "Controle" },
+    { name: "Compliance", path: "/admin/compliance", icon: ShieldAlert, group: "Controle" },
+    { name: "Antifraude", path: "/admin/antifraude", icon: ShieldAlert, group: "Controle" },
     { name: "Operações", path: "/admin/operacoes", icon: Activity, group: "Controle" },
     { name: "Integrações", path: "/admin/integracoes", icon: Plug, group: "Controle" },
     { name: "Domínios", path: "/admin/dominios", icon: Globe2, group: "Controle" },
