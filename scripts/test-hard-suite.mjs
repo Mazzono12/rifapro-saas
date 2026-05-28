@@ -209,6 +209,7 @@ async function productionReadiness() {
   await runNodeScript("scripts/test-compliance-audit-modules.mjs");
   await runNodeScript("scripts/test-saas-governance.mjs");
   await runNodeScript("scripts/test-native-crm.mjs");
+  await runNodeScript("scripts/test-tenant-automations.mjs");
   await step("bundle sem service role quando dist existir", () => {
     if (!existsSync(join(root, "dist"))) return;
     const frontendBundleFiles = [
@@ -247,6 +248,7 @@ const suites = {
     await runNodeScript("scripts/test-compliance-audit-modules.mjs");
     await runNodeScript("scripts/test-saas-governance.mjs");
     await runNodeScript("scripts/test-native-crm.mjs");
+    await runNodeScript("scripts/test-tenant-automations.mjs");
   }
 };
 

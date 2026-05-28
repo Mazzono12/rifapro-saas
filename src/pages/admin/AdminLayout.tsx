@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import {
   ArrowLeft,
   Bell,
+  Bot,
   ChevronLeft,
   CreditCard,
   Activity,
@@ -132,6 +133,7 @@ function AdminLayoutContent() {
     { name: "Antifraude", path: "/admin/antifraude", icon: ShieldAlert, group: "Controle" },
     { name: "Operações", path: "/admin/operacoes", icon: Activity, group: "Controle" },
     { name: "Integrações", path: "/admin/integracoes", icon: Plug, group: "Controle" },
+    { name: "Automações", path: "/admin/automacoes", icon: Bot, group: "Controle" },
     { name: "Domínios", path: "/admin/dominios", icon: Globe2, group: "Controle" },
     { name: "Configurações", path: "/admin/config", icon: Settings, group: "Controle" },
     { name: "Aparência", path: "/admin/config/aparencia", icon: Palette, group: "Controle" },

@@ -1,57 +1,57 @@
 {
   "mode": "hardcore",
   "success": true,
-  "startedAt": "2026-05-28T21:33:32.421Z",
-  "finishedAt": "2026-05-28T21:34:28.012Z",
-  "durationMs": 55591,
+  "startedAt": "2026-05-28T21:45:00.150Z",
+  "finishedAt": "2026-05-28T21:45:54.583Z",
+  "durationMs": 54433,
   "results": [
     {
       "name": "mapa completo do sistema",
       "status": "passed",
-      "durationMs": 46,
+      "durationMs": 28,
       "detail": {
-        "backendRoutes": 258,
-        "frontendPages": 56,
-        "sourceFiles": 134,
+        "backendRoutes": 264,
+        "frontendPages": 57,
+        "sourceFiles": 135,
         "components": 36,
-        "migrations": 27,
-        "tables": 51,
+        "migrations": 28,
+        "tables": 53,
         "policies": 44,
         "providerFiles": 10,
-        "scriptFiles": 32
+        "scriptFiles": 33
       }
     },
     {
       "name": "melhorias hardcore preparadas",
       "status": "passed",
-      "durationMs": 5
+      "durationMs": 4
     },
     {
       "name": "melhorias hardcore preparadas",
       "status": "passed",
-      "durationMs": 5
+      "durationMs": 4
     },
     {
       "name": "recibo pre-pagamento obrigatorio antes do PIX",
       "status": "passed",
-      "durationMs": 4
+      "durationMs": 3
     },
     {
       "name": "scripts/test-purchase-concurrency.mjs",
       "status": "passed",
-      "durationMs": 2195,
+      "durationMs": 1695,
       "output": "PASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\n"
     },
     {
       "name": "scripts/test-pix-multitenant.mjs",
       "status": "passed",
-      "durationMs": 2296,
+      "durationMs": 2252,
       "output": "PASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n"
     },
     {
       "name": "scripts/test-payment-workers.mjs",
       "status": "passed",
-      "durationMs": 2197,
+      "durationMs": 2162,
       "output": "PASS: workers PIX/webhook com fila, idempotencia, retry, logs e isolamento multitenant.\n"
     },
     {
@@ -62,40 +62,40 @@
     {
       "name": "scripts/test-gamification-modules.mjs",
       "status": "passed",
-      "durationMs": 2454,
+      "durationMs": 2613,
       "output": "PASS: modulos de gamificacao multitenant ativados/desativados e fluxos obrigatorios validados.\n"
     },
     {
       "name": "roletas e caixinhas calculadas no backend",
       "status": "passed",
-      "durationMs": 3
+      "durationMs": 4
     },
     {
       "name": "scripts/test-gamification-modules.mjs",
       "status": "passed",
-      "durationMs": 2262,
+      "durationMs": 2221,
       "output": "PASS: modulos de gamificacao multitenant ativados/desativados e fluxos obrigatorios validados.\n"
     },
     {
       "name": "chance em dobro e pesos de cotas",
       "status": "passed",
-      "durationMs": 3
+      "durationMs": 4
     },
     {
       "name": "scripts/test-gamification-modules.mjs",
       "status": "passed",
-      "durationMs": 2429,
+      "durationMs": 2485,
       "output": "PASS: modulos de gamificacao multitenant ativados/desativados e fluxos obrigatorios validados.\n"
     },
     {
       "name": "raspadinha antifraude",
       "status": "passed",
-      "durationMs": 3
+      "durationMs": 4
     },
     {
       "name": "scripts/test-gamification-modules.mjs",
       "status": "passed",
-      "durationMs": 2262,
+      "durationMs": 2461,
       "output": "PASS: modulos de gamificacao multitenant ativados/desativados e fluxos obrigatorios validados.\n"
     },
     {
@@ -106,13 +106,13 @@
     {
       "name": "scripts/test-hard-suite.mjs production-readiness",
       "status": "passed",
-      "durationMs": 19716,
-      "output": "\n[hard] auditoria estatica de rotas e modulos\n\n[hard] modelo normalizado de gateway\nPASS: credenciais de gateways cifradas em repouso, descriptografadas so no backend e mascaradas no frontend.\nPASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n\n[hard] checkout usa reserva, pagamento e provider preservado\nPASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\nPASS: botoes e endpoints de confirmacao PIX seguros, auditados e idempotentes.\nPASS: workers PIX/webhook com fila, idempotencia, retry, logs e isolamento multitenant.\nPASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\nPASS: hardening de planos, auditoria, fila de pagamentos e dashboard superadmin validado.\nPASS: superadmin finance global, filtros e bloqueio para tenant admin validados.\nPASS: dominios por tenant, unicidade, subdominio e custom domain validados.\nPASS: acesso assistido exige motivo, audita entrada/saida e nao apaga logs criticos.\nPASS: exportacao CSV global/tenant e filtros de relatorio validados.\n[all] compliance/auditoria ok\n[saas-governance] ok\n[native-crm] ok\n\n[hard] bundle sem service role quando dist existir\n\n[hard] Suite production-readiness passou. Relatorio: reports/hard/production-readiness.json\n"
+      "durationMs": 18541,
+      "output": "\n[hard] auditoria estatica de rotas e modulos\n\n[hard] modelo normalizado de gateway\nPASS: credenciais de gateways cifradas em repouso, descriptografadas so no backend e mascaradas no frontend.\nPASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n\n[hard] checkout usa reserva, pagamento e provider preservado\nPASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\nPASS: botoes e endpoints de confirmacao PIX seguros, auditados e idempotentes.\nPASS: workers PIX/webhook com fila, idempotencia, retry, logs e isolamento multitenant.\nPASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\nPASS: hardening de planos, auditoria, fila de pagamentos e dashboard superadmin validado.\nPASS: superadmin finance global, filtros e bloqueio para tenant admin validados.\nPASS: dominios por tenant, unicidade, subdominio e custom domain validados.\nPASS: acesso assistido exige motivo, audita entrada/saida e nao apaga logs criticos.\nPASS: exportacao CSV global/tenant e filtros de relatorio validados.\n[all] compliance/auditoria ok\n[saas-governance] ok\n[native-crm] ok\n[tenant-automations] ok\n\n[hard] bundle sem service role quando dist existir\n\n[hard] Suite production-readiness passou. Relatorio: reports/hard/production-readiness.json\n"
     },
     {
       "name": "melhorias hardcore preparadas",
       "status": "passed",
-      "durationMs": 5
+      "durationMs": 6
     },
     {
       "name": "ledger financeiro imutavel preparado",
@@ -122,8 +122,8 @@
     {
       "name": "scripts/test-hard-suite.mjs all-hard",
       "status": "passed",
-      "durationMs": 19694,
-      "output": "\n[hard] auditoria estatica de rotas e modulos\n\n[hard] modelo normalizado de gateway\nPASS: credenciais de gateways cifradas em repouso, descriptografadas so no backend e mascaradas no frontend.\nPASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n\n[hard] checkout usa reserva, pagamento e provider preservado\nPASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\nPASS: botoes e endpoints de confirmacao PIX seguros, auditados e idempotentes.\n\n[hard] fluxos de rifa e sorteio mapeados\nPASS: modulos de gamificacao multitenant ativados/desativados e fluxos obrigatorios validados.\nPASS: cliente-a e cliente-b veem apenas seus dados; admin comum recebe 403 em /api/superadmin.\nPASS: fundacao SaaS multitenant com tenants, tenant_id, RLS, policies, middleware e seed validada.\nPASS: policies RLS tenant-scoped, superadmin, service role backend e frontend sem service key validados.\nPASS: workers PIX/webhook com fila, idempotencia, retry, logs e isolamento multitenant.\nPASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n\n[hard] frontend nao contem service role em codigo publico\nPASS: frontend auth SaaS com login, logout, refresh, roles, rotas protegidas e persistencia validado estaticamente.\n[public-checkout-ux] ok\n[ui-contrast-hard] ok\n[mediadelivery-video-source] ok\nPASS: superadmin finance global, filtros e bloqueio para tenant admin validados.\nPASS: dominios por tenant, unicidade, subdominio e custom domain validados.\nPASS: acesso assistido exige motivo, audita entrada/saida e nao apaga logs criticos.\nPASS: exportacao CSV global/tenant e filtros de relatorio validados.\n[all] compliance/auditoria ok\n[saas-governance] ok\n[native-crm] ok\n\n[hard] Suite all-hard passou. Relatorio: reports/hard/all-hard.json\n"
+      "durationMs": 19932,
+      "output": "\n[hard] auditoria estatica de rotas e modulos\n\n[hard] modelo normalizado de gateway\nPASS: credenciais de gateways cifradas em repouso, descriptografadas so no backend e mascaradas no frontend.\nPASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n\n[hard] checkout usa reserva, pagamento e provider preservado\nPASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\nPASS: botoes e endpoints de confirmacao PIX seguros, auditados e idempotentes.\n\n[hard] fluxos de rifa e sorteio mapeados\nPASS: modulos de gamificacao multitenant ativados/desativados e fluxos obrigatorios validados.\nPASS: cliente-a e cliente-b veem apenas seus dados; admin comum recebe 403 em /api/superadmin.\nPASS: fundacao SaaS multitenant com tenants, tenant_id, RLS, policies, middleware e seed validada.\nPASS: policies RLS tenant-scoped, superadmin, service role backend e frontend sem service key validados.\nPASS: workers PIX/webhook com fila, idempotencia, retry, logs e isolamento multitenant.\nPASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n\n[hard] frontend nao contem service role em codigo publico\nPASS: frontend auth SaaS com login, logout, refresh, roles, rotas protegidas e persistencia validado estaticamente.\n[public-checkout-ux] ok\n[ui-contrast-hard] ok\n[mediadelivery-video-source] ok\nPASS: superadmin finance global, filtros e bloqueio para tenant admin validados.\nPASS: dominios por tenant, unicidade, subdominio e custom domain validados.\nPASS: acesso assistido exige motivo, audita entrada/saida e nao apaga logs criticos.\nPASS: exportacao CSV global/tenant e filtros de relatorio validados.\n[all] compliance/auditoria ok\n[saas-governance] ok\n[native-crm] ok\n[tenant-automations] ok\n\n[hard] Suite all-hard passou. Relatorio: reports/hard/all-hard.json\n"
     }
   ]
 }

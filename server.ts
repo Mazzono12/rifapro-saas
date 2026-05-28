@@ -702,6 +702,52 @@ async function startServer() {
     updated_at: string;
     idempotency_key: string;
   };
+  type AutomationTriggerType =
+    | "abandoned_pix_recovery"
+    | "payment_confirmed_ticket"
+    | "post_purchase_thanks"
+    | "raffle_ending_reminder"
+    | "winner_announcement"
+    | "affiliate_invite"
+    | "inactive_customer_reactivation"
+    | "birthday_message"
+    | "vip_customer_offer"
+    | "failed_payment_retry"
+    | "purchase_created"
+    | "payment_approved"
+    | "order_expired"
+    | "raffle_ending"
+    | "raffle_closed"
+    | "draw_completed"
+    | "customer_inactive"
+    | "affiliate_registered";
+  type AutomationFlowRecord = {
+    id: string;
+    tenant_id: string;
+    name: string;
+    trigger_type: AutomationTriggerType | string;
+    enabled: boolean;
+    conditions: Record<string, unknown>;
+    actions: Array<Record<string, unknown>>;
+    delay_minutes: number;
+    max_runs_per_customer: number;
+    created_at: string;
+    updated_at: string;
+  };
+  type AutomationRunRecord = {
+    id: string;
+    tenant_id: string;
+    flow_id: string;
+    customer_id?: string;
+    order_id?: string;
+    status: "scheduled" | "running" | "completed" | "failed" | "skipped";
+    attempts: number;
+    last_error?: string;
+    scheduled_at: string;
+    executed_at?: string;
+    created_at: string;
+    idempotency_key: string;
+  };
   type TenantDomainRecord = {
     id: string;
     tenant_id: string;
@@ -1693,6 +1739,8 @@ async function startServer() {
   let paymentQueue: PaymentQueueJob[] = [];
   let whatsappProviderConfigs: WhatsAppProviderConfigRecord[] = [];
   let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
+  let automationFlows: AutomationFlowRecord[] = [];
+  let automationRuns: AutomationRunRecord[] = [];
   
   // Basic Rate Limiter Dictionary
   const requestCounts = new Map<string, { count: number, resetAt: number }>();
@@ -3824,7 +3872,8 @@ async function startServer() {
     { pattern: /^\/reports/, feature: "reports_pdf" },
     { pattern: /^\/affiliates/, feature: "advanced_affiliates" },
     { pattern: /^\/wallet-ledger/, feature: "wallet" },
-    { pattern: /^\/integrations/, feature: "automations" }
+    { pattern: /^\/integrations/, feature: "automations" },
+    { pattern: /^\/automations/, feature: "automations" }
   ];
   app.use("/api/admin", (req, res, next) => {
     if (["/plan", "/features", "/me", "/dashboard"].includes(req.path)) return next();
@@ -6668,6 +6717,8 @@ async function startServer() {
     
     purchases.push(purchase);
     if (purchase.linkedPurchases) purchases.push(...purchase.linkedPurchases);
+    scheduleAutomation("purchase_created", { tenant_id: tenantId, customer_id: customer.id, order_id: purchase.purchaseId, purchase, customer });
+    if (purchase.status === "pending") scheduleAutomation("abandoned_pix_recovery", { tenant_id: tenantId, customer_id: customer.id, order_id: purchase.purchaseId, purchase, customer });
     void queueConversionEvent(tenantId, "InitiateCheckout", {
       purchaseId,
       raffleId: id,
@@ -7405,6 +7456,188 @@ async function startServer() {
     };
   }
 
+  const automationTemplates: Array<Omit<AutomationFlowRecord, "id" | "tenant_id" | "created_at" | "updated_at">> = [
+    { name: "Recuperacao de PIX abandonado", trigger_type: "abandoned_pix_recovery", enabled: true, delay_minutes: 15, max_runs_per_customer: 2, conditions: { orderStatus: "pending" }, actions: [{ type: "send_whatsapp", template: "abandoned_pix_recovery" }, { type: "add_tag", tag: "pix-pendente" }, { type: "create_audit_event" }] },
+    { name: "Bilhete apos pagamento", trigger_type: "payment_confirmed_ticket", enabled: true, delay_minutes: 0, max_runs_per_customer: 20, conditions: { orderStatus: "paid" }, actions: [{ type: "create_audit_event" }] },
+    { name: "Agradecimento pos-compra", trigger_type: "post_purchase_thanks", enabled: true, delay_minutes: 0, max_runs_per_customer: 20, conditions: { orderStatus: "paid" }, actions: [{ type: "send_whatsapp", template: "post_purchase_thanks" }, { type: "add_tag", tag: "comprador" }] },
+    { name: "Lembrete de rifa encerrando", trigger_type: "raffle_ending_reminder", enabled: false, delay_minutes: 60, max_runs_per_customer: 1, conditions: {}, actions: [{ type: "send_whatsapp", template: "raffle_ending_reminder" }] },
+    { name: "Anuncio de ganhador", trigger_type: "winner_announcement", enabled: false, delay_minutes: 0, max_runs_per_customer: 1, conditions: {}, actions: [{ type: "send_whatsapp", template: "winner_announcement" }] },
+    { name: "Convite para afiliado", trigger_type: "affiliate_invite", enabled: false, delay_minutes: 0, max_runs_per_customer: 1, conditions: {}, actions: [{ type: "send_whatsapp", template: "affiliate_invite" }, { type: "add_tag", tag: "afiliado-convidado" }] },
+    { name: "Reativacao de cliente inativo", trigger_type: "inactive_customer_reactivation", enabled: false, delay_minutes: 0, max_runs_per_customer: 1, conditions: { inactiveDays: 60 }, actions: [{ type: "send_whatsapp", template: "inactive_customer_reactivation" }, { type: "add_tag", tag: "reativacao" }] },
+    { name: "Mensagem de aniversario", trigger_type: "birthday_message", enabled: false, delay_minutes: 0, max_runs_per_customer: 1, conditions: {}, actions: [{ type: "send_whatsapp", template: "birthday_message" }] },
+    { name: "Oferta cliente VIP", trigger_type: "vip_customer_offer", enabled: false, delay_minutes: 0, max_runs_per_customer: 2, conditions: { status: "vip" }, actions: [{ type: "send_whatsapp", template: "vip_customer_offer" }, { type: "add_tag", tag: "vip-oferta" }] },
+    { name: "Retry pagamento falho", trigger_type: "failed_payment_retry", enabled: false, delay_minutes: 10, max_runs_per_customer: 2, conditions: {}, actions: [{ type: "send_whatsapp", template: "failed_payment_retry" }] }
+  ];
+
+  function ensureAutomationFlows(tenantId: string) {
+    automationTemplates.forEach(template => {
+      if (automationFlows.some(flow => flow.tenant_id === tenantId && flow.trigger_type === template.trigger_type)) return;
+      const now = new Date().toISOString();
+      automationFlows.push({ ...template, id: createPublicId("AUTO_"), tenant_id: tenantId, created_at: now, updated_at: now });
+    });
+    return automationFlows.filter(flow => flow.tenant_id === tenantId);
+  }
+
+  function getAutomationFlowsForRequest(req: express.Request) {
+    const session = getAuthSession(req);
+    if (normalizeAuthRole(session?.role) === "superadmin") {
+      tenants.forEach(tenant => ensureAutomationFlows(tenant.id));
+      return automationFlows;
+    }
+    return ensureAutomationFlows(resolveRequestTenantId(req));
+  }
+
+  function buildAutomationMessage(template: string, purchase?: PurchaseRecord, customer?: CustomerRecord) {
+    const raffle = purchase ? raffles.find(item => item.tenant_id === purchase.tenant_id && item.id === purchase.raffleId) : undefined;
+    const name = customer?.name || purchase?.customer?.name || "cliente";
+    const campaign = raffle?.title || "campanha";
+    const amount = purchase ? `R$ ${Number(purchase.amount || 0).toFixed(2)}` : "";
+    const messages: Record<string, string> = {
+      abandoned_pix_recovery: `Ola ${name}, seu PIX da campanha ${campaign} ainda esta pendente. Valor ${amount}. Finalize para garantir suas cotas.`,
+      post_purchase_thanks: `Obrigado pela compra, ${name}! Recebemos seu pagamento da campanha ${campaign}. Boa sorte no sorteio.`,
+      raffle_ending_reminder: `A campanha ${campaign} esta chegando ao fim. Ainda da tempo de participar.`,
+      winner_announcement: `Resultado publicado para ${campaign}. Confira os ganhadores na plataforma.`,
+      affiliate_invite: `${name}, voce ja pode participar do programa de afiliados e indicar amigos.`,
+      inactive_customer_reactivation: `${name}, sentimos sua falta. Temos novas campanhas esperando por voce.`,
+      birthday_message: `Feliz aniversario, ${name}! Preparamos uma oferta especial para voce.`,
+      vip_customer_offer: `${name}, voce e VIP por aqui. Confira uma condicao especial nas campanhas ativas.`,
+      failed_payment_retry: `${name}, nao conseguimos confirmar seu pagamento. Gere um novo PIX e tente novamente.`
+    };
+    return messages[template] || `Automacao RifaPro/CIFHER para ${name}.`;
+  }
+
+  function enqueueAutomationWhatsApp(flow: AutomationFlowRecord, run: AutomationRunRecord, purchase?: PurchaseRecord, customer?: CustomerRecord) {
+    const config = getWhatsAppConfig(flow.tenant_id);
+    if (!config?.enabled) throw new Error("WhatsApp provider inativo para este tenant");
+    const phone = normalizeBrazilianPhone(customer?.phone || purchase?.customer?.phone || purchase?.contact || "");
+    if (!isValidBrazilianWhatsAppPhone(phone)) throw new Error("Telefone invalido para WhatsApp");
+    const template = String(flow.actions.find(action => action.type === "send_whatsapp")?.template || flow.trigger_type);
+    const idempotencyKey = `automation:${flow.id}:${run.order_id || ""}:${run.customer_id || ""}:${template}`;
+    const duplicate = whatsappMessageQueue.find(message => message.idempotency_key === idempotencyKey);
+    if (duplicate) return duplicate;
+    const now = new Date().toISOString();
+    const message: WhatsAppMessageQueueRecord = {
+      id: createPublicId("WAPP_"),
+      tenant_id: flow.tenant_id,
+      order_id: run.order_id,
+      customer_id: run.customer_id,
+      phone,
+      message_type: `automation:${template}`,
+      message_body: buildAutomationMessage(template, purchase, customer),
+      provider: config.provider || "mock",
+      status: "pending",
+      attempts: 0,
+      max_attempts: 3,
+      last_error: "",
+      created_at: now,
+      updated_at: now,
+      idempotency_key: idempotencyKey
+    };
+    whatsappMessageQueue.unshift(message);
+    whatsappMessageQueue = whatsappMessageQueue.slice(0, 1000);
+    void sendQueuedWhatsAppMessage(message.id);
+    return message;
+  }
+
+  function executeAutomationRun(run: AutomationRunRecord) {
+    const flow = automationFlows.find(item => item.id === run.flow_id && item.tenant_id === run.tenant_id);
+    if (!flow || !flow.enabled) {
+      run.status = "skipped";
+      run.last_error = "Fluxo desativado ou removido";
+      run.executed_at = new Date().toISOString();
+      return run;
+    }
+    const purchase = run.order_id ? purchases.find(item => item.tenant_id === run.tenant_id && item.purchaseId === run.order_id) : undefined;
+    const customer = run.customer_id
+      ? Object.values(customersByPhone).find(item => item.tenant_id === run.tenant_id && item.id === run.customer_id)
+      : purchase?.customer;
+    run.status = "running";
+    run.attempts += 1;
+    try {
+      flow.actions.forEach(action => {
+        const type = String(action.type || "");
+        if (type === "send_whatsapp") enqueueAutomationWhatsApp(flow, run, purchase, customer);
+        if (type === "add_tag" && customer) {
+          const contact = buildCrmContactFromCustomer(customer);
+          crmContactOverrides[contact.id] = {
+            ...(crmContactOverrides[contact.id] || {}),
+            tags: Array.from(new Set([...(contact.tags || []), String(action.tag || flow.trigger_type)])),
+            updated_at: new Date().toISOString()
+          };
+        }
+        if (type === "create_crm_task" && customer) {
+          const contact = buildCrmContactFromCustomer(customer);
+          crmContactOverrides[contact.id] = { ...(crmContactOverrides[contact.id] || {}), notes: [contact.notes, `Tarefa automatica: ${flow.name}`].filter(Boolean).join("\n"), updated_at: new Date().toISOString() };
+        }
+        if (type === "create_audit_event") {
+          auditEventLedger.unshift({
+            id: createPublicId("AUD_"),
+            tenant_id: run.tenant_id,
+            actor_role: "system",
+            action: "AUTOMATION_EVENT",
+            resource_type: "automation_run",
+            resource_id: run.id,
+            before_data: null,
+            after_data: { flow: flow.name, trigger_type: flow.trigger_type, order_id: run.order_id, customer_id: run.customer_id },
+            reason: "Execucao automatizada",
+            hash: createHash("sha256").update(`${run.id}:${flow.id}:${Date.now()}`).digest("hex"),
+            previous_hash: auditEventLedger[0]?.hash,
+            created_at: new Date().toISOString()
+          });
+        }
+      });
+      run.status = "completed";
+      run.last_error = "";
+      run.executed_at = new Date().toISOString();
+    } catch (error) {
+      run.status = run.attempts >= 3 ? "failed" : "scheduled";
+      run.last_error = error instanceof Error ? error.message : "Erro na automacao";
+      run.scheduled_at = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    }
+    return run;
+  }
+
+  function scheduleAutomation(triggerType: AutomationTriggerType | string, input: { tenant_id: string; customer_id?: string; order_id?: string; purchase?: PurchaseRecord; customer?: CustomerRecord }) {
+    if (!tenantHasFeature(input.tenant_id, "automations")) return [];
+    const flows = ensureAutomationFlows(input.tenant_id).filter(flow => flow.enabled && flow.trigger_type === triggerType);
+    const created: AutomationRunRecord[] = [];
+    flows.forEach(flow => {
+      const existingRuns = automationRuns.filter(run => run.tenant_id === input.tenant_id && run.flow_id === flow.id && run.customer_id === input.customer_id && ["scheduled", "completed"].includes(run.status));
+      if (input.customer_id && flow.max_runs_per_customer > 0 && existingRuns.length >= flow.max_runs_per_customer) return;
+      const idempotencyKey = `automation:${flow.id}:${input.order_id || ""}:${input.customer_id || ""}:${triggerType}`;
+      const duplicate = automationRuns.find(run => run.idempotency_key === idempotencyKey);
+      if (duplicate) return;
+      const now = new Date();
+      const run: AutomationRunRecord = {
+        id: createPublicId("ARUN_"),
+        tenant_id: input.tenant_id,
+        flow_id: flow.id,
+        customer_id: input.customer_id,
+        order_id: input.order_id,
+        status: "scheduled",
+        attempts: 0,
+        last_error: "",
+        scheduled_at: new Date(now.getTime() + Math.max(0, flow.delay_minutes || 0) * 60 * 1000).toISOString(),
+        created_at: now.toISOString(),
+        idempotency_key: idempotencyKey
+      };
+      automationRuns.unshift(run);
+      created.push(run);
+      if (flow.delay_minutes <= 0) executeAutomationRun(run);
+    });
+    automationRuns = automationRuns.slice(0, 5000);
+    return created;
+  }
+
+  function processDueAutomationRuns(limit = 50) {
+    const now = Date.now();
+    const due = automationRuns
+      .filter(run => run.status === "scheduled" && new Date(run.scheduled_at).getTime() <= now)
+      .slice(0, limit);
+    due.forEach(executeAutomationRun);
+    return due.length;
+  }
+
   function enqueueWhatsAppTicketConfirmation(purchaseOrOrderId: PurchaseRecord | string) {
     const purchase = typeof purchaseOrOrderId === "string"
       ? purchases.find(item => item.purchaseId === purchaseOrOrderId)
@@ -7565,6 +7798,8 @@ async function startServer() {
   function confirmPurchase(purchase: PurchaseRecord) {
     if (purchase.status === "paid" && purchase.numeros.length > 0) {
       enqueueWhatsAppTicketConfirmation(purchase);
+      scheduleAutomation("payment_confirmed_ticket", { tenant_id: purchase.tenant_id, customer_id: purchase.customer?.id, order_id: purchase.purchaseId, purchase, customer: purchase.customer });
+      scheduleAutomation("post_purchase_thanks", { tenant_id: purchase.tenant_id, customer_id: purchase.customer?.id, order_id: purchase.purchaseId, purchase, customer: purchase.customer });
       return purchase;
     }
     const raffle = raffles.find(r => r.tenant_id === purchase.tenant_id && r.id === purchase.raffleId);
@@ -7681,6 +7916,8 @@ async function startServer() {
       queueN8nEvent("purchase.tickets_confirmed", buildPurchaseN8nPayload(purchase), { target: purchase.contact, tenantId: purchase.tenant_id });
     }
     enqueueWhatsAppTicketConfirmation(purchase);
+    scheduleAutomation("payment_confirmed_ticket", { tenant_id: purchase.tenant_id, customer_id: purchase.customer?.id, order_id: purchase.purchaseId, purchase, customer: purchase.customer });
+    scheduleAutomation("post_purchase_thanks", { tenant_id: purchase.tenant_id, customer_id: purchase.customer?.id, order_id: purchase.purchaseId, purchase, customer: purchase.customer });
     return purchase;
   }
 
@@ -8187,6 +8424,79 @@ async function startServer() {
       },
       issues
     });
+  });
+
+  app.get("/api/admin/automations", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const flows = ensureAutomationFlows(tenantId).sort((a, b) => a.name.localeCompare(b.name));
+    res.json({
+      flows,
+      runs: scoped(automationRuns, req).slice(0, 100),
+      templates: automationTemplates,
+      metrics: {
+        enabled: flows.filter(flow => flow.enabled).length,
+        scheduled: automationRuns.filter(run => run.tenant_id === tenantId && run.status === "scheduled").length,
+        completed: automationRuns.filter(run => run.tenant_id === tenantId && run.status === "completed").length,
+        failed: automationRuns.filter(run => run.tenant_id === tenantId && run.status === "failed").length
+      }
+    });
+  });
+
+  app.post("/api/admin/automations", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!tenantHasFeature(tenantId, "automations")) return res.status(403).json({ error: "Plano atual nao libera automacoes" });
+    const now = new Date().toISOString();
+    const flow: AutomationFlowRecord = {
+      id: createPublicId("AUTO_"),
+      tenant_id: tenantId,
+      name: String(req.body.name || "Nova automacao").trim(),
+      trigger_type: String(req.body.trigger_type || "purchase_created"),
+      enabled: req.body.enabled !== false,
+      conditions: req.body.conditions && typeof req.body.conditions === "object" ? req.body.conditions : {},
+      actions: Array.isArray(req.body.actions) ? req.body.actions : [{ type: "create_audit_event" }],
+      delay_minutes: Math.max(0, Number(req.body.delay_minutes || 0)),
+      max_runs_per_customer: Math.max(0, Number(req.body.max_runs_per_customer || 1)),
+      created_at: now,
+      updated_at: now
+    };
+    automationFlows.unshift(flow);
+    recordAuditLedger(req, { tenant_id: tenantId, action: "AUTOMATION_FLOW_CREATED", resource_type: "automation_flow", resource_id: flow.id, before_data: null, after_data: flow, reason: String(req.body.reason || "Criacao de automacao") });
+    res.status(201).json(flow);
+  });
+
+  app.put("/api/admin/automations/:id", (req, res) => {
+    const flow = automationFlows.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!flow) return res.status(404).json({ error: "Automacao nao encontrada" });
+    const before = deepClone(flow);
+    flow.name = req.body.name !== undefined ? String(req.body.name).trim() : flow.name;
+    flow.trigger_type = req.body.trigger_type !== undefined ? String(req.body.trigger_type) : flow.trigger_type;
+    flow.enabled = req.body.enabled !== undefined ? Boolean(req.body.enabled) : flow.enabled;
+    flow.conditions = req.body.conditions && typeof req.body.conditions === "object" ? req.body.conditions : flow.conditions;
+    flow.actions = Array.isArray(req.body.actions) ? req.body.actions : flow.actions;
+    flow.delay_minutes = req.body.delay_minutes !== undefined ? Math.max(0, Number(req.body.delay_minutes)) : flow.delay_minutes;
+    flow.max_runs_per_customer = req.body.max_runs_per_customer !== undefined ? Math.max(0, Number(req.body.max_runs_per_customer)) : flow.max_runs_per_customer;
+    flow.updated_at = new Date().toISOString();
+    recordAuditLedger(req, { tenant_id: flow.tenant_id, action: "AUTOMATION_FLOW_UPDATED", resource_type: "automation_flow", resource_id: flow.id, before_data: before, after_data: flow, reason: String(req.body.reason || "Atualizacao de automacao") });
+    res.json(flow);
+  });
+
+  app.post("/api/admin/automations/:id/toggle", (req, res) => {
+    const flow = automationFlows.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!flow) return res.status(404).json({ error: "Automacao nao encontrada" });
+    const before = deepClone(flow);
+    flow.enabled = req.body.enabled !== undefined ? Boolean(req.body.enabled) : !flow.enabled;
+    flow.updated_at = new Date().toISOString();
+    recordAuditLedger(req, { tenant_id: flow.tenant_id, action: "AUTOMATION_FLOW_TOGGLED", resource_type: "automation_flow", resource_id: flow.id, before_data: before, after_data: flow, reason: String(req.body.reason || "Ativacao/desativacao de automacao") });
+    res.json(flow);
+  });
+
+  app.get("/api/admin/automations/runs", (req, res) => {
+    res.json(scoped(automationRuns, req).slice(0, 200));
+  });
+
+  app.post("/api/admin/automations/process-due", (req, res) => {
+    const processed = processDueAutomationRuns();
+    res.json({ processed, runs: scoped(automationRuns, req).slice(0, 100) });
   });
 
   app.get("/api/admin/whatsapp/config", (req, res) => {
@@ -9469,7 +9779,9 @@ async function startServer() {
       superadminImpersonationSessions,
       superadminAuditLogs,
       whatsappProviderConfigs,
-      whatsappMessageQueue
+      whatsappMessageQueue,
+      automationFlows,
+      automationRuns
     };
   }
 
@@ -9536,6 +9848,8 @@ async function startServer() {
       case "superadminAuditLogs": superadminAuditLogs = Array.isArray(value) ? value : []; break;
       case "whatsappProviderConfigs": whatsappProviderConfigs = Array.isArray(value) ? value : []; break;
       case "whatsappMessageQueue": whatsappMessageQueue = Array.isArray(value) ? value : []; break;
+      case "automationFlows": automationFlows = Array.isArray(value) ? value : []; break;
+      case "automationRuns": automationRuns = Array.isArray(value) ? value : []; break;
     }
   }
 

@@ -116,6 +116,7 @@ const AdminCRM = lazy(() => import("./pages/admin/AdminCRM").then(module => ({ d
 const AdminReports = lazy(() => import("./pages/admin/AdminReports").then(module => ({ default: module.AdminReports })));
 const AdminOperations = lazy(() => import("./pages/admin/AdminOperations").then(module => ({ default: module.AdminOperations })));
 const AdminIntegrations = lazy(() => import("./pages/admin/AdminIntegrations").then(module => ({ default: module.AdminIntegrations })));
+const AdminAutomations = lazy(() => import("./pages/admin/AdminAutomations").then(module => ({ default: module.AdminAutomations })));
 const AdminDomains = lazy(() => import("./pages/admin/AdminDomains").then(module => ({ default: module.AdminDomains })));
 const AdminComplianceCenter = lazy(() => import("./pages/admin/AdminComplianceCenter").then(module => ({ default: module.AdminComplianceCenter })));
 const AdminMyPlan = lazy(() => import("./pages/admin/AdminMyPlan").then(module => ({ default: module.AdminMyPlan })));
@@ -298,6 +299,7 @@ export default function App() {
                 <Route path="relatorios" element={<AdminReports />} />
                 <Route path="operacoes" element={<AdminOperations />} />
                 <Route path="integracoes" element={<AdminIntegrations />} />
+                <Route path="automacoes" element={<AdminAutomations />} />
                 <Route path="dominios" element={<AdminDomains />} />
                 <Route path="auditoria" element={<AdminComplianceCenter />} />
                 <Route path="compliance" element={<AdminComplianceCenter />} />

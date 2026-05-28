@@ -1,15 +1,15 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-28T21:33:32.460Z
+Gerado em: 2026-05-28T21:45:00.174Z
 
 ## Totais
 
-- Rotas backend: 258
-- Paginas frontend: 56
+- Rotas backend: 264
+- Paginas frontend: 57
 - Componentes: 36
-- Arquivos src: 134
-- Migrations: 27
-- Tabelas mapeadas: 51
+- Arquivos src: 135
+- Migrations: 28
+- Tabelas mapeadas: 53
 - Policies mapeadas: 44
 - Providers/arquivos de integracao: 10
 
@@ -186,6 +186,12 @@ Gerado em: 2026-05-28T21:33:32.460Z
 - GET /api/admin/notifications
 - GET /api/admin/audit-logs
 - GET /api/admin/system-health
+- GET /api/admin/automations
+- POST /api/admin/automations
+- PUT /api/admin/automations/:id
+- POST /api/admin/automations/:id/toggle
+- GET /api/admin/automations/runs
+- POST /api/admin/automations/process-due
 - GET /api/admin/whatsapp/config
 - POST /api/admin/whatsapp/config
 - POST /api/admin/whatsapp/test
@@ -316,6 +322,7 @@ Gerado em: 2026-05-28T21:33:32.460Z
 - relatorios
 - operacoes
 - integracoes
+- automacoes
 - dominios
 - auditoria
 - compliance
@@ -336,6 +343,8 @@ Gerado em: 2026-05-28T21:33:32.460Z
 ## Tabelas Supabase/Postgres
 
 - audit_event_ledger
+- automation_flows
+- automation_runs
 - clientes
 - crm_contact_notes
 - crm_contacts
@@ -416,6 +425,7 @@ Gerado em: 2026-05-28T21:33:32.460Z
 - supabase/migrations/24_compliance_audit_ticket_ledger.sql
 - supabase/migrations/25_saas_governance_plans_features.sql
 - supabase/migrations/26_tenant_native_crm.sql
+- supabase/migrations/27_tenant_automation_center.sql
 
 ## Middlewares, Workers e Webhooks
 
@@ -429,17 +439,17 @@ Gerado em: 2026-05-28T21:33:32.460Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 781 ocorrencias no backend
+- tenant_id: 828 ocorrencias no backend
 - user_id: 16 ocorrencias no backend
-- order_id: 9 ocorrencias no backend
-- purchaseId: 159 ocorrencias no backend
-- raffleId: 155 ocorrencias no backend
-- affiliate: 312 ocorrencias no backend
+- order_id: 27 ocorrencias no backend
+- purchaseId: 166 ocorrencias no backend
+- raffleId: 156 ocorrencias no backend
+- affiliate: 317 ocorrencias no backend
 - gateway: 407 ocorrencias no backend
 - wallet: 45 ocorrencias no backend
 - saldo: 2 ocorrencias no backend
 - webhook: 209 ocorrencias no backend
-- idempotencyKey: 12 ocorrencias no backend
+- idempotencyKey: 18 ocorrencias no backend
 
 ## Riscos Observados
 
