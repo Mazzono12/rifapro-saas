@@ -144,7 +144,7 @@ async function startServer() {
     slug: string;
     dominio?: string;
     dominio_customizado: string;
-    status: "active" | "inactive" | "suspended";
+    status: "trial" | "active" | "suspended" | "overdue" | "maintenance" | "blocked" | "canceled" | "inactive";
     logo_url: string;
     cor_primaria: string;
     plano: string;
@@ -152,14 +152,22 @@ async function startServer() {
     criado_em: string;
     atualizado_em: string;
   };
-  type SaaSPlanId = "gratis" | "basico" | "profissional" | "premium" | "white-label";
+  type SaaSPlanId = "starter" | "pro" | "premium" | "enterprise";
+  type TenantFeatureFlag = "crm" | "automations" | "advanced_affiliates" | "wallet" | "provably_fair" | "reports_pdf" | "public_api" | "pwa" | "custom_theme" | "whatsapp_automation" | "realtime_social_proof";
   type SaaSPlan = {
     id: SaaSPlanId;
     nome: string;
     limite_rifas: number;
     limite_vendas_mes: number;
+    max_campaigns: number;
+    max_customers: number;
+    max_admin_users: number;
+    max_whatsapp_messages_month: number;
     recursos: string[];
     dominio_proprio: boolean;
+    advanced_reports: boolean;
+    public_api: boolean;
+    included_features: TenantFeatureFlag[];
     integracoes_liberadas: IntegrationProviderId[];
     percentual_comissao: number;
   };
@@ -210,7 +218,7 @@ async function startServer() {
       status: "active",
       logo_url: "",
       cor_primaria: "#06b6d4",
-      plano: "plataforma",
+      plano: "enterprise",
       percentual_plataforma: 0,
       criado_em: tenantSeedTimestamp,
       atualizado_em: tenantSeedTimestamp
@@ -223,7 +231,7 @@ async function startServer() {
       status: "active",
       logo_url: "",
       cor_primaria: "#10b981",
-      plano: "teste",
+      plano: "premium",
       percentual_plataforma: 10,
       criado_em: tenantSeedTimestamp,
       atualizado_em: tenantSeedTimestamp
@@ -236,7 +244,7 @@ async function startServer() {
       status: "active",
       logo_url: "",
       cor_primaria: "#f59e0b",
-      plano: "teste",
+      plano: "premium",
       percentual_plataforma: 10,
       criado_em: tenantSeedTimestamp,
       atualizado_em: tenantSeedTimestamp
@@ -1565,34 +1573,39 @@ async function startServer() {
   let numberModeWinners: NumberModeWinner[] = [];
 
   // === Anti-Fraud System ===
+  const allTenantFeatureFlags: TenantFeatureFlag[] = ["crm", "automations", "advanced_affiliates", "wallet", "provably_fair", "reports_pdf", "public_api", "pwa", "custom_theme", "whatsapp_automation", "realtime_social_proof"];
   const planCatalog: Record<SaaSPlanId, SaaSPlan> = {
-    gratis: {
-      id: "gratis",
-      nome: "Gratis",
+    starter: {
+      id: "starter",
+      nome: "Starter",
       limite_rifas: 1,
-      limite_vendas_mes: 100,
-      recursos: ["checkout", "pix_basico", "relatorios_basicos"],
+      limite_vendas_mes: 500,
+      max_campaigns: 1,
+      max_customers: 1000,
+      max_admin_users: 2,
+      max_whatsapp_messages_month: 500,
+      recursos: ["checkout", "pix", "crm_basico"],
       dominio_proprio: false,
-      integracoes_liberadas: ["smtp"],
+      advanced_reports: false,
+      public_api: false,
+      included_features: ["crm", "wallet", "whatsapp_automation"],
+      integracoes_liberadas: ["smtp", "sendpulse"],
       percentual_comissao: 12
     },
-    basico: {
-      id: "basico",
-      nome: "Basico",
-      limite_rifas: 5,
-      limite_vendas_mes: 1000,
-      recursos: ["checkout", "pix", "relatorios", "afiliados"],
-      dominio_proprio: false,
-      integracoes_liberadas: ["smtp", "sendpulse"],
-      percentual_comissao: 10
-    },
-    profissional: {
-      id: "profissional",
-      nome: "Profissional",
+    pro: {
+      id: "pro",
+      nome: "Pro",
       limite_rifas: 25,
       limite_vendas_mes: 10000,
-      recursos: ["checkout", "pix", "gamificacao", "relatorios", "afiliados", "integracoes_ads"],
+      max_campaigns: 25,
+      max_customers: 20000,
+      max_admin_users: 8,
+      max_whatsapp_messages_month: 5000,
+      recursos: ["checkout", "pix", "crm", "afiliados", "relatorios"],
       dominio_proprio: true,
+      advanced_reports: true,
+      public_api: false,
+      included_features: ["crm", "automations", "advanced_affiliates", "wallet", "provably_fair", "reports_pdf", "custom_theme", "whatsapp_automation", "realtime_social_proof"],
       integracoes_liberadas: ["primepag", "paggue", "smtp", "sendpulse", "metaAds", "googleAds"],
       percentual_comissao: 7.5
     },
@@ -1601,23 +1614,52 @@ async function startServer() {
       nome: "Premium",
       limite_rifas: 100,
       limite_vendas_mes: 50000,
+      max_campaigns: 100,
+      max_customers: 100000,
+      max_admin_users: 25,
+      max_whatsapp_messages_month: 25000,
       recursos: ["checkout", "pix", "gamificacao", "relatorios_avancados", "afiliados", "integracoes", "webhooks"],
       dominio_proprio: true,
+      advanced_reports: true,
+      public_api: true,
+      included_features: allTenantFeatureFlags,
       integracoes_liberadas: ["primepag", "paggue", "smtp", "sendpulse", "metaAds", "googleAds", "wetalkie", "cashPay", "nuvenda", "fkeProcessor"],
       percentual_comissao: 5
     },
-    "white-label": {
-      id: "white-label",
-      nome: "White-label",
+    enterprise: {
+      id: "enterprise",
+      nome: "Enterprise",
       limite_rifas: 999999,
       limite_vendas_mes: 999999,
-      recursos: ["checkout", "pix", "gamificacao", "relatorios_avancados", "afiliados", "integracoes", "webhooks", "white_label"],
+      max_campaigns: 999999,
+      max_customers: 999999,
+      max_admin_users: 999999,
+      max_whatsapp_messages_month: 999999,
+      recursos: ["checkout", "pix", "gamificacao", "relatorios_avancados", "afiliados", "integracoes", "webhooks", "white_label", "sla"],
       dominio_proprio: true,
+      advanced_reports: true,
+      public_api: true,
+      included_features: allTenantFeatureFlags,
       integracoes_liberadas: ["primepag", "paggue", "smtp", "sendpulse", "metaAds", "googleAds", "wetalkie", "cashPay", "nuvenda", "fkeProcessor"],
       percentual_comissao: 2.5
     }
   };
-  const planAliases: Record<string, SaaSPlanId> = { free: "gratis", basic: "basico", pro: "profissional", profissional: "profissional", teste: "premium", enterprise: "white-label", whitelabel: "white-label" };
+  const planAliases: Record<string, SaaSPlanId> = { gratis: "starter", free: "starter", starter: "starter", basico: "starter", basic: "starter", pro: "pro", profissional: "pro", teste: "premium", premium: "premium", enterprise: "enterprise", "white-label": "enterprise", whitelabel: "enterprise", plataforma: "enterprise" };
+  const operationalTenantStatuses: TenantRecord["status"][] = ["trial", "active", "suspended", "overdue", "maintenance", "blocked", "canceled", "inactive"];
+  const legacyPlanCatalogAliases: Array<Omit<SaaSPlan, "id"> & { id: string; canonical_id: SaaSPlanId }> = [
+    { ...planCatalog.starter, id: "gratis", nome: "Gratis", canonical_id: "starter" },
+    { ...planCatalog.starter, id: "basico", nome: "Basico", canonical_id: "starter" },
+    { ...planCatalog.pro, id: "profissional", nome: "Profissional", canonical_id: "pro" },
+    { ...planCatalog.enterprise, id: "white-label", nome: "White Label", canonical_id: "enterprise" }
+  ];
+
+  function getSuperadminPlanCatalog(): Array<Omit<SaaSPlan, "id"> & { id: string; canonical_id?: SaaSPlanId }> {
+    return [
+      ...Object.values(planCatalog).map(plan => ({ ...plan, canonical_id: plan.id })),
+      ...legacyPlanCatalogAliases
+    ];
+  }
+  let tenantFeatureOverrides: Record<string, Partial<Record<TenantFeatureFlag, boolean>>> = {};
   const securityLogs: SecurityLog[] = [];
   let paymentQueue: PaymentQueueJob[] = [];
   let whatsappProviderConfigs: WhatsAppProviderConfigRecord[] = [];
@@ -1674,12 +1716,12 @@ async function startServer() {
   }
 
   async function createTenantAdminUser(tenantId: string, payload: Record<string, unknown>) {
-    const tenant = tenants.find(item => item.id === tenantId && item.status === "active");
+    const tenant = tenants.find(item => item.id === tenantId && isActiveTenantRecord(item));
     const nome = String(payload.nome || payload.name || "").trim();
     const email = String(payload.email || "").trim().toLowerCase();
     const temporaryPassword = String(payload.password || payload.senha || "") || generateTemporaryPassword();
     const role = String(payload.role || "tenant_admin") as AuthRole;
-    if (!tenant) throw new Error("Tenant ativo obrigatorio");
+    if (!tenant) throw new Error("Tenant operacional obrigatorio");
     if (!nome || !email.includes("@") || temporaryPassword.length < 8) {
       throw new Error("Nome, email e senha com 8 caracteres sao obrigatorios");
     }
@@ -1871,24 +1913,25 @@ async function startServer() {
 
   function isActiveTenantRecord(tenant: Partial<TenantRecord> & { ativo?: boolean } | null | undefined) {
     if (!tenant) return false;
-    if ("status" in tenant && tenant.status) return tenant.status === "active";
+    if ("status" in tenant && tenant.status) return tenant.status !== "canceled" && tenant.status !== "inactive";
     if ("ativo" in tenant) return tenant.ativo !== false;
     return true;
   }
 
   function normalizeTenantRecord(row: Record<string, any>): TenantRecord {
     const now = new Date().toISOString();
-    const active = row.status ? row.status === "active" : row.ativo !== false;
+    const rawStatus = String(row.status || "").toLowerCase();
+    const knownStatus = ["trial", "active", "suspended", "overdue", "maintenance", "blocked", "canceled", "inactive"].includes(rawStatus);
     return {
       id: String(row.id || ""),
       nome: String(row.nome || row.name || row.slug || "Tenant"),
       slug: String(row.slug || row.id || "tenant").trim().toLowerCase(),
       dominio: row.dominio ? normalizeDomainName(row.dominio) : undefined,
       dominio_customizado: normalizeDomainName(row.dominio_customizado || row.dominio || ""),
-      status: active ? "active" : "inactive",
+      status: knownStatus ? rawStatus as TenantRecord["status"] : row.ativo === false ? "inactive" : "active",
       logo_url: String(row.logo_url || ""),
       cor_primaria: String(row.cor_primaria || "#06b6d4"),
-      plano: String(row.plano || "basico"),
+      plano: getTenantPlan(String(row.plano || "pro")).id,
       percentual_plataforma: Number(row.percentual_plataforma || 0),
       criado_em: String(row.criado_em || row.created_at || now),
       atualizado_em: String(row.atualizado_em || row.updated_at || row.created_at || now)
@@ -2089,7 +2132,7 @@ async function startServer() {
     }
 
     const sessionTenant = ["admin", "operador", "afiliado"].includes(normalizeAuthRole(session?.role)) && session?.tenant_id
-      ? tenants.find(tenant => tenant.id === session.tenant_id && tenant.status === "active")
+      ? tenants.find(tenant => tenant.id === session.tenant_id && isActiveTenantRecord(tenant))
       : null;
     const resolution = await resolveDomainTenantInfo(req);
     const tenant = sessionTenant || resolution.tenant;
@@ -2197,9 +2240,30 @@ async function startServer() {
   }
 
   function getTenantPlan(tenantIdOrPlan: string) {
-    const rawPlan = tenants.find(tenant => tenant.id === tenantIdOrPlan)?.plano || tenantIdOrPlan || "basico";
+    const rawPlan = tenants.find(tenant => tenant.id === tenantIdOrPlan)?.plano || tenantIdOrPlan || "pro";
     const normalized = planAliases[String(rawPlan).toLowerCase()] || String(rawPlan).toLowerCase();
-    return planCatalog[normalized as SaaSPlanId] || planCatalog.basico;
+    return planCatalog[normalized as SaaSPlanId] || planCatalog.pro;
+  }
+
+  function getTenantFeatures(tenantId: string) {
+    const plan = getTenantPlan(tenantId);
+    const enabled = Object.fromEntries(allTenantFeatureFlags.map(flag => [flag, plan.included_features.includes(flag)])) as Record<TenantFeatureFlag, boolean>;
+    return { ...enabled, ...(tenantFeatureOverrides[tenantId] || {}) };
+  }
+
+  function tenantHasFeature(tenantId: string, feature: TenantFeatureFlag) {
+    return Boolean(getTenantFeatures(tenantId)[feature]);
+  }
+
+  function assertTenantOperationalForCheckout(tenant: TenantRecord | undefined | null) {
+    if (!tenant) throw new Error("Tenant inativo ou indisponivel para compras");
+    if (["active", "trial"].includes(tenant.status)) return;
+    if (tenant.status === "maintenance") throw new Error("Tenant em manutenção. Compras temporariamente indisponiveis.");
+    if (tenant.status === "overdue") throw new Error("Tenant com pagamento em atraso. Checkout bloqueado.");
+    if (tenant.status === "suspended") throw new Error("Tenant suspenso. Checkout bloqueado.");
+    if (tenant.status === "blocked") throw new Error("Tenant bloqueado. Checkout indisponivel.");
+    if (tenant.status === "canceled") throw new Error("Tenant cancelado. Checkout indisponivel.");
+    throw new Error("Tenant inativo ou indisponivel para compras");
   }
 
   function tenantCanUseIntegration(tenantId: string, provider: IntegrationProviderId) {
@@ -2710,7 +2774,7 @@ async function startServer() {
   });
 
   app.get("/api/superadmin/plans", (req, res) => {
-    res.json(Object.values(planCatalog));
+    res.json(getSuperadminPlanCatalog());
   });
 
   app.post("/api/superadmin/tenants", async (req, res) => {
@@ -2726,13 +2790,14 @@ async function startServer() {
       return;
     }
     const now = new Date().toISOString();
-    const plan = getTenantPlan(String(req.body.plano || "basico"));
+    const requestedPlan = String(req.body.plano || "basico").trim().toLowerCase();
+    const plan = getTenantPlan(requestedPlan);
     const tenant: TenantRecord = {
       id: String(req.body.id || createPublicId("TENANT_")),
       nome,
       slug,
       dominio_customizado: String(req.body.dominio_customizado || "").trim(),
-      status: ["active", "inactive", "suspended"].includes(String(req.body.status)) ? req.body.status : "active",
+      status: operationalTenantStatuses.includes(String(req.body.status) as TenantRecord["status"]) ? req.body.status : "active",
       logo_url: String(req.body.logo_url || "").trim(),
       cor_primaria: String(req.body.cor_primaria || "#06b6d4"),
       plano: plan.id,
@@ -2785,6 +2850,7 @@ async function startServer() {
     });
     res.status(201).json({
       ...tenant,
+      plano: requestedPlan && planAliases[requestedPlan] ? requestedPlan : tenant.plano,
       tenant,
       admin: initialAdmin ? { user: initialAdmin, profile: initialAdminProfile, temporaryPassword } : null
     });
@@ -2814,7 +2880,7 @@ async function startServer() {
   });
 
   app.post("/api/superadmin/tenants/:tenantId/admins/:userId/reset-password", async (req, res) => {
-    const tenant = tenants.find(item => item.id === req.params.tenantId && item.status === "active");
+    const tenant = tenants.find(item => item.id === req.params.tenantId && isActiveTenantRecord(item));
     const user = authUsers.find(item => item.id === req.params.userId && item.tenant_id === req.params.tenantId && normalizeAuthRole(item.role) === "admin");
     if (!tenant || !user) {
       res.status(404).json({ error: "Admin do tenant nao encontrado" });
@@ -2872,7 +2938,7 @@ async function startServer() {
     tenant.cor_primaria = req.body.cor_primaria !== undefined ? String(req.body.cor_primaria) : tenant.cor_primaria;
     tenant.plano = req.body.plano !== undefined ? getTenantPlan(String(req.body.plano)).id : tenant.plano;
     tenant.percentual_plataforma = percentualPlataforma;
-    if (["active", "inactive", "suspended"].includes(String(req.body.status))) {
+    if (operationalTenantStatuses.includes(String(req.body.status) as TenantRecord["status"])) {
       tenant.status = req.body.status;
     }
     tenant.atualizado_em = new Date().toISOString();
@@ -2892,7 +2958,7 @@ async function startServer() {
       res.status(404).json({ error: "Tenant nao encontrado" });
       return;
     }
-    if (!["active", "inactive", "suspended"].includes(status)) {
+    if (!operationalTenantStatuses.includes(status as TenantRecord["status"])) {
       res.status(400).json({ error: "Status invalido" });
       return;
     }
@@ -3132,7 +3198,7 @@ async function startServer() {
       charts: globalRevenue.charts,
       tenants: tenantSummaries,
       ranking: tenantRanking,
-      plans: Object.values(planCatalog)
+      plans: getSuperadminPlanCatalog()
     });
   });
 
@@ -3318,8 +3384,8 @@ async function startServer() {
       res.status(400).json({ error: "Nome, email, senha com 8 caracteres e papel valido sao obrigatorios" });
       return;
     }
-    if (role !== "superadmin" && !tenants.some(tenant => tenant.id === tenantId && tenant.status === "active")) {
-      res.status(400).json({ error: "Tenant ativo obrigatorio para este papel" });
+    if (role !== "superadmin" && !tenants.some(tenant => tenant.id === tenantId && isActiveTenantRecord(tenant))) {
+      res.status(400).json({ error: "Tenant operacional obrigatorio para este papel" });
       return;
     }
     if (authUsers.some(item => item.email === email)) {
@@ -3579,6 +3645,48 @@ async function startServer() {
     res.json(fraudSignals.map(signal => ({ ...signal, tenant: findTenantName(signal.tenant_id) })));
   });
 
+  app.get("/api/superadmin/tenants/:tenantId/plan", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
+    recordSuperadminAudit(req, "TENANT_PLAN_VIEW", { tenant_id: tenant.id, resource_type: "tenant", resource_id: tenant.id });
+    res.json({ tenant: buildTenantSummary(tenant), plan: getTenantPlan(tenant.id), plans: getSuperadminPlanCatalog() });
+  });
+
+  app.put("/api/superadmin/tenants/:tenantId/plan", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
+    const before = deepClone(tenant);
+    tenant.plano = getTenantPlan(String(req.body.planId || req.body.plano || tenant.plano)).id;
+    if (req.body.status) tenant.status = String(req.body.status) as TenantRecord["status"];
+    tenant.atualizado_em = new Date().toISOString();
+    recordSuperadminAudit(req, "TENANT_PLAN_UPDATED", { tenant_id: tenant.id, resource_type: "tenant", resource_id: tenant.id, metadata: { plan: tenant.plano, status: tenant.status } });
+    recordAuditLedger(req, { tenant_id: tenant.id, action: "TENANT_PLAN_UPDATED", resource_type: "tenant", resource_id: tenant.id, before_data: before, after_data: tenant, reason: String(req.body.reason || "Alteracao de plano e governanca pelo superadmin") });
+    res.json({ tenant: buildTenantSummary(tenant), plan: getTenantPlan(tenant.id) });
+  });
+
+  app.get("/api/superadmin/tenants/:tenantId/features", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
+    recordSuperadminAudit(req, "TENANT_FEATURES_VIEW", { tenant_id: tenant.id, resource_type: "tenant_features", resource_id: tenant.id });
+    res.json({ tenant_id: tenant.id, plan: getTenantPlan(tenant.id).id, features: getTenantFeatures(tenant.id), overrides: tenantFeatureOverrides[tenant.id] || {}, available: allTenantFeatureFlags });
+  });
+
+  app.put("/api/superadmin/tenants/:tenantId/features", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
+    const before = getTenantFeatures(tenant.id);
+    const incoming = (req.body.features || req.body || {}) as Partial<Record<TenantFeatureFlag, boolean>>;
+    tenantFeatureOverrides[tenant.id] = Object.fromEntries(
+      Object.entries(incoming)
+        .filter(([flag]) => allTenantFeatureFlags.includes(flag as TenantFeatureFlag))
+        .map(([flag, enabled]) => [flag, Boolean(enabled)])
+    ) as Partial<Record<TenantFeatureFlag, boolean>>;
+    const after = getTenantFeatures(tenant.id);
+    recordSuperadminAudit(req, "TENANT_FEATURES_UPDATED", { tenant_id: tenant.id, resource_type: "tenant_features", resource_id: tenant.id, metadata: { overrides: tenantFeatureOverrides[tenant.id] } });
+    recordAuditLedger(req, { tenant_id: tenant.id, action: "TENANT_FEATURES_UPDATED", resource_type: "tenant_features", resource_id: tenant.id, before_data: before, after_data: after, reason: String(req.body.reason || "Alteracao de feature flags pelo superadmin") });
+    res.json({ tenant_id: tenant.id, plan: getTenantPlan(tenant.id).id, features: after, overrides: tenantFeatureOverrides[tenant.id] });
+  });
+
   app.get("/api/superadmin/domains", (_req, res) => {
     res.json(tenantDomains.map(domain => ({ ...sanitizeTenantDomain(domain), tenant: findTenantName(domain.tenant_id) })));
   });
@@ -3674,6 +3782,23 @@ async function startServer() {
   app.use(resolveTenant);
 
   app.use("/api/admin", rateLimiter, requireTenantAdmin);
+  const adminFeatureRoutes: Array<{ pattern: RegExp; feature: TenantFeatureFlag }> = [
+    { pattern: /^\/customers/, feature: "crm" },
+    { pattern: /^\/messages/, feature: "whatsapp_automation" },
+    { pattern: /^\/reports/, feature: "reports_pdf" },
+    { pattern: /^\/affiliates/, feature: "advanced_affiliates" },
+    { pattern: /^\/wallet-ledger/, feature: "wallet" },
+    { pattern: /^\/integrations/, feature: "automations" }
+  ];
+  app.use("/api/admin", (req, res, next) => {
+    if (["/plan", "/features", "/me", "/dashboard"].includes(req.path)) return next();
+    const matched = adminFeatureRoutes.find(item => item.pattern.test(req.path));
+    if (matched && !tenantHasFeature(resolveRequestTenantId(req), matched.feature)) {
+      res.status(403).json({ error: "Recurso bloqueado pelo plano atual", feature: matched.feature, upgradeRequired: true });
+      return;
+    }
+    next();
+  });
   app.use("/api/admin", (req, res, next) => {
     res.on("finish", () => {
       if (req.method !== "GET") {
@@ -3681,6 +3806,19 @@ async function startServer() {
       }
     });
     next();
+  });
+
+  app.get("/api/public/tenant-governance", (req, res) => {
+    const tenant = getRequestTenant(req);
+    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
+    res.json({
+      status: tenant.status,
+      plan: getTenantPlan(tenant.id).id,
+      features: getTenantFeatures(tenant.id),
+      checkoutAllowed: ["trial", "active"].includes(tenant.status),
+      maintenance: tenant.status === "maintenance",
+      blocked: ["suspended", "overdue", "blocked", "canceled", "inactive"].includes(tenant.status)
+    });
   });
 
   app.get("/api/admin/me", (req, res) => {
@@ -3697,6 +3835,27 @@ async function startServer() {
       profile: session ? { role: normalizeAuthRole(session.role), tenantId } : null,
       tenant: tenant ? buildTenantSummary(tenant) : null
     });
+  });
+
+  app.get("/api/admin/plan", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const tenant = tenants.find(item => item.id === tenantId);
+    const plan = getTenantPlan(tenantId);
+    res.json({
+      tenant: tenant ? buildTenantSummary(tenant) : null,
+      plan,
+      limits: {
+        campaigns: `${raffles.filter(raffle => raffle.tenant_id === tenantId).length}/${plan.max_campaigns}`,
+        customers: `${Object.values(customersByPhone).filter(customer => customer.tenant_id === tenantId).length}/${plan.max_customers}`,
+        adminUsers: `${authUsers.filter(user => user.tenant_id === tenantId && ["admin", "operador", "tenant_admin"].includes(user.role)).length}/${plan.max_admin_users}`,
+        whatsappMessagesMonth: `${whatsappMessageQueue.filter(message => message.tenant_id === tenantId).length}/${plan.max_whatsapp_messages_month}`
+      }
+    });
+  });
+
+  app.get("/api/admin/features", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({ tenant_id: tenantId, plan: getTenantPlan(tenantId).id, features: getTenantFeatures(tenantId), upgradeUrl: "/admin/meu-plano" });
   });
 
   app.get("/api/admin/dashboard", (req, res) => {
@@ -4208,6 +4367,9 @@ async function startServer() {
     if (!phone || phone.length < 10) throw new Error("Telefone inválido");
     if (!cpf || cpf.length !== 11) throw new Error("CPF inválido");
     if (!accessPassword) throw new Error("Senha de 6 dígitos obrigatória");
+    const plan = getTenantPlan(tenantId);
+    const currentCustomers = Object.values(customersByPhone).filter(customer => customer.tenant_id === tenantId).length;
+    if (currentCustomers >= plan.max_customers) throw new Error(`Plano ${plan.nome} permite ate ${plan.max_customers} cliente(s)`);
 
     const customer: CustomerRecord = {
       id: createPublicId("C_"),
@@ -5860,8 +6022,10 @@ async function startServer() {
   app.post("/api/checkout/preview", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const tenant = tenants.find(item => item.id === tenantId);
-    if (!tenant || tenant.status !== "active") {
-      res.status(403).json({ error: "Tenant inativo ou indisponivel para compras" });
+    try {
+      assertTenantOperationalForCheckout(tenant);
+    } catch (error) {
+      res.status(403).json({ error: error instanceof Error ? error.message : "Tenant inativo ou indisponivel para compras", tenantStatus: tenant?.status || "unknown" });
       return;
     }
 
@@ -6012,6 +6176,12 @@ async function startServer() {
 
   app.post("/api/raffles/:id/buy", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
+    try {
+      assertTenantOperationalForCheckout(tenants.find(item => item.id === tenantId));
+    } catch (error) {
+      res.status(403).json({ error: error instanceof Error ? error.message : "Tenant inativo ou indisponivel para compras" });
+      return;
+    }
     const { id } = req.params;
     const tickets = normalizeTickets(req.body.tickets);
     const addonTickets = normalizeTickets(req.body.addon?.tickets) || 0;
@@ -6316,6 +6486,12 @@ async function startServer() {
 
   app.post("/api/modalidades/:mode/buy", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
+    try {
+      assertTenantOperationalForCheckout(tenants.find(item => item.id === tenantId));
+    } catch (error) {
+      res.status(403).json({ error: error instanceof Error ? error.message : "Tenant inativo ou indisponivel para compras" });
+      return;
+    }
     const mode = req.params.mode as NumberModeId;
     const config = numberModeConfigs[mode];
     if (!config || config.tenant_id !== tenantId) {
@@ -6393,6 +6569,12 @@ async function startServer() {
 
   function createFazendinhaPurchase(req: express.Request, res: express.Response, requestedGroupIds: string[]) {
     const tenantId = resolveRequestTenantId(req);
+    try {
+      assertTenantOperationalForCheckout(tenants.find(item => item.id === tenantId));
+    } catch (error) {
+      res.status(403).json({ error: error instanceof Error ? error.message : "Tenant inativo ou indisponivel para compras" });
+      return null;
+    }
     if (!fazendinhaConfig.enabled || fazendinhaConfig.status !== "active") {
       res.status(403).json({ error: "A Fazendinha nao esta ativa no momento" });
       return null;
@@ -8900,6 +9082,7 @@ async function startServer() {
       settings,
       tenantSettings,
       tenantBrandingSettings,
+      tenantFeatureOverrides,
       lootboxGuaranteedPool,
       lootboxGuaranteedPools,
       affiliates,
@@ -8963,6 +9146,7 @@ async function startServer() {
       case "settings": settings = value || settings; break;
       case "tenantSettings": replaceObject(tenantSettings, value); break;
       case "tenantBrandingSettings": replaceObject(tenantBrandingSettings, value); break;
+      case "tenantFeatureOverrides": tenantFeatureOverrides = value || {}; break;
       case "lootboxGuaranteedPool": lootboxGuaranteedPool = Array.isArray(value) ? value : []; break;
       case "lootboxGuaranteedPools": lootboxGuaranteedPools = value || {}; break;
       case "affiliates": affiliates = value || {}; break;

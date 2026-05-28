@@ -117,6 +117,7 @@ const AdminOperations = lazy(() => import("./pages/admin/AdminOperations").then(
 const AdminIntegrations = lazy(() => import("./pages/admin/AdminIntegrations").then(module => ({ default: module.AdminIntegrations })));
 const AdminDomains = lazy(() => import("./pages/admin/AdminDomains").then(module => ({ default: module.AdminDomains })));
 const AdminComplianceCenter = lazy(() => import("./pages/admin/AdminComplianceCenter").then(module => ({ default: module.AdminComplianceCenter })));
+const AdminMyPlan = lazy(() => import("./pages/admin/AdminMyPlan").then(module => ({ default: module.AdminMyPlan })));
 const SuperAdminLayout = lazy(() => import("./pages/superadmin/SuperAdminLayout").then(module => ({ default: module.SuperAdminLayout })));
 const SuperAdminDashboard = lazy(() => import("./pages/superadmin/SuperAdminDashboard").then(module => ({ default: module.SuperAdminDashboard })));
 const SuperAdminIntegrations = lazy(() => import("./pages/superadmin/SuperAdminIntegrations").then(module => ({ default: module.SuperAdminIntegrations })));
@@ -124,6 +125,7 @@ const SuperAdminDomains = lazy(() => import("./pages/superadmin/SuperAdminDomain
 const SuperAdminAudit = lazy(() => import("./pages/superadmin/SuperAdminAudit").then(module => ({ default: module.SuperAdminAudit })));
 const SuperAdminTenantDetail = lazy(() => import("./pages/superadmin/SuperAdminTenantDetail").then(module => ({ default: module.SuperAdminTenantDetail })));
 const SuperAdminTenantBranding = lazy(() => import("./pages/superadmin/SuperAdminTenantBranding").then(module => ({ default: module.SuperAdminTenantBranding })));
+const SuperAdminTenantPlanResources = lazy(() => import("./pages/superadmin/SuperAdminTenantPlanResources").then(module => ({ default: module.SuperAdminTenantPlanResources })));
 const Transparency = lazy(() => import("./pages/Transparency").then(module => ({ default: module.Transparency })));
 const DrawAudit = lazy(() => import("./pages/DrawAudit").then(module => ({ default: module.DrawAudit })));
 
@@ -158,12 +160,41 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     <div className={`public-shell min-h-screen flex flex-col transition-[padding] duration-300 ${heroVideoCinema || isRaffleRoute ? "pt-0" : "pt-16"}`}>
       {!isRaffleRoute && <Navbar />}
       <main className="flex-1 w-full relative z-10">
-        {children}
+        <TenantOperationalGate>{children}</TenantOperationalGate>
       </main>
       <SupportChat />
       {!isPaymentRoute && <Footer />}
     </div>
   );
+}
+
+function TenantOperationalGate({ children }: { children: React.ReactNode }) {
+  const [governance, setGovernance] = React.useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/public/tenant-governance")
+      .then(res => res.ok ? res.json() : null)
+      .then(setGovernance)
+      .catch(() => null);
+  }, []);
+
+  if (governance?.maintenance || governance?.blocked) {
+    const title = governance.maintenance ? "Plataforma em manutenção" : "Plataforma temporariamente indisponível";
+    const message = governance.maintenance
+      ? "Estamos realizando ajustes operacionais. Tente novamente em instantes."
+      : "Este tenant está com checkout e acesso público bloqueados pelo status operacional.";
+    return (
+      <div className="grid min-h-[70vh] place-items-center px-4">
+        <div className="glass-card max-w-xl rounded-3xl p-8 text-center">
+          <p className="text-sm font-bold uppercase text-amber-200">Status: {governance.status}</p>
+          <h1 className="mt-3 text-3xl font-black text-white">{title}</h1>
+          <p className="mt-3 text-slate-300">{message}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 }
 
 function RouteAtmosphere() {
@@ -268,6 +299,7 @@ export default function App() {
                 <Route path="compliance" element={<AdminComplianceCenter />} />
                 <Route path="antifraude" element={<AdminComplianceCenter />} />
                 <Route path="gerenciar-cotas" element={<AdminComplianceCenter />} />
+                <Route path="meu-plano" element={<AdminMyPlan />} />
                 <Route path="config" element={<AdminConfig />} />
                 <Route path="config/aparencia" element={<AdminConfig initialTab="branding" />} />
               </Route>
@@ -278,6 +310,7 @@ export default function App() {
                 <Route path="auditoria" element={<SuperAdminAudit />} />
                 <Route path="tenants/:tenantId/financeiro" element={<SuperAdminTenantDetail />} />
                 <Route path="tenants/:tenantId/aparencia" element={<SuperAdminTenantBranding />} />
+                <Route path="tenants/:tenantId/plano" element={<SuperAdminTenantPlanResources />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
               </Routes>

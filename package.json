@@ -61,6 +61,7 @@
     ,"test:provably-fair-draw": "node scripts/test-compliance-audit-modules.mjs provably-fair-draw"
     ,"test:compliance-lgpd": "node scripts/test-compliance-audit-modules.mjs compliance-lgpd"
     ,"test:antifraud-basic": "node scripts/test-compliance-audit-modules.mjs antifraud-basic"
+    ,"test:saas-governance": "node scripts/test-saas-governance.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

@@ -1,15 +1,15 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-28T15:11:05.162Z
+Gerado em: 2026-05-28T21:19:04.908Z
 
 ## Totais
 
-- Rotas backend: 241
-- Paginas frontend: 51
+- Rotas backend: 248
+- Paginas frontend: 53
 - Componentes: 36
-- Arquivos src: 132
-- Migrations: 25
-- Tabelas mapeadas: 48
+- Arquivos src: 134
+- Migrations: 26
+- Tabelas mapeadas: 49
 - Policies mapeadas: 44
 - Providers/arquivos de integracao: 10
 
@@ -74,6 +74,10 @@ Gerado em: 2026-05-28T15:11:05.162Z
 - GET /api/superadmin/audit-ledger
 - GET /api/superadmin/compliance
 - GET /api/superadmin/antifraud
+- GET /api/superadmin/tenants/:tenantId/plan
+- PUT /api/superadmin/tenants/:tenantId/plan
+- GET /api/superadmin/tenants/:tenantId/features
+- PUT /api/superadmin/tenants/:tenantId/features
 - GET /api/superadmin/domains
 - POST /api/superadmin/tenants/:tenantId/domains
 - POST /api/superadmin/domains/:id/verify
@@ -84,7 +88,10 @@ Gerado em: 2026-05-28T15:11:05.162Z
 - POST /api/superadmin/tenants/:tenantId/branding/logo
 - POST /api/superadmin/tenants/:tenantId/branding/favicon
 - POST /api/superadmin/tenants/:tenantId/branding/reset
+- GET /api/public/tenant-governance
 - GET /api/admin/me
+- GET /api/admin/plan
+- GET /api/admin/features
 - GET /api/admin/dashboard
 - GET /api/admin/domains
 - POST /api/admin/domains
@@ -301,6 +308,7 @@ Gerado em: 2026-05-28T15:11:05.162Z
 - compliance
 - antifraude
 - gerenciar-cotas
+- meu-plano
 - config
 - config/aparencia
 - /superadmin
@@ -309,6 +317,7 @@ Gerado em: 2026-05-28T15:11:05.162Z
 - auditoria
 - tenants/:tenantId/financeiro
 - tenants/:tenantId/aparencia
+- tenants/:tenantId/plano
 - *
 
 ## Tabelas Supabase/Postgres
@@ -344,6 +353,7 @@ Gerado em: 2026-05-28T15:11:05.162Z
 - platform_health_snapshots
 - raffle_draw_audit
 - raffle_ticket_reservations
+- saas_plan_definitions
 - saas_plans
 - security_audit_logs
 - superadmin_audit_logs
@@ -389,6 +399,7 @@ Gerado em: 2026-05-28T15:11:05.162Z
 - supabase/migrations/22_whatsapp_auto_ticket_queue.sql
 - supabase/migrations/23_tenant_branding_settings.sql
 - supabase/migrations/24_compliance_audit_ticket_ledger.sql
+- supabase/migrations/25_saas_governance_plans_features.sql
 
 ## Middlewares, Workers e Webhooks
 
@@ -402,14 +413,14 @@ Gerado em: 2026-05-28T15:11:05.162Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 730 ocorrencias no backend
+- tenant_id: 744 ocorrencias no backend
 - user_id: 16 ocorrencias no backend
 - order_id: 6 ocorrencias no backend
 - purchaseId: 157 ocorrencias no backend
 - raffleId: 155 ocorrencias no backend
-- affiliate: 304 ocorrencias no backend
+- affiliate: 309 ocorrencias no backend
 - gateway: 407 ocorrencias no backend
-- wallet: 36 ocorrencias no backend
+- wallet: 42 ocorrencias no backend
 - saldo: 2 ocorrencias no backend
 - webhook: 209 ocorrencias no backend
 - idempotencyKey: 12 ocorrencias no backend

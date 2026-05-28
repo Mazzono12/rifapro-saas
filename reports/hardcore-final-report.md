@@ -1,6 +1,6 @@
 # RifaPro SaaS - Relatorio Final Hardcore
 
-Gerado em: 2026-05-28T15:11:58.088Z
+Gerado em: 2026-05-28T21:19:54.906Z
 Status: aprovado com ressalvas para homologacao controlada
 
 ## Resumo Executivo
@@ -34,26 +34,26 @@ A auditoria hardcore mapeou rotas, paginas, tabelas, migrations, providers, work
 
 ## Resultado por Modulo
 
-- PASS: mapa completo do sistema (30ms)
-- PASS: melhorias hardcore preparadas (4ms)
-- PASS: melhorias hardcore preparadas (4ms)
-- PASS: recibo pre-pagamento obrigatorio antes do PIX (3ms)
-- PASS: scripts/test-purchase-concurrency.mjs (2327ms)
-- PASS: scripts/test-pix-multitenant.mjs (2162ms)
-- PASS: scripts/test-payment-workers.mjs (2194ms)
-- PASS: melhorias hardcore preparadas (4ms)
-- PASS: scripts/test-gamification-modules.mjs (2197ms)
+- PASS: mapa completo do sistema (26ms)
+- PASS: melhorias hardcore preparadas (3ms)
+- PASS: melhorias hardcore preparadas (3ms)
+- PASS: recibo pre-pagamento obrigatorio antes do PIX (2ms)
+- PASS: scripts/test-purchase-concurrency.mjs (1521ms)
+- PASS: scripts/test-pix-multitenant.mjs (1918ms)
+- PASS: scripts/test-payment-workers.mjs (1961ms)
+- PASS: melhorias hardcore preparadas (6ms)
+- PASS: scripts/test-gamification-modules.mjs (1971ms)
 - PASS: roletas e caixinhas calculadas no backend (2ms)
-- PASS: scripts/test-gamification-modules.mjs (2145ms)
-- PASS: chance em dobro e pesos de cotas (3ms)
-- PASS: scripts/test-gamification-modules.mjs (2043ms)
+- PASS: scripts/test-gamification-modules.mjs (1932ms)
+- PASS: chance em dobro e pesos de cotas (2ms)
+- PASS: scripts/test-gamification-modules.mjs (1939ms)
 - PASS: raspadinha antifraude (3ms)
-- PASS: scripts/test-gamification-modules.mjs (2297ms)
+- PASS: scripts/test-gamification-modules.mjs (1968ms)
 - PASS: afiliados, saque e compra com saldo (3ms)
-- PASS: scripts/test-hard-suite.mjs production-readiness (17537ms)
+- PASS: scripts/test-hard-suite.mjs production-readiness (17297ms)
 - PASS: melhorias hardcore preparadas (5ms)
 - PASS: ledger financeiro imutavel preparado (0ms)
-- PASS: scripts/test-hard-suite.mjs all-hard (19985ms)
+- PASS: scripts/test-hard-suite.mjs all-hard (19457ms)
 
 ## Checklist de Producao
 

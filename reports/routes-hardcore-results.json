@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-28T15:11:05.165Z",
-  "totalRoutes": 241,
+  "generatedAt": "2026-05-28T21:19:04.910Z",
+  "totalRoutes": 248,
   "directRuntimeNote": "Cobertura runtime profunda delegada aos scripts hardcore por modulo; este arquivo garante inventario e contrato de todas as rotas detectadas.",
   "results": [
     {
@@ -713,6 +713,54 @@
     },
     {
       "method": "GET",
+      "path": "/api/superadmin/tenants/:tenantId/plan",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/superadmin/tenants/:tenantId/plan",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/superadmin/tenants/:tenantId/features",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/superadmin/tenants/:tenantId/features",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
       "path": "/api/superadmin/domains",
       "status": "mapped_static",
       "expectedSecurity": "superadmin_only",
@@ -833,7 +881,43 @@
     },
     {
       "method": "GET",
+      "path": "/api/public/tenant-governance",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "rota_publica_ou_contextual",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
       "path": "/api/admin/me",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/plan",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/features",
       "status": "mapped_static",
       "expectedSecurity": "tenant_admin_only",
       "checks": [

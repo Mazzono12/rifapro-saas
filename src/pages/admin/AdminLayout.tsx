@@ -21,6 +21,7 @@ import {
   Plug,
   Rocket,
   Settings,
+  ShieldCheck,
   Sparkles,
   Sprout,
   Star,
@@ -133,7 +134,8 @@ function AdminLayoutContent() {
     { name: "Domínios", path: "/admin/dominios", icon: Globe2, group: "Controle" },
     { name: "Configurações", path: "/admin/config", icon: Settings, group: "Controle" },
     { name: "Aparência", path: "/admin/config/aparencia", icon: Palette, group: "Controle" },
-    { name: "Pagamentos PIX", path: "/admin/pagamentos", icon: CreditCard, group: "Controle" }
+    { name: "Pagamentos PIX", path: "/admin/pagamentos", icon: CreditCard, group: "Controle" },
+    { name: "Meu Plano", path: "/admin/meu-plano", icon: ShieldCheck, group: "Controle" }
   ], []);
 
   const activeItem = navItems.find(item => location.pathname === item.path || (item.path !== "/admin" && location.pathname.startsWith(item.path)));
