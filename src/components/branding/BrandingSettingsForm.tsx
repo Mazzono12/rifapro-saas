@@ -40,8 +40,8 @@ export function BrandingSettingsForm({
         <div className="flex flex-wrap gap-3">
           <LogoUploader endpoint={logoEndpoint} onUploaded={onChange} />
           <LogoUploader endpoint={faviconEndpoint} onUploaded={onChange} />
-          <button type="button" onClick={onSave} className="neon-button rounded-xl px-5 py-3">Salvar aparência</button>
-          <button type="button" onClick={onReset} className="rounded-xl border border-white/10 px-5 py-3 text-sm font-bold text-slate-200">Resetar padrão</button>
+          <button type="button" onClick={onSave} className="premium-button rounded-xl px-5 py-3">Salvar aparência</button>
+          <button type="button" onClick={onReset} className="premium-button-ghost min-h-12 rounded-xl px-5 py-3 text-sm font-bold">Resetar padrão</button>
         </div>
       </div>
       <BrandingPreview branding={value} />

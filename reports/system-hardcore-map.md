@@ -1,13 +1,13 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-28T11:35:41.341Z
+Gerado em: 2026-05-28T12:30:54.294Z
 
 ## Totais
 
 - Rotas backend: 222
 - Paginas frontend: 46
 - Componentes: 36
-- Arquivos src: 129
+- Arquivos src: 130
 - Migrations: 24
 - Tabelas mapeadas: 42
 - Policies mapeadas: 44

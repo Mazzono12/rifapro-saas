@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { getReadableTextColor, normalizeReadableColor } from "../../lib/contrast";
 
 export type PublicTenantBranding = {
   header_name: string;
@@ -56,11 +57,17 @@ function normalizeBranding(value: Partial<PublicTenantBranding> | null | undefin
 
 function applyBranding(branding: PublicTenantBranding) {
   const root = document.documentElement;
-  root.style.setProperty("--tenant-primary", branding.colors.primary);
-  root.style.setProperty("--tenant-secondary", branding.colors.secondary);
-  root.style.setProperty("--tenant-cta", branding.colors.cta);
-  root.style.setProperty("--theme-primary", branding.colors.primary);
-  root.style.setProperty("--theme-glow", `${branding.colors.primary}55`);
+  const primary = normalizeReadableColor(branding.colors.primary, fallbackBranding.colors.primary);
+  const secondary = normalizeReadableColor(branding.colors.secondary, fallbackBranding.colors.secondary);
+  const cta = normalizeReadableColor(branding.colors.cta, fallbackBranding.colors.cta);
+  root.style.setProperty("--tenant-primary", primary);
+  root.style.setProperty("--tenant-secondary", secondary);
+  root.style.setProperty("--tenant-cta", cta);
+  root.style.setProperty("--tenant-primary-text", getReadableTextColor(primary));
+  root.style.setProperty("--tenant-secondary-text", getReadableTextColor(secondary));
+  root.style.setProperty("--tenant-cta-text", getReadableTextColor(cta));
+  root.style.setProperty("--theme-primary", primary);
+  root.style.setProperty("--theme-glow", `${primary}55`);
   root.dataset.tenantTheme = branding.theme_mode;
   document.title = branding.header_name ? `${branding.header_name} | RifaPro` : "RifaPro";
   const existingFavicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]') || document.createElement("link");

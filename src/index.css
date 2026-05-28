@@ -2458,6 +2458,252 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   color: #f8fafc !important;
 }
 
+/* Global readability tokens: final theme layer for premium dark, admin, superadmin and checkout screens. */
+:root {
+  --text-primary: #f8fafc;
+  --text-secondary: #dbeafe;
+  --text-muted: #b6c2d6;
+  --text-inverted: #020617;
+  --text-danger: #fecdd3;
+  --text-success: #bbf7d0;
+  --text-warning: #fde68a;
+  --surface-primary: #050914;
+  --surface-secondary: rgba(15, 23, 42, 0.88);
+  --surface-elevated: rgba(15, 23, 42, 0.96);
+  --border-subtle: rgba(226, 232, 240, 0.18);
+  --input-bg: rgba(2, 6, 23, 0.72);
+  --input-text: #f8fafc;
+  --input-placeholder: #cbd5e1;
+  --input-disabled-bg: rgba(51, 65, 85, 0.62);
+  --input-disabled-text: #cbd5e1;
+}
+
+.text-primary { color: var(--text-primary) !important; }
+.text-secondary { color: var(--text-secondary) !important; }
+.text-muted { color: var(--text-muted) !important; }
+.text-inverted { color: var(--text-inverted) !important; }
+.text-danger { color: var(--text-danger) !important; }
+.text-success { color: var(--text-success) !important; }
+.text-warning { color: var(--text-warning) !important; }
+.surface-primary { background: var(--surface-primary) !important; color: var(--text-primary) !important; }
+.surface-secondary { background: var(--surface-secondary) !important; color: var(--text-primary) !important; }
+.surface-elevated { background: var(--surface-elevated) !important; color: var(--text-primary) !important; }
+.border-subtle { border-color: var(--border-subtle) !important; }
+.input-bg { background: var(--input-bg) !important; }
+.input-text { color: var(--input-text) !important; }
+.input-placeholder::placeholder { color: var(--input-placeholder) !important; opacity: 1 !important; }
+
+.public-shell,
+.admin-shell,
+.checkout-screen,
+.premium-page,
+.glass-card,
+.premium-card,
+.admin-card {
+  color: var(--text-primary);
+}
+
+.public-shell p,
+.public-shell li,
+.public-shell td,
+.checkout-screen p,
+.checkout-screen li,
+.checkout-screen td,
+.premium-page p,
+.premium-page li,
+.premium-page td {
+  color: inherit;
+}
+
+.public-shell .text-slate-400,
+.public-shell .text-slate-500,
+.public-shell .text-slate-600,
+.checkout-screen .text-slate-400,
+.checkout-screen .text-slate-500,
+.checkout-screen .text-slate-600,
+.premium-page .text-slate-400,
+.premium-page .text-slate-500,
+.premium-page .text-slate-600,
+.admin-shell .text-slate-400,
+.admin-shell .text-slate-500,
+.admin-shell .text-slate-600 {
+  color: var(--text-muted) !important;
+}
+
+.public-shell .text-black,
+.admin-shell .text-black,
+.checkout-screen .text-black,
+.premium-page .text-black {
+  color: var(--text-inverted) !important;
+}
+
+.public-shell label,
+.admin-shell label,
+.checkout-screen label,
+.premium-page label,
+.public-shell .premium-field > span,
+.admin-shell .premium-field > span,
+.checkout-screen .premium-field > span {
+  color: var(--text-secondary) !important;
+}
+
+.public-shell input,
+.public-shell select,
+.public-shell textarea,
+.checkout-screen input,
+.checkout-screen select,
+.checkout-screen textarea,
+.premium-page input,
+.premium-page select,
+.premium-page textarea,
+.admin-shell input,
+.admin-shell select,
+.admin-shell textarea,
+.admin-shell .admin-input {
+  min-height: 2.875rem !important;
+  border-color: var(--border-subtle) !important;
+  background: var(--input-bg) !important;
+  color: var(--input-text) !important;
+  caret-color: var(--tenant-cta, #34d399);
+}
+
+.public-shell input::placeholder,
+.public-shell textarea::placeholder,
+.checkout-screen input::placeholder,
+.checkout-screen textarea::placeholder,
+.premium-page input::placeholder,
+.premium-page textarea::placeholder,
+.admin-shell input::placeholder,
+.admin-shell textarea::placeholder,
+.admin-shell .admin-input::placeholder {
+  color: var(--input-placeholder) !important;
+  opacity: 1 !important;
+}
+
+.public-shell input:disabled,
+.public-shell select:disabled,
+.public-shell textarea:disabled,
+.checkout-screen input:disabled,
+.checkout-screen select:disabled,
+.checkout-screen textarea:disabled,
+.premium-page input:disabled,
+.premium-page select:disabled,
+.premium-page textarea:disabled,
+.admin-shell input:disabled,
+.admin-shell select:disabled,
+.admin-shell textarea:disabled,
+.admin-shell .admin-input:disabled {
+  background: var(--input-disabled-bg) !important;
+  color: var(--input-disabled-text) !important;
+  opacity: .9 !important;
+}
+
+.public-shell option,
+.checkout-screen option,
+.premium-page option,
+.admin-shell option {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+.premium-button,
+.neon-button,
+.premium-floating-cta,
+.admin-button-primary,
+.public-shell button[class*="bg-emerald"],
+.premium-page button[class*="bg-emerald"],
+.checkout-screen button[class*="bg-emerald"] {
+  background: linear-gradient(90deg, var(--tenant-cta, var(--premium-green)), var(--premium-lime)) !important;
+  color: var(--tenant-cta-text, #020617) !important;
+  min-height: 3rem;
+}
+
+.premium-button svg,
+.neon-button svg,
+.premium-floating-cta svg {
+  color: currentColor;
+}
+
+.premium-button-ghost,
+.premium-button-secondary,
+.admin-button-secondary,
+.public-shell button[class*="border-white"],
+.premium-page button[class*="border-white"],
+.checkout-screen button[class*="border-white"] {
+  border-color: var(--border-subtle) !important;
+  background: rgba(15, 23, 42, 0.72) !important;
+  color: var(--text-primary) !important;
+}
+
+.premium-button-danger,
+.admin-shell button[class*="text-red"],
+.admin-shell button[class*="text-rose"],
+.public-shell button[class*="text-red"],
+.public-shell button[class*="text-rose"],
+.premium-page button[class*="text-red"],
+.premium-page button[class*="text-rose"] {
+  border-color: rgba(248, 113, 113, 0.4) !important;
+  background: rgba(127, 29, 29, 0.72) !important;
+  color: var(--text-danger) !important;
+}
+
+.premium-table-wrap,
+.admin-shell table,
+.public-shell table,
+.checkout-screen table {
+  color: var(--text-primary);
+}
+
+.premium-table th,
+.admin-shell th,
+.public-shell th,
+.checkout-screen th {
+  color: var(--text-secondary) !important;
+}
+
+.premium-table td,
+.admin-shell td,
+.public-shell td,
+.checkout-screen td {
+  color: var(--text-primary) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+.premium-card,
+.glass-card,
+.admin-card,
+.public-shell .bg-white\/\[0\.02\],
+.public-shell .bg-white\/\[0\.025\],
+.public-shell .bg-white\/\[0\.03\],
+.public-shell .bg-white\/\[0\.04\],
+.public-shell .bg-white\/\[0\.045\],
+.public-shell .bg-white\/\[0\.055\],
+.public-shell .bg-white\/\[0\.06\],
+.premium-page .bg-white\/\[0\.02\],
+.premium-page .bg-white\/\[0\.025\],
+.premium-page .bg-white\/\[0\.03\],
+.premium-page .bg-white\/\[0\.04\],
+.premium-page .bg-white\/\[0\.045\],
+.premium-page .bg-white\/\[0\.055\],
+.premium-page .bg-white\/\[0\.06\] {
+  border-color: var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+}
+
+.recharts-text,
+.recharts-cartesian-axis-tick-value,
+.recharts-legend-item-text {
+  fill: var(--text-muted) !important;
+  color: var(--text-muted) !important;
+}
+
+.sonner-toast,
+[data-sonner-toast] {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-elevated) !important;
+  color: var(--text-primary) !important;
+}
+
 /* Skeleton Loading Animation */
 .skeleton {
   @apply relative overflow-hidden bg-white/[0.02] border border-white/[0.05] rounded-xl;

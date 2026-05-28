@@ -13,7 +13,7 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
           initial={{ opacity: 0, y: 18, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.45 }}
-          className="grid w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.045] shadow-[0_30px_120px_rgba(0,0,0,0.55)] backdrop-blur-2xl lg:grid-cols-[1fr_0.92fr]"
+          className="grid w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.045] text-white shadow-[0_30px_120px_rgba(0,0,0,0.55)] backdrop-blur-2xl lg:grid-cols-[1fr_0.92fr]"
         >
           <div className="relative hidden min-h-[640px] border-r border-white/10 p-10 lg:block">
             <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(34,211,238,0.14),transparent_42%),radial-gradient(circle_at_50%_55%,rgba(255,255,255,0.12),transparent_34%)]" />
@@ -23,13 +23,13 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">RifaPro SaaS</p>
+                  <p className="text-sm font-semibold text-white">RifaPro SaaS</p>
                   <p className="text-xs text-slate-400">Autenticacao multitenant</p>
                 </div>
               </div>
               <div>
                 <p className="mb-4 text-xs uppercase tracking-[0.28em] text-cyan-200">Enterprise console</p>
-                <h2 className="max-w-xl text-5xl font-semibold leading-tight tracking-tight">Controle rifas, PIX e tenants com isolamento profissional.</h2>
+                <h2 className="max-w-xl text-5xl font-semibold leading-tight tracking-tight text-white">Controle rifas, PIX e tenants com isolamento profissional.</h2>
                 <p className="mt-5 max-w-lg text-sm leading-6 text-slate-300">Sessao persistente, roles, JWT validado no backend e tenant resolvido sem confiar no frontend.</p>
               </div>
               <div className="grid grid-cols-3 gap-3 text-xs text-slate-300">
@@ -45,7 +45,7 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
           <div className="p-6 sm:p-10 lg:p-12">
             <div className="mb-9">
               <p className="mb-3 text-xs uppercase tracking-[0.24em] text-cyan-200">Acesso seguro</p>
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">{title}</h1>
               <p className="mt-3 text-sm leading-6 text-slate-400">{subtitle}</p>
             </div>
             {children}
