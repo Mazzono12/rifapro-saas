@@ -95,7 +95,7 @@ export function AdminWinners() {
                        <option value="video">Vídeo (MP4)</option>
                        <option value="youtube">YouTube</option>
                        <option value="vimeo">Vimeo</option>
-                       <option value="bunny">Bunny.net</option>
+                       <option value="bunny">MediaDelivery / Bunny.net</option>
                     </select>
                   </div>
                </div>

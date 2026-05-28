@@ -49,7 +49,21 @@ loadEnv();
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
-  const TEST_VIDEO_URL = "/uploads/teste-video-principal-img-4992.mp4";
+  const TEST_VIDEO_URL = "https://player.mediadelivery.net/play/670514/b27261d2-ffd9-4e39-aa23-d7c400424177";
+  const TEST_VIDEO_MEDIA_TYPE = "bunny" as const;
+  type MediaKind = "image" | "video" | "youtube" | "vimeo" | "bunny";
+  function isMediaDeliveryPlayerUrl(value: unknown) {
+    return typeof value === "string" && /(^https?:\/\/)?player\.mediadelivery\.net\/play\//i.test(value.trim());
+  }
+  function normalizeMediaTypeForUrl(mediaUrl: unknown, mediaType: unknown): MediaKind | unknown {
+    return isMediaDeliveryPlayerUrl(mediaUrl) ? TEST_VIDEO_MEDIA_TYPE : mediaType;
+  }
+  function normalizeMediaPayload<T extends Record<string, any>>(payload: T): T {
+    const next: Record<string, any> = { ...payload };
+    if ("mediaUrl" in next) next.mediaType = normalizeMediaTypeForUrl(next.mediaUrl, next.mediaType) || next.mediaType;
+    if ("checkoutMediaUrl" in next) next.checkoutMediaType = normalizeMediaTypeForUrl(next.checkoutMediaUrl, next.checkoutMediaType) || next.checkoutMediaType;
+    return next as T;
+  }
   const isProductionRuntime = process.env.NODE_ENV === "production" && !process.env.RIFAPRO_TEST_MODE;
   const testEndpointsEnabled = process.env.ENABLE_TEST_ENDPOINTS === "true" || !isProductionRuntime;
 
@@ -360,7 +374,7 @@ async function startServer() {
       title: "Como divulgar seu link",
       description: "Assista ao vídeo de instrução configurado pelo administrador.",
       mediaUrl: TEST_VIDEO_URL,
-      mediaType: "video",
+      mediaType: TEST_VIDEO_MEDIA_TYPE,
       videoConfig: {
         enabled: true,
         autoplay: false,
@@ -1209,11 +1223,11 @@ async function startServer() {
       soldTickets: 35000,
       image: "https://images.unsplash.com/photo-1698651817111-a8bbffc021ac?w=800&auto=format&fit=crop&q=60",
       mediaUrl: TEST_VIDEO_URL,
-      mediaType: "video",
+      mediaType: TEST_VIDEO_MEDIA_TYPE,
       mediaAspect: "wide",
       mediaFit: "cover",
       checkoutMediaUrl: TEST_VIDEO_URL,
-      checkoutMediaType: "video",
+      checkoutMediaType: TEST_VIDEO_MEDIA_TYPE,
       checkoutMediaAspect: "wide",
       checkoutMediaFit: "contain",
       heroContentPlacement: "below",
@@ -1251,11 +1265,11 @@ async function startServer() {
       soldTickets: 48000,
       image: "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=60",
       mediaUrl: TEST_VIDEO_URL,
-      mediaType: "video",
+      mediaType: TEST_VIDEO_MEDIA_TYPE,
       mediaAspect: "wide",
       mediaFit: "cover",
       checkoutMediaUrl: TEST_VIDEO_URL,
-      checkoutMediaType: "video",
+      checkoutMediaType: TEST_VIDEO_MEDIA_TYPE,
       checkoutMediaAspect: "wide",
       checkoutMediaFit: "contain",
       heroContentPlacement: "below",
@@ -1327,12 +1341,12 @@ async function startServer() {
   ];
 
   let stories = [
-    { id: "s1", tenant_id: legacyTenantId, title: "Entregando o Setup!", mediaUrl: TEST_VIDEO_URL, mediaType: "video", duration: 15, active: true },
-    { id: "s2", tenant_id: legacyTenantId, title: "Próximo Prêmio", mediaUrl: TEST_VIDEO_URL, mediaType: "video", duration: 15, active: true }
+    { id: "s1", tenant_id: legacyTenantId, title: "Entregando o Setup!", mediaUrl: TEST_VIDEO_URL, mediaType: TEST_VIDEO_MEDIA_TYPE, duration: 15, active: true },
+    { id: "s2", tenant_id: legacyTenantId, title: "Próximo Prêmio", mediaUrl: TEST_VIDEO_URL, mediaType: TEST_VIDEO_MEDIA_TYPE, duration: 15, active: true }
   ];
 
   let winners = [
-    { id: "w1", tenant_id: legacyTenantId, raffleName: "iPhone 15 Pro Max", winnerName: "João Silva", prizeDescription: "Levou o celular com 3 cotas", mediaUrl: TEST_VIDEO_URL, mediaType: "video", date: "2026-05-10T12:00:00Z" }
+    { id: "w1", tenant_id: legacyTenantId, raffleName: "iPhone 15 Pro Max", winnerName: "João Silva", prizeDescription: "Levou o celular com 3 cotas", mediaUrl: TEST_VIDEO_URL, mediaType: TEST_VIDEO_MEDIA_TYPE, date: "2026-05-10T12:00:00Z" }
   ];
 
   const fazendinhaSeed = [
@@ -1377,7 +1391,7 @@ async function startServer() {
     lootboxEnabled: true,
     lootboxConfig: createFazendinhaLootboxConfig(),
     mediaUrl: TEST_VIDEO_URL,
-    mediaType: "video" as "image" | "video" | "youtube" | "vimeo" | "bunny",
+    mediaType: TEST_VIDEO_MEDIA_TYPE as "image" | "video" | "youtube" | "vimeo" | "bunny",
     addonSuggestionTickets: 5
   };
   let fazendinhaGroups: FazendinhaGroup[] = fazendinhaSeed.map(([id, nomeBicho, numeros]) => ({
@@ -1401,7 +1415,7 @@ async function startServer() {
       name: "Dezena",
       description: "Escolha números de 00 a 99 e concorra pela dezena final do resultado oficial.",
       mediaUrl: TEST_VIDEO_URL,
-      mediaType: "video",
+      mediaType: TEST_VIDEO_MEDIA_TYPE,
       digits: 2,
       price: 2,
       prize: "R$ 100,00",
@@ -1418,7 +1432,7 @@ async function startServer() {
       name: "Centena",
       description: "Escolha números de 000 a 999 e concorra pela centena final do resultado oficial.",
       mediaUrl: TEST_VIDEO_URL,
-      mediaType: "video",
+      mediaType: TEST_VIDEO_MEDIA_TYPE,
       digits: 3,
       price: 3,
       prize: "R$ 500,00",
@@ -1435,7 +1449,7 @@ async function startServer() {
       name: "Milhar",
       description: "Escolha números de 0000 a 9999 e concorra pela milhar completa.",
       mediaUrl: TEST_VIDEO_URL,
-      mediaType: "video",
+      mediaType: TEST_VIDEO_MEDIA_TYPE,
       digits: 4,
       price: 5,
       prize: "R$ 5.000,00",
@@ -6157,7 +6171,7 @@ async function startServer() {
   app.put("/api/admin/fazendinha/config", (req, res) => {
     fazendinhaConfig = {
       ...fazendinhaConfig,
-      ...req.body,
+      ...normalizeMediaPayload(req.body),
       lootboxConfig: createFazendinhaLootboxConfig(req.body.lootboxConfig || fazendinhaConfig.lootboxConfig)
     };
     fazendinhaGroups = fazendinhaGroups.map(group => adminCanAccessTenant(req, group.tenant_id) ? ({
@@ -6205,7 +6219,7 @@ async function startServer() {
     }
     numberModeConfigs[mode] = {
       ...numberModeConfigs[mode],
-      ...req.body,
+      ...normalizeMediaPayload(req.body),
       id: mode,
       tenant_id: numberModeConfigs[mode].tenant_id,
       digits: numberModeConfigs[mode].digits,
@@ -7957,14 +7971,14 @@ async function startServer() {
 
   // Admin: Stories CRUD
   app.post("/api/admin/stories", (req, res) => {
-    const newStory = { id: createPublicId("S_"), ...req.body, tenant_id: resolveRequestTenantId(req) };
+    const newStory = { id: createPublicId("S_"), ...normalizeMediaPayload(req.body), tenant_id: resolveRequestTenantId(req) };
     stories.push(newStory);
     res.json(newStory);
   });
   app.put("/api/admin/stories/:id", (req, res) => {
     const index = stories.findIndex(s => s.id === req.params.id && adminCanAccessTenant(req, s.tenant_id));
     if (index !== -1) {
-      stories[index] = { ...stories[index], ...req.body, tenant_id: stories[index].tenant_id };
+      stories[index] = { ...stories[index], ...normalizeMediaPayload(req.body), tenant_id: stories[index].tenant_id };
       res.json(stories[index]);
     } else {
       res.status(404).json({ error: "Story not found" });
@@ -7992,7 +8006,7 @@ async function startServer() {
       id: createPublicId("R_"),
       soldNumbers: new Set<number>(),
       soldTickets: 0,
-      ...req.body,
+      ...normalizeMediaPayload(req.body),
       tenant_id: tenantId,
       pixConfig: { ...getDefaultRafflePixConfig(), ...(req.body.pixConfig || {}) },
       videoConfig: { ...settings.mainVideoPlayer, ...(req.body.videoConfig || {}) },
@@ -8021,7 +8035,7 @@ async function startServer() {
       const currentSoldNumbers = raffles[index].soldNumbers;
       raffles[index] = {
         ...raffles[index],
-        ...req.body,
+        ...normalizeMediaPayload(req.body),
         tenant_id: raffles[index].tenant_id,
         pixConfig: { ...getDefaultRafflePixConfig(), ...(raffles[index].pixConfig || {}), ...(req.body.pixConfig || {}) },
         videoConfig: { ...settings.mainVideoPlayer, ...(raffles[index].videoConfig || {}), ...(req.body.videoConfig || {}) },
@@ -8054,7 +8068,7 @@ async function startServer() {
 
   // Admin: Winners CRUD
   app.post("/api/admin/winners", (req, res) => {
-    const newWinner = { id: createPublicId("W_"), ...req.body, tenant_id: resolveRequestTenantId(req) };
+    const newWinner = { id: createPublicId("W_"), ...normalizeMediaPayload(req.body), tenant_id: resolveRequestTenantId(req) };
     winners.push(newWinner);
     res.json(newWinner);
   });

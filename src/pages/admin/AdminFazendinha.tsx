@@ -101,7 +101,7 @@ export function AdminFazendinha() {
                 <option value="video">MP4</option>
                 <option value="youtube">YouTube</option>
                 <option value="vimeo">Vimeo</option>
-                <option value="bunny">Bunny.net</option>
+                <option value="bunny">MediaDelivery / Bunny.net</option>
               </select>
             </label>
             <Field label="Sugestão de cotas adicionais" type="number" value={String(state.config.addonSuggestionTickets || 5)} onChange={value => setState({ ...state, config: { ...state.config, addonSuggestionTickets: Number(value) } })} />

@@ -8,6 +8,8 @@ import { LootboxRulesEditor, normalizeLootboxConfig, RewardExperienceSelector } 
 import { defaultVideoConfig, mergeVideoConfig, VideoSettingsEditor } from "../../components/admin/VideoSettingsEditor";
 import { toast } from "sonner";
 
+const DEFAULT_MEDIADELIVERY_VIDEO_URL = "https://player.mediadelivery.net/play/670514/b27261d2-ffd9-4e39-aa23-d7c400424177";
+
 export function AdminRaffles() {
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -162,7 +164,7 @@ export function AdminRaffles() {
             <h1 className="text-3xl font-display font-bold text-white">Gerenciar Rifas</h1>
          </div>
          <button 
-           onClick={() => { setCurrentRaffle({ status: 'active', pixConfig: defaultPixConfig, n8nEnabled: false, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Plataforma de rifas premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
+           onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, n8nEnabled: false, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Plataforma de rifas premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
            className="bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/50 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
          >
            <Plus className="w-4 h-4" /> Nova Rifa
@@ -338,7 +340,7 @@ export function AdminRaffles() {
                        <option value="video">Vídeo (MP4)</option>
                        <option value="youtube">YouTube</option>
                        <option value="vimeo">Vimeo</option>
-                       <option value="bunny">Bunny.net</option>
+                       <option value="bunny">MediaDelivery / Bunny.net</option>
                     </select>
                   </div>
                   <div>

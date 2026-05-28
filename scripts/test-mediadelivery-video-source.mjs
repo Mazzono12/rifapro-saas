@@ -12,6 +12,7 @@ const media = read("src/utils/media.ts");
 const renderer = read("src/components/MediaRenderer.tsx");
 const messagePlayer = read("src/components/MessageVideoPlayer.tsx");
 const mediaPicker = read("src/components/admin/MediaPicker.tsx");
+const server = read("server.ts");
 const adminRaffles = read("src/pages/admin/AdminRaffles.tsx");
 const adminStories = read("src/pages/admin/AdminStories.tsx");
 const adminWinners = read("src/pages/admin/AdminWinners.tsx");
@@ -32,6 +33,11 @@ assert(renderer.includes("getBunnyEmbedUrl(mediaUrl"), "MediaRenderer deve rende
 assert(messagePlayer.includes("getBunnyEmbedUrl(mediaUrl"), "MessageVideoPlayer deve renderizar MediaDelivery/Bunny via iframe seguro");
 assert(mediaPicker.includes("player.mediadelivery.net/play"), "MediaPicker deve comunicar suporte ao player.mediadelivery.net/play");
 assert(types.includes("'bunny'"), "Tipos globais devem manter suporte a bunny/MediaDelivery");
+assert(server.includes(`const TEST_VIDEO_URL = "${sample}"`), "Seed backend deve usar o link MediaDelivery solicitado");
+assert(server.includes('const TEST_VIDEO_MEDIA_TYPE = "bunny"'), "Seed backend deve salvar MediaDelivery como tipo bunny");
+assert(server.includes("normalizeMediaPayload(req.body)"), "Backend deve normalizar MediaDelivery em salvamentos admin");
+assert(adminRaffles.includes(`DEFAULT_MEDIADELIVERY_VIDEO_URL = "${sample}"`), "Nova rifa deve vir com o link MediaDelivery nos campos de midia");
+assert(adminRaffles.includes('checkoutMediaType: "bunny"'), "Nova rifa deve preencher midia de checkout como MediaDelivery/Bunny");
 
 for (const [name, content] of [
   ["AdminRaffles", adminRaffles],
