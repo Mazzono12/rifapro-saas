@@ -883,6 +883,33 @@ async function startServer() {
     blocked?: boolean;
     blockedReason?: string;
   };
+  type CrmContactStatus = "lead" | "comprador" | "vip" | "inativo" | "bloqueado";
+  type CrmPipelineStage = "novo lead" | "interessado" | "comprou" | "recorrente" | "vip" | "inativo" | "perdido";
+  type CrmContactRecord = {
+    id: string;
+    tenant_id: string;
+    customer_id?: string;
+    nome: string;
+    telefone: string;
+    email?: string;
+    cpf_mascarado: string;
+    cidade?: string;
+    estado?: string;
+    origem: string;
+    tags: string[];
+    score: number;
+    status: CrmContactStatus;
+    pipeline_stage: CrmPipelineStage;
+    last_purchase_at?: string;
+    total_spent: number;
+    total_orders: number;
+    notes: string;
+    created_at: string;
+    updated_at: string;
+  };
+  type CrmContactOverride = Partial<Pick<CrmContactRecord, "origem" | "tags" | "score" | "status" | "pipeline_stage" | "notes" | "email">> & {
+    updated_at?: string;
+  };
   type PixGatewayId = "mercadopago" | "pagbank" | "asaas" | "infinitypay" | "pay2m" | "cora" | "primepag" | "paggue" | "cashpay" | "fakeprocessor" | "sandbox" | "mock";
   type RafflePixConfig = {
     inheritGlobal: boolean;
@@ -1283,6 +1310,8 @@ async function startServer() {
   let affiliates: Record<string, AffiliateRecord> = {};
   let customersByPhone: Record<string, CustomerRecord> = {};
   let customersByCpf: Record<string, CustomerRecord> = {};
+  let crmContacts: CrmContactRecord[] = [];
+  let crmContactOverrides: Record<string, CrmContactOverride> = {};
   let customerMessages: CustomerMessage[] = [];
   let affiliateWithdrawals: AffiliateWithdrawal[] = [];
   let passwordResetCodes: PasswordResetCode[] = [];
@@ -3451,6 +3480,12 @@ async function startServer() {
     res.json(Object.values(customersByPhone).map(customer => ({ ...buildAdminCustomerProfile(customer), tenant: findTenantName(customer.tenant_id) })));
   });
 
+  app.get("/api/superadmin/crm", (req, res) => {
+    const contacts = listCrmContacts(req).map(contact => ({ ...contact, tenant: findTenantName(contact.tenant_id) }));
+    recordSuperadminAudit(req, "GLOBAL_CRM_VIEW", { resource_type: "crm_contact" });
+    res.json({ contacts, pipeline: buildCrmPipeline(contacts), segments: buildCrmSegments(contacts) });
+  });
+
   app.put("/api/superadmin/customers/:id", (req, res) => {
     const customer = Object.values(customersByPhone).find(item => item.id === req.params.id);
     if (!customer) return res.status(404).json({ error: "Cliente nao encontrado" });
@@ -3783,6 +3818,7 @@ async function startServer() {
 
   app.use("/api/admin", rateLimiter, requireTenantAdmin);
   const adminFeatureRoutes: Array<{ pattern: RegExp; feature: TenantFeatureFlag }> = [
+    { pattern: /^\/crm/, feature: "crm" },
     { pattern: /^\/customers/, feature: "crm" },
     { pattern: /^\/messages/, feature: "whatsapp_automation" },
     { pattern: /^\/reports/, feature: "reports_pdf" },
@@ -4360,6 +4396,7 @@ async function startServer() {
       existing.longitude = existing.longitude || Number(payload.geoLocation?.longitude || payload.longitude) || undefined;
       existing.browserId = existing.browserId || browserId;
       if (accessPassword && (!existing.accessPassword || trustedBrowser)) existing.accessPassword = accessPassword;
+      updateCrmAutomationForCustomer(existing);
       return existing;
     }
 
@@ -4393,6 +4430,7 @@ async function startServer() {
     customersByPhone[tenantCustomerKey(tenantId, phone)] = customer;
     customersByCpf[tenantCustomerKey(tenantId, cpf)] = customer;
     ensureAffiliateForCustomer(customer);
+    updateCrmAutomationForCustomer(customer);
 
     const referrer = refCode ? affiliates[tenantCustomerKey(tenantId, refCode)] : undefined;
     if (referrer && referrer.customerId !== customer.id) {
@@ -5537,6 +5575,144 @@ async function startServer() {
     res.json(customers);
   });
 
+  app.get("/api/admin/crm", (req, res) => {
+    const contacts = listCrmContacts(req);
+    const segments = buildCrmSegments(contacts);
+    res.json({
+      contacts,
+      pipeline: buildCrmPipeline(contacts),
+      segments,
+      metrics: {
+        total: contacts.length,
+        leads: contacts.filter(contact => contact.status === "lead").length,
+        compradores: contacts.filter(contact => contact.status === "comprador").length,
+        vips: contacts.filter(contact => contact.status === "vip").length,
+        inativos: contacts.filter(contact => contact.status === "inativo").length,
+        receita: Number(contacts.reduce((sum, contact) => sum + Number(contact.total_spent || 0), 0).toFixed(2))
+      }
+    });
+  });
+
+  app.get("/api/admin/crm/contacts", (req, res) => {
+    const query = String(req.query.q || "").toLowerCase().trim();
+    const status = String(req.query.status || "");
+    const tag = String(req.query.tag || "");
+    const segment = String(req.query.segment || "");
+    const contacts = listCrmContacts(req).filter(contact => {
+      const text = `${contact.nome} ${contact.telefone} ${contact.email || ""} ${contact.cpf_mascarado} ${contact.cidade || ""} ${contact.estado || ""} ${contact.origem} ${contact.tags.join(" ")}`.toLowerCase();
+      if (query && !text.includes(query) && !contact.telefone.replace(/\D/g, "").includes(query.replace(/\D/g, ""))) return false;
+      if (status && contact.status !== status) return false;
+      if (tag && !contact.tags.includes(tag)) return false;
+      if (segment === "inactive" && contact.status !== "inativo") return false;
+      if (segment === "recurring" && contact.total_orders < 2) return false;
+      if (segment === "high-ticket" && contact.total_spent < 500) return false;
+      if (segment === "vip" && contact.status !== "vip") return false;
+      return true;
+    });
+    res.json(contacts.sort((a, b) => Number(b.score || 0) - Number(a.score || 0)));
+  });
+
+  app.post("/api/admin/crm/contacts", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const nome = String(req.body.nome || req.body.name || "").trim();
+    const telefone = normalizePhone(req.body.telefone || req.body.phone || "");
+    if (nome.length < 2 || telefone.length < 10) return res.status(400).json({ error: "Nome e telefone validos sao obrigatorios" });
+    const now = new Date().toISOString();
+    const contact: CrmContactRecord = {
+      id: createPublicId("CRM_"),
+      tenant_id: tenantId,
+      customer_id: req.body.customer_id ? String(req.body.customer_id) : undefined,
+      nome,
+      telefone,
+      email: String(req.body.email || ""),
+      cpf_mascarado: maskCpfForCrm(String(req.body.cpf || "")),
+      cidade: String(req.body.cidade || req.body.city || ""),
+      estado: String(req.body.estado || req.body.state || ""),
+      origem: String(req.body.origem || req.body.source || "manual"),
+      tags: Array.isArray(req.body.tags) ? req.body.tags.map(String) : [],
+      score: Number(req.body.score || 0),
+      status: ["lead", "comprador", "vip", "inativo", "bloqueado"].includes(String(req.body.status)) ? req.body.status : "lead",
+      pipeline_stage: ["novo lead", "interessado", "comprou", "recorrente", "vip", "inativo", "perdido"].includes(String(req.body.pipeline_stage)) ? req.body.pipeline_stage : "novo lead",
+      last_purchase_at: "",
+      total_spent: 0,
+      total_orders: 0,
+      notes: String(req.body.notes || ""),
+      created_at: now,
+      updated_at: now
+    };
+    crmContacts.unshift(contact);
+    recordAuditLedger(req, { tenant_id: tenantId, action: "CRM_CONTACT_CREATED", resource_type: "crm_contact", resource_id: contact.id, before_data: null, after_data: buildCrmContact(contact), reason: String(req.body.reason || "Criacao de contato CRM") });
+    res.status(201).json(buildCrmContact(contact));
+  });
+
+  app.get("/api/admin/crm/contacts/:id", (req, res) => {
+    const contact = listCrmContacts(req).find(item => item.id === req.params.id);
+    if (!contact) return res.status(404).json({ error: "Contato CRM nao encontrado" });
+    res.json({ contact, history: buildCrmContactHistory(contact, req) });
+  });
+
+  app.put("/api/admin/crm/contacts/:id", (req, res) => {
+    const current = listCrmContacts(req).find(item => item.id === req.params.id);
+    if (!current) return res.status(404).json({ error: "Contato CRM nao encontrado" });
+    const before = deepClone(current);
+    const reason = String(req.body.reason || "Atualizacao de contato CRM");
+    if (current.customer_id) {
+      crmContactOverrides[current.id] = {
+        ...(crmContactOverrides[current.id] || {}),
+        email: req.body.email !== undefined ? String(req.body.email) : crmContactOverrides[current.id]?.email,
+        origem: req.body.origem !== undefined ? String(req.body.origem) : crmContactOverrides[current.id]?.origem,
+        tags: Array.isArray(req.body.tags) ? req.body.tags.map(String) : crmContactOverrides[current.id]?.tags,
+        score: req.body.score !== undefined ? Number(req.body.score) : crmContactOverrides[current.id]?.score,
+        status: req.body.status || crmContactOverrides[current.id]?.status,
+        pipeline_stage: req.body.pipeline_stage || crmContactOverrides[current.id]?.pipeline_stage,
+        notes: req.body.notes !== undefined ? String(req.body.notes) : crmContactOverrides[current.id]?.notes,
+        updated_at: new Date().toISOString()
+      };
+      const after = listCrmContacts(req).find(item => item.id === current.id)!;
+      recordAuditLedger(req, { tenant_id: current.tenant_id, action: "CRM_CONTACT_UPDATED", resource_type: "crm_contact", resource_id: current.id, before_data: before, after_data: after, reason });
+      return res.json(after);
+    }
+    const index = crmContacts.findIndex(item => item.id === current.id && adminCanAccessTenant(req, item.tenant_id));
+    crmContacts[index] = { ...crmContacts[index], ...req.body, id: crmContacts[index].id, tenant_id: crmContacts[index].tenant_id, updated_at: new Date().toISOString() };
+    const after = buildCrmContact(crmContacts[index]);
+    recordAuditLedger(req, { tenant_id: current.tenant_id, action: "CRM_CONTACT_UPDATED", resource_type: "crm_contact", resource_id: current.id, before_data: before, after_data: after, reason });
+    res.json(after);
+  });
+
+  app.post("/api/admin/crm/contacts/:id/notes", (req, res) => {
+    const current = listCrmContacts(req).find(item => item.id === req.params.id);
+    if (!current) return res.status(404).json({ error: "Contato CRM nao encontrado" });
+    const note = String(req.body.note || req.body.notes || "").trim();
+    if (!note) return res.status(400).json({ error: "Nota obrigatoria" });
+    const notes = [current.notes, note].filter(Boolean).join("\n---\n");
+    req.body.notes = notes;
+    req.body.reason = req.body.reason || "Nota interna CRM";
+    const before = deepClone(current);
+    crmContactOverrides[current.id] = { ...(crmContactOverrides[current.id] || {}), notes, updated_at: new Date().toISOString() };
+    const after = listCrmContacts(req).find(item => item.id === current.id)!;
+    recordAuditLedger(req, { tenant_id: current.tenant_id, action: "CRM_CONTACT_NOTE_ADDED", resource_type: "crm_contact", resource_id: current.id, before_data: before, after_data: after, reason: String(req.body.reason) });
+    res.json(after);
+  });
+
+  app.get("/api/admin/crm/pipeline", (req, res) => {
+    res.json(buildCrmPipeline(listCrmContacts(req)));
+  });
+
+  app.get("/api/admin/crm/segments", (req, res) => {
+    res.json(buildCrmSegments(listCrmContacts(req)));
+  });
+
+  app.get("/api/admin/crm/export.csv", (req, res) => {
+    const contacts = listCrmContacts(req);
+    const rows = [
+      ["nome", "telefone", "email", "cpf_mascarado", "cidade", "estado", "origem", "tags", "score", "status", "pipeline", "last_purchase_at", "total_spent", "total_orders"],
+      ...contacts.map(contact => [contact.nome, contact.telefone, contact.email || "", contact.cpf_mascarado, contact.cidade || "", contact.estado || "", contact.origem, contact.tags.join("|"), String(contact.score), contact.status, contact.pipeline_stage, contact.last_purchase_at || "", String(contact.total_spent), String(contact.total_orders)])
+    ];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=crm-contatos.csv");
+    res.send(rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n"));
+  });
+
   app.get("/api/admin/messages", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     res.json(scoped(customerMessages, req).map(message => ({
@@ -5577,6 +5753,160 @@ async function startServer() {
     customerMessages.unshift(message);
     res.json(message);
   });
+
+  function maskCpfForCrm(cpf: string) {
+    const digits = normalizeCpf(cpf);
+    return digits.length === 11 ? `${digits.slice(0, 3)}.***.***-${digits.slice(-2)}` : "";
+  }
+
+  function getCustomerPaidActivity(customer: CustomerRecord) {
+    const traditional = purchases
+      .filter(purchase => purchase.tenant_id === customer.tenant_id && (purchase.customer?.id === customer.id || purchase.contact === customer.phone) && purchase.status === "paid")
+      .map(purchase => ({ id: purchase.purchaseId, type: "rifa", amount: Number(purchase.amount || 0), tickets: purchase.tickets, created_at: paidAtFromHistory(purchase.paymentHistory) || purchase.createdAt, status: purchase.status }));
+    const modalidade = numberModePurchases
+      .filter(purchase => purchase.tenant_id === customer.tenant_id && purchase.customer.id === customer.id && purchase.status === "paid")
+      .map(purchase => ({ id: purchase.id, type: `modalidade:${purchase.mode}`, amount: Number(purchase.amount || 0), tickets: purchase.numbers.length, created_at: purchase.createdAt, status: purchase.status }));
+    const fazendinha = fazendinhaCompras
+      .filter(purchase => purchase.tenant_id === customer.tenant_id && purchase.usuarioId === customer.id && purchase.statusPagamento === "paid")
+      .map(purchase => ({ id: purchase.id, type: "fazendinha", amount: Number(purchase.valorPago || 0), tickets: purchase.numeros.length, created_at: purchase.dataCompra, status: purchase.statusPagamento }));
+    return [...traditional, ...modalidade, ...fazendinha].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+
+  function inferCrmStatus(customer: CustomerRecord | undefined, totalSpent: number, totalOrders: number, lastPurchaseAt = ""): CrmContactStatus {
+    if (customer?.blocked) return "bloqueado";
+    if (totalSpent >= 1000 || totalOrders >= 5) return "vip";
+    if (totalOrders > 0) return "comprador";
+    if (lastPurchaseAt && Date.now() - new Date(lastPurchaseAt).getTime() > 90 * 24 * 60 * 60 * 1000) return "inativo";
+    return "lead";
+  }
+
+  function inferCrmPipelineStage(status: CrmContactStatus, totalOrders: number): CrmPipelineStage {
+    if (status === "bloqueado") return "perdido";
+    if (status === "vip") return "vip";
+    if (status === "inativo") return "inativo";
+    if (totalOrders >= 2) return "recorrente";
+    if (totalOrders === 1) return "comprou";
+    return "novo lead";
+  }
+
+  function buildCrmContactFromCustomer(customer: CustomerRecord): CrmContactRecord {
+    const purchasesActivity = getCustomerPaidActivity(customer);
+    const totalSpent = Number(purchasesActivity.reduce((sum, purchase) => sum + purchase.amount, 0).toFixed(2));
+    const totalOrders = purchasesActivity.length;
+    const lastPurchaseAt = purchasesActivity[0]?.created_at || "";
+    const id = `CRM_${customer.id}`;
+    const override = crmContactOverrides[id] || {};
+    const inferredStatus = inferCrmStatus(customer, totalSpent, totalOrders, lastPurchaseAt);
+    const status = override.status || inferredStatus;
+    const pipelineStage = override.pipeline_stage || inferCrmPipelineStage(status, totalOrders);
+    const tags = Array.from(new Set([
+      ...(override.tags || []),
+      ...(status === "vip" ? ["vip", "alto-ticket"] : []),
+      ...(totalOrders >= 2 ? ["recorrente"] : []),
+      ...(customer.referredBy ? ["afiliado"] : []),
+      ...(customer.blocked ? ["bloqueado"] : [])
+    ].filter(Boolean)));
+    const score = override.score ?? Math.min(100, totalOrders * 15 + Math.floor(totalSpent / 25) + (status === "vip" ? 25 : 0));
+    return {
+      id,
+      tenant_id: customer.tenant_id,
+      customer_id: customer.id,
+      nome: customer.name,
+      telefone: maskPhone(customer.phone),
+      email: override.email || "",
+      cpf_mascarado: maskCpfForCrm(customer.cpf),
+      cidade: customer.city,
+      estado: customer.state,
+      origem: override.origem || (customer.referredBy ? `afiliado:${customer.referredBy}` : "checkout"),
+      tags,
+      score,
+      status,
+      pipeline_stage: pipelineStage,
+      last_purchase_at: lastPurchaseAt,
+      total_spent: totalSpent,
+      total_orders: totalOrders,
+      notes: override.notes || "",
+      created_at: customer.createdAt,
+      updated_at: override.updated_at || customer.createdAt
+    };
+  }
+
+  function buildCrmContact(contact: CrmContactRecord) {
+    const override = crmContactOverrides[contact.id] || {};
+    return {
+      ...contact,
+      ...override,
+      telefone: maskPhone(contact.telefone),
+      cpf_mascarado: contact.cpf_mascarado || maskCpfForCrm("")
+    };
+  }
+
+  function listCrmContacts(req: express.Request) {
+    const tenantId = resolveRequestTenantId(req);
+    const derived = Object.values(customersByPhone)
+      .filter(customer => adminCanAccessTenant(req, customer.tenant_id))
+      .map(buildCrmContactFromCustomer);
+    const manual = scoped(crmContacts, req).map(buildCrmContact);
+    const contacts = [...derived, ...manual].filter(contact => adminCanAccessTenant(req, contact.tenant_id));
+    return normalizeAuthRole(getAuthSession(req)?.role) === "superadmin" ? contacts : contacts.filter(contact => contact.tenant_id === tenantId);
+  }
+
+  function buildCrmPipeline(contacts: CrmContactRecord[]) {
+    const stages: CrmPipelineStage[] = ["novo lead", "interessado", "comprou", "recorrente", "vip", "inativo", "perdido"];
+    return stages.map(stage => {
+      const stageContacts = contacts.filter(contact => contact.pipeline_stage === stage);
+      return {
+        stage,
+        total: stageContacts.length,
+        value: Number(stageContacts.reduce((sum, contact) => sum + Number(contact.total_spent || 0), 0).toFixed(2)),
+        contacts: stageContacts
+      };
+    });
+  }
+
+  function buildCrmSegments(contacts: CrmContactRecord[]) {
+    return {
+      inactive: contacts.filter(contact => contact.status === "inativo" || contact.pipeline_stage === "inativo"),
+      recurring: contacts.filter(contact => contact.total_orders >= 2 || contact.pipeline_stage === "recorrente"),
+      highTicket: contacts.filter(contact => contact.total_spent >= 500 || contact.tags.includes("alto-ticket")),
+      vip: contacts.filter(contact => contact.status === "vip"),
+      leads: contacts.filter(contact => contact.status === "lead"),
+      blocked: contacts.filter(contact => contact.status === "bloqueado")
+    };
+  }
+
+  function buildCrmContactHistory(contact: CrmContactRecord, req: express.Request) {
+    const customer = contact.customer_id ? Object.values(customersByPhone).find(item => item.id === contact.customer_id && adminCanAccessTenant(req, item.tenant_id)) : undefined;
+    if (!customer) {
+      return { purchases: [], tickets: [], whatsapp: [], affiliate: null, wallet: [], notes: contact.notes ? [{ body: contact.notes, created_at: contact.updated_at }] : [], audit: [] };
+    }
+    return {
+      purchases: getCustomerPaidActivity(customer),
+      tickets: [
+        ...purchases.filter(purchase => purchase.tenant_id === customer.tenant_id && purchase.customer?.id === customer.id).flatMap(purchase => purchase.numeros.map(number => ({ order_id: purchase.purchaseId, number, type: "rifa" }))),
+        ...numberModePurchases.filter(purchase => purchase.tenant_id === customer.tenant_id && purchase.customer.id === customer.id).flatMap(purchase => purchase.numbers.map(number => ({ order_id: purchase.id, number, type: purchase.mode }))),
+        ...fazendinhaCompras.filter(purchase => purchase.tenant_id === customer.tenant_id && purchase.usuarioId === customer.id).flatMap(purchase => purchase.numeros.map(number => ({ order_id: purchase.id, number, type: "fazendinha" })))
+      ],
+      whatsapp: whatsappMessageQueue.filter(message => message.tenant_id === customer.tenant_id && message.customer_id === customer.id).map(message => ({ ...message, phone: maskPhone(message.phone) })),
+      affiliate: ensureAffiliateForCustomer(customer),
+      wallet: walletLedger.filter(item => item.tenant_id === customer.tenant_id && item.customer_id === customer.id),
+      notes: contact.notes ? [{ body: contact.notes, created_at: contact.updated_at }] : [],
+      audit: auditEventLedger.filter(event => event.tenant_id === customer.tenant_id && event.resource_id === customer.id)
+    };
+  }
+
+  function updateCrmAutomationForCustomer(customer: CustomerRecord) {
+    const contact = buildCrmContactFromCustomer(customer);
+    crmContactOverrides[contact.id] = {
+      ...(crmContactOverrides[contact.id] || {}),
+      status: contact.status,
+      pipeline_stage: contact.pipeline_stage,
+      tags: contact.tags,
+      score: contact.score,
+      updated_at: new Date().toISOString()
+    };
+    return contact;
+  }
 
   function recalculateCustomerPaidTickets(customer: CustomerRecord) {
     const traditionalTickets = purchases
@@ -6657,6 +6987,7 @@ async function startServer() {
     if (paid) {
       customer.totalTickets += numeros.length;
       ensureAffiliateForCustomer(customer);
+      updateCrmAutomationForCustomer(customer);
     }
     selectedGroups.forEach(group => {
       group.status = paid ? "sold" : "reserved";
@@ -6682,6 +7013,7 @@ async function startServer() {
       });
       purchase.customer.totalTickets += purchase.numeros.length;
       ensureAffiliateForCustomer(purchase.customer);
+      updateCrmAutomationForCustomer(purchase.customer);
       purchase.linkedPurchases?.forEach(confirmPurchase);
       purchase.earnedLootboxes = fazendinhaConfig.lootboxEnabled
         ? processFazendinhaLootboxDrops(purchase.customer.phone, groups.map(group => group.id), purchase.id, purchase.tenant_id)
@@ -7314,6 +7646,7 @@ async function startServer() {
     if (purchase.customer) {
       purchase.customer.totalTickets += purchase.tickets;
       const ownAffiliate = ensureAffiliateForCustomer(purchase.customer);
+      updateCrmAutomationForCustomer(purchase.customer);
       const prizeBalance = premiosWon.reduce((sum, prize) => sum + prize.valorPremio, 0);
       if (prizeBalance > 0) {
         ownAffiliate.prizeBalance += prizeBalance;
@@ -9088,6 +9421,8 @@ async function startServer() {
       affiliates,
       customersByPhone,
       customersByCpf,
+      crmContacts,
+      crmContactOverrides,
       customerMessages,
       affiliateWithdrawals,
       passwordResetCodes,
@@ -9152,6 +9487,8 @@ async function startServer() {
       case "affiliates": affiliates = value || {}; break;
       case "customersByPhone": customersByPhone = value || {}; break;
       case "customersByCpf": customersByCpf = value || {}; break;
+      case "crmContacts": crmContacts = Array.isArray(value) ? value : []; break;
+      case "crmContactOverrides": crmContactOverrides = value || {}; break;
       case "customerMessages": customerMessages = Array.isArray(value) ? value : []; break;
       case "affiliateWithdrawals": affiliateWithdrawals = Array.isArray(value) ? value : []; break;
       case "passwordResetCodes": passwordResetCodes = Array.isArray(value) ? value : []; break;

@@ -112,6 +112,7 @@ const AdminGamification = lazy(() => import("./pages/admin/AdminGamification").t
 const AdminLiveDraw = lazy(() => import("./pages/admin/AdminLiveDraw").then(module => ({ default: module.AdminLiveDraw })));
 const AdminMessages = lazy(() => import("./pages/admin/AdminMessages").then(module => ({ default: module.AdminMessages })));
 const AdminUsers = lazy(() => import("./pages/admin/AdminCRM").then(module => ({ default: module.AdminUsers })));
+const AdminCRM = lazy(() => import("./pages/admin/AdminCRM").then(module => ({ default: module.AdminCRM })));
 const AdminReports = lazy(() => import("./pages/admin/AdminReports").then(module => ({ default: module.AdminReports })));
 const AdminOperations = lazy(() => import("./pages/admin/AdminOperations").then(module => ({ default: module.AdminOperations })));
 const AdminIntegrations = lazy(() => import("./pages/admin/AdminIntegrations").then(module => ({ default: module.AdminIntegrations })));
@@ -277,7 +278,10 @@ export default function App() {
             
               <Route path="/admin" element={<ProtectedRoute roles={["superadmin", "admin"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={<AdminDashboard />} />
-                <Route path="crm" element={<Navigate to="/admin/usuarios" replace />} />
+                <Route path="crm" element={<AdminCRM />} />
+                <Route path="crm/:contactId" element={<AdminCRM />} />
+                <Route path="crm/pipeline" element={<AdminCRM />} />
+                <Route path="crm/segmentos" element={<AdminCRM />} />
                 <Route path="usuarios" element={<AdminUsers />} />
                 <Route path="rifas" element={<AdminRaffles />} />
                 <Route path="stories" element={<AdminStories />} />

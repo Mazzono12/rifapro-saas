@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-28T21:19:04.910Z",
-  "totalRoutes": 248,
+  "generatedAt": "2026-05-28T21:33:32.463Z",
+  "totalRoutes": 258,
   "directRuntimeNote": "Cobertura runtime profunda delegada aos scripts hardcore por modulo; este arquivo garante inventario e contrato de todas as rotas detectadas.",
   "results": [
     {
@@ -486,6 +486,18 @@
     {
       "method": "GET",
       "path": "/api/superadmin/customers",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/superadmin/crm",
       "status": "mapped_static",
       "expectedSecurity": "superadmin_only",
       "checks": [
@@ -1374,6 +1386,114 @@
     {
       "method": "GET",
       "path": "/api/admin/customers",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/crm",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/crm/contacts",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/crm/contacts",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/crm/contacts/:id",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/crm/contacts/:id",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/crm/contacts/:id/notes",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/crm/pipeline",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/crm/segments",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/crm/export.csv",
       "status": "mapped_static",
       "expectedSecurity": "tenant_admin_only",
       "checks": [

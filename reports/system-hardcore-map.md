@@ -1,15 +1,15 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-28T21:19:04.908Z
+Gerado em: 2026-05-28T21:33:32.460Z
 
 ## Totais
 
-- Rotas backend: 248
-- Paginas frontend: 53
+- Rotas backend: 258
+- Paginas frontend: 56
 - Componentes: 36
 - Arquivos src: 134
-- Migrations: 26
-- Tabelas mapeadas: 49
+- Migrations: 27
+- Tabelas mapeadas: 51
 - Policies mapeadas: 44
 - Providers/arquivos de integracao: 10
 
@@ -56,6 +56,7 @@ Gerado em: 2026-05-28T21:19:04.908Z
 - PUT /api/superadmin/clientes/:id
 - DELETE /api/superadmin/clientes/:id
 - GET /api/superadmin/customers
+- GET /api/superadmin/crm
 - PUT /api/superadmin/customers/:id
 - GET /api/superadmin/integrations
 - GET /api/superadmin/integration-logs
@@ -130,6 +131,15 @@ Gerado em: 2026-05-28T21:19:04.908Z
 - POST /api/support/tickets
 - POST /api/support/tickets/:id/messages
 - GET /api/admin/customers
+- GET /api/admin/crm
+- GET /api/admin/crm/contacts
+- POST /api/admin/crm/contacts
+- GET /api/admin/crm/contacts/:id
+- PUT /api/admin/crm/contacts/:id
+- POST /api/admin/crm/contacts/:id/notes
+- GET /api/admin/crm/pipeline
+- GET /api/admin/crm/segments
+- GET /api/admin/crm/export.csv
 - GET /api/admin/messages
 - POST /api/admin/messages
 - GET /api/admin/customers/search
@@ -287,6 +297,9 @@ Gerado em: 2026-05-28T21:19:04.908Z
 - /:mode
 - /admin
 - crm
+- crm/:contactId
+- crm/pipeline
+- crm/segmentos
 - usuarios
 - rifas
 - stories
@@ -324,6 +337,8 @@ Gerado em: 2026-05-28T21:19:04.908Z
 
 - audit_event_ledger
 - clientes
+- crm_contact_notes
+- crm_contacts
 - customer_consents
 - data_privacy_requests
 - fazendinha_compras
@@ -400,6 +415,7 @@ Gerado em: 2026-05-28T21:19:04.908Z
 - supabase/migrations/23_tenant_branding_settings.sql
 - supabase/migrations/24_compliance_audit_ticket_ledger.sql
 - supabase/migrations/25_saas_governance_plans_features.sql
+- supabase/migrations/26_tenant_native_crm.sql
 
 ## Middlewares, Workers e Webhooks
 
@@ -413,14 +429,14 @@ Gerado em: 2026-05-28T21:19:04.908Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 744 ocorrencias no backend
+- tenant_id: 781 ocorrencias no backend
 - user_id: 16 ocorrencias no backend
-- order_id: 6 ocorrencias no backend
-- purchaseId: 157 ocorrencias no backend
+- order_id: 9 ocorrencias no backend
+- purchaseId: 159 ocorrencias no backend
 - raffleId: 155 ocorrencias no backend
-- affiliate: 309 ocorrencias no backend
+- affiliate: 312 ocorrencias no backend
 - gateway: 407 ocorrencias no backend
-- wallet: 42 ocorrencias no backend
+- wallet: 45 ocorrencias no backend
 - saldo: 2 ocorrencias no backend
 - webhook: 209 ocorrencias no backend
 - idempotencyKey: 12 ocorrencias no backend

@@ -1,206 +1,353 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Activity, BadgeDollarSign, Phone, Search, Star, Tag, Ticket, UserRound } from "lucide-react";
+import { Download, Filter, LayoutDashboard, MessageSquare, Phone, Search, Star, Tag, Ticket, UserPlus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { AdminDataTable, MetricCard } from "../../components/admin/AdminPremium";
 
-type Customer = {
+type CrmContact = {
   id: string;
-  name: string;
-  phone: string;
-  cpf: string;
-  city?: string;
-  state?: string;
-  totalTickets?: number;
-  affiliateRefCode?: string;
-  createdAt?: string;
-  blocked?: boolean;
-  blockedReason?: string;
+  tenant_id: string;
+  customer_id?: string;
+  nome: string;
+  telefone: string;
+  email?: string;
+  cpf_mascarado: string;
+  cidade?: string;
+  estado?: string;
+  origem: string;
+  tags: string[];
+  score: number;
+  status: "lead" | "comprador" | "vip" | "inativo" | "bloqueado";
+  pipeline_stage: "novo lead" | "interessado" | "comprou" | "recorrente" | "vip" | "inativo" | "perdido";
+  last_purchase_at?: string;
+  total_spent: number;
+  total_orders: number;
+  notes: string;
+  updated_at: string;
 };
 
-type Purchase = {
-  purchaseId: string;
-  raffleId: string;
-  amount: number;
-  tickets: number;
-  status: string;
-  createdAt: string;
-  customer?: Customer;
+type CrmPayload = {
+  contacts: CrmContact[];
+  pipeline: Array<{ stage: string; total: number; value: number; contacts: CrmContact[] }>;
+  segments: Record<string, CrmContact[]>;
+  metrics: { total: number; leads: number; compradores: number; vips: number; inativos: number; receita: number };
 };
 
-const statusFromCustomer = (customer: Customer, purchases: Purchase[]) => {
-  const paid = purchases.filter(item => item.customer?.id === customer.id && item.status === "paid");
-  if (paid.some(item => item.amount >= 500)) return "VIP";
-  if (paid.length >= 3) return "comprador ativo";
-  if (paid.length === 1) return "novo comprador";
-  if ((customer.totalTickets || 0) > 0) return "lead quente";
-  return "lead";
+const emptyPayload: CrmPayload = { contacts: [], pipeline: [], segments: {}, metrics: { total: 0, leads: 0, compradores: 0, vips: 0, inativos: 0, receita: 0 } };
+
+const segmentLabels: Record<string, string> = {
+  inactive: "Inativos",
+  recurring: "Recorrentes",
+  highTicket: "Alto ticket",
+  vip: "VIP",
+  leads: "Leads",
+  blocked: "Bloqueados"
 };
 
-export function AdminUsers() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
+export function AdminCRM() {
+  const [data, setData] = useState<CrmPayload>(emptyPayload);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Customer | null>(null);
+  const [status, setStatus] = useState("");
+  const [tag, setTag] = useState("");
+  const [selected, setSelected] = useState<CrmContact | null>(null);
+  const [history, setHistory] = useState<any>(null);
+  const [note, setNote] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [leadForm, setLeadForm] = useState({ nome: "", telefone: "", origem: "manual", tags: "" });
 
   useEffect(() => {
-    loadData();
+    void loadCrm();
   }, []);
 
-  const loadData = () => {
-    fetch("/api/admin/customers").then(res => res.json()).then(setCustomers).catch(() => setCustomers([]));
-    fetch("/api/admin/purchases").then(res => res.json()).then(setPurchases).catch(() => setPurchases([]));
+  const loadCrm = async () => {
+    const response = await fetch("/api/admin/crm");
+    const payload = response.ok ? await response.json() : emptyPayload;
+    setData(payload);
+    if (selected) void openContact(selected.id, payload.contacts);
   };
 
-  const toggleBlockCustomer = async (customer: Customer) => {
-    const reason = customer.blocked ? "" : window.prompt("Motivo do bloqueio", "Análise de segurança") || "Bloqueado pelo administrador";
-    const res = await fetch(`/api/admin/customers/${customer.id}/block`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ blocked: !customer.blocked, reason })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error || "Erro ao atualizar usuário");
+  const openContact = async (id: string, fallback = data.contacts) => {
+    const response = await fetch(`/api/admin/crm/contacts/${id}`);
+    if (!response.ok) {
+      const local = fallback.find(contact => contact.id === id) || null;
+      setSelected(local);
       return;
     }
-    toast.success(customer.blocked ? "Usuário desbloqueado" : "Usuário bloqueado");
-    setSelected(data);
-    loadData();
+    const payload = await response.json();
+    setSelected(payload.contact);
+    setHistory(payload.history);
+    setNote(payload.contact.notes || "");
   };
 
-  const resetPassword = async (customer: Customer) => {
-    const accessPassword = window.prompt("Nova senha de 6 dígitos", "123456");
-    if (!accessPassword) return;
-    const res = await fetch(`/api/admin/customers/${customer.id}/reset-password`, {
-      method: "POST",
+  const saveContact = async (patch: Partial<CrmContact>) => {
+    if (!selected) return;
+    const response = await fetch(`/api/admin/crm/contacts/${selected.id}`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accessPassword })
+      body: JSON.stringify({ ...patch, reason: "Atualizacao operacional CRM" })
     });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error || "Erro ao redefinir senha");
+    const payload = await response.json();
+    if (!response.ok) {
+      toast.error(payload.error || "Erro ao atualizar contato");
       return;
     }
-    toast.success(`Senha redefinida: ${data.accessPassword}`);
-    setSelected(data.customer);
+    toast.success("Contato CRM atualizado");
+    setSelected(payload);
+    await loadCrm();
+  };
+
+  const saveNote = async () => {
+    if (!selected || !note.trim()) return;
+    const response = await fetch(`/api/admin/crm/contacts/${selected.id}/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note, reason: "Nota interna CRM" })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      toast.error(payload.error || "Erro ao salvar nota");
+      return;
+    }
+    toast.success("Nota salva");
+    setSelected(payload);
+    await loadCrm();
+  };
+
+  const createLead = async () => {
+    const response = await fetch("/api/admin/crm/contacts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...leadForm, tags: leadForm.tags.split(",").map(item => item.trim()).filter(Boolean), reason: "Lead criado no CRM" })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      toast.error(payload.error || "Erro ao criar lead");
+      return;
+    }
+    toast.success("Lead criado");
+    setCreating(false);
+    setLeadForm({ nome: "", telefone: "", origem: "manual", tags: "" });
+    await loadCrm();
+    await openContact(payload.id);
   };
 
   const filtered = useMemo(() => {
-    const value = query.toLowerCase().replace(/\D/g, "");
     const text = query.toLowerCase();
-    return customers.filter(customer => {
-      const haystack = `${customer.name} ${customer.phone} ${customer.cpf} ${customer.city || ""} ${customer.state || ""} ${customer.affiliateRefCode || ""}`.toLowerCase();
-      return !query || haystack.includes(text) || customer.phone?.includes(value) || customer.cpf?.includes(value);
+    const digits = query.replace(/\D/g, "");
+    return data.contacts.filter(contact => {
+      const haystack = `${contact.nome} ${contact.telefone} ${contact.email || ""} ${contact.cpf_mascarado} ${contact.cidade || ""} ${contact.estado || ""} ${contact.origem} ${contact.tags.join(" ")}`.toLowerCase();
+      if (query && !haystack.includes(text) && !contact.telefone.replace(/\D/g, "").includes(digits)) return false;
+      if (status && contact.status !== status) return false;
+      if (tag && !contact.tags.includes(tag)) return false;
+      return true;
     });
-  }, [customers, query]);
+  }, [data.contacts, query, status, tag]);
 
-  const profilePurchases = selected ? purchases.filter(item => item.customer?.id === selected.id) : [];
-  const paidPurchases = purchases.filter(item => item.status === "paid");
-  const totalRevenue = paidPurchases.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const tags = useMemo(() => Array.from(new Set(data.contacts.flatMap(contact => contact.tags))).sort(), [data.contacts]);
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-4">
-        <MetricCard icon={UserRound} label="Usuários" value={customers.length} trend="clientes, leads e afiliados" />
-        <MetricCard icon={BadgeDollarSign} label="Receita dos usuários" value={`R$ ${totalRevenue.toFixed(2)}`} trend="pagamentos aprovados" tone="success" />
-        <MetricCard icon={Ticket} label="Cotas pagas" value={paidPurchases.reduce((sum, item) => sum + Number(item.tickets || 0), 0)} trend="base confirmada" tone="accent" />
-        <MetricCard icon={Star} label="VIPs" value={customers.filter(customer => statusFromCustomer(customer, purchases) === "VIP").length} trend="alto valor" tone="warning" />
+      <div className="grid gap-4 md:grid-cols-5">
+        <MetricCard icon={UserRound} label="Contatos" value={data.metrics.total} trend="leads, compradores e afiliados" />
+        <MetricCard icon={Star} label="VIPs" value={data.metrics.vips} trend="alto valor ou recorrência" tone="warning" />
+        <MetricCard icon={Ticket} label="Compradores" value={data.metrics.compradores} trend="com compra paga" tone="success" />
+        <MetricCard icon={Filter} label="Inativos" value={data.metrics.inativos} trend="reativação comercial" tone="danger" />
+        <MetricCard icon={LayoutDashboard} label="Receita CRM" value={`R$ ${data.metrics.receita.toFixed(2)}`} trend="total pago por contatos" tone="accent" />
       </div>
 
       <section className="admin-card p-5">
-        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <h1 className="mb-1 text-2xl font-black text-[var(--admin-text)]">Usuários</h1>
-            <p className="text-sm text-[var(--admin-muted)]">Perfil, status, origem, compras, prêmios, afiliados e comissões em uma visão única.</p>
+            <h1 className="mb-1 text-2xl font-black text-[var(--admin-text)]">CRM</h1>
+            <p className="text-sm text-[var(--admin-muted)]">Contatos, pipeline, segmentos, compras, WhatsApp, afiliados, carteira e auditoria por tenant.</p>
           </div>
-          <label className="relative w-full md:max-w-md">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
-            <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, CPF, telefone, cidade..." className="admin-input h-12 w-full rounded-2xl pl-11 pr-4 outline-none" />
-          </label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <a href="/api/admin/crm/export.csv" className="admin-button-secondary inline-flex items-center justify-center gap-2"><Download className="h-4 w-4" /> CSV</a>
+            <button type="button" onClick={() => setCreating(value => !value)} className="admin-button inline-flex items-center justify-center gap-2"><UserPlus className="h-4 w-4" /> Novo lead</button>
+          </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
+        {creating && (
+          <div className="mb-5 grid gap-3 rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-4 md:grid-cols-5">
+            <input className="admin-input" placeholder="Nome" value={leadForm.nome} onChange={event => setLeadForm({ ...leadForm, nome: event.target.value })} />
+            <input className="admin-input" placeholder="Telefone" value={leadForm.telefone} onChange={event => setLeadForm({ ...leadForm, telefone: event.target.value })} />
+            <input className="admin-input" placeholder="Origem" value={leadForm.origem} onChange={event => setLeadForm({ ...leadForm, origem: event.target.value })} />
+            <input className="admin-input" placeholder="Tags separadas por vírgula" value={leadForm.tags} onChange={event => setLeadForm({ ...leadForm, tags: event.target.value })} />
+            <button type="button" className="admin-button" onClick={() => void createLead()}>Salvar lead</button>
+          </div>
+        )}
+
+        <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_180px_180px]">
+          <label className="relative">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
+            <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar por nome, CPF mascarado, telefone, cidade, origem ou tag..." className="admin-input h-12 w-full rounded-2xl pl-11 pr-4 outline-none" />
+          </label>
+          <select className="admin-input" value={status} onChange={event => setStatus(event.target.value)}>
+            <option value="">Todos status</option>
+            <option value="lead">Lead</option>
+            <option value="comprador">Comprador</option>
+            <option value="vip">VIP</option>
+            <option value="inativo">Inativo</option>
+            <option value="bloqueado">Bloqueado</option>
+          </select>
+          <select className="admin-input" value={tag} onChange={event => setTag(event.target.value)}>
+            <option value="">Todas tags</option>
+            {tags.map(item => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
           <AdminDataTable
-            columns={["Cliente", "Contato", "Status", "Cotas", "Cidade", "Ações"]}
-            rows={filtered.map(customer => [
-              <span className="font-bold">{customer.name}</span>,
-              <span>{customer.phone || "Sem telefone"}</span>,
-              <span className="rounded-full border border-[var(--admin-border)] px-2 py-1 text-xs uppercase text-[var(--admin-primary)]">{customer.blocked ? "bloqueado" : statusFromCustomer(customer, purchases)}</span>,
-              customer.totalTickets || 0,
-              `${customer.city || "Nao informado"} ${customer.state || ""}`,
-              <button onClick={() => setSelected(customer)} className="admin-button-secondary">Perfil</button>
+            columns={["Contato", "Status", "Pipeline", "Score", "Compras", "Total", "Ações"]}
+            rows={filtered.map(contact => [
+              <div>
+                <p className="font-bold text-[var(--admin-text)]">{contact.nome}</p>
+                <p className="text-xs text-[var(--admin-muted)]">{contact.telefone} · {contact.cidade || "Cidade nao informada"}</p>
+              </div>,
+              <StatusBadge status={contact.status} />,
+              <span className="text-sm text-[var(--admin-muted)]">{contact.pipeline_stage}</span>,
+              <span className="font-bold text-[var(--admin-primary)]">{contact.score}</span>,
+              contact.total_orders,
+              `R$ ${Number(contact.total_spent || 0).toFixed(2)}`,
+              <button onClick={() => void openContact(contact.id)} className="admin-button-secondary">Contato</button>
             ])}
           />
 
-          <aside className="admin-card p-5">
-            {selected ? (
-              <div className="space-y-5">
-                <div className="flex items-start gap-4">
-                  <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[var(--admin-primary)]/15 text-xl font-black text-[var(--admin-primary)]">{selected.name?.charAt(0) || "C"}</div>
-                  <div>
-                    <h2 className="mb-1 text-xl font-black text-[var(--admin-text)]">{selected.name}</h2>
-                    <p className="text-sm text-[var(--admin-muted)]">{selected.city || "Cidade nao informada"} {selected.state || ""}</p>
-                  </div>
-                </div>
+          <ContactPanel selected={selected} history={history} note={note} setNote={setNote} saveNote={saveNote} saveContact={saveContact} />
+        </div>
+      </section>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <MiniProfileStat icon={Phone} label="Telefone" value={selected.phone || "-"} />
-                  <MiniProfileStat icon={Tag} label="CPF" value={selected.cpf || "-"} />
-                  <MiniProfileStat icon={Ticket} label="Compras" value={profilePurchases.length} />
-                  <MiniProfileStat icon={BadgeDollarSign} label="Total gasto" value={`R$ ${profilePurchases.reduce((sum, item) => sum + Number(item.amount || 0), 0).toFixed(2)}`} />
-                </div>
-
-                {selected.blocked && (
-                  <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-100">
-                    Usuário bloqueado: {selected.blockedReason || "sem motivo informado"}
-                  </div>
-                )}
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <button onClick={() => resetPassword(selected)} className="admin-button-secondary">Redefinir senha</button>
-                  <button onClick={() => toggleBlockCustomer(selected)} className={selected.blocked ? "admin-button" : "rounded-xl border border-rose-400/30 px-4 py-3 text-sm font-bold text-rose-200 hover:bg-rose-500/10"}>
-                    {selected.blocked ? "Desbloquear usuário" : "Bloquear usuário"}
-                  </button>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-bold text-[var(--admin-text)]">Histórico recente</h3>
-                  <div className="mt-3 space-y-2">
-                    {profilePurchases.slice(0, 5).map(item => (
-                      <div key={item.purchaseId} className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-3">
-                        <p className="text-sm font-bold text-[var(--admin-text)]">#{item.purchaseId} - R$ {Number(item.amount || 0).toFixed(2)}</p>
-                        <p className="text-xs text-[var(--admin-muted)]">{item.tickets} cotas, status {item.status}</p>
-                      </div>
-                    ))}
-                    {profilePurchases.length === 0 && <p className="text-sm text-[var(--admin-muted)]">Sem compras registradas.</p>}
-                  </div>
-                </div>
-
-              </div>
-            ) : (
-              <div className="grid min-h-[460px] place-items-center text-center">
-                <div>
-                  <Activity className="mx-auto mb-3 h-10 w-10 text-[var(--admin-primary)]" />
-                  <p className="font-bold text-[var(--admin-text)]">Selecione um contato</p>
-                  <p className="mt-1 text-sm text-[var(--admin-muted)]">O perfil completo aparece aqui.</p>
+      <section className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
+        <div className="admin-card p-5">
+          <h2 className="mb-4 text-lg font-black text-[var(--admin-text)]">Pipeline</h2>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {data.pipeline.map(stage => (
+              <div key={stage.stage} className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-4">
+                <p className="text-sm font-black capitalize text-[var(--admin-text)]">{stage.stage}</p>
+                <p className="mt-1 text-xs text-[var(--admin-muted)]">{stage.total} contato(s) · R$ {stage.value.toFixed(2)}</p>
+                <div className="mt-3 space-y-2">
+                  {stage.contacts.slice(0, 4).map(contact => (
+                    <button key={contact.id} onClick={() => void openContact(contact.id)} className="block w-full rounded-xl bg-black/20 px-3 py-2 text-left text-xs font-bold text-[var(--admin-text)] hover:bg-white/10">{contact.nome}</button>
+                  ))}
                 </div>
               </div>
-            )}
-          </aside>
+            ))}
+          </div>
+        </div>
+
+        <div className="admin-card p-5">
+          <h2 className="mb-4 text-lg font-black text-[var(--admin-text)]">Segmentos</h2>
+          <div className="space-y-2">
+            {(Object.entries(data.segments) as Array<[string, CrmContact[]]>).map(([key, contacts]) => (
+              <button key={key} onClick={() => { setStatus(""); setTag(""); setQuery(""); }} className="flex w-full items-center justify-between rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] px-4 py-3 text-left">
+                <span className="font-bold text-[var(--admin-text)]">{segmentLabels[key] || key}</span>
+                <span className="rounded-full bg-[var(--admin-primary)]/15 px-3 py-1 text-xs font-black text-[var(--admin-primary)]">{contacts.length}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </section>
     </div>
   );
 }
 
-export const AdminCRM = AdminUsers;
+export const AdminUsers = AdminCRM;
+
+function StatusBadge({ status }: { status: CrmContact["status"] }) {
+  const tone = status === "vip" ? "text-amber-200 border-amber-400/30 bg-amber-500/10" : status === "bloqueado" ? "text-rose-200 border-rose-400/30 bg-rose-500/10" : "text-[var(--admin-primary)] border-[var(--admin-border)] bg-white/[0.03]";
+  return <span className={`rounded-full border px-2 py-1 text-xs font-black uppercase ${tone}`}>{status}</span>;
+}
+
+function ContactPanel({ selected, history, note, setNote, saveNote, saveContact }: {
+  selected: CrmContact | null;
+  history: any;
+  note: string;
+  setNote: (value: string) => void;
+  saveNote: () => void;
+  saveContact: (patch: Partial<CrmContact>) => void;
+}) {
+  if (!selected) {
+    return (
+      <aside className="admin-card grid min-h-[520px] place-items-center p-5 text-center">
+        <div>
+          <UserRound className="mx-auto mb-3 h-10 w-10 text-[var(--admin-primary)]" />
+          <p className="font-bold text-[var(--admin-text)]">Selecione um contato</p>
+          <p className="mt-1 text-sm text-[var(--admin-muted)]">Histórico comercial, mensagens, carteira e auditoria aparecem aqui.</p>
+        </div>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="admin-card p-5">
+      <div className="flex items-start gap-4">
+        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[var(--admin-primary)]/15 text-xl font-black text-[var(--admin-primary)]">{selected.nome.charAt(0)}</div>
+        <div>
+          <h2 className="text-xl font-black text-[var(--admin-text)]">{selected.nome}</h2>
+          <p className="text-sm text-[var(--admin-muted)]">{selected.origem} · {selected.cidade || "Cidade nao informada"} {selected.estado || ""}</p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <MiniProfileStat icon={Phone} label="Telefone" value={selected.telefone || "-"} />
+        <MiniProfileStat icon={Tag} label="CPF" value={selected.cpf_mascarado || "-"} />
+        <MiniProfileStat icon={Ticket} label="Pedidos" value={selected.total_orders} />
+        <MiniProfileStat icon={Star} label="Total gasto" value={`R$ ${Number(selected.total_spent || 0).toFixed(2)}`} />
+      </div>
+
+      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+        <select className="admin-input" value={selected.status} onChange={event => void saveContact({ status: event.target.value as CrmContact["status"] })}>
+          <option value="lead">Lead</option>
+          <option value="comprador">Comprador</option>
+          <option value="vip">VIP</option>
+          <option value="inativo">Inativo</option>
+          <option value="bloqueado">Bloqueado</option>
+        </select>
+        <select className="admin-input" value={selected.pipeline_stage} onChange={event => void saveContact({ pipeline_stage: event.target.value as CrmContact["pipeline_stage"] })}>
+          <option value="novo lead">Novo lead</option>
+          <option value="interessado">Interessado</option>
+          <option value="comprou">Comprou</option>
+          <option value="recorrente">Recorrente</option>
+          <option value="vip">VIP</option>
+          <option value="inativo">Inativo</option>
+          <option value="perdido">Perdido</option>
+        </select>
+      </div>
+
+      <div className="mt-5">
+        <label className="text-sm font-bold text-[var(--admin-text)]">Notas internas</label>
+        <textarea className="admin-input mt-2 min-h-28 w-full" value={note} onChange={event => setNote(event.target.value)} />
+        <button type="button" className="admin-button mt-2" onClick={() => void saveNote()}>Salvar nota</button>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        <HistoryBlock icon={Ticket} title="Compras" items={(history?.purchases || []).slice(0, 4).map((item: any) => `${item.type} · R$ ${Number(item.amount || 0).toFixed(2)}`)} />
+        <HistoryBlock icon={MessageSquare} title="WhatsApp" items={(history?.whatsapp || []).slice(0, 4).map((item: any) => `${item.status} · ${item.template || item.message || item.order_id || "mensagem"}`)} />
+        <HistoryBlock icon={Tag} title="Tags" items={selected.tags.length ? selected.tags : ["sem tags"]} />
+      </div>
+    </aside>
+  );
+}
 
 function MiniProfileStat({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-3">
       <Icon className="mb-2 h-4 w-4 text-[var(--admin-primary)]" />
-      <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--admin-muted)]">{label}</p>
+      <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--admin-muted)]">{label}</p>
       <p className="mt-1 break-words text-sm font-bold text-[var(--admin-text)]">{value}</p>
+    </div>
+  );
+}
+
+function HistoryBlock({ icon: Icon, title, items }: { icon: React.ElementType; title: string; items: string[] }) {
+  return (
+    <div className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <Icon className="h-4 w-4 text-[var(--admin-primary)]" />
+        <p className="text-sm font-black text-[var(--admin-text)]">{title}</p>
+      </div>
+      <div className="space-y-1">
+        {items.length ? items.map((item, index) => <p key={`${title}-${index}`} className="text-xs text-[var(--admin-muted)]">{item}</p>) : <p className="text-xs text-[var(--admin-muted)]">Sem registros.</p>}
+      </div>
     </div>
   );
 }

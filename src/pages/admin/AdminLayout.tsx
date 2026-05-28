@@ -112,6 +112,7 @@ function AdminLayoutContent() {
 
   const navItems = useMemo(() => [
     { name: "Dashboard", path: "/admin", icon: LayoutDashboard, group: "Core" },
+    { name: "CRM", path: "/admin/crm", icon: Users, group: "Core" },
     { name: "Usuários", path: "/admin/usuarios", icon: Users, group: "Core" },
     { name: "Vendas", path: "/admin/vendas", icon: CreditCard, group: "Operacao" },
     { name: "Rifas", path: "/admin/rifas", icon: Ticket, group: "Jogos" },
