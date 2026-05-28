@@ -193,6 +193,7 @@ async function frontendHard() {
   await runNodeScript("scripts/test-frontend-auth-saas.mjs");
   await runNodeScript("scripts/test-public-checkout-ux.mjs");
   await runNodeScript("scripts/test-ui-contrast-hard.mjs");
+  await runNodeScript("scripts/test-mediadelivery-video-source.mjs");
 }
 
 async function productionReadiness() {

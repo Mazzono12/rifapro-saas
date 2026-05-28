@@ -83,7 +83,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, required =
 
     const detectedType = inferMediaType(url);
     if (detectedType === "image") {
-      const message = "Use link do YouTube, Vimeo, Bunny.net ou um arquivo de vídeo direto (.mp4, .webm, .mov ou .m3u8).";
+      const message = "Use link do YouTube, Vimeo, MediaDelivery/Bunny.net ou um arquivo de vídeo direto (.mp4, .webm, .mov ou .m3u8).";
       setLastError(message);
       toast.error("Link de vídeo não reconhecido");
       return;
@@ -125,7 +125,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, required =
                 type="url"
                 value={externalUrl}
                 onChange={event => setExternalUrl(event.target.value)}
-                placeholder="YouTube, Vimeo, Bunny.net ou URL direta do vídeo"
+                placeholder="YouTube, Vimeo, MediaDelivery/Bunny.net ou URL direta do vídeo"
                 className="admin-input min-h-12 min-w-0 flex-1"
               />
               <button type="button" onClick={applyExternalVideo} className="admin-button-secondary min-h-12 shrink-0">
@@ -158,7 +158,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, required =
         </div>
       )}
       <p className="mt-2 text-xs text-[var(--admin-muted)]">
-        Arquivos aceitos: {accept.toUpperCase()}. Tipo atual: {mediaType || inferMediaType(value)}
+        Arquivos aceitos: {accept.toUpperCase()}. Tipo atual: {mediaType || inferMediaType(value)}. Aceita links player.mediadelivery.net/play.
       </p>
     </div>
   );

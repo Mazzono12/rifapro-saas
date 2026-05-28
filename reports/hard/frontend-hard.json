@@ -1,32 +1,38 @@
 {
   "mode": "frontend-hard",
   "success": true,
-  "startedAt": "2026-05-28T12:27:07.949Z",
-  "finishedAt": "2026-05-28T12:27:09.154Z",
-  "durationMs": 1205,
+  "startedAt": "2026-05-28T13:39:25.825Z",
+  "finishedAt": "2026-05-28T13:39:26.062Z",
+  "durationMs": 237,
   "results": [
     {
       "name": "frontend nao contem service role em codigo publico",
       "status": "passed",
-      "durationMs": 14
+      "durationMs": 2
     },
     {
       "name": "scripts/test-frontend-auth-saas.mjs",
       "status": "passed",
-      "durationMs": 389,
+      "durationMs": 60,
       "output": "PASS: frontend auth SaaS com login, logout, refresh, roles, rotas protegidas e persistencia validado estaticamente.\n"
     },
     {
       "name": "scripts/test-public-checkout-ux.mjs",
       "status": "passed",
-      "durationMs": 394,
+      "durationMs": 54,
       "output": "[public-checkout-ux] ok\n"
     },
     {
       "name": "scripts/test-ui-contrast-hard.mjs",
       "status": "passed",
-      "durationMs": 403,
+      "durationMs": 55,
       "output": "[ui-contrast-hard] ok\n"
+    },
+    {
+      "name": "scripts/test-mediadelivery-video-source.mjs",
+      "status": "passed",
+      "durationMs": 65,
+      "output": "[mediadelivery-video-source] ok\n"
     }
   ]
 }

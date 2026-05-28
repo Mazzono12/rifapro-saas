@@ -9,7 +9,7 @@ export function inferMediaType(url = ""): MediaType {
   if (/youtu\.be|youtube\.com/i.test(url)) return "youtube";
   if (videoPattern.test(url)) return "video";
   if (/vimeo\.com/i.test(url)) return "vimeo";
-  if (/iframe\.mediadelivery\.net|video\.bunnycdn\.com|bunny\.net/i.test(url)) return "bunny";
+  if (/iframe\.mediadelivery\.net|player\.mediadelivery\.net|video\.bunnycdn\.com|bunny\.net/i.test(url)) return "bunny";
   if (imagePattern.test(url)) return "image";
   return "image";
 }
@@ -37,7 +37,7 @@ export function extractVimeoId(url = "") {
 export function getBunnyEmbedUrl(url = "", params?: { autoPlay?: boolean; muted?: boolean; controls?: boolean }) {
   try {
     let parsed = new URL(url);
-    if (/(^|\.)video\.bunnycdn\.com$/i.test(parsed.hostname)) {
+    if (/(^|\.)(video\.bunnycdn\.com|player\.mediadelivery\.net)$/i.test(parsed.hostname)) {
       const pathMatch = parsed.pathname.match(/^\/(?:play|embed)\/([^/]+)\/([^/?#]+)/i);
       if (!pathMatch) return "";
       parsed = new URL(`https://iframe.mediadelivery.net/embed/${pathMatch[1]}/${pathMatch[2]}`);
