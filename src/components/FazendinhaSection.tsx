@@ -15,6 +15,8 @@ import { DynamicMedia } from "./DynamicMedia";
 import { PostPurchaseLootboxModal } from "./PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "./PixPaymentResultModal";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "./checkout/PrePaymentReceiptModal";
+import { useCityDetection } from "../hooks/useCityDetection";
+import { GeoPrefillService } from "../services/GeoPrefillService";
 
 const boardGroupIds = FAZENDINHA_GROUP_ORDER;
 
@@ -37,17 +39,18 @@ export function FazendinhaSection() {
   const [lootboxReward, setLootboxReward] = useState({ open: false, count: 0, contact: "" });
   const [pendingLootbox, setPendingLootbox] = useState({ count: 0, contact: "" });
   const [paymentResult, setPaymentResult] = useState<"approved" | "rejected" | null>(null);
+  const { detectedCity } = useCityDetection();
 
   useEffect(() => {
     if (customer) {
-      setForm({
+      setForm(current => ({
         name: customer.name,
         phone: customer.phone,
         cpf: customer.cpf,
-        city: customer.city || "",
-        state: customer.state || "",
+        city: customer.city || current.city || "",
+        state: customer.state || current.state || "",
         accessPassword: customer.accessPassword || ""
-      });
+      }));
       setRequireIdentity(false);
     }
   }, [customer]);
@@ -55,6 +58,11 @@ export function FazendinhaSection() {
   useEffect(() => {
     fazendinhaService.getAddonSuggestion().then(setAddonSuggestion).catch(() => setAddonSuggestion(null));
   }, []);
+
+  useEffect(() => {
+    if (!detectedCity?.city) return;
+    setForm(current => current.city ? current : { ...current, city: detectedCity.city, state: current.state || detectedCity.state });
+  }, [detectedCity]);
 
   const groupsById = useMemo(() => new Map(data?.groups.map(group => [group.id, group]) || []), [data]);
   const extraGroups = data?.groups.filter(group => !boardGroupIds.includes(group.id)) || [];
@@ -144,6 +152,7 @@ export function FazendinhaSection() {
             browserId: customer.browserId
           }
         : form;
+      GeoPrefillService.saveManual(checkoutCustomer.city, checkoutCustomer.state);
       const result = await fazendinhaService.buyGroups(
         selectedGroups.map(group => group.id),
         checkoutCustomer,
@@ -358,7 +367,7 @@ export function FazendinhaSection() {
               </div>
             )}
           </div>
-          <button onClick={() => setCheckoutOpen(true)} disabled={!selectedGroups.length} className="neon-button inline-flex min-h-14 items-center justify-center gap-2 rounded-xl px-8 py-4 text-base font-black disabled:cursor-not-allowed disabled:opacity-40">
+          <button onClick={() => setCheckoutOpen(true)} disabled={!selectedGroups.length} className="premium-button inline-flex min-h-14 items-center justify-center gap-2 rounded-xl px-8 py-4 text-base font-black disabled:cursor-not-allowed disabled:opacity-40">
             <TicketCheck className="h-5 w-5" /> Participar
           </button>
         </div>
@@ -557,8 +566,8 @@ export function FazendinhaSection() {
                   <strong className="font-display text-xl text-white">{formatCurrency(totalValue)}</strong>
                 </div>
               </div>
-              <button onClick={pendingPix ? checkPixPayment : openPrePaymentReceipt} disabled={buying} className="neon-button sticky bottom-0 z-20 mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-black shadow-[0_-18px_45px_rgba(0,0,0,0.38)] disabled:opacity-50">
-                <CheckCircle2 className="h-5 w-5" /> {buying ? "Processando..." : pendingPix ? "Verificar pagamento" : "Revisar compra"}
+              <button onClick={pendingPix ? checkPixPayment : openPrePaymentReceipt} disabled={buying} className="premium-button sticky bottom-0 z-20 mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-black shadow-[0_-18px_45px_rgba(0,0,0,0.38)] disabled:opacity-50">
+                <CheckCircle2 className="h-5 w-5" /> {buying ? "Processando..." : pendingPix ? "Confirmar PIX" : "Revisar compra"}
               </button>
             </div>
             </motion.div>
@@ -576,7 +585,9 @@ export function FazendinhaSection() {
           name: customer?.name || form.name,
           phone: customer?.phone || form.phone,
           email: (customer as any)?.email || "",
-          cpf: customer?.cpf || form.cpf
+          cpf: customer?.cpf || form.cpf,
+          city: customer?.city || form.city,
+          state: customer?.state || form.state
         }}
         preview={checkoutPreview}
         bonuses={checkoutPreview?.bonuses}
@@ -593,18 +604,5 @@ export function FazendinhaSection() {
 }
 
 async function captureGeoLocation() {
-  if (!("geolocation" in navigator)) return null;
-  try {
-    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 });
-    });
-    return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      city: "Capturada no cadastro",
-      state: "BR"
-    };
-  } catch {
-    return null;
-  }
+  return GeoPrefillService.captureCoordinates();
 }

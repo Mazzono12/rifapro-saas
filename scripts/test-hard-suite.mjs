@@ -191,6 +191,7 @@ async function frontendHard() {
     }
   });
   await runNodeScript("scripts/test-frontend-auth-saas.mjs");
+  await runNodeScript("scripts/test-public-checkout-ux.mjs");
 }
 
 async function productionReadiness() {

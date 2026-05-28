@@ -37,6 +37,8 @@ import { CampaignMediaHero } from "../components/CampaignMediaHero";
 import { GamificationPanel } from "../components/GamificationPanel";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 import { checkoutService } from "../services/api";
+import { GeoPrefillService } from "../services/GeoPrefillService";
+import { useCityDetection } from "../hooks/useCityDetection";
 import { finishMetric, markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import { TenantLogo } from "../components/branding/TenantLogo";
 import { TenantHeaderName } from "../components/branding/TenantHeaderName";
@@ -68,6 +70,7 @@ export function RaffleDetails() {
   const [checkoutPreview, setCheckoutPreview] = useState<CheckoutPreview | null>(null);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("review");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmingPix, setConfirmingPix] = useState(false);
   const [purchase, setPurchase] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [paymentResult, setPaymentResult] = useState<"approved" | "rejected" | null>(null);
@@ -88,6 +91,7 @@ export function RaffleDetails() {
   const [customerForm, setCustomerForm] = useState({ name: "", phone: "", cpf: "", city: "", state: "", accessPassword: "" });
   const notifiedPrizePurchase = useRef<string | null>(null);
   const { purchase: polledPurchase } = usePurchasePolling(purchase?.purchaseId, 7000);
+  const { detectedCity } = useCityDetection();
 
   useEffect(() => {
     startMetric("public_page_load");
@@ -118,17 +122,29 @@ export function RaffleDetails() {
 
   useEffect(() => {
     if (!customer) return;
-    setCustomerForm({
+    setCustomerForm(current => ({
       name: customer.name || "",
       phone: customer.phone || "",
       cpf: customer.cpf || "",
-      city: customer.city || "",
-      state: customer.state || "",
+      city: customer.city || current.city || "",
+      state: customer.state || current.state || "",
       accessPassword: ""
-    });
+    }));
     setCustomerMode("login");
     setRequireIdentity(false);
   }, [customer]);
+
+  useEffect(() => {
+    if (!detectedCity?.city) return;
+    setCustomerForm(current => {
+      if (current.city && current.state) return current;
+      return {
+        ...current,
+        city: current.city || detectedCity.city,
+        state: current.state || detectedCity.state
+      };
+    });
+  }, [detectedCity]);
 
   useEffect(() => {
     if (!polledPurchase) return;
@@ -205,6 +221,7 @@ export function RaffleDetails() {
 
   const buildCheckoutCustomer = async () => {
     const geoLocation = await captureGeoLocation();
+    GeoPrefillService.saveManual(customerForm.city, customerForm.state);
     return customer
       ? {
           ...customerForm,
@@ -312,6 +329,31 @@ export function RaffleDetails() {
     window.setTimeout(() => setCopied(false), 1800);
   };
 
+  const confirmPixStatus = async () => {
+    if (!purchase?.purchaseId) {
+      toast.error("Pedido indisponivel para consulta");
+      return;
+    }
+    setConfirmingPix(true);
+    try {
+      const status = await checkoutService.checkPixPaymentStatus(purchase.purchaseId);
+      const refreshedPurchase = status.purchase || purchase;
+      setPurchase((current: any) => ({ ...current, ...refreshedPurchase, pixPayload: refreshedPurchase?.pixPayload || current?.pixPayload }));
+      if (refreshedPurchase?.customer) setCustomer(refreshedPurchase.customer);
+      if (status.paid || refreshedPurchase?.status === "paid") {
+        setPaymentResult("approved");
+        setCheckoutStep("ticket");
+        toast.success("Pagamento confirmado", { description: "Bilhete liberado pelo status seguro do pedido." });
+        return;
+      }
+      toast.info(status.message || "Pagamento ainda pendente", { description: "O sistema vai atualizar quando o webhook confirmar." });
+    } catch (err: any) {
+      toast.error("Nao foi possivel consultar o PIX", { description: err.message || "Tente novamente em instantes." });
+    } finally {
+      setConfirmingPix(false);
+    }
+  };
+
   const shareTicket = async () => {
     const text = `Estou participando de ${raffle?.title}. Pedido ${purchase?.purchaseId}.`;
     if (navigator.share) {
@@ -407,9 +449,11 @@ export function RaffleDetails() {
         setUseBalance={setUseBalance}
         settings={settings}
         copied={copied}
+        confirmingPix={confirmingPix}
         onClose={() => setCheckoutOpen(false)}
         onSubmit={openPrePaymentReceipt}
         onCopyPix={copyPix}
+        onConfirmPix={confirmPixStatus}
         onBackToReview={() => setCheckoutStep("review")}
         onShare={shareTicket}
         onShowNumbers={() => setShowNumbers(true)}
@@ -425,7 +469,9 @@ export function RaffleDetails() {
           name: customer?.name || customerForm.name,
           phone: customer?.phone || customerForm.phone,
           email: (customer as any)?.email || "",
-          cpf: customer?.cpf || customerForm.cpf
+          cpf: customer?.cpf || customerForm.cpf,
+          city: customer?.city || customerForm.city,
+          state: customer?.state || customerForm.state
         }}
         bonuses={checkoutPreview?.bonuses}
         affiliateInfo={checkoutPreview?.affiliateInfo}
@@ -723,9 +769,11 @@ function CheckoutModal(props: {
   setUseBalance: (value: boolean) => void;
   settings?: any;
   copied: boolean;
+  confirmingPix: boolean;
   onClose: () => void;
   onSubmit: (event: React.FormEvent) => void;
   onCopyPix: () => void;
+  onConfirmPix: () => void;
   onBackToReview: () => void;
   onShare: () => void;
   onShowNumbers: () => void;
@@ -792,13 +840,13 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} required inputMode="numeric" maxLength={6} />
       )}
 
-      <div className="rounded-3xl border border-violet-300/20 bg-violet-300/10 p-4">
-        <p className="mb-2 text-[11px] font-black uppercase tracking-[0.22em] text-violet-100">Cupom</p>
+      <div className="rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-4">
+        <p className="mb-2 text-[11px] font-black uppercase tracking-[0.22em] text-[var(--theme-primary)]">Cupom</p>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <input value={props.couponCode} onChange={e => props.setCouponCode(e.target.value.toUpperCase())} placeholder="BEMVINDO10" className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm font-bold uppercase outline-none" />
-          <button type="button" onClick={props.validateCoupon} className="rounded-2xl border border-violet-200/30 px-4 py-3 text-sm font-black">Aplicar</button>
+          <button type="button" onClick={props.validateCoupon} className="rounded-2xl border border-[var(--theme-border)] px-4 py-3 text-sm font-black text-[var(--theme-text)]">Aplicar</button>
         </div>
-        {props.couponPreview && <p className="mt-2 text-xs text-violet-100">Cupom aplicado no resumo.</p>}
+        {props.couponPreview && <p className="mt-2 text-xs text-emerald-100">Cupom aplicado no resumo.</p>}
       </div>
 
       {props.addonSuggestion && (
@@ -823,7 +871,6 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
     return props.purchase?.expiresAt || props.purchase?.expires_at || props.purchase?.pixExpiresAt || new Date(Date.now() + 15 * 60 * 1000).toISOString();
   }, [props.purchase?.expiresAt, props.purchase?.expires_at, props.purchase?.pixExpiresAt, props.purchase?.purchaseId]);
   const expiresIn = useCountdown(expiresAt);
-  const supportUrl = props.settings?.socialLinks?.whatsapp || props.settings?.whatsappUrl || "";
   const gateway = props.purchase?.pixGateway || props.purchase?.gateway || props.purchase?.paymentGateway || "PIX";
   return (
     <div className="space-y-5 p-4 text-center">
@@ -856,11 +903,9 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
       </button>
       <div className="grid gap-2 sm:grid-cols-2">
         <button type="button" onClick={props.onBackToReview} className="min-h-12 rounded-2xl border border-white/10 py-3 text-sm font-bold text-slate-300">Alterar dados</button>
-        {supportUrl ? (
-          <a href={supportUrl} target="_blank" rel="noreferrer" className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 py-3 text-sm font-black text-emerald-100"><Headphones className="h-4 w-4" /> Suporte WhatsApp</a>
-        ) : (
-          <button type="button" disabled className="min-h-12 rounded-2xl border border-white/10 py-3 text-sm font-bold text-slate-500">Suporte indisponivel</button>
-        )}
+        <button type="button" onClick={props.onConfirmPix} disabled={props.confirmingPix} className="premium-button flex min-h-12 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black disabled:opacity-60">
+          <CheckCircle2 className="h-4 w-4" /> {props.confirmingPix ? "Consultando status..." : "Confirmar PIX"}
+        </button>
       </div>
     </div>
   );
@@ -1048,18 +1093,5 @@ function formatReceiptDate(value?: string) {
 }
 
 async function captureGeoLocation() {
-  if (!("geolocation" in navigator)) return undefined;
-  try {
-    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 3500, maximumAge: 300000 });
-    });
-    return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      city: "Capturada no cadastro",
-      state: "BR"
-    };
-  } catch {
-    return undefined;
-  }
+  return GeoPrefillService.captureCoordinates();
 }

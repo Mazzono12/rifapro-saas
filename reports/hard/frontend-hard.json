@@ -1,20 +1,26 @@
 {
   "mode": "frontend-hard",
   "success": true,
-  "startedAt": "2026-05-27T22:18:15.848Z",
-  "finishedAt": "2026-05-27T22:18:15.917Z",
-  "durationMs": 69,
+  "startedAt": "2026-05-28T11:34:02.219Z",
+  "finishedAt": "2026-05-28T11:34:02.342Z",
+  "durationMs": 123,
   "results": [
     {
       "name": "frontend nao contem service role em codigo publico",
       "status": "passed",
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "name": "scripts/test-frontend-auth-saas.mjs",
       "status": "passed",
-      "durationMs": 66,
+      "durationMs": 61,
       "output": "PASS: frontend auth SaaS com login, logout, refresh, roles, rotas protegidas e persistencia validado estaticamente.\n"
+    },
+    {
+      "name": "scripts/test-public-checkout-ux.mjs",
+      "status": "passed",
+      "durationMs": 59,
+      "output": "[public-checkout-ux] ok\n"
     }
   ]
 }

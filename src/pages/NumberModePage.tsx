@@ -22,6 +22,8 @@ import {
 } from "../components/premium/PremiumUI";
 import { NotFoundPage } from "./SystemStatus";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
+import { useCityDetection } from "../hooks/useCityDetection";
+import { GeoPrefillService } from "../services/GeoPrefillService";
 
 const modeTitles: Record<NumberModeId, string> = {
   dezena: "Dezena",
@@ -50,18 +52,24 @@ export function NumberModePage() {
   const [copiedPix, setCopiedPix] = useState(false);
   const [lootboxReward, setLootboxReward] = useState({ open: false, count: 0, contact: "" });
   const firstName = (customer?.name || form.name || "").trim().split(/\s+/)[0] || "cliente";
+  const { detectedCity } = useCityDetection();
 
   useEffect(() => {
-    if (customer) setForm({
+    if (customer) setForm(current => ({
       name: customer.name,
       phone: customer.phone,
       cpf: customer.cpf,
-      city: customer.city || "",
-      state: customer.state || "",
+      city: customer.city || current.city || "",
+      state: customer.state || current.state || "",
       accessPassword: customer.accessPassword || ""
-    });
+    }));
     setRequireIdentity(false);
   }, [customer]);
+
+  useEffect(() => {
+    if (!detectedCity?.city) return;
+    setForm(current => current.city ? current : { ...current, city: detectedCity.city, state: current.state || detectedCity.state });
+  }, [detectedCity]);
 
   const visibleNumbers = useMemo(() => {
     if (!data) return [];
@@ -119,6 +127,7 @@ export function NumberModePage() {
     setBuying(true);
     try {
       const checkoutCustomer = checkoutCustomerPayload();
+      GeoPrefillService.saveManual(checkoutCustomer.city, checkoutCustomer.state);
       const result = await modalidadesService.buyMode(mode, selected, checkoutCustomer, false);
       if (result.purchase?.customer) setCustomer(result.purchase.customer);
       setRequireIdentity(false);
@@ -336,7 +345,7 @@ export function NumberModePage() {
               </div>
               <PixPaymentCard payload={pendingPix.pixPayload} copied={copiedPix} onCopy={copyPixPayload} />
               <button type="button" onClick={checkPixPayment} disabled={buying} className="premium-button min-h-14 w-full disabled:opacity-50">
-                {buying ? "Verificando pagamento..." : "Verificar pagamento"}
+                {buying ? "Consultando status..." : "Confirmar PIX"}
               </button>
             </>
           ) : (
@@ -408,7 +417,9 @@ export function NumberModePage() {
           name: customer?.name || form.name,
           phone: customer?.phone || form.phone,
           email: (customer as any)?.email || "",
-          cpf: customer?.cpf || form.cpf
+          cpf: customer?.cpf || form.cpf,
+          city: customer?.city || form.city,
+          state: customer?.state || form.state
         }}
         preview={checkoutPreview}
         bonuses={checkoutPreview?.bonuses}
@@ -439,18 +450,5 @@ export function NumberModePage() {
 }
 
 async function captureGeoLocation() {
-  if (!("geolocation" in navigator)) return null;
-  try {
-    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 });
-    });
-    return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      city: "Capturada no cadastro",
-      state: "BR"
-    };
-  } catch {
-    return null;
-  }
+  return GeoPrefillService.captureCoordinates();
 }

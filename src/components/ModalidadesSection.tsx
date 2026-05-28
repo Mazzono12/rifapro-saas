@@ -64,7 +64,7 @@ export function ModalidadesSection() {
                 <Info label="Ranking" value={banner.ranking.length ? `${banner.ranking.length} compradores` : "Em formação"} />
               </div>
 
-              <Link to={banner.href} className="neon-button mt-6 inline-flex items-center justify-center gap-2 rounded-full px-7 py-4 font-mono text-sm uppercase tracking-widest">
+              <Link to={banner.href} className="premium-button mt-6 inline-flex items-center justify-center gap-2 rounded-full px-7 py-4 font-mono text-sm uppercase tracking-widest">
                 Participar <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

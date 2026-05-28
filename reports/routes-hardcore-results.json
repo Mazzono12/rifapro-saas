@@ -1,11 +1,23 @@
 {
-  "generatedAt": "2026-05-27T22:19:04.237Z",
-  "totalRoutes": 221,
+  "generatedAt": "2026-05-28T11:35:41.343Z",
+  "totalRoutes": 222,
   "directRuntimeNote": "Cobertura runtime profunda delegada aos scripts hardcore por modulo; este arquivo garante inventario e contrato de todas as rotas detectadas.",
   "results": [
     {
       "method": "GET",
       "path": "/api/public/health",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "rota_publica_ou_contextual",
+        "sem_tenant_explicito"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/geo",
       "status": "mapped_static",
       "expectedSecurity": "public_or_tenant_context",
       "checks": [

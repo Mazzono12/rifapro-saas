@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ImageOff, PlayCircle } from "lucide-react";
 import { cn } from "../lib/utils";
 import { MediaRenderer } from "./MediaRenderer";
+import { VideoHeroPlayer } from "./VideoHeroPlayer";
 
 type CampaignMediaType = "image" | "video" | "youtube" | "vimeo" | "bunny";
 
@@ -52,7 +53,20 @@ export function CampaignMediaHero({
         <div className="absolute inset-0 animate-pulse bg-[linear-gradient(115deg,rgba(5,22,15,0.92),rgba(13,70,38,0.38),rgba(0,0,0,0.9))]" />
       )}
 
-      {hasMedia ? (
+      {hasMedia && resolvedType === "video" ? (
+        <VideoHeroPlayer
+          mediaUrl={mediaUrl!}
+          mediaFit={fit}
+          priority={priority}
+          title={title}
+          className={cn("absolute inset-0 h-full w-full", mediaClassName)}
+          onLoad={() => setLoaded(true)}
+          onError={() => {
+            setFailed(true);
+            setLoaded(true);
+          }}
+        />
+      ) : hasMedia ? (
         <MediaRenderer
           mediaUrl={mediaUrl!}
           mediaType={resolvedType}
@@ -60,7 +74,7 @@ export function CampaignMediaHero({
           priority={priority}
           preload="metadata"
           autoPlay={resolvedType !== "image"}
-          muted
+          muted={false}
           playWhenVisible={!priority}
           interactive={resolvedType !== "image"}
           className={cn("absolute inset-0 h-full w-full", mediaClassName)}

@@ -2035,6 +2035,33 @@ async function startServer() {
     res.json({ ok: true });
   });
 
+  app.get("/api/public/geo", (req, res) => {
+    const decodeHeader = (value: unknown) => {
+      const raw = Array.isArray(value) ? value[0] : value;
+      if (!raw) return "";
+      try {
+        return decodeURIComponent(String(raw)).trim();
+      } catch {
+        return String(raw).trim();
+      }
+    };
+    const city = decodeHeader(
+      req.headers["x-vercel-ip-city"] ||
+      req.headers["cf-ipcity"] ||
+      req.headers["x-geo-city"] ||
+      req.headers["x-railway-edge-city"]
+    );
+    const state = decodeHeader(
+      req.headers["x-vercel-ip-country-region"] ||
+      req.headers["cf-region-code"] ||
+      req.headers["cf-region"] ||
+      req.headers["x-geo-region"] ||
+      req.headers["x-railway-edge-region"]
+    ).slice(0, 2).toUpperCase();
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.json({ city, state, source: city ? "edge_headers" : "none" });
+  });
+
   app.get("/api/public/tenant-debug", async (req, res) => {
     res.json(await buildPublicTenantDebug(req));
   });

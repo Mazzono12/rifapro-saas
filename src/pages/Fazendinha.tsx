@@ -27,6 +27,8 @@ import {
   TrustBadges
 } from "../components/premium/PremiumUI";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
+import { useCityDetection } from "../hooks/useCityDetection";
+import { GeoPrefillService } from "../services/GeoPrefillService";
 
 export function Fazendinha() {
   const { data, isLoading } = useFazendinha();
@@ -49,17 +51,18 @@ export function Fazendinha() {
   const [lootboxReward, setLootboxReward] = useState({ open: false, count: 0, contact: "" });
   const [pendingLootbox, setPendingLootbox] = useState({ count: 0, contact: "" });
   const [paymentResult, setPaymentResult] = useState<"approved" | "rejected" | null>(null);
+  const { detectedCity } = useCityDetection();
 
   useEffect(() => {
     if (customer) {
-      setForm({
+      setForm(current => ({
         name: customer.name,
         phone: customer.phone,
         cpf: customer.cpf,
-        city: customer.city || "",
-        state: customer.state || "",
+        city: customer.city || current.city || "",
+        state: customer.state || current.state || "",
         accessPassword: customer.accessPassword || ""
-      });
+      }));
       setRequireIdentity(false);
     }
   }, [customer]);
@@ -67,6 +70,11 @@ export function Fazendinha() {
   useEffect(() => {
     fazendinhaService.getAddonSuggestion().then(setAddonSuggestion).catch(() => setAddonSuggestion(null));
   }, []);
+
+  useEffect(() => {
+    if (!detectedCity?.city) return;
+    setForm(current => current.city ? current : { ...current, city: detectedCity.city, state: current.state || detectedCity.state });
+  }, [detectedCity]);
 
   const groups = useMemo(() => {
     if (!data) return [];
@@ -160,6 +168,7 @@ export function Fazendinha() {
             browserId: customer.browserId
           }
         : form;
+      GeoPrefillService.saveManual(checkoutCustomer.city, checkoutCustomer.state);
       const result = await fazendinhaService.buyGroups(
         selectedGroups.map(group => group.id),
         checkoutCustomer,
@@ -273,7 +282,7 @@ export function Fazendinha() {
         <div className="glass-card p-10 text-center">
           <h1 className="font-display text-3xl font-bold">A Fazendinha esta pausada</h1>
           <p className="mt-3 text-slate-400">O admin ainda nao habilitou esta modalidade.</p>
-          <Link to="/" className="neon-button mt-6 inline-flex rounded-xl px-6 py-3">Voltar</Link>
+          <Link to="/" className="premium-button mt-6 inline-flex rounded-xl px-6 py-3">Voltar</Link>
         </div>
       </div>
     );
@@ -366,7 +375,7 @@ export function Fazendinha() {
               </div>
             )}
           </div>
-          <button onClick={() => setCheckoutOpen(true)} disabled={!selectedGroups.length} className="neon-button inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 disabled:opacity-40">
+          <button onClick={() => setCheckoutOpen(true)} disabled={!selectedGroups.length} className="premium-button inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 disabled:opacity-40">
             <TicketCheck className="h-5 w-5" /> Participar
           </button>
         </div>
@@ -424,7 +433,7 @@ export function Fazendinha() {
               </div>
               <PixPaymentCard payload={pendingPix.pixPayload} copied={copiedPix} onCopy={copyPixPayload} />
               <button type="button" onClick={checkPixPayment} disabled={buying} className="premium-button min-h-14 w-full disabled:opacity-50">
-                {buying ? "Verificando pagamento..." : "Verificar pagamento"}
+                {buying ? "Consultando status..." : "Confirmar PIX"}
               </button>
             </>
           ) : (
@@ -541,7 +550,9 @@ export function Fazendinha() {
           name: customer?.name || form.name,
           phone: customer?.phone || form.phone,
           email: (customer as any)?.email || "",
-          cpf: customer?.cpf || form.cpf
+          cpf: customer?.cpf || form.cpf,
+          city: customer?.city || form.city,
+          state: customer?.state || form.state
         }}
         preview={checkoutPreview}
         bonuses={checkoutPreview?.bonuses}
@@ -564,18 +575,5 @@ export function Fazendinha() {
 }
 
 async function captureGeoLocation() {
-  if (!("geolocation" in navigator)) return null;
-  try {
-    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 });
-    });
-    return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      city: "Capturada no cadastro",
-      state: "BR"
-    };
-  } catch {
-    return null;
-  }
+  return GeoPrefillService.captureCoordinates();
 }

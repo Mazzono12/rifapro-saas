@@ -228,7 +228,7 @@ export function Home() {
         )}
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Link to={`/raffle/${featuredRaffle.id}`} className="neon-button px-8 py-4 text-sm">
+          <Link to={`/raffle/${featuredRaffle.id}`} className="premium-button px-8 py-4 text-sm">
             {heroPrimaryButton} <ChevronRight className="h-4 w-4" />
           </Link>
           {heroShowStats && (
@@ -395,7 +395,7 @@ export function Home() {
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                     <Link
                       to={`/raffle/${raffle.id}`}
-                      className="neon-button px-8 py-4 text-sm"
+                      className="premium-button px-8 py-4 text-sm"
                     >
                       Participar agora <ChevronRight className="h-4 w-4" />
                     </Link>
