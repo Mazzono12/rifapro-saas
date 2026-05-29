@@ -1380,10 +1380,31 @@ async function startServer() {
     tenant_id: string;
     customer_id?: string;
     order_id?: string;
+    affiliate_id?: string;
     signal_type: string;
     severity: "low" | "medium" | "high";
+    score?: number;
     metadata: Record<string, unknown>;
-    status: "open" | "reviewed" | "dismissed";
+    status: "open" | "reviewed" | "dismissed" | "blocked" | "approved";
+    reviewed_by?: string;
+    reviewed_at?: string;
+    created_at: string;
+  };
+  type FraudScoreEventRecord = FraudSignalRecord;
+  type FraudCaseRecord = {
+    id: string;
+    tenant_id: string;
+    customer_id?: string;
+    order_id?: string;
+    affiliate_id?: string;
+    signal_type: string;
+    severity: "low" | "medium" | "high";
+    score: number;
+    metadata: Record<string, unknown>;
+    status: "open" | "manual_review" | "blocked" | "approved" | "rejected" | "dismissed";
+    action: "log_only" | "alert_admin" | "manual_review" | "block_checkout" | "block_withdrawal" | "block_affiliate" | "mark_customer_risk";
+    reviewed_by?: string;
+    reviewed_at?: string;
     created_at: string;
   };
 
@@ -1409,6 +1430,8 @@ async function startServer() {
   let customerConsents: CustomerConsentRecord[] = [];
   let dataPrivacyRequests: DataPrivacyRequestRecord[] = [];
   let fraudSignals: FraudSignalRecord[] = [];
+  let fraudScoreEvents: FraudScoreEventRecord[] = [];
+  let fraudCases: FraudCaseRecord[] = [];
   let n8nEventLogs: N8nEventLog[] = [];
   const integrationManager = new IntegrationManager();
   createDefaultProviders().forEach(provider => integrationManager.register(provider));
@@ -3952,7 +3975,16 @@ async function startServer() {
 
   app.get("/api/superadmin/antifraud", (req, res) => {
     recordSuperadminAudit(req, "GLOBAL_ANTIFRAUD_VIEW", { resource_type: "fraud_signals" });
-    res.json(fraudSignals.map(signal => ({ ...signal, tenant: findTenantName(signal.tenant_id) })));
+    res.json({
+      signals: fraudSignals.map(signal => ({ ...signal, tenant: findTenantName(signal.tenant_id) })),
+      scoreEvents: fraudScoreEvents.map(event => ({ ...event, tenant: findTenantName(event.tenant_id) })),
+      cases: fraudCases.map(item => ({ ...item, tenant: findTenantName(item.tenant_id) })),
+      summary: {
+        totalCases: fraudCases.length,
+        highRisk: fraudCases.filter(item => item.severity === "high").length,
+        manualReview: fraudCases.filter(item => item.status === "manual_review").length
+      }
+    });
   });
 
   app.get("/api/superadmin/tenants/:tenantId/plan", (req, res) => {
@@ -4541,6 +4573,121 @@ async function startServer() {
      if (!contact || contact.replace(/\D/g, "").length < 10) return "Invalid contact details";
      // Simple bot heuristics can be added here
      return null;
+  }
+
+  function fraudSeverity(score: number): "low" | "medium" | "high" {
+    if (score >= 71) return "high";
+    if (score >= 31) return "medium";
+    return "low";
+  }
+
+  function fraudAction(score: number, signalType: string): FraudCaseRecord["action"] {
+    if (signalType === "saque_suspeito" && score >= 71) return "block_withdrawal";
+    if (signalType === "afiliado_autoindicacao" && score >= 71) return "block_affiliate";
+    if (score >= 90) return "block_checkout";
+    if (score >= 71) return "manual_review";
+    if (score >= 31) return "alert_admin";
+    return "log_only";
+  }
+
+  function createFraudEvent(input: {
+    tenant_id: string;
+    customer_id?: string;
+    order_id?: string;
+    affiliate_id?: string;
+    signal_type: string;
+    score: number;
+    metadata?: Record<string, unknown>;
+    status?: FraudCaseRecord["status"];
+  }) {
+    const score = Math.max(0, Math.min(100, Math.round(input.score)));
+    const severity = fraudSeverity(score);
+    const now = new Date().toISOString();
+    const event: FraudScoreEventRecord = {
+      id: createPublicId("FSE_"),
+      tenant_id: input.tenant_id,
+      customer_id: input.customer_id,
+      order_id: input.order_id,
+      affiliate_id: input.affiliate_id,
+      signal_type: input.signal_type,
+      severity,
+      score,
+      metadata: input.metadata || {},
+      status: "open",
+      created_at: now
+    };
+    fraudScoreEvents.unshift(event);
+    fraudSignals.unshift({ ...event, id: createPublicId("FRD_") });
+    if (score >= 31) {
+      const duplicate = fraudCases.find(item =>
+        item.tenant_id === input.tenant_id &&
+        item.signal_type === input.signal_type &&
+        item.customer_id === input.customer_id &&
+        item.order_id === input.order_id &&
+        ["open", "manual_review", "blocked"].includes(item.status)
+      );
+      if (!duplicate) {
+        fraudCases.unshift({
+          id: createPublicId("FRC_"),
+          tenant_id: input.tenant_id,
+          customer_id: input.customer_id,
+          order_id: input.order_id,
+          affiliate_id: input.affiliate_id,
+          signal_type: input.signal_type,
+          severity,
+          score,
+          metadata: input.metadata || {},
+          status: score >= 71 ? "manual_review" : "open",
+          action: fraudAction(score, input.signal_type),
+          created_at: now
+        });
+      }
+    }
+    fraudScoreEvents = fraudScoreEvents.slice(0, 2000);
+    fraudSignals = fraudSignals.slice(0, 2000);
+    fraudCases = fraudCases.slice(0, 1000);
+    return event;
+  }
+
+  function getCustomerRiskScore(tenantId: string, customerId?: string) {
+    if (!customerId) return 0;
+    return Math.max(0, ...fraudCases.filter(item => item.tenant_id === tenantId && item.customer_id === customerId && ["open", "manual_review", "blocked"].includes(item.status)).map(item => item.score));
+  }
+
+  function evaluateAdvancedPurchaseFraud(req: express.Request, input: { tenantId: string; customer: CustomerRecord; tickets: number; amount?: number; refCode?: string; useBalance?: boolean }) {
+    const ip = String(req.ip || req.socket.remoteAddress || "");
+    const userAgent = String(req.headers["user-agent"] || "");
+    const browserId = getBrowserIdFromRequest(req) || input.customer.browserId || "";
+    const now = Date.now();
+    const recentPurchases = purchases.filter(item => item.tenant_id === input.tenantId && new Date(item.createdAt).getTime() >= now - 60 * 60 * 1000);
+    const sameIpCount = auditEventLedger.filter(item => item.tenant_id === input.tenantId && item.ip_address === ip && new Date(item.created_at).getTime() >= now - 60 * 60 * 1000).length;
+    const cpfSet = new Set(Object.values(customersByCpf).filter(item => item.tenant_id === input.tenantId && item.cpf).map(item => item.cpf));
+    const sameDevicePhones = browserId ? new Set(Object.values(customersByPhone).filter(item => item.tenant_id === input.tenantId && item.browserId === browserId).map(item => item.phone)).size : 0;
+    const customerPurchases = purchases.filter(item => item.tenant_id === input.tenantId && item.customer?.id === input.customer.id);
+    const avgAmount = customerPurchases.length ? customerPurchases.reduce((sum, item) => sum + item.amount, 0) / customerPurchases.length : 0;
+    const amount = Number(input.amount || input.tickets);
+    const signals: FraudScoreEventRecord[] = [];
+    if (sameIpCount >= 8 || recentPurchases.length >= 12) signals.push(createFraudEvent({ tenant_id: input.tenantId, customer_id: input.customer.id, signal_type: "muitas_compras_mesmo_ip", score: Math.min(90, 25 + sameIpCount * 5 + recentPurchases.length), metadata: { ip, sameIpCount, recentPurchases: recentPurchases.length } }));
+    if (cpfSet.size >= 6 && sameIpCount >= 5) signals.push(createFraudEvent({ tenant_id: input.tenantId, customer_id: input.customer.id, signal_type: "muitos_cpfs_mesmo_ip", score: 55, metadata: { ip, cpfCount: cpfSet.size } }));
+    if (sameDevicePhones >= 3) signals.push(createFraudEvent({ tenant_id: input.tenantId, customer_id: input.customer.id, signal_type: "muitos_telefones_mesmo_dispositivo", score: Math.min(85, 25 + sameDevicePhones * 15), metadata: { browserId, phones: sameDevicePhones } }));
+    const referrer = input.refCode ? affiliates[tenantCustomerKey(input.tenantId, input.refCode)] : undefined;
+    if (referrer?.customerId && referrer.customerId === input.customer.id) signals.push(createFraudEvent({ tenant_id: input.tenantId, customer_id: input.customer.id, affiliate_id: referrer.refCode, signal_type: "afiliado_autoindicacao", score: 78, metadata: { refCode: referrer.refCode } }));
+    if (input.useBalance && amount > 0) signals.push(createFraudEvent({ tenant_id: input.tenantId, customer_id: input.customer.id, signal_type: "uso_abusivo_saldo", score: amount > 500 ? 72 : 38, metadata: { amount } }));
+    const similarAccounts = Object.values(customersByPhone).filter(item => item.tenant_id === input.tenantId && item.id !== input.customer.id && item.name?.slice(0, 8).toLowerCase() === input.customer.name?.slice(0, 8).toLowerCase()).length;
+    if (similarAccounts >= 2) signals.push(createFraudEvent({ tenant_id: input.tenantId, customer_id: input.customer.id, signal_type: "multiplas_contas_similares", score: 48, metadata: { similarAccounts } }));
+    if (customerPurchases.filter(item => item.status === "pending").length >= 4) signals.push(createFraudEvent({ tenant_id: input.tenantId, customer_id: input.customer.id, signal_type: "muitas_tentativas_pagamento", score: 52, metadata: { pendingOrders: customerPurchases.filter(item => item.status === "pending").length } }));
+    if (avgAmount > 0 && amount > avgAmount * 8) signals.push(createFraudEvent({ tenant_id: input.tenantId, customer_id: input.customer.id, signal_type: "compra_muito_alta_fora_padrao", score: 74, metadata: { amount, avgAmount } }));
+    if (/curl|bot|spider|python|scrapy|headless/i.test(userAgent)) signals.push(createFraudEvent({ tenant_id: input.tenantId, customer_id: input.customer.id, signal_type: "user_agent_suspeito", score: 82, metadata: { userAgent } }));
+    if (/vpn|proxy/i.test(String(req.headers["x-network-type"] || req.headers["x-forwarded-for"] || ""))) signals.push(createFraudEvent({ tenant_id: input.tenantId, customer_id: input.customer.id, signal_type: "vpn_proxy_futuro", score: 62, metadata: { ip } }));
+    if (input.customer.state && req.headers["x-geo-region"] && String(req.headers["x-geo-region"]).toUpperCase() !== String(input.customer.state).toUpperCase()) signals.push(createFraudEvent({ tenant_id: input.tenantId, customer_id: input.customer.id, signal_type: "localizacao_incompativel", score: 45, metadata: { customerState: input.customer.state, requestRegion: req.headers["x-geo-region"] } }));
+    const maxScore = Math.max(getCustomerRiskScore(input.tenantId, input.customer.id), ...signals.map(item => item.score || 0), 0);
+    return { score: maxScore, blocked: maxScore >= 90, signals };
+  }
+
+  function evaluateWithdrawalFraud(customer: CustomerRecord, affiliate: AffiliateRecord, amount: number) {
+    const recentWithdrawals = affiliateWithdrawals.filter(item => item.tenant_id === affiliate.tenant_id && item.customerId === customer.id && new Date(item.requestedAt).getTime() >= Date.now() - 7 * 86400000);
+    const score = amount > 1000 || recentWithdrawals.length >= 2 || getCustomerRiskScore(affiliate.tenant_id, customer.id) >= 71 ? 86 : amount > 500 ? 55 : 15;
+    return createFraudEvent({ tenant_id: affiliate.tenant_id, customer_id: customer.id, affiliate_id: affiliate.refCode, signal_type: "saque_suspeito", score, metadata: { amount, recentWithdrawals: recentWithdrawals.length } });
   }
 
   function normalizePhone(phone: string) {
@@ -6775,7 +6922,19 @@ async function startServer() {
   });
 
   app.get("/api/admin/antifraud", (req, res) => {
-    res.json(scoped(fraudSignals, req));
+    const tenantId = resolveRequestTenantId(req);
+    const cases = fraudCases.filter(item => item.tenant_id === tenantId);
+    res.json({
+      signals: scoped(fraudSignals, req),
+      scoreEvents: scoped(fraudScoreEvents, req),
+      cases,
+      summary: {
+        totalCases: cases.length,
+        open: cases.filter(item => ["open", "manual_review"].includes(item.status)).length,
+        highRisk: cases.filter(item => item.severity === "high").length,
+        averageScore: cases.length ? Math.round(cases.reduce((sum, item) => sum + item.score, 0) / cases.length) : 0
+      }
+    });
   });
 
   app.post("/api/admin/antifraud/scan", (req, res) => {
@@ -6786,15 +6945,41 @@ async function startServer() {
       return acc;
     }, {});
     Object.entries(byIp).filter(([, count]) => count >= 5).forEach(([ip, count]) => {
-      fraudSignals.unshift({ id: createPublicId("FRD_"), tenant_id: tenantId, signal_type: "many_actions_same_ip", severity: count > 20 ? "high" : "medium", metadata: { ip, count }, status: "open", created_at: now });
+      createFraudEvent({ tenant_id: tenantId, signal_type: "many_actions_same_ip", score: count > 20 ? 82 : 45, metadata: { ip, count } });
     });
     Object.values(customersByPhone)
       .filter(customer => customer.tenant_id === tenantId)
       .forEach(customer => {
         const samePhone = Object.values(customersByPhone).filter(item => item.tenant_id === tenantId && item.phone === customer.phone).length;
-        if (samePhone > 1) fraudSignals.unshift({ id: createPublicId("FRD_"), tenant_id: tenantId, customer_id: customer.id, signal_type: "telefone_repetido", severity: "medium", metadata: { phone: maskPhone(customer.phone), count: samePhone }, status: "open", created_at: now });
+        if (samePhone > 1) createFraudEvent({ tenant_id: tenantId, customer_id: customer.id, signal_type: "telefone_repetido", score: 42, metadata: { phone: maskPhone(customer.phone), count: samePhone } });
       });
-    res.json({ signals: scoped(fraudSignals, req) });
+    res.json({ signals: scoped(fraudSignals, req), scoreEvents: scoped(fraudScoreEvents, req), cases: fraudCases.filter(item => item.tenant_id === tenantId) });
+  });
+
+  app.post("/api/admin/antifraud/cases/:id/review", (req, res) => {
+    const fraudCase = fraudCases.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!fraudCase) return res.status(404).json({ error: "Caso antifraude nao encontrado" });
+    const decision = ["approved", "rejected", "dismissed", "blocked"].includes(String(req.body.status)) ? String(req.body.status) as FraudCaseRecord["status"] : "approved";
+    const before = { ...fraudCase };
+    fraudCase.status = decision;
+    fraudCase.reviewed_by = getAuthSession(req)?.email || "admin";
+    fraudCase.reviewed_at = new Date().toISOString();
+    const customer = fraudCase.customer_id ? Object.values(customersByPhone).find(item => item.tenant_id === fraudCase.tenant_id && item.id === fraudCase.customer_id) : undefined;
+    if (customer && req.body.blockCustomer) {
+      customer.blocked = true;
+      customer.blockedReason = String(req.body.reason || "Bloqueado por revisao antifraude");
+    }
+    if (customer && req.body.releaseCustomer) {
+      customer.blocked = false;
+      customer.blockedReason = "";
+    }
+    fraudSignals.filter(item => item.tenant_id === fraudCase.tenant_id && item.signal_type === fraudCase.signal_type && item.customer_id === fraudCase.customer_id).forEach(item => {
+      item.status = decision === "dismissed" ? "dismissed" : "reviewed";
+      item.reviewed_by = fraudCase.reviewed_by;
+      item.reviewed_at = fraudCase.reviewed_at;
+    });
+    recordAuditLedger(req, { tenant_id: fraudCase.tenant_id, action: "FRAUD_CASE_REVIEWED", resource_type: "fraud_case", resource_id: fraudCase.id, before_data: before, after_data: fraudCase, reason: String(req.body.reason || "Revisao antifraude") });
+    res.json({ case: fraudCase, customer });
   });
 
   app.post("/api/checkout/preview", (req, res) => {
@@ -7034,6 +7219,12 @@ async function startServer() {
     const effectiveTickets = tickets + couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets;
     if (raffle.soldTickets + effectiveTickets > raffle.totalTickets) {
       res.status(400).json({ error: "Quantidade com bônus indisponível" });
+      return;
+    }
+    const advancedFraud = evaluateAdvancedPurchaseFraud(req, { tenantId, customer, tickets: effectiveTickets, amount, refCode, useBalance });
+    if (advancedFraud.blocked) {
+      recordSecurityEvent({ tenant_id: tenantId, action: "ADVANCED_FRAUD_CHECKOUT_BLOCKED", ip, status: "BLOCKED", severity: "high", actor: customer.phone, detail: `score=${advancedFraud.score}` });
+      res.status(403).json({ error: "Checkout bloqueado temporariamente para revisao antifraude", fraudScore: advancedFraud.score });
       return;
     }
     const purchaseId = createPublicId();
@@ -8412,6 +8603,12 @@ async function startServer() {
     };
     paymentWebhookLogs.unshift(entry);
     paymentWebhookLogs = paymentWebhookLogs.slice(0, 500);
+    if (entry.status === "failed" || entry.status === "invalid") {
+      const recentFailures = paymentWebhookLogs.filter(item => item.tenant_id === entry.tenant_id && item.gateway === entry.gateway && ["failed", "invalid"].includes(item.status) && new Date(item.createdAt).getTime() >= Date.now() - 60 * 60 * 1000).length;
+      if (recentFailures >= 3) {
+        createFraudEvent({ tenant_id: entry.tenant_id, order_id: entry.purchaseId, signal_type: "gateway_failures_repetidos", score: Math.min(88, 35 + recentFailures * 12), metadata: { gateway: entry.gateway, recentFailures, status: entry.status } });
+      }
+    }
     return entry;
   }
 
@@ -9997,6 +10194,10 @@ async function startServer() {
       created_at: new Date().toISOString()
     };
     ticketAdjustments.unshift(adjustment);
+    const recentAdjustments = ticketAdjustments.filter(item => item.tenant_id === purchase.tenant_id && item.customer_id === purchase.customer?.id && new Date(item.created_at).getTime() >= Date.now() - 7 * 86400000).length;
+    if (recentAdjustments >= 3) {
+      createFraudEvent({ tenant_id: purchase.tenant_id, customer_id: purchase.customer?.id, order_id: purchase.purchaseId, signal_type: "muitas_alteracoes_cotas", score: Math.min(95, 45 + recentAdjustments * 10), metadata: { recentAdjustments, adjustment_type: type } });
+    }
     recordAuditLedger(req, {
       tenant_id: purchase.tenant_id,
       action: `TICKET_${type.toUpperCase()}`,
@@ -10474,6 +10675,8 @@ async function startServer() {
       customerConsents,
       dataPrivacyRequests,
       fraudSignals,
+      fraudScoreEvents,
+      fraudCases,
       paymentWebhookLogs,
       n8nEventLogs,
       integrations,
@@ -10544,6 +10747,8 @@ async function startServer() {
       case "customerConsents": customerConsents = Array.isArray(value) ? value : []; break;
       case "dataPrivacyRequests": dataPrivacyRequests = Array.isArray(value) ? value : []; break;
       case "fraudSignals": fraudSignals = Array.isArray(value) ? value : []; break;
+      case "fraudScoreEvents": fraudScoreEvents = Array.isArray(value) ? value : []; break;
+      case "fraudCases": fraudCases = Array.isArray(value) ? value : []; break;
       case "paymentWebhookLogs": paymentWebhookLogs = Array.isArray(value) ? value : []; break;
       case "n8nEventLogs": n8nEventLogs = Array.isArray(value) ? value : []; break;
       case "integrations": integrations = Array.isArray(value) ? value : []; break;
@@ -11373,6 +11578,12 @@ async function startServer() {
     const pending = affiliateWithdrawals.find(item => item.tenant_id === affiliate.tenant_id && item.refCode === affiliate.refCode && item.status === "pending");
     if (pending) {
       res.status(409).json({ error: "Voce ja possui uma solicitacao de saque pendente" });
+      return;
+    }
+    const withdrawalRisk = evaluateWithdrawalFraud(customer, affiliate, amount);
+    if ((withdrawalRisk.score || 0) >= 71) {
+      recordSecurityEvent({ tenant_id: affiliate.tenant_id, action: "WITHDRAWAL_BLOCKED_BY_FRAUD_SCORE", ip: String(req.ip || req.socket.remoteAddress || ""), status: "BLOCKED", severity: "high", actor: customer.phone, detail: `score=${withdrawalRisk.score}` });
+      res.status(403).json({ error: "Saque bloqueado para revisao manual antifraude", fraudScore: withdrawalRisk.score });
       return;
     }
     affiliate.pixKey = pixKey;

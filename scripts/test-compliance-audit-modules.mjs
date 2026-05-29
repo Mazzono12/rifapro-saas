@@ -4,7 +4,7 @@ const mode = process.argv[2] || "all";
 const read = path => readFileSync(path, "utf8");
 const server = read("server.ts");
 const app = read("src/App.tsx");
-const migration = `${read("supabase/migrations/24_compliance_audit_ticket_ledger.sql")}\n${read("supabase/migrations/29_provably_fair_complete.sql")}`;
+const migration = `${read("supabase/migrations/24_compliance_audit_ticket_ledger.sql")}\n${read("supabase/migrations/29_provably_fair_complete.sql")}\n${read("supabase/migrations/31_advanced_antifraud.sql")}`;
 const adminLayout = read("src/pages/admin/AdminLayout.tsx");
 const adminCompliance = read("src/pages/admin/AdminComplianceCenter.tsx");
 const drawAudit = read("src/pages/DrawAudit.tsx");
@@ -51,9 +51,11 @@ function complianceLgpd() {
 }
 
 function antifraudBasic() {
-  includesAll(migration, ["fraud_signals", "signal_type", "severity", "metadata"], "migration antifraude");
-  includesAll(server, ["/api/admin/antifraud", "/api/admin/antifraud/scan", "many_actions_same_ip", "telefone_repetido"], "backend antifraude");
+  includesAll(migration, ["fraud_signals", "fraud_score_events", "fraud_cases", "score integer", "reviewed_by", "reviewed_at"], "migration antifraude");
+  includesAll(server, ["/api/admin/antifraud", "/api/admin/antifraud/scan", "/api/admin/antifraud/cases/:id/review", "/api/superadmin/antifraud", "muitas_compras_mesmo_ip", "muitos_cpfs_mesmo_ip", "muitos_telefones_mesmo_dispositivo", "afiliado_autoindicacao", "uso_abusivo_saldo", "multiplas_contas_similares", "muitas_tentativas_pagamento", "muitas_alteracoes_cotas", "saque_suspeito", "compra_muito_alta_fora_padrao", "gateway_failures_repetidos", "user_agent_suspeito", "vpn_proxy_futuro", "localizacao_incompativel", "fraudSeverity", "fraudAction", "createFraudEvent", "evaluateAdvancedPurchaseFraud", "evaluateWithdrawalFraud", "FRAUD_CASE_REVIEWED"], "backend antifraude");
   includesAll(adminLayout, ["/admin/antifraude", "/admin/compliance", "/admin/auditoria", "/admin/gerenciar-cotas"], "navegacao admin");
+  includesAll(read("src/pages/admin/AdminComplianceCenter.tsx"), ["Antifraude avançado", "fila de revisão", "Aprovar", "Bloquear cliente", "Score médio"], "UI admin antifraude");
+  includesAll(read("src/pages/superadmin/SuperAdminAntifraud.tsx"), ["Visão global por tenant", "score 0-100", "/api/superadmin/antifraud"], "UI superadmin antifraude");
 }
 
 const runners = {

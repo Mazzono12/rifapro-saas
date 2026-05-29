@@ -126,6 +126,7 @@ const SuperAdminIntegrations = lazy(() => import("./pages/superadmin/SuperAdminI
 const SuperAdminDomains = lazy(() => import("./pages/superadmin/SuperAdminDomains").then(module => ({ default: module.SuperAdminDomains })));
 const SuperAdminAudit = lazy(() => import("./pages/superadmin/SuperAdminAudit").then(module => ({ default: module.SuperAdminAudit })));
 const SuperAdminReports = lazy(() => import("./pages/superadmin/SuperAdminReports").then(module => ({ default: module.SuperAdminReports })));
+const SuperAdminAntifraud = lazy(() => import("./pages/superadmin/SuperAdminAntifraud").then(module => ({ default: module.SuperAdminAntifraud })));
 const SuperAdminTenantDetail = lazy(() => import("./pages/superadmin/SuperAdminTenantDetail").then(module => ({ default: module.SuperAdminTenantDetail })));
 const SuperAdminTenantBranding = lazy(() => import("./pages/superadmin/SuperAdminTenantBranding").then(module => ({ default: module.SuperAdminTenantBranding })));
 const SuperAdminTenantPlanResources = lazy(() => import("./pages/superadmin/SuperAdminTenantPlanResources").then(module => ({ default: module.SuperAdminTenantPlanResources })));
@@ -316,6 +317,7 @@ export default function App() {
                 <Route path="dominios" element={<SuperAdminDomains />} />
                 <Route path="auditoria" element={<SuperAdminAudit />} />
                 <Route path="relatorios" element={<SuperAdminReports />} />
+                <Route path="antifraude" element={<SuperAdminAntifraud />} />
                 <Route path="tenants/:tenantId/financeiro" element={<SuperAdminTenantDetail />} />
                 <Route path="tenants/:tenantId/aparencia" element={<SuperAdminTenantBranding />} />
                 <Route path="tenants/:tenantId/plano" element={<SuperAdminTenantPlanResources />} />

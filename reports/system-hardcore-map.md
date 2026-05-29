@@ -1,15 +1,15 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-29T02:58:10.949Z
+Gerado em: 2026-05-29T03:13:32.962Z
 
 ## Totais
 
-- Rotas backend: 278
-- Paginas frontend: 58
+- Rotas backend: 279
+- Paginas frontend: 59
 - Componentes: 37
-- Arquivos src: 137
-- Migrations: 31
-- Tabelas mapeadas: 55
+- Arquivos src: 138
+- Migrations: 32
+- Tabelas mapeadas: 57
 - Policies mapeadas: 44
 - Providers/arquivos de integracao: 10
 
@@ -164,6 +164,7 @@ Gerado em: 2026-05-29T02:58:10.949Z
 - POST /api/public/consents
 - GET /api/admin/antifraud
 - POST /api/admin/antifraud/scan
+- POST /api/admin/antifraud/cases/:id/review
 - POST /api/checkout/preview
 - POST /api/raffles/:id/buy
 - GET /api/raffles/:id/addon-suggestion
@@ -350,6 +351,7 @@ Gerado em: 2026-05-29T02:58:10.949Z
 - dominios
 - auditoria
 - relatorios
+- antifraude
 - tenants/:tenantId/financeiro
 - tenants/:tenantId/aparencia
 - tenants/:tenantId/plano
@@ -370,6 +372,8 @@ Gerado em: 2026-05-29T02:58:10.949Z
 - fazendinha_ganhadores
 - fazendinha_grupos
 - fazendinha_resultados
+- fraud_cases
+- fraud_score_events
 - fraud_signals
 - gamification_audit_logs
 - gamification_events
@@ -446,6 +450,7 @@ Gerado em: 2026-05-29T02:58:10.949Z
 - supabase/migrations/28_public_activity_events.sql
 - supabase/migrations/29_provably_fair_complete.sql
 - supabase/migrations/30_report_exports_auditable.sql
+- supabase/migrations/31_advanced_antifraud.sql
 
 ## Middlewares, Workers e Webhooks
 
@@ -459,16 +464,16 @@ Gerado em: 2026-05-29T02:58:10.949Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 890 ocorrencias no backend
+- tenant_id: 943 ocorrencias no backend
 - user_id: 16 ocorrencias no backend
-- order_id: 27 ocorrencias no backend
-- purchaseId: 173 ocorrencias no backend
+- order_id: 37 ocorrencias no backend
+- purchaseId: 175 ocorrencias no backend
 - raffleId: 191 ocorrencias no backend
-- affiliate: 330 ocorrencias no backend
-- gateway: 407 ocorrencias no backend
+- affiliate: 351 ocorrencias no backend
+- gateway: 412 ocorrencias no backend
 - wallet: 45 ocorrencias no backend
-- saldo: 2 ocorrencias no backend
-- webhook: 209 ocorrencias no backend
+- saldo: 3 ocorrencias no backend
+- webhook: 210 ocorrencias no backend
 - idempotencyKey: 18 ocorrencias no backend
 
 ## Riscos Observados

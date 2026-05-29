@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-29T02:58:10.952Z",
-  "totalRoutes": 278,
+  "generatedAt": "2026-05-29T03:13:32.965Z",
+  "totalRoutes": 279,
   "directRuntimeNote": "Cobertura runtime profunda delegada aos scripts hardcore por modulo; este arquivo garante inventario e contrato de todas as rotas detectadas.",
   "results": [
     {
@@ -1787,6 +1787,18 @@
       "checks": [
         "metodo_http_mapeado",
         "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/antifraud/cases/:id/review",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
         "exige_tenant_admin",
         "tenant_scope_revisado"
       ]

@@ -1,5 +1,5 @@
 import { Outlet, Link, useNavigate } from "react-router-dom";
-import { Building2, Crown, ExternalLink, FileSearch, FileText, Globe2, LogOut, Plug } from "lucide-react";
+import { Building2, Crown, ExternalLink, FileSearch, FileText, Globe2, LogOut, Plug, ShieldAlert } from "lucide-react";
 import { AdminThemeProvider } from "../../context/admin/AdminThemeContext";
 import { AdminPageTransition, AdminThemeSwitcher } from "../../components/admin/AdminPremium";
 import { useAuth } from "../../context/auth/AuthContext";
@@ -46,6 +46,10 @@ function SuperAdminLayoutContent() {
             <Link to="/superadmin/relatorios" className="admin-button-secondary hidden xl:flex" title="Relatórios oficiais">
               <FileText className="h-4 w-4" />
               Relatórios
+            </Link>
+            <Link to="/superadmin/antifraude" className="admin-button-secondary hidden xl:flex" title="Antifraude global">
+              <ShieldAlert className="h-4 w-4" />
+              Antifraude
             </Link>
             <Link to="/" className="admin-icon-button" title="Abrir site" aria-label="Abrir site">
               <ExternalLink className="h-5 w-5" />
