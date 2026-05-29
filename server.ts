@@ -200,6 +200,20 @@ async function startServer() {
     created_at: string;
     updated_at: string;
   };
+  type TenantThemeBlockId = "hero" | "banner" | "video" | "premio_principal" | "premios_extras" | "pacotes_cotas" | "roletas" | "caixinhas" | "raspadinhas" | "ranking" | "prova_social" | "faq" | "regulamento" | "rodape";
+  type TenantThemeTemplateRecord = {
+    id: string;
+    tenant_id: string;
+    theme_key: string;
+    name: string;
+    settings: {
+      colors: { primary: string; secondary: string; cta: string; background: string };
+      blocks: Array<{ id: TenantThemeBlockId; enabled: boolean; order: number; title: string; subtitle: string; imageUrl: string; videoUrl: string }>;
+      metadata: Record<string, unknown>;
+    };
+    active: boolean;
+    created_at: string;
+  };
   type AuthSession = {
     sub: string;
     role: AuthRole;
@@ -450,6 +464,7 @@ async function startServer() {
 
   const tenantSettings: Record<string, typeof settings> = {};
   const tenantBrandingSettings: Record<string, TenantBrandingSettings> = {};
+  let tenantThemeTemplates: TenantThemeTemplateRecord[] = [];
 
   function defaultTenantBranding(tenantId: string): TenantBrandingSettings {
     const tenant = tenants.find(item => item.id === tenantId);
@@ -478,6 +493,100 @@ async function startServer() {
   function getTenantBranding(tenantId: string) {
     tenantBrandingSettings[tenantId] ||= defaultTenantBranding(tenantId);
     return tenantBrandingSettings[tenantId];
+  }
+
+  const themeMarketplacePresets = [
+    { key: "premium-dark", name: "premium dark", colors: ["#00d66b", "#0f2d1d", "#00d66b", "#050807"] },
+    { key: "cassino-neon", name: "cassino neon", colors: ["#22d3ee", "#7c3aed", "#facc15", "#070312"] },
+    { key: "fazendinha", name: "fazendinha", colors: ["#84cc16", "#14532d", "#f97316", "#07130a"] },
+    { key: "esportivo", name: "esportivo", colors: ["#38bdf8", "#0f172a", "#22c55e", "#020617"] },
+    { key: "luxo-dourado", name: "luxo dourado", colors: ["#f5c451", "#23170a", "#facc15", "#060403"] },
+    { key: "clean-claro", name: "clean claro", colors: ["#0ea5e9", "#e0f2fe", "#16a34a", "#f8fafc"] },
+    { key: "black-friday", name: "black friday", colors: ["#ef4444", "#111827", "#facc15", "#020617"] }
+  ] as const;
+  const themeBlockIds: TenantThemeBlockId[] = ["hero", "banner", "video", "premio_principal", "premios_extras", "pacotes_cotas", "roletas", "caixinhas", "raspadinhas", "ranking", "prova_social", "faq", "regulamento", "rodape"];
+
+  function sanitizeThemeText(value: unknown, max = 180) {
+    return String(value || "").replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "").replace(/[<>]/g, "").trim().slice(0, max);
+  }
+
+  function sanitizeThemeUrl(value: unknown) {
+    const url = String(value || "").trim();
+    if (!url) return "";
+    if (/^javascript:/i.test(url) || /<|>/g.test(url)) return "";
+    if (/^(https?:\/\/|\/uploads\/|\/assets\/|\/icons\/)/i.test(url)) return url.slice(0, 600);
+    return "";
+  }
+
+  function buildThemeSettings(themeKey = "premium-dark", incoming: any = {}) {
+    const preset = themeMarketplacePresets.find(item => item.key === themeKey) || themeMarketplacePresets[0];
+    const colors = incoming.colors || {};
+    const incomingBlocks = Array.isArray(incoming.blocks) ? incoming.blocks : [];
+    return {
+      colors: {
+        primary: isHexColor(colors.primary) ? colors.primary : preset.colors[0],
+        secondary: isHexColor(colors.secondary) ? colors.secondary : preset.colors[1],
+        cta: isHexColor(colors.cta) ? colors.cta : preset.colors[2],
+        background: isHexColor(colors.background) ? colors.background : preset.colors[3]
+      },
+      blocks: themeBlockIds.map((id, index) => {
+        const block = incomingBlocks.find((item: any) => item?.id === id) || {};
+        return {
+          id,
+          enabled: block.enabled !== false,
+          order: Number.isFinite(Number(block.order)) ? Number(block.order) : index,
+          title: sanitizeThemeText(block.title || id.replace(/_/g, " "), 120),
+          subtitle: sanitizeThemeText(block.subtitle || "", 240),
+          imageUrl: sanitizeThemeUrl(block.imageUrl),
+          videoUrl: sanitizeThemeUrl(block.videoUrl)
+        };
+      }).sort((a, b) => a.order - b.order),
+      metadata: typeof incoming.metadata === "object" && incoming.metadata ? incoming.metadata : {}
+    };
+  }
+
+  function defaultThemeTemplate(tenantId: string, themeKey = "premium-dark"): TenantThemeTemplateRecord {
+    const preset = themeMarketplacePresets.find(item => item.key === themeKey) || themeMarketplacePresets[0];
+    return {
+      id: createPublicId("THEME_"),
+      tenant_id: tenantId,
+      theme_key: preset.key,
+      name: preset.name,
+      settings: buildThemeSettings(preset.key),
+      active: true,
+      created_at: new Date().toISOString()
+    };
+  }
+
+  function ensureTenantThemeTemplate(tenantId: string) {
+    let active = tenantThemeTemplates.find(item => item.tenant_id === tenantId && item.active);
+    if (!active) {
+      active = defaultThemeTemplate(tenantId);
+      tenantThemeTemplates.unshift(active);
+    }
+    return active;
+  }
+
+  function saveTenantThemeTemplate(tenantId: string, input: any) {
+    const current = input.id ? tenantThemeTemplates.find(item => item.id === input.id && item.tenant_id === tenantId) : ensureTenantThemeTemplate(tenantId);
+    const themeKey = String(input.theme_key || current.theme_key || "premium-dark");
+    const next: TenantThemeTemplateRecord = {
+      ...current,
+      theme_key: themeMarketplacePresets.some(item => item.key === themeKey) ? themeKey : current.theme_key,
+      name: sanitizeThemeText(input.name || current.name, 80),
+      settings: buildThemeSettings(themeKey, input.settings || current.settings),
+      active: input.active !== false,
+      created_at: current.created_at || new Date().toISOString()
+    };
+    tenantThemeTemplates = tenantThemeTemplates.filter(item => item.id !== current.id);
+    if (next.active) tenantThemeTemplates.forEach(item => { if (item.tenant_id === tenantId) item.active = false; });
+    tenantThemeTemplates.unshift(next);
+    return next;
+  }
+
+  function publicTenantTheme(tenantId: string) {
+    const template = ensureTenantThemeTemplate(tenantId);
+    return { theme_key: template.theme_key, name: template.name, settings: template.settings, active: template.active };
   }
 
   function isHexColor(value: unknown) {
@@ -2497,6 +2606,14 @@ async function startServer() {
     res.json(publicTenantBranding(getTenantBranding(tenant.id)));
   });
 
+  app.get("/api/public/theme-template", async (req, res) => {
+    const resolution = await resolveDomainTenantInfo(req);
+    const tenant = resolution.tenant || getRequestTenant(req) || tenants.find(item => item.id === legacyTenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado para este dominio" });
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    res.json(publicTenantTheme(tenant.id));
+  });
+
   app.get("/manifest.webmanifest", async (req, res) => {
     const resolution = await resolveDomainTenantInfo(req);
     const tenant = resolution.tenant || getRequestTenant(req) || tenants.find(item => item.id === legacyTenantId);
@@ -4275,6 +4392,33 @@ async function startServer() {
     tenantBrandingSettings[tenant.id] = defaultTenantBranding(tenant.id);
     recordSuperadminAudit(req, "TENANT_BRANDING_RESET", { tenant_id: tenant.id, resource_type: "tenant_branding_settings", resource_id: tenantBrandingSettings[tenant.id].id });
     res.json(tenantBrandingSettings[tenant.id]);
+  });
+
+  app.get("/api/superadmin/theme-templates", (_req, res) => {
+    res.json({ marketplace: themeMarketplacePresets, templates: tenantThemeTemplates });
+  });
+
+  app.post("/api/superadmin/theme-templates", (req, res) => {
+    const tenantId = String(req.body.tenant_id || "global");
+    const template = saveTenantThemeTemplate(tenantId, { ...req.body, active: req.body.active !== false });
+    recordSuperadminAudit(req, "GLOBAL_THEME_TEMPLATE_CREATED", { tenant_id: tenantId === "global" ? undefined : tenantId, resource_type: "tenant_theme_template", resource_id: template.id });
+    res.status(201).json(template);
+  });
+
+  app.post("/api/superadmin/theme-templates/:themeId/apply/:tenantId", (req, res) => {
+    const source = tenantThemeTemplates.find(item => item.id === req.params.themeId) || tenantThemeTemplates.find(item => item.theme_key === req.params.themeId) || defaultThemeTemplate(req.params.tenantId, req.params.themeId);
+    const template = saveTenantThemeTemplate(req.params.tenantId, { ...source, id: createPublicId("THEME_"), active: true });
+    recordSuperadminAudit(req, "GLOBAL_THEME_TEMPLATE_APPLIED", { tenant_id: req.params.tenantId, resource_type: "tenant_theme_template", resource_id: template.id });
+    res.json(template);
+  });
+
+  app.post("/api/superadmin/theme-templates/:themeId/duplicate", (req, res) => {
+    const source = tenantThemeTemplates.find(item => item.id === req.params.themeId);
+    if (!source) return res.status(404).json({ error: "Tema nao encontrado" });
+    const tenantId = String(req.body.tenant_id || source.tenant_id);
+    const template = saveTenantThemeTemplate(tenantId, { ...source, id: createPublicId("THEME_"), name: `${source.name} copia`, active: false });
+    recordSuperadminAudit(req, "GLOBAL_THEME_TEMPLATE_DUPLICATED", { tenant_id: tenantId === "global" ? undefined : tenantId, resource_type: "tenant_theme_template", resource_id: template.id });
+    res.status(201).json(template);
   });
 
   app.use("/api/v1", apiKeyRateLimiter, requireTenantApiKey);
@@ -10912,6 +11056,7 @@ async function startServer() {
       settings,
       tenantSettings,
       tenantBrandingSettings,
+      tenantThemeTemplates,
       tenantFeatureOverrides,
       lootboxGuaranteedPool,
       lootboxGuaranteedPools,
@@ -10985,6 +11130,7 @@ async function startServer() {
       case "settings": settings = value || settings; break;
       case "tenantSettings": replaceObject(tenantSettings, value); break;
       case "tenantBrandingSettings": replaceObject(tenantBrandingSettings, value); break;
+      case "tenantThemeTemplates": tenantThemeTemplates = Array.isArray(value) ? value : []; break;
       case "tenantFeatureOverrides": tenantFeatureOverrides = value || {}; break;
       case "lootboxGuaranteedPool": lootboxGuaranteedPool = Array.isArray(value) ? value : []; break;
       case "lootboxGuaranteedPools": lootboxGuaranteedPools = value || {}; break;
@@ -11345,6 +11491,35 @@ async function startServer() {
     tenantBrandingSettings[tenantId] = defaultTenantBranding(tenantId);
     recordSecurityEvent({ tenant_id: tenantId, action: "TENANT_BRANDING_RESET", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email });
     res.json(tenantBrandingSettings[tenantId]);
+  });
+
+  app.get("/api/admin/theme-builder", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({
+      marketplace: themeMarketplacePresets,
+      template: ensureTenantThemeTemplate(tenantId),
+      templates: tenantThemeTemplates.filter(item => item.tenant_id === tenantId)
+    });
+  });
+
+  app.put("/api/admin/theme-builder", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const before = ensureTenantThemeTemplate(tenantId);
+    const template = saveTenantThemeTemplate(tenantId, req.body || {});
+    recordAuditLedger(req, { tenant_id: tenantId, action: "TENANT_THEME_TEMPLATE_UPDATED", resource_type: "tenant_theme_template", resource_id: template.id, before_data: before, after_data: template, reason: String(req.body.reason || "Atualizacao do construtor visual") });
+    res.json(template);
+  });
+
+  app.post("/api/admin/theme-builder/publish", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const template = req.body?.id
+      ? tenantThemeTemplates.find(item => item.id === req.body.id && item.tenant_id === tenantId)
+      : ensureTenantThemeTemplate(tenantId);
+    if (!template) return res.status(404).json({ error: "Tema nao encontrado" });
+    tenantThemeTemplates.forEach(item => { if (item.tenant_id === tenantId) item.active = item.id === template.id; });
+    template.active = true;
+    recordAuditLedger(req, { tenant_id: tenantId, action: "TENANT_THEME_TEMPLATE_PUBLISHED", resource_type: "tenant_theme_template", resource_id: template.id, before_data: null, after_data: template, reason: String(req.body.reason || "Publicacao do tema visual") });
+    res.json(template);
   });
 
   app.get("/api/admin/integrations/n8n", (req, res) => {

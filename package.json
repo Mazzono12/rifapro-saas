@@ -67,6 +67,7 @@
     ,"test:public-conversion": "node scripts/test-public-conversion-widgets.mjs"
     ,"test:public-api-keys": "node scripts/test-public-api-keys.mjs"
     ,"test:pwa-secure": "node scripts/test-pwa-secure.mjs"
+    ,"test:theme-builder": "node scripts/test-theme-builder-marketplace.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

@@ -7,6 +7,7 @@ import { themes, type ThemeId } from "../../themes";
 import { MediaPicker } from "../../components/admin/MediaPicker";
 import { defaultVideoConfig, VideoSettingsEditor } from "../../components/admin/VideoSettingsEditor";
 import { BrandingSettingsForm } from "../../components/branding/BrandingSettingsForm";
+import { ThemeBuilder } from "../../components/branding/ThemeBuilder";
 import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
 
 const paletteFields = [
@@ -25,6 +26,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
   const { refresh: refreshTenantBranding } = useTenantBranding();
   const [loading, setLoading] = useState(true);
   const [branding, setBranding] = useState<any>(null);
+  const [builder, setBuilder] = useState<any>(null);
   const [settings, setSettings] = useState<any>({
     branding: {
       companyName: "NexusDraw",
@@ -99,6 +101,13 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
       .catch(() => null);
   }, []);
 
+  useEffect(() => {
+    fetch("/api/admin/theme-builder")
+      .then(res => res.json())
+      .then(setBuilder)
+      .catch(() => null);
+  }, []);
+
   const saveBranding = async () => {
     const res = await fetch("/api/admin/branding", {
       method: "PUT",
@@ -117,6 +126,32 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     setBranding(await res.json());
     await refreshTenantBranding();
     toast.success("Aparencia resetada");
+  };
+
+  const saveThemeBuilder = async () => {
+    const res = await fetch("/api/admin/theme-builder", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(builder?.template || {})
+    });
+    if (!res.ok) throw new Error("Nao foi possivel salvar construtor");
+    const template = await res.json();
+    setBuilder({ ...builder, template });
+    await refreshTenantBranding();
+    toast.success("Construtor salvo");
+  };
+
+  const publishThemeBuilder = async () => {
+    const res = await fetch("/api/admin/theme-builder/publish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: builder?.template?.id })
+    });
+    if (!res.ok) throw new Error("Nao foi possivel publicar tema");
+    const template = await res.json();
+    setBuilder({ ...builder, template });
+    await refreshTenantBranding();
+    toast.success("Tema publicado");
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -303,6 +338,16 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
           />
         ) : (
           <div className="glass-card rounded-3xl p-8 text-slate-400">Carregando aparencia...</div>
+        )}
+        {builder ? (
+          <ThemeBuilder
+            data={builder}
+            onChange={setBuilder}
+            onSave={() => saveThemeBuilder().catch(error => toast.error(error.message))}
+            onPublish={() => publishThemeBuilder().catch(error => toast.error(error.message))}
+          />
+        ) : (
+          <div className="glass-card rounded-3xl p-8 text-slate-400">Carregando construtor visual...</div>
         )}
       </div>
     );

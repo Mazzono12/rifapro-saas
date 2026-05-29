@@ -1,15 +1,15 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-29T03:25:48.863Z
+Gerado em: 2026-05-29T03:46:42.104Z
 
 ## Totais
 
-- Rotas backend: 287
+- Rotas backend: 296
 - Paginas frontend: 59
-- Componentes: 37
-- Arquivos src: 138
-- Migrations: 33
-- Tabelas mapeadas: 58
+- Componentes: 39
+- Arquivos src: 141
+- Migrations: 34
+- Tabelas mapeadas: 59
 - Policies mapeadas: 44
 - Providers/arquivos de integracao: 10
 
@@ -19,6 +19,8 @@ Gerado em: 2026-05-29T03:25:48.863Z
 - GET /api/public/geo
 - GET /api/public/tenant-debug
 - GET /api/public/branding
+- GET /api/public/theme-template
+- GET /manifest.webmanifest
 - POST /api/auth/signup
 - POST /api/auth/login
 - POST /api/auth/admin/login
@@ -92,6 +94,10 @@ Gerado em: 2026-05-29T03:25:48.863Z
 - POST /api/superadmin/tenants/:tenantId/branding/logo
 - POST /api/superadmin/tenants/:tenantId/branding/favicon
 - POST /api/superadmin/tenants/:tenantId/branding/reset
+- GET /api/superadmin/theme-templates
+- POST /api/superadmin/theme-templates
+- POST /api/superadmin/theme-templates/:themeId/apply/:tenantId
+- POST /api/superadmin/theme-templates/:themeId/duplicate
 - GET /api/v1/raffles
 - GET /api/v1/raffles/:id
 - GET /api/v1/orders
@@ -276,6 +282,9 @@ Gerado em: 2026-05-29T03:25:48.863Z
 - POST /api/admin/branding/logo
 - POST /api/admin/branding/favicon
 - POST /api/admin/branding/reset
+- GET /api/admin/theme-builder
+- PUT /api/admin/theme-builder
+- POST /api/admin/theme-builder/publish
 - GET /api/admin/integrations/n8n
 - POST /api/admin/integrations/n8n/test
 - POST /api/admin/integrations/n8n/broadcast
@@ -416,6 +425,7 @@ Gerado em: 2026-05-29T03:25:48.863Z
 - tenant_domains
 - tenant_feature_flags
 - tenant_maintenance_windows
+- tenant_theme_templates
 - tenants
 - ticket_adjustments
 - usuarios
@@ -461,6 +471,7 @@ Gerado em: 2026-05-29T03:25:48.863Z
 - supabase/migrations/30_report_exports_auditable.sql
 - supabase/migrations/31_advanced_antifraud.sql
 - supabase/migrations/32_tenant_api_keys.sql
+- supabase/migrations/33_tenant_theme_templates.sql
 
 ## Middlewares, Workers e Webhooks
 
@@ -474,7 +485,7 @@ Gerado em: 2026-05-29T03:25:48.863Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 962 ocorrencias no backend
+- tenant_id: 978 ocorrencias no backend
 - user_id: 16 ocorrencias no backend
 - order_id: 37 ocorrencias no backend
 - purchaseId: 175 ocorrencias no backend

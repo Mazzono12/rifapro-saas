@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-29T03:25:48.867Z",
-  "totalRoutes": 287,
+  "generatedAt": "2026-05-29T03:46:42.106Z",
+  "totalRoutes": 296,
   "directRuntimeNote": "Cobertura runtime profunda delegada aos scripts hardcore por modulo; este arquivo garante inventario e contrato de todas as rotas detectadas.",
   "results": [
     {
@@ -42,6 +42,30 @@
     {
       "method": "GET",
       "path": "/api/public/branding",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "rota_publica_ou_contextual",
+        "sem_tenant_explicito"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/theme-template",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "rota_publica_ou_contextual",
+        "sem_tenant_explicito"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/manifest.webmanifest",
       "status": "mapped_static",
       "expectedSecurity": "public_or_tenant_context",
       "checks": [
@@ -918,6 +942,54 @@
     {
       "method": "POST",
       "path": "/api/superadmin/tenants/:tenantId/branding/reset",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/superadmin/theme-templates",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/superadmin/theme-templates",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/superadmin/theme-templates/:themeId/apply/:tenantId",
+      "status": "mapped_static",
+      "expectedSecurity": "superadmin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_role_superadmin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/superadmin/theme-templates/:themeId/duplicate",
       "status": "mapped_static",
       "expectedSecurity": "superadmin_only",
       "checks": [
@@ -3126,6 +3198,42 @@
     {
       "method": "POST",
       "path": "/api/admin/branding/reset",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/theme-builder",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/theme-builder",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "sem_parametro_dinamico",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/theme-builder/publish",
       "status": "mapped_static",
       "expectedSecurity": "tenant_admin_only",
       "checks": [
