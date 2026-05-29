@@ -9,6 +9,7 @@ import { ThemeProvider } from "./context/theme/ThemeContext";
 import { AuthProvider } from "./context/auth/AuthContext";
 import { TenantBrandingProvider } from "./context/tenant-branding/TenantBrandingContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { PwaInstallPrompt } from "./components/pwa/PwaInstallPrompt";
 import { useCustomerStore } from "./store/useCustomerStore";
 
 // Track Ref Custom Hook
@@ -256,6 +257,7 @@ export default function App() {
           <GlobalTracking />
           <MobilePreviewMode />
           <GlobalVideoGuard />
+          <PwaInstallPrompt />
           <MainLayout>
             <Suspense fallback={<PageFallback />}>
               <Routes>

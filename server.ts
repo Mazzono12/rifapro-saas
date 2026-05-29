@@ -2497,6 +2497,38 @@ async function startServer() {
     res.json(publicTenantBranding(getTenantBranding(tenant.id)));
   });
 
+  app.get("/manifest.webmanifest", async (req, res) => {
+    const resolution = await resolveDomainTenantInfo(req);
+    const tenant = resolution.tenant || getRequestTenant(req) || tenants.find(item => item.id === legacyTenantId);
+    const branding = publicTenantBranding(getTenantBranding(tenant?.id || legacyTenantId));
+    const primary = String(branding.colors?.primary || "#00d66b");
+    const name = String(branding.header_name || tenant?.nome || "RifaPro");
+    res.setHeader("Content-Type", "application/manifest+json; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    res.json({
+      id: `/${tenant?.slug || "rifapro"}`,
+      name,
+      short_name: name.slice(0, 12) || "RifaPro",
+      description: String(branding.slogan || "RifaPro/CIFHER instalavel para rifas, checkout PIX, afiliados e administracao."),
+      start_url: "/?source=pwa",
+      scope: "/",
+      display: "standalone",
+      display_override: ["window-controls-overlay", "standalone", "browser"],
+      orientation: "portrait-primary",
+      background_color: "#050807",
+      theme_color: primary,
+      categories: ["business", "shopping", "entertainment"],
+      icons: [
+        { src: branding.logo_url || "/icons/pwa-icon.svg", sizes: "192x192", type: branding.logo_mime_type || "image/svg+xml", purpose: "any" },
+        { src: "/icons/pwa-icon.svg", sizes: "192x192", type: "image/svg+xml", purpose: "any" },
+        { src: "/icons/pwa-maskable.svg", sizes: "512x512", type: "image/svg+xml", purpose: "maskable" }
+      ],
+      screenshots: [
+        { src: "/pwa-splash.svg", sizes: "1080x1920", type: "image/svg+xml", form_factor: "narrow", label: "RifaPro mobile" }
+      ]
+    });
+  });
+
   function adminCanAccessTenant(req: express.Request, tenantId: string) {
     const session = getAuthSession(req);
     return Boolean(session && (normalizeAuthRole(session.role) === "superadmin" || session.tenant_id === tenantId));

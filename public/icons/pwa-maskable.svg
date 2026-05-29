@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="RifaPro">
+  <rect width="512" height="512" fill="#050807"/>
+  <circle cx="256" cy="256" r="210" fill="#00d66b" opacity=".16"/>
+  <circle cx="256" cy="256" r="156" fill="#07150d" stroke="#00d66b" stroke-width="18"/>
+  <path d="M150 340V172h142c56 0 95 34 95 84 0 38-22 67-58 80l59 77h-76l-50-67h-42v67h-70Zm70-112v62h58c22 0 35-13 35-32 0-18-13-30-35-30h-58Z" fill="#00d66b"/>
+</svg>

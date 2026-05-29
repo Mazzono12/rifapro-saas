@@ -69,6 +69,13 @@ function applyBranding(branding: PublicTenantBranding) {
   root.style.setProperty("--theme-primary", primary);
   root.style.setProperty("--theme-glow", `${primary}55`);
   root.dataset.tenantTheme = branding.theme_mode;
+  let themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!themeColor) {
+    themeColor = document.createElement("meta");
+    themeColor.name = "theme-color";
+    document.head.appendChild(themeColor);
+  }
+  themeColor.content = primary;
   document.title = branding.header_name ? `${branding.header_name} | RifaPro` : "RifaPro";
   const existingFavicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]') || document.createElement("link");
   existingFavicon.rel = "icon";

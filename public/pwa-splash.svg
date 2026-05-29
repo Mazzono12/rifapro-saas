@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920" role="img" aria-label="RifaPro splash">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="18%" r="78%">
+      <stop offset="0" stop-color="#12351f"/>
+      <stop offset=".52" stop-color="#050807"/>
+      <stop offset="1" stop-color="#020403"/>
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="1920" fill="url(#bg)"/>
+  <circle cx="540" cy="820" r="210" fill="#00d66b" opacity=".16"/>
+  <rect x="358" y="638" width="364" height="364" rx="86" fill="#07150d" stroke="#00d66b" stroke-width="18"/>
+  <path d="M432 884V734h128c50 0 86 30 86 75 0 35-20 61-53 72l53 70h-69l-45-60h-38v60h-62Zm62-100v56h52c20 0 32-12 32-29 0-16-12-27-32-27h-52Z" fill="#00d66b"/>
+  <text x="540" y="1098" text-anchor="middle" fill="#f8fafc" font-family="Inter,Arial,sans-serif" font-size="72" font-weight="900">RifaPro</text>
+  <text x="540" y="1162" text-anchor="middle" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="30">CIFHER SaaS</text>
+</svg>

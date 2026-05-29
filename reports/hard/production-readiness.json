@@ -1,9 +1,9 @@
 {
   "mode": "production-readiness",
   "success": true,
-  "startedAt": "2026-05-29T03:26:22.428Z",
-  "finishedAt": "2026-05-29T03:26:48.167Z",
-  "durationMs": 25739,
+  "startedAt": "2026-05-29T03:35:29.318Z",
+  "finishedAt": "2026-05-29T03:36:14.759Z",
+  "durationMs": 45441,
   "results": [
     {
       "name": "auditoria estatica de rotas e modulos",
@@ -13,119 +13,125 @@
     {
       "name": "modelo normalizado de gateway",
       "status": "passed",
-      "durationMs": 3
+      "durationMs": 4
     },
     {
       "name": "scripts/test-gateway-credentials-security.mjs",
       "status": "passed",
-      "durationMs": 91,
+      "durationMs": 94,
       "output": "PASS: credenciais de gateways cifradas em repouso, descriptografadas so no backend e mascaradas no frontend.\n"
     },
     {
       "name": "scripts/test-pix-multitenant.mjs",
       "status": "passed",
-      "durationMs": 2735,
+      "durationMs": 4073,
       "output": "PASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n"
     },
     {
       "name": "checkout usa reserva, pagamento e provider preservado",
       "status": "passed",
-      "durationMs": 10
+      "durationMs": 12
     },
     {
       "name": "scripts/test-purchase-concurrency.mjs",
       "status": "passed",
-      "durationMs": 2095,
+      "durationMs": 3071,
       "output": "PASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\n"
     },
     {
       "name": "scripts/test-pix-confirmation-safety.mjs",
       "status": "passed",
-      "durationMs": 2924,
+      "durationMs": 4664,
       "output": "PASS: botoes e endpoints de confirmacao PIX seguros, auditados e idempotentes.\n"
     },
     {
       "name": "scripts/test-payment-workers.mjs",
       "status": "passed",
-      "durationMs": 2768,
+      "durationMs": 4712,
       "output": "PASS: workers PIX/webhook com fila, idempotencia, retry, logs e isolamento multitenant.\n"
     },
     {
       "name": "scripts/test-pix-multitenant.mjs",
       "status": "passed",
-      "durationMs": 2738,
+      "durationMs": 4026,
       "output": "PASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n"
     },
     {
       "name": "scripts/test-production-hardening.mjs",
       "status": "passed",
-      "durationMs": 2755,
+      "durationMs": 5310,
       "output": "PASS: hardening de planos, auditoria, fila de pagamentos e dashboard superadmin validado.\n"
     },
     {
       "name": "scripts/test-superadmin-finance.mjs",
       "status": "passed",
-      "durationMs": 2052,
+      "durationMs": 5888,
       "output": "PASS: superadmin finance global, filtros e bloqueio para tenant admin validados.\n"
     },
     {
       "name": "scripts/test-tenant-domains.mjs",
       "status": "passed",
-      "durationMs": 2686,
+      "durationMs": 6649,
       "output": "PASS: dominios por tenant, unicidade, subdominio e custom domain validados.\n"
     },
     {
       "name": "scripts/test-impersonation-audit.mjs",
       "status": "passed",
-      "durationMs": 1482,
+      "durationMs": 2128,
       "output": "PASS: acesso assistido exige motivo, audita entrada/saida e nao apaga logs criticos.\n"
     },
     {
       "name": "scripts/test-reports-export.mjs",
       "status": "passed",
-      "durationMs": 2710,
+      "durationMs": 3932,
       "output": "PASS: exportacao CSV/PDF oficial, hash, isolamento tenant e filtros de relatorio validados.\n"
     },
     {
       "name": "scripts/test-compliance-audit-modules.mjs",
       "status": "passed",
-      "durationMs": 115,
+      "durationMs": 164,
       "output": "[all] compliance/auditoria ok\n"
     },
     {
       "name": "scripts/test-saas-governance.mjs",
       "status": "passed",
-      "durationMs": 98,
+      "durationMs": 115,
       "output": "[saas-governance] ok\n"
     },
     {
       "name": "scripts/test-native-crm.mjs",
       "status": "passed",
-      "durationMs": 93,
+      "durationMs": 97,
       "output": "[native-crm] ok\n"
     },
     {
       "name": "scripts/test-tenant-automations.mjs",
       "status": "passed",
-      "durationMs": 118,
+      "durationMs": 107,
       "output": "[tenant-automations] ok\n"
     },
     {
       "name": "scripts/test-public-conversion-widgets.mjs",
       "status": "passed",
-      "durationMs": 101,
+      "durationMs": 90,
       "output": "[public-conversion-widgets] ok\n"
     },
     {
       "name": "scripts/test-public-api-keys.mjs",
       "status": "passed",
-      "durationMs": 100,
+      "durationMs": 106,
       "output": "[public-api-keys] ok\n"
+    },
+    {
+      "name": "scripts/test-pwa-secure.mjs",
+      "status": "passed",
+      "durationMs": 135,
+      "output": "[pwa-secure] ok\n"
     },
     {
       "name": "bundle sem service role quando dist existir",
       "status": "passed",
-      "durationMs": 53
+      "durationMs": 52
     }
   ]
 }
