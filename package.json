@@ -65,6 +65,7 @@
     ,"test:native-crm": "node scripts/test-native-crm.mjs"
     ,"test:tenant-automations": "node scripts/test-tenant-automations.mjs"
     ,"test:public-conversion": "node scripts/test-public-conversion-widgets.mjs"
+    ,"test:public-api-keys": "node scripts/test-public-api-keys.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

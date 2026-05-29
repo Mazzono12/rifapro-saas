@@ -207,6 +207,26 @@ async function startServer() {
     email: string;
     provider?: "local" | "supabase";
   };
+  type TenantApiKeyScope = "raffles:read" | "raffles:write" | "orders:read" | "customers:read" | "affiliates:read" | "reports:read" | "webhooks:write";
+  type TenantApiKeyRecord = {
+    id: string;
+    tenant_id: string;
+    name: string;
+    key_hash: string;
+    prefix: string;
+    scopes: TenantApiKeyScope[];
+    active: boolean;
+    last_used_at?: string;
+    expires_at?: string;
+    created_by?: string;
+    created_at: string;
+  };
+  type TenantApiKeyAuth = {
+    tenantId: string;
+    keyId: string;
+    prefix: string;
+    scopes: TenantApiKeyScope[];
+  };
 
   const tenantSeedTimestamp = new Date().toISOString();
   const tenants: TenantRecord[] = [
@@ -1803,6 +1823,7 @@ async function startServer() {
   let automationFlows: AutomationFlowRecord[] = [];
   let automationRuns: AutomationRunRecord[] = [];
   let publicActivityEvents: PublicActivityEventRecord[] = [];
+  let tenantApiKeys: TenantApiKeyRecord[] = [];
   
   // Basic Rate Limiter Dictionary
   const requestCounts = new Map<string, { count: number, resetAt: number }>();
@@ -1827,6 +1848,109 @@ async function startServer() {
          return;
      }
      next();
+  }
+
+  const apiRequestCounts = new Map<string, { count: number; resetAt: number }>();
+  const allTenantApiKeyScopes: TenantApiKeyScope[] = ["raffles:read", "raffles:write", "orders:read", "customers:read", "affiliates:read", "reports:read", "webhooks:write"];
+
+  function hashTenantApiKey(apiKey: string) {
+    return createHash("sha256").update(apiKey).digest("hex");
+  }
+
+  function safeCompareHash(a: string, b: string) {
+    const left = Buffer.from(a);
+    const right = Buffer.from(b);
+    return left.length === right.length && timingSafeEqual(left, right);
+  }
+
+  function normalizeTenantApiScopes(input: unknown): TenantApiKeyScope[] {
+    const values = Array.isArray(input) ? input : [];
+    const scopes = values.filter(scope => allTenantApiKeyScopes.includes(String(scope) as TenantApiKeyScope)) as TenantApiKeyScope[];
+    return [...new Set(scopes)];
+  }
+
+  function sanitizeTenantApiKey(record: TenantApiKeyRecord) {
+    const { key_hash, ...safe } = record;
+    return safe;
+  }
+
+  function generateTenantApiKey() {
+    const prefix = randomBytes(4).toString("hex");
+    const secret = randomBytes(24).toString("hex");
+    return { prefix, plainKey: `rfp_live_${prefix}_${secret}` };
+  }
+
+  function findTenantApiKeyByPlainKey(apiKey: string) {
+    const keyHash = hashTenantApiKey(apiKey);
+    const prefix = apiKey.split("_")[2] || "";
+    return tenantApiKeys.find(record =>
+      record.active &&
+      (!prefix || record.prefix === prefix) &&
+      safeCompareHash(record.key_hash, keyHash) &&
+      (!record.expires_at || new Date(record.expires_at).getTime() > Date.now())
+    );
+  }
+
+  function getApiKeyAuth(req: express.Request) {
+    return (req as express.Request & { apiKeyAuth?: TenantApiKeyAuth }).apiKeyAuth;
+  }
+
+  function apiKeyRateLimiter(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const token = getBearerToken(req);
+    const bucket = token ? `key:${token.split("_").slice(0, 3).join("_")}` : `ip:${req.ip || req.socket.remoteAddress || "unknown"}`;
+    const now = Date.now();
+    const windowMs = 60 * 1000;
+    const maxRequests = 180;
+    const record = apiRequestCounts.get(bucket);
+    if (!record || record.resetAt <= now) {
+      apiRequestCounts.set(bucket, { count: 1, resetAt: now + windowMs });
+      next();
+      return;
+    }
+    record.count++;
+    if (record.count > maxRequests) {
+      recordSecurityEvent({ tenant_id: "unknown", action: "PUBLIC_API_RATE_LIMIT_BLOCKED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "BLOCKED", severity: "medium", detail: bucket });
+      res.status(429).json({ error: "Limite de requisicoes da API excedido" });
+      return;
+    }
+    next();
+  }
+
+  function requireTenantApiKey(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const apiKey = getBearerToken(req);
+    const record = apiKey ? findTenantApiKeyByPlainKey(apiKey) : undefined;
+    if (!record) {
+      res.status(401).json({ error: "API key invalida, expirada ou revogada" });
+      return;
+    }
+    const tenant = tenants.find(item => item.id === record.tenant_id);
+    if (!tenant || !["active", "trial"].includes(tenant.status)) {
+      res.status(403).json({ error: "Tenant indisponivel para API" });
+      return;
+    }
+    if (!tenantHasFeature(record.tenant_id, "public_api")) {
+      res.status(403).json({ error: "API publica bloqueada pelo plano atual", feature: "public_api", upgradeRequired: true });
+      return;
+    }
+    record.last_used_at = new Date().toISOString();
+    (req as express.Request & { apiKeyAuth?: TenantApiKeyAuth }).apiKeyAuth = {
+      tenantId: record.tenant_id,
+      keyId: record.id,
+      prefix: record.prefix,
+      scopes: record.scopes
+    };
+    next();
+  }
+
+  function requireTenantApiScope(scope: TenantApiKeyScope) {
+    return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      const auth = getApiKeyAuth(req);
+      if (!auth || !auth.scopes.includes(scope)) {
+        res.status(403).json({ error: "Escopo insuficiente para este recurso", required_scope: scope });
+        return;
+      }
+      next();
+    };
   }
 
   function publicAuthUser(user: AuthUserRecord) {
@@ -4121,6 +4245,63 @@ async function startServer() {
     res.json(tenantBrandingSettings[tenant.id]);
   });
 
+  app.use("/api/v1", apiKeyRateLimiter, requireTenantApiKey);
+
+  app.get("/api/v1/raffles", requireTenantApiScope("raffles:read"), (req, res) => {
+    const auth = getApiKeyAuth(req)!;
+    recordSecurityEvent({ tenant_id: auth.tenantId, action: "PUBLIC_API_RAFFLES_LIST", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", detail: auth.prefix });
+    res.json(raffles.filter(item => item.tenant_id === auth.tenantId).map(sanitizeRaffleForPublic));
+  });
+
+  app.get("/api/v1/raffles/:id", requireTenantApiScope("raffles:read"), (req, res) => {
+    const auth = getApiKeyAuth(req)!;
+    const raffle = raffles.find(item => item.tenant_id === auth.tenantId && item.id === req.params.id);
+    if (!raffle) return res.status(404).json({ error: "Rifa nao encontrada" });
+    recordSecurityEvent({ tenant_id: auth.tenantId, action: "PUBLIC_API_RAFFLE_VIEW", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", detail: `${auth.prefix}:${raffle.id}` });
+    res.json(sanitizeRaffleForPublic(raffle));
+  });
+
+  app.get("/api/v1/orders", requireTenantApiScope("orders:read"), (req, res) => {
+    const auth = getApiKeyAuth(req)!;
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit || 100)));
+    const rows = purchases
+      .filter(item => item.tenant_id === auth.tenantId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit)
+      .map(order => stripSensitiveCustomerFields(order));
+    recordSecurityEvent({ tenant_id: auth.tenantId, action: "PUBLIC_API_ORDERS_LIST", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", detail: auth.prefix });
+    res.json(rows);
+  });
+
+  app.get("/api/v1/customers", requireTenantApiScope("customers:read"), (req, res) => {
+    const auth = getApiKeyAuth(req)!;
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit || 100)));
+    const rows = Object.values(customersByPhone)
+      .filter(customer => customer.tenant_id === auth.tenantId)
+      .slice(0, limit)
+      .map(customer => ({
+        id: customer.id,
+        name: customer.name,
+        phone: maskPhone(customer.phone),
+        cpf_masked: maskCpfForCrm(customer.cpf),
+        city: customer.city || "",
+        state: customer.state || "",
+        totalTickets: customer.totalTickets,
+        affiliateRefCode: customer.affiliateRefCode,
+        blocked: Boolean(customer.blocked),
+        createdAt: customer.createdAt
+      }));
+    recordSecurityEvent({ tenant_id: auth.tenantId, action: "PUBLIC_API_CUSTOMERS_LIST", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", detail: auth.prefix });
+    res.json(rows);
+  });
+
+  app.get("/api/v1/reports/revenue", requireTenantApiScope("reports:read"), (req, res) => {
+    const auth = getApiKeyAuth(req)!;
+    const report = buildRevenueReport(req.query, auth.tenantId);
+    recordSecurityEvent({ tenant_id: auth.tenantId, action: "PUBLIC_API_REVENUE_REPORT", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", detail: auth.prefix });
+    res.json(report);
+  });
+
   app.use(resolveTenant);
 
   app.use("/api/admin", rateLimiter, requireTenantAdmin);
@@ -4213,6 +4394,51 @@ async function startServer() {
   app.get("/api/admin/features", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     res.json({ tenant_id: tenantId, plan: getTenantPlan(tenantId).id, features: getTenantFeatures(tenantId), upgradeUrl: "/admin/meu-plano" });
+  });
+
+  app.get("/api/admin/api-keys", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json(tenantApiKeys.filter(item => item.tenant_id === tenantId).map(sanitizeTenantApiKey));
+  });
+
+  app.post("/api/admin/api-keys", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!tenantHasFeature(tenantId, "public_api")) {
+      res.status(403).json({ error: "API publica bloqueada pelo plano atual", feature: "public_api", upgradeRequired: true });
+      return;
+    }
+    const name = String(req.body.name || "").trim().slice(0, 80);
+    const scopes = normalizeTenantApiScopes(req.body.scopes);
+    if (!name || scopes.length === 0) {
+      res.status(400).json({ error: "Nome e ao menos um escopo sao obrigatorios", available_scopes: allTenantApiKeyScopes });
+      return;
+    }
+    const { prefix, plainKey } = generateTenantApiKey();
+    const record: TenantApiKeyRecord = {
+      id: createPublicId("AK_"),
+      tenant_id: tenantId,
+      name,
+      key_hash: hashTenantApiKey(plainKey),
+      prefix,
+      scopes,
+      active: true,
+      expires_at: req.body.expires_at ? String(req.body.expires_at) : undefined,
+      created_by: getAuthSession(req)?.sub || getAuthSession(req)?.email || "admin",
+      created_at: new Date().toISOString()
+    };
+    tenantApiKeys.unshift(record);
+    recordAuditLedger(req, { tenant_id: tenantId, action: "TENANT_API_KEY_CREATED", resource_type: "tenant_api_key", resource_id: record.id, before_data: null, after_data: sanitizeTenantApiKey(record), reason: String(req.body.reason || "Criacao de API key por tenant") });
+    res.status(201).json({ api_key: plainKey, key: sanitizeTenantApiKey(record), warning: "Guarde esta chave agora. Ela nao sera exibida novamente." });
+  });
+
+  app.delete("/api/admin/api-keys/:id", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const record = tenantApiKeys.find(item => item.id === req.params.id && item.tenant_id === tenantId);
+    if (!record) return res.status(404).json({ error: "API key nao encontrada" });
+    const before = sanitizeTenantApiKey(record);
+    record.active = false;
+    recordAuditLedger(req, { tenant_id: tenantId, action: "TENANT_API_KEY_REVOKED", resource_type: "tenant_api_key", resource_id: record.id, before_data: before, after_data: sanitizeTenantApiKey(record), reason: String(req.body?.reason || "Revogacao de API key por tenant") });
+    res.json({ success: true, key: sanitizeTenantApiKey(record) });
   });
 
   app.get("/api/admin/dashboard", (req, res) => {
@@ -10714,6 +10940,7 @@ async function startServer() {
       whatsappMessageQueue,
       automationFlows,
       automationRuns,
+      tenantApiKeys,
       publicActivityEvents
     };
   }
@@ -10786,6 +11013,7 @@ async function startServer() {
       case "whatsappMessageQueue": whatsappMessageQueue = Array.isArray(value) ? value : []; break;
       case "automationFlows": automationFlows = Array.isArray(value) ? value : []; break;
       case "automationRuns": automationRuns = Array.isArray(value) ? value : []; break;
+      case "tenantApiKeys": tenantApiKeys = Array.isArray(value) ? value : []; break;
       case "publicActivityEvents": publicActivityEvents = Array.isArray(value) ? value : []; break;
     }
   }

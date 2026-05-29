@@ -1,15 +1,15 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-29T03:13:32.962Z
+Gerado em: 2026-05-29T03:25:48.863Z
 
 ## Totais
 
-- Rotas backend: 279
+- Rotas backend: 287
 - Paginas frontend: 59
 - Componentes: 37
 - Arquivos src: 138
-- Migrations: 32
-- Tabelas mapeadas: 57
+- Migrations: 33
+- Tabelas mapeadas: 58
 - Policies mapeadas: 44
 - Providers/arquivos de integracao: 10
 
@@ -92,11 +92,19 @@ Gerado em: 2026-05-29T03:13:32.962Z
 - POST /api/superadmin/tenants/:tenantId/branding/logo
 - POST /api/superadmin/tenants/:tenantId/branding/favicon
 - POST /api/superadmin/tenants/:tenantId/branding/reset
+- GET /api/v1/raffles
+- GET /api/v1/raffles/:id
+- GET /api/v1/orders
+- GET /api/v1/customers
+- GET /api/v1/reports/revenue
 - GET /api/public/tenant-governance
 - GET /api/public/reports/validate/:requestId
 - GET /api/admin/me
 - GET /api/admin/plan
 - GET /api/admin/features
+- GET /api/admin/api-keys
+- POST /api/admin/api-keys
+- DELETE /api/admin/api-keys/:id
 - GET /api/admin/dashboard
 - GET /api/admin/domains
 - POST /api/admin/domains
@@ -403,6 +411,7 @@ Gerado em: 2026-05-29T03:13:32.962Z
 - security_audit_logs
 - superadmin_audit_logs
 - superadmin_impersonation_sessions
+- tenant_api_keys
 - tenant_branding_settings
 - tenant_domains
 - tenant_feature_flags
@@ -451,6 +460,7 @@ Gerado em: 2026-05-29T03:13:32.962Z
 - supabase/migrations/29_provably_fair_complete.sql
 - supabase/migrations/30_report_exports_auditable.sql
 - supabase/migrations/31_advanced_antifraud.sql
+- supabase/migrations/32_tenant_api_keys.sql
 
 ## Middlewares, Workers e Webhooks
 
@@ -464,16 +474,16 @@ Gerado em: 2026-05-29T03:13:32.962Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 943 ocorrencias no backend
+- tenant_id: 962 ocorrencias no backend
 - user_id: 16 ocorrencias no backend
 - order_id: 37 ocorrencias no backend
 - purchaseId: 175 ocorrencias no backend
 - raffleId: 191 ocorrencias no backend
-- affiliate: 351 ocorrencias no backend
+- affiliate: 355 ocorrencias no backend
 - gateway: 412 ocorrencias no backend
 - wallet: 45 ocorrencias no backend
 - saldo: 3 ocorrencias no backend
-- webhook: 210 ocorrencias no backend
+- webhook: 212 ocorrencias no backend
 - idempotencyKey: 18 ocorrencias no backend
 
 ## Riscos Observados
