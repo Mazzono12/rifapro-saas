@@ -9,6 +9,8 @@
     "start": "node dist/server.js",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
+    "backup:persistent-state": "node scripts/backup-persistent-state.mjs",
+    "restore:persistent-state": "node scripts/restore-persistent-state.mjs",
     "lint": "tsc --noEmit",
     "test:superadmin": "node scripts/test-superadmin-access.mjs",
     "test:tenant-scope": "node scripts/test-tenant-admin-scope.mjs",
@@ -75,6 +77,7 @@
     ,"test:public-api-keys": "node scripts/test-public-api-keys.mjs"
     ,"test:pwa-secure": "node scripts/test-pwa-secure.mjs"
     ,"test:theme-builder": "node scripts/test-theme-builder-marketplace.mjs"
+    ,"test:backup-restore-readiness": "node scripts/test-backup-restore-readiness.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
