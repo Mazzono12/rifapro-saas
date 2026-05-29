@@ -371,10 +371,10 @@ async function doublePurchaseHardcore() {
       /chance_em_dobro/,
       /affiliate\.revenue \+= purchase\.amount/
     ]);
-    assertRegex("src/pages/admin/AdminGamification.tsx", [/Cotas em dobro/, /doubleTickets\.minTickets/, /doubleTickets\.maxUsesPerCustomer/, /doubleTickets\.packageQuantities/]);
+    assertRegex("src/pages/admin/AdminGamification.tsx", [/Promoção/, /Cotas em Dobro/, /Status:/, /comprou X, ganha X/, /Data início/, /Data fim/, /Limite por cliente/, /Aplicar em pacotes específicos/, /doubleTickets\.minTickets/, /doubleTickets\.maxUsesPerCustomer/, /doubleTickets\.packageQuantities/]);
     assertRegex("src/components/checkout/PrePaymentReceiptModal.tsx", [/doubleTickets/, /cotas extras reais/]);
-    assertRegex("src/components/GamificationPanel.tsx", [/doubleTickets/, /Cotas em dobro aplicadas/]);
-    assertRegex("src/pages/RaffleDetails.tsx", [/doubleTickets/, /contando no sorteio/]);
+    assertRegex("src/components/GamificationPanel.tsx", [/doubleTickets/, /Regra: comprou X, ganha X/, /Exemplo: comprou 100, recebe 200/, /Cotas em dobro aplicadas/, /contam no sorteio/]);
+    assertRegex("src/pages/RaffleDetails.tsx", [/<GamificationPanel data=\{gamification\} \/>/, /doubleTickets/, /contando no sorteio/]);
     assertContains("supabase/migrations/06_gamification_modules.sql", ["gamification", "tenant_id", "raffle_id"]);
   });
   await runNodeScript("scripts/test-gamification-modules.mjs");

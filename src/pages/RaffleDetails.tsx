@@ -391,6 +391,7 @@ export function RaffleDetails() {
             <CountdownStrip countdown={countdown} />
             <DrawInfo raffle={raffle} />
             <PriceImpact price={raffle.price} />
+            <GamificationPanel data={gamification} />
             <PromotionalPackages packages={promotionalPackages} selected={selectedQuick} onSelect={handlePackageClick} />
             <QuickGrid selected={selectedQuick} onSelect={handlePackageClick} />
             <ManualSelector tickets={tickets} onChange={setQuantity} />

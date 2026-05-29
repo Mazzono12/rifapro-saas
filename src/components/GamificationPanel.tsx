@@ -63,15 +63,19 @@ export function GamificationPanel({ data, purchase, onOrderBumpChange, orderBump
         <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 p-4 text-emerald-50">
           <div className="flex items-center gap-2 font-bold"><Gift className="h-4 w-4" /> {data.doubleTickets.label || "Cotas em dobro"}</div>
           <p className="mt-1 text-xs text-emerald-100/80">
-            Comprando a partir de {data.doubleTickets.minTickets || 1} cotas, voce recebe a mesma quantidade em cotas extras reais.
+            Regra: comprou X, ganha X. Comprando a partir de {data.doubleTickets.minTickets || 1} cotas, voce recebe a mesma quantidade em cotas extras reais.
           </p>
+          <p className="mt-2 text-xs font-black text-emerald-100">Exemplo: comprou 100, recebe 200 cotas no bilhete.</p>
+          {Array.isArray(data.doubleTickets.packageQuantities) && data.doubleTickets.packageQuantities.length > 0 && (
+            <p className="mt-2 text-xs text-emerald-100/80">Aplicavel nos pacotes: {data.doubleTickets.packageQuantities.join(", ")} cotas.</p>
+          )}
         </div>
       )}
 
       {purchase?.gamification?.doubleTickets?.applied && (
         <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 p-4 text-emerald-50">
           <div className="flex items-center gap-2 font-bold"><Gift className="h-4 w-4" /> Cotas em dobro aplicadas</div>
-          <p className="mt-1 text-xs">+{purchase.gamification.doubleTickets.bonusTickets} cotas extras entraram no seu bilhete.</p>
+          <p className="mt-1 text-xs">+{purchase.gamification.doubleTickets.bonusTickets} cotas extras entraram no seu bilhete e contam no sorteio.</p>
         </div>
       )}
 

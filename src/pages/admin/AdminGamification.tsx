@@ -121,16 +121,25 @@ export function AdminGamification() {
           <Field label="Order bump - desconto (%)" value={config.orderBump.discountPercent} onChange={value => update("orderBump.discountPercent", Number(value))} />
           <Field label="Order bump - texto" value={config.orderBump.label} onChange={value => update("orderBump.label", value)} />
           <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
-            <h3 className="font-semibold text-[var(--admin-text)]">Promoções - Cotas em Dobro</h3>
-            <p className="mt-1 text-xs text-[var(--admin-muted)]">Ative o módulo acima para entregar X cotas extras reais quando o cliente comprar X cotas.</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Field label="Cotas em dobro - mínimo" value={config.doubleTickets.minTickets} onChange={value => update("doubleTickets.minTickets", Number(value))} />
-              <Field label="Cotas em dobro - limite por cliente" value={config.doubleTickets.maxUsesPerCustomer} onChange={value => update("doubleTickets.maxUsesPerCustomer", Number(value))} />
-              <Field label="Cotas em dobro - início" value={config.doubleTickets.startsAt} onChange={value => update("doubleTickets.startsAt", value)} />
-              <Field label="Cotas em dobro - fim" value={config.doubleTickets.endsAt} onChange={value => update("doubleTickets.endsAt", value)} />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--admin-muted)]">Promoção</p>
+                <h3 className="font-semibold text-[var(--admin-text)]">Cotas em Dobro</h3>
+                <p className="mt-1 text-xs text-[var(--admin-muted)]">Regra: comprou X, ganha X. Exemplo: comprou 100, recebe 200 cotas no bilhete.</p>
+              </div>
+              <label className="inline-flex items-center gap-2 rounded-full border border-[var(--admin-border)] bg-[var(--admin-bg)] px-3 py-2 text-xs font-black text-[var(--admin-text)]">
+                <input type="checkbox" checked={Boolean(config.modules.doubleTickets)} onChange={event => update("modules.doubleTickets", event.target.checked)} />
+                Status: {config.modules.doubleTickets ? "Ativo" : "Inativo"}
+              </label>
             </div>
-            <Field label="Cotas em dobro - texto público" value={config.doubleTickets.label} onChange={value => update("doubleTickets.label", value)} />
-            <Field label="Cotas em dobro - pacotes específicos" value={(config.doubleTickets.packageQuantities || []).join(", ")} onChange={updateDoubleTicketPackages} placeholder="Ex.: 700, 1800, 3000. Vazio = todos os pacotes" />
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Field label="Quantidade mínima para ativar" value={config.doubleTickets.minTickets} onChange={value => update("doubleTickets.minTickets", Number(value))} />
+              <Field label="Limite por cliente" value={config.doubleTickets.maxUsesPerCustomer} onChange={value => update("doubleTickets.maxUsesPerCustomer", Number(value))} />
+              <Field label="Data início" value={config.doubleTickets.startsAt} onChange={value => update("doubleTickets.startsAt", value)} />
+              <Field label="Data fim" value={config.doubleTickets.endsAt} onChange={value => update("doubleTickets.endsAt", value)} />
+            </div>
+            <Field label="Aviso na página pública" value={config.doubleTickets.label} onChange={value => update("doubleTickets.label", value)} />
+            <Field label="Aplicar em pacotes específicos" value={(config.doubleTickets.packageQuantities || []).join(", ")} onChange={updateDoubleTicketPackages} placeholder="Ex.: 700, 1800, 3000. Vazio = todos os pacotes" />
           </div>
           <Field label="Chance em dobro - peso" value={config.doubleChance.weight} onChange={value => update("doubleChance.weight", Number(value))} />
           <Field label="Chance em dobro - início" value={config.doubleChance.startsAt} onChange={value => update("doubleChance.startsAt", value)} />
