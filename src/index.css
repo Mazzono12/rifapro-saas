@@ -3187,6 +3187,43 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   }
 }
 
+@media (max-width: 640px) {
+  .checkout-modal-header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .checkout-modal-title-block,
+  .checkout-modal-kicker,
+  .checkout-modal-title {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+  }
+
+  .checkout-modal-close {
+    grid-column: 1 / -1 !important;
+    justify-self: stretch !important;
+    width: 100% !important;
+    margin-top: .5rem !important;
+    position: static !important;
+  }
+}
+
+.checkout-media-preview {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 1rem;
+}
+
 /* Skeleton Loading Animation */
 .skeleton {
   @apply relative overflow-hidden bg-white/[0.02] border border-white/[0.05] rounded-xl;

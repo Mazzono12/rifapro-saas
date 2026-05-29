@@ -51,6 +51,10 @@ for (const token of [
   "checkoutCriticalActive",
   "!checkoutCriticalActive && <FloatingActions",
   "!checkoutCriticalActive && (",
+  "checkoutMediaUrl",
+  "checkoutMediaType",
+  "checkout-media-preview",
+  "<CampaignMediaHero",
   "checkout-modal-title-block",
   "checkout-modal-kicker",
   "checkout-modal-title",
@@ -58,6 +62,10 @@ for (const token of [
 ]) {
   assert(raffleDetails.includes(token), `RaffleDetails deve proteger modal/floating actions: ${token}`);
 }
+
+assert(/@media \(max-width:\s*640px\)[\s\S]*\.checkout-modal-header[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*!important/.test(css), "mobile deve forcar header em uma coluna sem espremer titulo");
+assert(/\.checkout-modal-close[\s\S]*grid-column:\s*1 \/ -1\s*!important/.test(css), "botao Fechar deve ir para linha propria no mobile");
+assert(/\.checkout-media-preview[\s\S]*width:\s*100%/.test(css), "preview de foto/video do checkout deve ocupar largura total");
 
 for (const quantity of [1, 5, 700, 3000]) {
   const label = `Confirmar participacao ${quantity.toLocaleString("pt-BR")} cotas - R$ 350,00`;

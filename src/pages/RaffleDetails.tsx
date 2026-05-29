@@ -784,6 +784,9 @@ function CheckoutModal(props: {
   onShare: () => void;
   onShowNumbers: () => void;
 }) {
+  const checkoutMediaUrl = props.raffle.checkoutMediaUrl || props.raffle.mediaUrl || props.raffle.image || "";
+  const checkoutMediaType = props.raffle.checkoutMediaUrl ? props.raffle.checkoutMediaType : props.raffle.mediaType;
+
   return (
     <AnimatePresence>
       {props.open && (
@@ -796,6 +799,20 @@ function CheckoutModal(props: {
               </div>
               <button type="button" onClick={props.onClose} className="checkout-modal-close grid min-h-11 place-items-center rounded-full border border-white/10 px-3 py-2 text-sm font-black text-slate-200">Fechar</button>
             </div>
+
+            {checkoutMediaUrl && (
+              <div className="px-4 pt-4 sm:px-5 sm:pt-5">
+                <CampaignMediaHero
+                  mediaUrl={checkoutMediaUrl}
+                  mediaType={(checkoutMediaType || "image") as any}
+                  mediaFit="cover"
+                  title={props.raffle.title}
+                  subtitle="Preview da campanha"
+                  overlay={false}
+                  className="checkout-media-preview aspect-video border border-white/10 bg-slate-950"
+                />
+              </div>
+            )}
 
             {props.step === "review" && <CheckoutReview {...props} />}
             {props.step === "payment" && <PaymentPix {...props} />}
