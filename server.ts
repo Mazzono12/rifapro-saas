@@ -113,6 +113,7 @@ async function startServer() {
     }
     next();
   });
+  registerPublicDebugRoutes();
 
   const superadminEmail = String(process.env.SUPERADMIN_EMAIL || "").trim().toLowerCase();
   const superadminPassword = String(process.env.SUPERADMIN_PASSWORD || "");
@@ -2595,9 +2596,25 @@ async function startServer() {
     };
   }
 
-  app.get("/api/public/health", (_req, res) => {
-    res.json({ ok: true });
-  });
+  function registerPublicDebugRoutes() {
+    app.get("/api/public/health", (_req, res) => {
+      res.json({ ok: true });
+    });
+
+    app.get("/api/public/tenant-debug", async (req, res) => {
+      res.json(await buildPublicTenantDebug(req));
+    });
+
+    app.get("/api/public/raffles-debug", async (req, res) => {
+      const debug = await buildPublicRafflesDebug(req);
+      if (isProductionRuntime && debug.reasonIfEmpty) {
+        console.warn(`[public-raffles] tenant=${debug.tenantSlug || "none"} reason=${debug.reasonIfEmpty}`);
+      }
+      res.json(debug);
+    });
+
+    console.info("[routes] public debug routes registered");
+  }
 
   app.get("/api/public/geo", (req, res) => {
     const decodeHeader = (value: unknown) => {
@@ -2624,18 +2641,6 @@ async function startServer() {
     ).slice(0, 2).toUpperCase();
     res.setHeader("Cache-Control", "private, max-age=3600");
     res.json({ city, state, source: city ? "edge_headers" : "none" });
-  });
-
-  app.get("/api/public/tenant-debug", async (req, res) => {
-    res.json(await buildPublicTenantDebug(req));
-  });
-
-  app.get("/api/public/raffles-debug", async (req, res) => {
-    const debug = await buildPublicRafflesDebug(req);
-    if (isProductionRuntime && debug.reasonIfEmpty) {
-      console.warn(`[public-raffles] tenant=${debug.tenantSlug || "none"} reason=${debug.reasonIfEmpty}`);
-    }
-    res.json(debug);
   });
 
   app.get("/api/public/branding", async (req, res) => {
@@ -4556,7 +4561,13 @@ async function startServer() {
     res.json(report);
   });
 
-  app.use(resolveTenant);
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/api/public/")) {
+      next();
+      return;
+    }
+    resolveTenant(req, res, next);
+  });
 
   app.use("/api/admin", rateLimiter, requireTenantAdmin);
   const adminFeatureRoutes: Array<{ pattern: RegExp; feature: TenantFeatureFlag }> = [

@@ -211,6 +211,7 @@ async function productionReadiness() {
   await runNodeScript("scripts/test-native-crm.mjs");
   await runNodeScript("scripts/test-tenant-automations.mjs");
   await runNodeScript("scripts/test-public-conversion-widgets.mjs");
+  await runNodeScript("scripts/test-public-debug-routes.mjs");
   await runNodeScript("scripts/test-public-api-keys.mjs");
   await runNodeScript("scripts/test-pwa-secure.mjs");
   await runNodeScript("scripts/test-theme-builder-marketplace.mjs");
