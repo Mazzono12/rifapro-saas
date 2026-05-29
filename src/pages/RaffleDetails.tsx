@@ -43,6 +43,7 @@ import { finishMetric, markPageLoaded, startMetric } from "../lib/performanceMet
 import { TenantLogo } from "../components/branding/TenantLogo";
 import { TenantHeaderName } from "../components/branding/TenantHeaderName";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
+import { PublicConversionWidgets } from "../components/PublicConversionWidgets";
 
 type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
@@ -390,6 +391,7 @@ export function RaffleDetails() {
             <PromotionalPackages packages={promotionalPackages} selected={selectedQuick} onSelect={handlePackageClick} />
             <QuickGrid selected={selectedQuick} onSelect={handlePackageClick} />
             <ManualSelector tickets={tickets} onChange={setQuantity} />
+            <PublicConversionWidgets raffleId={id} />
             <InstantRouletteSection cards={casinoCards} />
             <RankingSection ranking={ranking} prizes={instantPrizeNumbers} />
           </section>

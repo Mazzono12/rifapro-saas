@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-28T21:45:00.177Z",
-  "totalRoutes": 264,
+  "generatedAt": "2026-05-29T02:03:43.791Z",
+  "totalRoutes": 267,
   "directRuntimeNote": "Cobertura runtime profunda delegada aos scripts hardcore por modulo; este arquivo garante inventario e contrato de todas as rotas detectadas.",
   "results": [
     {
@@ -1182,6 +1182,42 @@
     {
       "method": "GET",
       "path": "/api/raffles/:id/ranking",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "rota_publica_ou_contextual",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/raffles/:raffleId/activity",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "rota_publica_ou_contextual",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/raffles/:raffleId/ranking",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "rota_publica_ou_contextual",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/raffles/:raffleId/scarcity",
       "status": "mapped_static",
       "expectedSecurity": "public_or_tenant_context",
       "checks": [

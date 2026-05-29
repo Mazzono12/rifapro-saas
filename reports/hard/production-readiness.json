@@ -1,9 +1,9 @@
 {
   "mode": "production-readiness",
   "success": true,
-  "startedAt": "2026-05-28T21:45:16.149Z",
-  "finishedAt": "2026-05-28T21:45:34.631Z",
-  "durationMs": 18482,
+  "startedAt": "2026-05-29T02:03:57.177Z",
+  "finishedAt": "2026-05-29T02:04:14.968Z",
+  "durationMs": 17791,
   "results": [
     {
       "name": "auditoria estatica de rotas e modulos",
@@ -18,13 +18,13 @@
     {
       "name": "scripts/test-gateway-credentials-security.mjs",
       "status": "passed",
-      "durationMs": 61,
+      "durationMs": 53,
       "output": "PASS: credenciais de gateways cifradas em repouso, descriptografadas so no backend e mascaradas no frontend.\n"
     },
     {
       "name": "scripts/test-pix-multitenant.mjs",
       "status": "passed",
-      "durationMs": 2125,
+      "durationMs": 1939,
       "output": "PASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n"
     },
     {
@@ -35,85 +35,91 @@
     {
       "name": "scripts/test-purchase-concurrency.mjs",
       "status": "passed",
-      "durationMs": 1501,
+      "durationMs": 1644,
       "output": "PASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\n"
     },
     {
       "name": "scripts/test-pix-confirmation-safety.mjs",
       "status": "passed",
-      "durationMs": 2318,
+      "durationMs": 2133,
       "output": "PASS: botoes e endpoints de confirmacao PIX seguros, auditados e idempotentes.\n"
     },
     {
       "name": "scripts/test-payment-workers.mjs",
       "status": "passed",
-      "durationMs": 2014,
+      "durationMs": 1946,
       "output": "PASS: workers PIX/webhook com fila, idempotencia, retry, logs e isolamento multitenant.\n"
     },
     {
       "name": "scripts/test-pix-multitenant.mjs",
       "status": "passed",
-      "durationMs": 2017,
+      "durationMs": 2046,
       "output": "PASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n"
     },
     {
       "name": "scripts/test-production-hardening.mjs",
       "status": "passed",
-      "durationMs": 2244,
+      "durationMs": 2182,
       "output": "PASS: hardening de planos, auditoria, fila de pagamentos e dashboard superadmin validado.\n"
     },
     {
       "name": "scripts/test-superadmin-finance.mjs",
       "status": "passed",
-      "durationMs": 1630,
+      "durationMs": 1493,
       "output": "PASS: superadmin finance global, filtros e bloqueio para tenant admin validados.\n"
     },
     {
       "name": "scripts/test-tenant-domains.mjs",
       "status": "passed",
-      "durationMs": 1968,
+      "durationMs": 1964,
       "output": "PASS: dominios por tenant, unicidade, subdominio e custom domain validados.\n"
     },
     {
       "name": "scripts/test-impersonation-audit.mjs",
       "status": "passed",
-      "durationMs": 1197,
+      "durationMs": 1044,
       "output": "PASS: acesso assistido exige motivo, audita entrada/saida e nao apaga logs criticos.\n"
     },
     {
       "name": "scripts/test-reports-export.mjs",
       "status": "passed",
-      "durationMs": 1147,
+      "durationMs": 1047,
       "output": "PASS: exportacao CSV global/tenant e filtros de relatorio validados.\n"
     },
     {
       "name": "scripts/test-compliance-audit-modules.mjs",
       "status": "passed",
-      "durationMs": 57,
+      "durationMs": 55,
       "output": "[all] compliance/auditoria ok\n"
     },
     {
       "name": "scripts/test-saas-governance.mjs",
       "status": "passed",
-      "durationMs": 58,
+      "durationMs": 53,
       "output": "[saas-governance] ok\n"
     },
     {
       "name": "scripts/test-native-crm.mjs",
       "status": "passed",
-      "durationMs": 57,
+      "durationMs": 56,
       "output": "[native-crm] ok\n"
     },
     {
       "name": "scripts/test-tenant-automations.mjs",
       "status": "passed",
-      "durationMs": 56,
+      "durationMs": 55,
       "output": "[tenant-automations] ok\n"
+    },
+    {
+      "name": "scripts/test-public-conversion-widgets.mjs",
+      "status": "passed",
+      "durationMs": 53,
+      "output": "[public-conversion-widgets] ok\n"
     },
     {
       "name": "bundle sem service role quando dist existir",
       "status": "passed",
-      "durationMs": 22
+      "durationMs": 19
     }
   ]
 }

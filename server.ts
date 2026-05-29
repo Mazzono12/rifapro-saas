@@ -1164,6 +1164,19 @@ async function startServer() {
     number?: number;
     createdAt: string;
   };
+  type PublicActivityEventType = "purchase_created" | "purchase_approved" | "instant_prize" | "mystery_box" | "new_affiliate" | "raffle_ending";
+  type PublicActivityEventRecord = {
+    id: string;
+    tenant_id: string;
+    raffle_id: string;
+    event_type: PublicActivityEventType;
+    display_name_masked: string;
+    amount: number;
+    quantity: number;
+    metadata: Record<string, unknown>;
+    visible: boolean;
+    created_at: string;
+  };
   type FazendinhaStatus = "available" | "reserved" | "sold";
   type FazendinhaRoundStatus = "active" | "paused" | "closed";
   type FazendinhaGroup = {
@@ -1741,6 +1754,7 @@ async function startServer() {
   let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
   let automationFlows: AutomationFlowRecord[] = [];
   let automationRuns: AutomationRunRecord[] = [];
+  let publicActivityEvents: PublicActivityEventRecord[] = [];
   
   // Basic Rate Limiter Dictionary
   const requestCounts = new Map<string, { count: number, resetAt: number }>();
@@ -4818,6 +4832,132 @@ async function startServer() {
     return sorted.slice(0, limit);
   }
 
+  function maskDisplayName(name?: string) {
+    const clean = String(name || "Cliente").trim().replace(/\s+/g, " ");
+    const parts = clean.split(" ").filter(Boolean);
+    if (!parts.length) return "Cliente";
+    const first = parts[0];
+    const safeFirst = first.length <= 2 ? `${first[0] || "C"}***` : `${first.slice(0, 2)}***`;
+    const second = parts[1] ? ` ${parts[1][0]}***` : "";
+    return `${safeFirst}${second}`;
+  }
+
+  function socialProofEnabled(tenantId: string) {
+    return tenantHasFeature(tenantId, "realtime_social_proof");
+  }
+
+  function sanitizePublicActivityEvent(event: PublicActivityEventRecord) {
+    return {
+      id: event.id,
+      raffle_id: event.raffle_id,
+      event_type: event.event_type,
+      display_name_masked: event.display_name_masked,
+      amount: event.amount,
+      quantity: event.quantity,
+      metadata: {
+        label: event.metadata?.label || "",
+        prize: event.metadata?.prize || "",
+        source: event.metadata?.source || ""
+      },
+      created_at: event.created_at
+    };
+  }
+
+  function recordPublicActivityEvent(input: Omit<PublicActivityEventRecord, "id" | "display_name_masked" | "visible" | "created_at"> & { customer?: CustomerRecord; display_name_masked?: string; visible?: boolean }) {
+    if (!socialProofEnabled(input.tenant_id)) return null;
+    const orderId = typeof input.metadata?.orderId === "string" ? input.metadata.orderId : "";
+    if (orderId && publicActivityEvents.some(event => event.tenant_id === input.tenant_id && event.raffle_id === input.raffle_id && event.event_type === input.event_type && event.metadata?.orderId === orderId)) {
+      return null;
+    }
+    const event: PublicActivityEventRecord = {
+      id: createPublicId("PAE_"),
+      tenant_id: input.tenant_id,
+      raffle_id: input.raffle_id,
+      event_type: input.event_type,
+      display_name_masked: input.display_name_masked || maskDisplayName(input.customer?.name),
+      amount: Math.max(0, Number(input.amount || 0)),
+      quantity: Math.max(0, Number(input.quantity || 0)),
+      metadata: input.metadata || {},
+      visible: input.visible !== false,
+      created_at: new Date().toISOString()
+    };
+    publicActivityEvents.unshift(event);
+    publicActivityEvents = publicActivityEvents.slice(0, 1000);
+    return event;
+  }
+
+  function getPublicActivity(tenantId: string, raffleId: string) {
+    if (!socialProofEnabled(tenantId)) return [];
+    return publicActivityEvents
+      .filter(event => event.tenant_id === tenantId && event.raffle_id === raffleId && event.visible)
+      .slice(0, 20)
+      .map(sanitizePublicActivityEvent);
+  }
+
+  function getPublicRanking(tenantId: string, raffleId: string) {
+    if (!socialProofEnabled(tenantId)) return { enabled: false, top_buyers: [], weekly_buyers: [], monthly_buyers: [], top_affiliates: [], top_winners: [] };
+    const now = Date.now();
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+    const safeBuyer = (item: { name: string; tickets: number; amount: number }) => ({ name: maskDisplayName(item.name), tickets: item.tickets, amount: item.amount });
+    const byPeriod = (since: number) => purchases
+      .filter(purchase => purchase.tenant_id === tenantId && purchase.raffleId === raffleId && purchase.status === "paid" && new Date(purchase.createdAt).getTime() >= since)
+      .reduce<Record<string, { name: string; tickets: number; amount: number }>>((acc, purchase) => {
+        const key = purchase.customer?.id || purchase.contact;
+        acc[key] ||= { name: purchase.customer?.name || "Cliente", tickets: 0, amount: 0 };
+        acc[key].tickets += purchase.tickets;
+        acc[key].amount += purchase.amount;
+        return acc;
+      }, {});
+    const winnerRows = gamificationWinners
+      .filter(winner => winner.tenant_id === tenantId && winner.raffleId === raffleId)
+      .slice(0, 5)
+      .map(winner => {
+        const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === winner.purchaseId);
+        return { name: maskDisplayName(purchase?.customer?.name), prize: winner.prize, value: winner.value };
+      });
+    const affiliateRows = Object.values(affiliates)
+      .filter(affiliate => affiliate.tenant_id === tenantId)
+      .sort((a, b) => b.conversions - a.conversions || b.revenue - a.revenue)
+      .slice(0, 5)
+      .map(affiliate => {
+        const customer = Object.values(customersByPhone).find(item => item.tenant_id === tenantId && item.id === affiliate.customerId);
+        return { name: maskDisplayName(customer?.name), conversions: affiliate.conversions, revenue: affiliate.revenue };
+      });
+    return {
+      enabled: true,
+      top_buyers: getBuyerRanking(tenantId, raffleId, "tickets", 10).map(safeBuyer),
+      weekly_buyers: Object.values(byPeriod(weekAgo)).sort((a, b) => b.tickets - a.tickets).slice(0, 5).map(safeBuyer),
+      monthly_buyers: Object.values(byPeriod(monthAgo)).sort((a, b) => b.tickets - a.tickets).slice(0, 5).map(safeBuyer),
+      top_affiliates: affiliateRows,
+      top_winners: winnerRows
+    };
+  }
+
+  function getPublicScarcity(tenantId: string, raffleId: string) {
+    const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === raffleId);
+    if (!raffle) return null;
+    const now = Date.now();
+    const paidPurchases = purchases.filter(item => item.tenant_id === tenantId && item.raffleId === raffleId && item.status === "paid");
+    const recentPurchases = paidPurchases.filter(item => new Date(item.createdAt).getTime() >= now - 60 * 60 * 1000);
+    const soldLastHour = recentPurchases.reduce((sum, item) => sum + item.tickets, 0);
+    const remaining = Math.max(0, raffle.totalTickets - raffle.soldTickets);
+    const velocityPerHour = Math.max(0, soldLastHour);
+    const estimatedHours = velocityPerHour > 0 ? remaining / velocityPerHour : null;
+    return {
+      enabled: socialProofEnabled(tenantId),
+      totalTickets: raffle.totalTickets,
+      soldTickets: raffle.soldTickets,
+      remainingTickets: remaining,
+      progress: raffle.totalTickets ? Math.round((raffle.soldTickets / raffle.totalTickets) * 10000) / 100 : 0,
+      soldLastHour,
+      velocityPerHour,
+      estimatedEndAt: estimatedHours ? new Date(now + estimatedHours * 60 * 60 * 1000).toISOString() : null,
+      lastTicketsAlert: remaining > 0 && remaining <= Math.max(25, Math.ceil(raffle.totalTickets * 0.08)),
+      viewersOnline: socialProofEnabled(tenantId) ? Math.max(7, Math.min(247, 12 + recentPurchases.length * 3 + Math.floor((raffle.soldTickets % 19) * 1.7))) : 0
+    };
+  }
+
   function addGamificationLog(tenantId: string, action: string, detail: string) {
     auditLogs.unshift({
       id: createPublicId("AUD_"),
@@ -5191,6 +5331,39 @@ async function startServer() {
     const tenantId = resolveRequestTenantId(req);
     const config = getGamificationConfig(tenantId, req.params.id);
     res.json(getBuyerRanking(tenantId, req.params.id, config.buyerRanking.metric, config.buyerRanking.limit));
+  });
+
+  app.get("/api/public/raffles/:raffleId/activity", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === req.params.raffleId);
+    if (!raffle) {
+      res.status(404).json({ error: "Raffle not found" });
+      return;
+    }
+    res.setHeader("Cache-Control", "private, max-age=8");
+    res.json({ enabled: socialProofEnabled(tenantId), events: getPublicActivity(tenantId, raffle.id) });
+  });
+
+  app.get("/api/public/raffles/:raffleId/ranking", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === req.params.raffleId);
+    if (!raffle) {
+      res.status(404).json({ error: "Raffle not found" });
+      return;
+    }
+    res.setHeader("Cache-Control", "private, max-age=15");
+    res.json(getPublicRanking(tenantId, raffle.id));
+  });
+
+  app.get("/api/public/raffles/:raffleId/scarcity", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const scarcity = getPublicScarcity(tenantId, req.params.raffleId);
+    if (!scarcity) {
+      res.status(404).json({ error: "Raffle not found" });
+      return;
+    }
+    res.setHeader("Cache-Control", "private, max-age=10");
+    res.json(scarcity);
   });
 
   app.get("/api/raffles/:id/gamification", (req, res) => {
@@ -6717,6 +6890,15 @@ async function startServer() {
     
     purchases.push(purchase);
     if (purchase.linkedPurchases) purchases.push(...purchase.linkedPurchases);
+    recordPublicActivityEvent({
+      tenant_id: tenantId,
+      raffle_id: id,
+      event_type: purchase.status === "paid" ? "purchase_approved" : "purchase_created",
+      customer,
+      amount,
+      quantity: effectiveTickets,
+      metadata: { label: purchase.status === "paid" ? "compra aprovada" : "PIX pendente", source: "checkout", orderId: purchase.purchaseId }
+    });
     scheduleAutomation("purchase_created", { tenant_id: tenantId, customer_id: customer.id, order_id: purchase.purchaseId, purchase, customer });
     if (purchase.status === "pending") scheduleAutomation("abandoned_pix_recovery", { tenant_id: tenantId, customer_id: customer.id, order_id: purchase.purchaseId, purchase, customer });
     void queueConversionEvent(tenantId, "InitiateCheckout", {
@@ -7797,6 +7979,15 @@ async function startServer() {
 
   function confirmPurchase(purchase: PurchaseRecord) {
     if (purchase.status === "paid" && purchase.numeros.length > 0) {
+      recordPublicActivityEvent({
+        tenant_id: purchase.tenant_id,
+        raffle_id: purchase.raffleId,
+        event_type: "purchase_approved",
+        customer: purchase.customer,
+        amount: purchase.amount,
+        quantity: purchase.tickets,
+        metadata: { label: "compra aprovada", source: "payment_status", orderId: purchase.purchaseId }
+      });
       enqueueWhatsAppTicketConfirmation(purchase);
       scheduleAutomation("payment_confirmed_ticket", { tenant_id: purchase.tenant_id, customer_id: purchase.customer?.id, order_id: purchase.purchaseId, purchase, customer: purchase.customer });
       scheduleAutomation("post_purchase_thanks", { tenant_id: purchase.tenant_id, customer_id: purchase.customer?.id, order_id: purchase.purchaseId, purchase, customer: purchase.customer });
@@ -7818,6 +8009,24 @@ async function startServer() {
     purchase.status = "paid";
     purchase.numeros = assignedNumbers;
     purchase.premiosInstantaneos = premiosWon;
+    recordPublicActivityEvent({
+      tenant_id: purchase.tenant_id,
+      raffle_id: purchase.raffleId,
+      event_type: "purchase_approved",
+      customer: purchase.customer,
+      amount: purchase.amount,
+      quantity: purchase.tickets,
+      metadata: { label: "compra aprovada", source: "payment_status", orderId: purchase.purchaseId }
+    });
+    premiosWon.forEach(prize => recordPublicActivityEvent({
+      tenant_id: purchase.tenant_id,
+      raffle_id: purchase.raffleId,
+      event_type: "instant_prize",
+      customer: purchase.customer,
+      amount: prize.valorPremio,
+      quantity: 1,
+      metadata: { label: "premio instantaneo", prize: `R$ ${Number(prize.valorPremio || 0).toFixed(2)}`, orderId: `${purchase.purchaseId}:${prize.id}` }
+    }));
     void queueConversionEvent(purchase.tenant_id, "Purchase", {
       purchaseId: purchase.purchaseId,
       raffleId: purchase.raffleId,
@@ -7909,6 +8118,17 @@ async function startServer() {
     purchase.earnedLootboxes = raffle.lootboxEnabled === false
       ? 0
       : processLootboxDrops(purchase.contact, purchase.tickets, purchase.purchaseId, getRaffleLootboxConfig(raffle), `raffle:${raffle.id}`, "raffle", purchase.tenant_id);
+    if (purchase.earnedLootboxes > 0) {
+      recordPublicActivityEvent({
+        tenant_id: purchase.tenant_id,
+        raffle_id: purchase.raffleId,
+        event_type: "mystery_box",
+        customer: purchase.customer,
+        amount: 0,
+        quantity: purchase.earnedLootboxes,
+        metadata: { label: "caixinha premiada", source: "lootbox", orderId: `${purchase.purchaseId}:lootbox` }
+      });
+    }
     purchase.paymentHistory = purchase.paymentHistory?.length
       ? purchase.paymentHistory
       : [{ status: "paid", label: "Pagamento PIX aprovado", date: new Date().toISOString() }];
@@ -9781,7 +10001,8 @@ async function startServer() {
       whatsappProviderConfigs,
       whatsappMessageQueue,
       automationFlows,
-      automationRuns
+      automationRuns,
+      publicActivityEvents
     };
   }
 
@@ -9850,6 +10071,7 @@ async function startServer() {
       case "whatsappMessageQueue": whatsappMessageQueue = Array.isArray(value) ? value : []; break;
       case "automationFlows": automationFlows = Array.isArray(value) ? value : []; break;
       case "automationRuns": automationRuns = Array.isArray(value) ? value : []; break;
+      case "publicActivityEvents": publicActivityEvents = Array.isArray(value) ? value : []; break;
     }
   }
 

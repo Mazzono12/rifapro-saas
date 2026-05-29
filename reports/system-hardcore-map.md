@@ -1,15 +1,15 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-28T21:45:00.174Z
+Gerado em: 2026-05-29T02:03:43.789Z
 
 ## Totais
 
-- Rotas backend: 264
+- Rotas backend: 267
 - Paginas frontend: 57
-- Componentes: 36
-- Arquivos src: 135
-- Migrations: 28
-- Tabelas mapeadas: 53
+- Componentes: 37
+- Arquivos src: 136
+- Migrations: 29
+- Tabelas mapeadas: 54
 - Policies mapeadas: 44
 - Providers/arquivos de integracao: 10
 
@@ -114,6 +114,9 @@ Gerado em: 2026-05-28T21:45:00.174Z
 - GET /api/raffles
 - GET /api/raffles/:id
 - GET /api/raffles/:id/ranking
+- GET /api/public/raffles/:raffleId/activity
+- GET /api/public/raffles/:raffleId/ranking
+- GET /api/public/raffles/:raffleId/scarcity
 - GET /api/raffles/:id/gamification
 - POST /api/gamification/scratchcards/:eventId/reveal
 - POST /api/gamification/mystery-boxes/:eventId/open
@@ -375,6 +378,7 @@ Gerado em: 2026-05-28T21:45:00.174Z
 - payment_queue_jobs
 - persistent_state_records
 - platform_health_snapshots
+- public_activity_events
 - raffle_draw_audit
 - raffle_ticket_reservations
 - saas_plan_definitions
@@ -426,6 +430,7 @@ Gerado em: 2026-05-28T21:45:00.174Z
 - supabase/migrations/25_saas_governance_plans_features.sql
 - supabase/migrations/26_tenant_native_crm.sql
 - supabase/migrations/27_tenant_automation_center.sql
+- supabase/migrations/28_public_activity_events.sql
 
 ## Middlewares, Workers e Webhooks
 
@@ -439,12 +444,12 @@ Gerado em: 2026-05-28T21:45:00.174Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 828 ocorrencias no backend
+- tenant_id: 853 ocorrencias no backend
 - user_id: 16 ocorrencias no backend
 - order_id: 27 ocorrencias no backend
-- purchaseId: 166 ocorrencias no backend
-- raffleId: 156 ocorrencias no backend
-- affiliate: 317 ocorrencias no backend
+- purchaseId: 173 ocorrencias no backend
+- raffleId: 178 ocorrencias no backend
+- affiliate: 329 ocorrencias no backend
 - gateway: 407 ocorrencias no backend
 - wallet: 45 ocorrencias no backend
 - saldo: 2 ocorrencias no backend
