@@ -56,6 +56,7 @@ export const checkoutService = {
       packageLabel?: string;
       bonuses?: {
         bonusTickets?: number;
+        doubleTickets?: { applied: boolean; bonusTickets: number; minTickets?: number; label?: string };
         doubleChance?: boolean;
         roulettes?: number;
         lootboxes?: number;

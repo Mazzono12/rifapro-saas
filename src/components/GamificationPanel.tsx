@@ -59,6 +59,22 @@ export function GamificationPanel({ data, purchase, onOrderBumpChange, orderBump
         </div>
       )}
 
+      {data?.doubleTickets?.active && (
+        <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 p-4 text-emerald-50">
+          <div className="flex items-center gap-2 font-bold"><Gift className="h-4 w-4" /> {data.doubleTickets.label || "Cotas em dobro"}</div>
+          <p className="mt-1 text-xs text-emerald-100/80">
+            Comprando a partir de {data.doubleTickets.minTickets || 1} cotas, voce recebe a mesma quantidade em cotas extras reais.
+          </p>
+        </div>
+      )}
+
+      {purchase?.gamification?.doubleTickets?.applied && (
+        <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 p-4 text-emerald-50">
+          <div className="flex items-center gap-2 font-bold"><Gift className="h-4 w-4" /> Cotas em dobro aplicadas</div>
+          <p className="mt-1 text-xs">+{purchase.gamification.doubleTickets.bonusTickets} cotas extras entraram no seu bilhete.</p>
+        </div>
+      )}
+
       {data?.orderBump?.enabled && onOrderBumpChange && (
         <label className="block cursor-pointer rounded-2xl border border-fuchsia-300/30 bg-fuchsia-300/10 p-4 text-fuchsia-50">
           <div className="flex items-start gap-3">

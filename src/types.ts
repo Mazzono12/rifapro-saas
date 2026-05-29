@@ -182,6 +182,7 @@ export interface Purchase {
   gamification?: {
     orderBump?: { offered: boolean; accepted: boolean; tickets: number; discountPercent: number; amount: number };
     luckyHour?: { applied: boolean; type?: string; value?: number; bonusTickets?: number; discount?: number; extraChance?: number };
+    doubleTickets?: { applied: boolean; bonusTickets: number; minTickets: number; label: string };
     doubleChance?: { applied: boolean; weight: number };
     scratchcardEventId?: string;
     mysteryBoxEventId?: string;
@@ -189,7 +190,7 @@ export interface Purchase {
   };
 }
 
-export type GamificationModuleId = 'scratchcard' | 'winningTicket' | 'luckyHour' | 'mysteryBox' | 'doubleChance' | 'extremeTickets' | 'buyerRanking' | 'orderBump';
+export type GamificationModuleId = 'scratchcard' | 'winningTicket' | 'luckyHour' | 'mysteryBox' | 'doubleTickets' | 'doubleChance' | 'extremeTickets' | 'buyerRanking' | 'orderBump';
 
 export interface GamificationConfig {
   tenant_id: string;
@@ -200,6 +201,7 @@ export interface GamificationConfig {
   winningTicket: { prizes: Array<{ id: string; number: number; prize: string; value: number; status: string }> };
   luckyHour: { windows: Array<{ id: string; startsAt: string; endsAt: string; type: 'bonus' | 'discount' | 'extraChance'; value: number; active: boolean }> };
   mysteryBox: { boxes: Array<{ id: string; label: string; prize: string; type: 'pix' | 'bonus' | 'empty'; value: number; status: string }> };
+  doubleTickets: { startsAt: string; endsAt: string; minTickets: number; maxUsesPerCustomer: number; packageQuantities: number[]; label: string };
   doubleChance: { startsAt: string; endsAt: string; minTickets: number; weight: number };
   extremeTickets: { enabled: boolean; highPrize: string; lowPrize: string };
   buyerRanking: { visible: boolean; metric: 'tickets' | 'amount'; limit: number };

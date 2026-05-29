@@ -7,6 +7,7 @@ const moduleLabels: Record<string, string> = {
   winningTicket: "Bilhete premiado",
   luckyHour: "Hora premiada",
   mysteryBox: "Caixinha premiada",
+  doubleTickets: "Cotas em dobro",
   doubleChance: "Chance em dobro",
   extremeTickets: "Maior e menor cota",
   buyerRanking: "Ranking de compradores",
@@ -56,6 +57,15 @@ export function AdminGamification() {
     parts.slice(0, -1).forEach(part => { target = target[part]; });
     target[parts.at(-1)!] = value;
     setConfig(copy);
+  }
+
+  function updateDoubleTicketPackages(value: string) {
+    const quantities = value
+      .split(/[,\s]+/)
+      .map(item => Number(item.trim()))
+      .filter(value => Number.isFinite(value) && value > 0)
+      .map(value => Math.floor(value));
+    update("doubleTickets.packageQuantities", Array.from(new Set(quantities)));
   }
 
   async function save() {
@@ -110,6 +120,18 @@ export function AdminGamification() {
           <Field label="Order bump - cotas" value={config.orderBump.tickets} onChange={value => update("orderBump.tickets", Number(value))} />
           <Field label="Order bump - desconto (%)" value={config.orderBump.discountPercent} onChange={value => update("orderBump.discountPercent", Number(value))} />
           <Field label="Order bump - texto" value={config.orderBump.label} onChange={value => update("orderBump.label", value)} />
+          <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
+            <h3 className="font-semibold text-[var(--admin-text)]">Promoções - Cotas em Dobro</h3>
+            <p className="mt-1 text-xs text-[var(--admin-muted)]">Ative o módulo acima para entregar X cotas extras reais quando o cliente comprar X cotas.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Field label="Cotas em dobro - mínimo" value={config.doubleTickets.minTickets} onChange={value => update("doubleTickets.minTickets", Number(value))} />
+              <Field label="Cotas em dobro - limite por cliente" value={config.doubleTickets.maxUsesPerCustomer} onChange={value => update("doubleTickets.maxUsesPerCustomer", Number(value))} />
+              <Field label="Cotas em dobro - início" value={config.doubleTickets.startsAt} onChange={value => update("doubleTickets.startsAt", value)} />
+              <Field label="Cotas em dobro - fim" value={config.doubleTickets.endsAt} onChange={value => update("doubleTickets.endsAt", value)} />
+            </div>
+            <Field label="Cotas em dobro - texto público" value={config.doubleTickets.label} onChange={value => update("doubleTickets.label", value)} />
+            <Field label="Cotas em dobro - pacotes específicos" value={(config.doubleTickets.packageQuantities || []).join(", ")} onChange={updateDoubleTicketPackages} placeholder="Ex.: 700, 1800, 3000. Vazio = todos os pacotes" />
+          </div>
           <Field label="Chance em dobro - peso" value={config.doubleChance.weight} onChange={value => update("doubleChance.weight", Number(value))} />
           <Field label="Chance em dobro - início" value={config.doubleChance.startsAt} onChange={value => update("doubleChance.startsAt", value)} />
           <Field label="Chance em dobro - fim" value={config.doubleChance.endsAt} onChange={value => update("doubleChance.endsAt", value)} />
@@ -140,11 +162,11 @@ export function AdminGamification() {
   );
 }
 
-function Field({ label, value, onChange }: { label: string; value: any; onChange: (value: string) => void }) {
+function Field({ label, value, onChange, placeholder = "" }: { label: string; value: any; onChange: (value: string) => void; placeholder?: string }) {
   return (
     <label className="block text-sm text-[var(--admin-muted)]">
       {label}
-      <input className="admin-input mt-1 w-full" value={value ?? ""} onChange={event => onChange(event.target.value)} />
+      <input className="admin-input mt-1 w-full" value={value ?? ""} onChange={event => onChange(event.target.value)} placeholder={placeholder} />
     </label>
   );
 }

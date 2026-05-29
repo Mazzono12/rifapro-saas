@@ -14,6 +14,7 @@ export type CheckoutPreview = {
   packageLabel?: string;
   bonuses?: {
     bonusTickets?: number;
+    doubleTickets?: { applied: boolean; bonusTickets: number; minTickets?: number; label?: string };
     doubleChance?: boolean;
     roulettes?: number;
     lootboxes?: number;
@@ -207,7 +208,8 @@ export function CustomerDataSummary({ customerData }: { customerData?: CustomerD
 export function PurchaseBonusesSummary({ bonuses, warnings }: { bonuses?: CheckoutPreview["bonuses"]; warnings?: string[] }) {
   const items = [
     bonuses?.bonusTickets ? [`Bônus`, `${bonuses.bonusTickets} cotas extras`] : null,
-    bonuses?.doubleChance ? ["Compra em dobro", "Ativa"] : null,
+    bonuses?.doubleTickets?.applied ? [bonuses.doubleTickets.label || "Cotas em dobro", `+${bonuses.doubleTickets.bonusTickets} cotas extras reais`] : null,
+    bonuses?.doubleChance ? ["Chance em dobro", "Ativa"] : null,
     bonuses?.roulettes ? ["Roletas recebidas", String(bonuses.roulettes)] : null,
     bonuses?.lootboxes ? ["Caixinhas recebidas", String(bonuses.lootboxes)] : null,
     bonuses?.scratchcards ? ["Raspadinhas recebidas", String(bonuses.scratchcards)] : null,

@@ -972,6 +972,14 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
         </div>
       </div>
       <GamificationPanel data={props.gamification} purchase={props.purchase} />
+      {props.purchase?.gamification?.doubleTickets?.applied && (
+        <div className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4 text-emerald-50">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-100">Cotas em dobro</p>
+          <p className="mt-2 text-sm font-semibold">
+            Seu bilhete inclui +{props.purchase.gamification.doubleTickets.bonusTickets} cotas extras, já contando no sorteio.
+          </p>
+        </div>
+      )}
       <div className="checkout-actions grid grid-cols-2 gap-2">
         <button type="button" onClick={props.onShare} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold"><Share2 className="h-4 w-4" /> Compartilhar</button>
         <button type="button" onClick={() => toast.info("PDF sera gerado no modulo de comprovantes.")} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold"><Download className="h-4 w-4" /> PDF</button>

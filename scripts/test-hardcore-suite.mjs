@@ -358,8 +358,23 @@ async function rouletteHardcore() {
 }
 
 async function doublePurchaseHardcore() {
-  await step("chance em dobro e pesos de cotas", () => {
-    assertRegex("server.ts", [/doubleChance/, /ticketWeights/, /chance_em_dobro/, /weight:/]);
+  await step("cotas em dobro reais e pesos de cotas", () => {
+    assertRegex("server.ts", [
+      /doubleTickets/,
+      /getActiveDoubleTicketsPromotion/,
+      /doubleTicketsBonus/,
+      /effectiveTickets = tickets \+ couponBenefit\.bonusTickets \+ luckyBonusTickets \+ luckyExtraChance \+ orderBumpTickets \+ doubleTicketsBonus/,
+      /bonusTickets: couponBenefit\.bonusTickets \+ luckyBonusTickets \+ luckyExtraChance \+ doubleTicketsBonus/,
+      /DOUBLE_TICKETS_APPLIED/,
+      /doubleChance/,
+      /ticketWeights/,
+      /chance_em_dobro/,
+      /affiliate\.revenue \+= purchase\.amount/
+    ]);
+    assertRegex("src/pages/admin/AdminGamification.tsx", [/Cotas em dobro/, /doubleTickets\.minTickets/, /doubleTickets\.maxUsesPerCustomer/, /doubleTickets\.packageQuantities/]);
+    assertRegex("src/components/checkout/PrePaymentReceiptModal.tsx", [/doubleTickets/, /cotas extras reais/]);
+    assertRegex("src/components/GamificationPanel.tsx", [/doubleTickets/, /Cotas em dobro aplicadas/]);
+    assertRegex("src/pages/RaffleDetails.tsx", [/doubleTickets/, /contando no sorteio/]);
     assertContains("supabase/migrations/06_gamification_modules.sql", ["gamification", "tenant_id", "raffle_id"]);
   });
   await runNodeScript("scripts/test-gamification-modules.mjs");

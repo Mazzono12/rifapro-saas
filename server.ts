@@ -1247,13 +1247,14 @@ async function startServer() {
     gamification?: {
       orderBump?: { offered: boolean; accepted: boolean; tickets: number; discountPercent: number; amount: number };
       luckyHour?: { applied: boolean; type?: string; value?: number; bonusTickets?: number; discount?: number; extraChance?: number };
+      doubleTickets?: { applied: boolean; bonusTickets: number; minTickets: number; label: string };
       doubleChance?: { applied: boolean; weight: number };
       scratchcardEventId?: string;
       mysteryBoxEventId?: string;
       autoPrizes?: string[];
     };
   };
-  type GamificationModuleId = "scratchcard" | "winningTicket" | "luckyHour" | "mysteryBox" | "doubleChance" | "extremeTickets" | "buyerRanking" | "orderBump";
+  type GamificationModuleId = "scratchcard" | "winningTicket" | "luckyHour" | "mysteryBox" | "doubleTickets" | "doubleChance" | "extremeTickets" | "buyerRanking" | "orderBump";
   type GamificationPrize = { id: string; name: string; type: "pix" | "bonus" | "product" | "empty"; value: number; stock: number; probability?: number };
   type GamificationConfig = {
     tenant_id: string;
@@ -1264,6 +1265,7 @@ async function startServer() {
     winningTicket: { prizes: Array<{ id: string; number: number; prize: string; value: number; status: "available" | "claimed" }> };
     luckyHour: { windows: Array<{ id: string; startsAt: string; endsAt: string; type: "bonus" | "discount" | "extraChance"; value: number; active: boolean }> };
     mysteryBox: { boxes: Array<{ id: string; label: string; prize: string; type: "pix" | "bonus" | "empty"; value: number; status: "available" | "opened" }> };
+    doubleTickets: { startsAt: string; endsAt: string; minTickets: number; maxUsesPerCustomer: number; packageQuantities: number[]; label: string };
     doubleChance: { startsAt: string; endsAt: string; minTickets: number; weight: number };
     extremeTickets: { enabled: boolean; highPrize: string; lowPrize: string };
     buyerRanking: { visible: boolean; metric: "tickets" | "amount"; limit: number };
@@ -2729,6 +2731,41 @@ async function startServer() {
       ip_address: String(req.ip || req.socket.remoteAddress || ""),
       user_agent: String(req.headers["user-agent"] || ""),
       request_id: String((req as express.Request & { requestId?: string }).requestId || req.headers["x-request-id"] || ""),
+      previous_hash: previous?.hash,
+      created_at
+    };
+    const hash = createHash("sha256").update(JSON.stringify(base)).digest("hex");
+    const event: AuditEventLedgerRecord = { ...base, hash };
+    auditEventLedger.unshift(event);
+    auditEventLedger = auditEventLedger.slice(0, 5000);
+    return event;
+  }
+
+  function recordSystemAuditLedger(input: {
+    tenant_id: string;
+    action: string;
+    resource_type: string;
+    resource_id?: string;
+    before_data?: unknown;
+    after_data?: unknown;
+    reason: string;
+  }) {
+    const previous = auditEventLedger[0];
+    const created_at = new Date().toISOString();
+    const base = {
+      id: createPublicId("AEL_"),
+      tenant_id: input.tenant_id,
+      actor_user_id: "system",
+      actor_role: "system",
+      action: input.action,
+      resource_type: input.resource_type,
+      resource_id: input.resource_id,
+      before_data: input.before_data,
+      after_data: input.after_data,
+      reason: requireAuditReason(input.reason),
+      ip_address: "system",
+      user_agent: "system",
+      request_id: "",
       previous_hash: previous?.hash,
       created_at
     };
@@ -5480,6 +5517,7 @@ async function startServer() {
         winningTicket: false,
         luckyHour: false,
         mysteryBox: false,
+        doubleTickets: false,
         doubleChance: false,
         extremeTickets: false,
         buyerRanking: false,
@@ -5494,6 +5532,7 @@ async function startServer() {
       winningTicket: { prizes: [] },
       luckyHour: { windows: [] },
       mysteryBox: { boxes: [] },
+      doubleTickets: { startsAt: "", endsAt: "", minTickets: 1, maxUsesPerCustomer: 0, packageQuantities: [], label: "Cotas em dobro" },
       doubleChance: { startsAt: "", endsAt: "", minTickets: 1, weight: 2 },
       extremeTickets: { enabled: false, highPrize: "Maior cota", lowPrize: "Menor cota" },
       buyerRanking: { visible: false, metric: "tickets", limit: 10 },
@@ -5506,6 +5545,9 @@ async function startServer() {
     if (!config) {
       config = getDefaultGamificationConfig(tenantId, raffleId);
       gamificationConfigs.push(config);
+    } else if (!(config as Partial<GamificationConfig>).doubleTickets || !("doubleTickets" in config.modules)) {
+      const normalized = normalizeGamificationConfig(getDefaultGamificationConfig(tenantId, raffleId), config);
+      Object.assign(config, normalized);
     }
     return config;
   }
@@ -5560,6 +5602,18 @@ async function startServer() {
           status: box.status === "opened" ? "opened" : "available"
         })) : current.mysteryBox.boxes
       },
+      doubleTickets: {
+        ...current.doubleTickets,
+        ...(incoming.doubleTickets || {}),
+        startsAt: String(incoming.doubleTickets?.startsAt ?? current.doubleTickets.startsAt ?? ""),
+        endsAt: String(incoming.doubleTickets?.endsAt ?? current.doubleTickets.endsAt ?? ""),
+        minTickets: Math.max(1, Math.floor(Number(incoming.doubleTickets?.minTickets ?? current.doubleTickets.minTickets ?? 1))),
+        maxUsesPerCustomer: Math.max(0, Math.floor(Number(incoming.doubleTickets?.maxUsesPerCustomer ?? current.doubleTickets.maxUsesPerCustomer ?? 0))),
+        packageQuantities: Array.isArray(incoming.doubleTickets?.packageQuantities)
+          ? incoming.doubleTickets!.packageQuantities.map(value => Math.max(1, Math.floor(Number(value)))).filter(Number.isFinite)
+          : current.doubleTickets.packageQuantities,
+        label: String(incoming.doubleTickets?.label ?? current.doubleTickets.label ?? "Cotas em dobro").slice(0, 80)
+      },
       doubleChance: { ...current.doubleChance, ...(incoming.doubleChance || {}) },
       extremeTickets: { ...current.extremeTickets, ...(incoming.extremeTickets || {}) },
       buyerRanking: { ...current.buyerRanking, ...(incoming.buyerRanking || {}) },
@@ -5583,6 +5637,37 @@ async function startServer() {
   function getActiveOrderBump(config: GamificationConfig) {
     if (!config.modules.orderBump || !config.orderBump.enabled) return null;
     return config.orderBump;
+  }
+
+  function getDoubleTicketsUsageCount(config: GamificationConfig, customer?: CustomerRecord | null) {
+    if (!customer) return 0;
+    return purchases.filter(purchase =>
+      purchase.tenant_id === config.tenant_id &&
+      purchase.raffleId === config.raffleId &&
+      purchase.status !== "cancelled" &&
+      Boolean(purchase.gamification?.doubleTickets?.applied) &&
+      (purchase.customer?.id === customer.id || purchase.contact === customer.phone)
+    ).length;
+  }
+
+  function getActiveDoubleTicketsPromotion(config: GamificationConfig, requestedTickets: number, customer?: CustomerRecord | null) {
+    if (!config.modules.doubleTickets) return null;
+    const rule = config.doubleTickets || getDefaultGamificationConfig(config.tenant_id, config.raffleId).doubleTickets;
+    if (!isWithinWindow(Date.now(), rule.startsAt, rule.endsAt)) return null;
+    const minTickets = Math.max(1, Math.floor(Number(rule.minTickets || 1)));
+    if (requestedTickets < minTickets) return null;
+    const packageQuantities = Array.isArray(rule.packageQuantities) ? rule.packageQuantities.filter(Number.isFinite) : [];
+    if (packageQuantities.length && !packageQuantities.includes(requestedTickets)) return null;
+    const maxUsesPerCustomer = Math.max(0, Math.floor(Number(rule.maxUsesPerCustomer || 0)));
+    if (maxUsesPerCustomer > 0 && getDoubleTicketsUsageCount(config, customer) >= maxUsesPerCustomer) return null;
+    return {
+      ...rule,
+      minTickets,
+      maxUsesPerCustomer,
+      packageQuantities,
+      label: rule.label || "Cotas em dobro",
+      bonusTickets: requestedTickets
+    };
   }
 
   function getBuyerRanking(tenantId: string, raffleId: string, metric: "tickets" | "amount" = "tickets", limit = 10) {
@@ -6163,6 +6248,14 @@ async function startServer() {
         windows: config.luckyHour.windows.filter(window => window.active)
       },
       mysteryBox: config.modules.mysteryBox ? { enabled: true, boxes: config.mysteryBox.boxes.map(box => ({ id: box.id, label: box.label, status: box.status })) } : { enabled: false, boxes: [] },
+      doubleTickets: {
+        enabled: config.modules.doubleTickets,
+        active: config.modules.doubleTickets && isWithinWindow(now, config.doubleTickets.startsAt, config.doubleTickets.endsAt),
+        minTickets: config.doubleTickets.minTickets,
+        maxUsesPerCustomer: config.doubleTickets.maxUsesPerCustomer,
+        packageQuantities: config.doubleTickets.packageQuantities,
+        label: config.doubleTickets.label
+      },
       doubleChance: {
         enabled: config.modules.doubleChance,
         active: config.modules.doubleChance && isWithinWindow(now, config.doubleChance.startsAt, config.doubleChance.endsAt),
@@ -7429,16 +7522,18 @@ async function startServer() {
         const luckyDiscount = luckyHour?.type === "discount" ? Math.max(0, Number(luckyHour.value || 0)) : 0;
         const luckyBonusTickets = luckyHour?.type === "bonus" ? Math.max(0, Math.floor(Number(luckyHour.value || 0))) : 0;
         const luckyExtraChance = luckyHour?.type === "extraChance" ? Math.max(0, Math.floor(Number(luckyHour.value || 0))) : 0;
-        const subtotal = tickets * raffle.price + (addonRaffle ? addonTickets * addonRaffle.price : 0) + orderBumpAmount;
-        const couponBenefit = calculateCouponBenefit(coupon, subtotal, tickets);
-        const total = Math.max(0, Number((subtotal - couponBenefit.discount - luckyDiscount).toFixed(2)));
-        const quantity = tickets + couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets;
-        if (raffle.soldTickets + quantity > raffle.totalTickets) return res.status(409).json({ error: "Cotas insuficientes para esta compra" });
-        if (addonRaffle && addonRaffle.soldTickets + addonTickets > addonRaffle.totalTickets) return res.status(409).json({ error: "Cotas adicionais insuficientes" });
-
         const customerPayload = req.body.customer || {};
         const phone = normalizePhone(customerPayload.phone || req.body.contact);
         const existingCustomer = phone ? findCustomerByPhone(phone, tenantId) : undefined;
+        const doubleTicketsPromotion = getActiveDoubleTicketsPromotion(gamificationConfig, tickets, existingCustomer);
+        const doubleTicketsBonus = doubleTicketsPromotion?.bonusTickets || 0;
+        const subtotal = tickets * raffle.price + (addonRaffle ? addonTickets * addonRaffle.price : 0) + orderBumpAmount;
+        const couponBenefit = calculateCouponBenefit(coupon, subtotal, tickets);
+        const total = Math.max(0, Number((subtotal - couponBenefit.discount - luckyDiscount).toFixed(2)));
+        const quantity = tickets + couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets + doubleTicketsBonus;
+        if (raffle.soldTickets + quantity > raffle.totalTickets) return res.status(409).json({ error: "Cotas insuficientes para esta compra" });
+        if (addonRaffle && addonRaffle.soldTickets + addonTickets > addonRaffle.totalTickets) return res.status(409).json({ error: "Cotas adicionais insuficientes" });
+
         if (existingCustomer && req.body.useBalance) {
           const ownAffiliate = ensureAffiliateForCustomer(existingCustomer);
           const walletBalance = (ownAffiliate.commissionBalance || 0) + (ownAffiliate.prizeBalance || 0);
@@ -7447,7 +7542,7 @@ async function startServer() {
           walletUsage.amount = walletUsage.enabled ? Math.min(total, walletBalance) : 0;
         }
 
-        if (couponBenefit.bonusTickets || luckyBonusTickets || luckyExtraChance) warnings.push("Bonus recalculado pelo servidor antes da reserva.");
+        if (couponBenefit.bonusTickets || luckyBonusTickets || luckyExtraChance || doubleTicketsBonus) warnings.push("Bonus recalculado pelo servidor antes da reserva.");
         res.json({
           quantity,
           subtotal,
@@ -7456,12 +7551,13 @@ async function startServer() {
           gateway: pixConfig.gateway,
           packageLabel: tickets >= 100 ? `${tickets.toLocaleString("pt-BR")} cotas` : undefined,
           bonuses: {
-            bonusTickets: couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets,
+            bonusTickets: couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets + doubleTicketsBonus,
+            doubleTickets: doubleTicketsPromotion ? { applied: true, bonusTickets: doubleTicketsBonus, minTickets: doubleTicketsPromotion.minTickets, label: doubleTicketsPromotion.label } : { applied: false, bonusTickets: 0 },
             doubleChance: Boolean(gamificationConfig.modules.doubleChance && isWithinWindow(Date.now(), gamificationConfig.doubleChance.startsAt, gamificationConfig.doubleChance.endsAt) && quantity >= gamificationConfig.doubleChance.minTickets),
             roulettes: Math.floor(quantity / 700),
             lootboxes: raffle.lootboxEnabled ? Math.floor(quantity / 1000) : 0,
             scratchcards: Math.floor(quantity / 1800),
-            description: orderBump ? "Compra em dobro aplicada no resumo" : undefined
+            description: doubleTicketsPromotion ? `${doubleTicketsPromotion.label}: +${doubleTicketsBonus} cotas extras` : orderBump ? "Compra em dobro aplicada no resumo" : undefined
           },
           walletUsage,
           affiliateInfo,
@@ -7615,10 +7711,12 @@ async function startServer() {
     const luckyDiscount = luckyHour?.type === "discount" ? Math.max(0, Number(luckyHour.value || 0)) : 0;
     const luckyBonusTickets = luckyHour?.type === "bonus" ? Math.max(0, Math.floor(Number(luckyHour.value || 0))) : 0;
     const luckyExtraChance = luckyHour?.type === "extraChance" ? Math.max(0, Math.floor(Number(luckyHour.value || 0))) : 0;
+    const doubleTicketsPromotion = getActiveDoubleTicketsPromotion(gamificationConfig, tickets, customer);
+    const doubleTicketsBonus = doubleTicketsPromotion?.bonusTickets || 0;
     const subtotalAmount = tickets * raffle.price + (addonRaffle ? addonTickets * addonRaffle.price : 0) + orderBumpAmount;
     const couponBenefit = calculateCouponBenefit(coupon, subtotalAmount, tickets);
     const amount = Math.max(0, Number((subtotalAmount - couponBenefit.discount - luckyDiscount).toFixed(2)));
-    const effectiveTickets = tickets + couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets;
+    const effectiveTickets = tickets + couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets + doubleTicketsBonus;
     if (raffle.soldTickets + effectiveTickets > raffle.totalTickets) {
       res.status(400).json({ error: "Quantidade com bônus indisponível" });
       return;
@@ -7670,10 +7768,11 @@ async function startServer() {
       paidWithBalance: balancePayment,
       couponCode: coupon?.code,
       discountAmount: couponBenefit.discount,
-      bonusTickets: couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance,
+      bonusTickets: couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + doubleTicketsBonus,
       gamification: {
         orderBump: orderBump ? { offered: true, accepted: true, tickets: orderBumpTickets, discountPercent: orderBumpDiscount, amount: orderBumpAmount } : (getActiveOrderBump(gamificationConfig) ? { offered: true, accepted: false, tickets: 0, discountPercent: 0, amount: 0 } : undefined),
         luckyHour: luckyHour ? { applied: true, type: luckyHour.type, value: luckyHour.value, bonusTickets: luckyBonusTickets, discount: luckyDiscount, extraChance: luckyExtraChance } : { applied: false },
+        doubleTickets: doubleTicketsPromotion ? { applied: true, bonusTickets: doubleTicketsBonus, minTickets: doubleTicketsPromotion.minTickets, label: doubleTicketsPromotion.label } : { applied: false, bonusTickets: 0, minTickets: gamificationConfig.doubleTickets.minTickets, label: gamificationConfig.doubleTickets.label || "Cotas em dobro" },
         doubleChance: gamificationConfig.modules.doubleChance && isWithinWindow(Date.now(), gamificationConfig.doubleChance.startsAt, gamificationConfig.doubleChance.endsAt) && effectiveTickets >= gamificationConfig.doubleChance.minTickets
           ? { applied: true, weight: Math.max(2, Number(gamificationConfig.doubleChance.weight || 2)) }
           : { applied: false, weight: 1 }
@@ -8866,6 +8965,22 @@ async function startServer() {
       weight: ticketWeight,
       reason: ticketWeight > 1 ? "chance_em_dobro" : "padrao"
     }));
+    if (purchase.gamification?.doubleTickets?.applied) {
+      recordSystemAuditLedger({
+        tenant_id: purchase.tenant_id,
+        action: "DOUBLE_TICKETS_APPLIED",
+        resource_type: "purchase",
+        resource_id: purchase.purchaseId,
+        before_data: { paidTickets: purchase.tickets - purchase.gamification.doubleTickets.bonusTickets },
+        after_data: {
+          totalTickets: purchase.tickets,
+          bonusTickets: purchase.gamification.doubleTickets.bonusTickets,
+          numbers: assignedNumbers,
+          label: purchase.gamification.doubleTickets.label
+        },
+        reason: "Promocao cotas em dobro aplicada"
+      });
+    }
 
     if (gamificationConfig.modules.winningTicket) {
       const autoPrizes = gamificationConfig.winningTicket.prizes.filter(prize => prize.status === "available" && assignedNumbers.includes(prize.number));
