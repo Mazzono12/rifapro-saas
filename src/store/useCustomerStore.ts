@@ -99,6 +99,7 @@ export const useCustomerStore = create<CustomerState>((set) => ({
   },
   clearCustomer: () => {
     localStorage.removeItem(customerSessionKey);
+    sessionStorage.removeItem(customerSessionKey);
     clearCustomerCookie();
     set({ customer: null });
   },

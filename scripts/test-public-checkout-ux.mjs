@@ -18,8 +18,13 @@ function sliceBetween(content, start, end) {
 
 const campaignHero = read("src/components/CampaignMediaHero.tsx");
 const videoPlayer = read("src/components/VideoHeroPlayer.tsx");
+const smartVideo = read("src/components/SmartAutoPlayVideo.tsx");
+const videoProvider = read("src/context/video-playback/VideoPlaybackContext.tsx");
+const smartHook = read("src/hooks/useSmartVideoPlayback.ts");
 const soundToggle = read("src/components/VideoSoundToggle.tsx");
 const raffleDetails = read("src/pages/RaffleDetails.tsx");
+const dashboard = read("src/pages/Dashboard.tsx");
+const customerStore = read("src/store/useCustomerStore.ts");
 const receipt = read("src/components/checkout/PrePaymentReceiptModal.tsx");
 const geoService = read("src/services/GeoPrefillService.ts");
 const useCityDetection = read("src/hooks/useCityDetection.ts");
@@ -30,11 +35,25 @@ const fazendinha = read("src/pages/Fazendinha.tsx");
 const fazendinhaSection = read("src/components/FazendinhaSection.tsx");
 
 assert(campaignHero.includes("VideoHeroPlayer"), "CampaignMediaHero deve usar VideoHeroPlayer para videos");
-assert(videoPlayer.includes("video.muted = false"), "VideoHeroPlayer deve tentar iniciar com audio habilitado");
-assert(videoPlayer.includes("video.muted = true"), "VideoHeroPlayer deve cair para muted quando autoplay com audio for bloqueado");
+assert(videoPlayer.includes("SmartAutoPlayVideo"), "VideoHeroPlayer deve usar SmartAutoPlayVideo");
+assert(smartVideo.includes("useSmartVideoPlayback"), "SmartAutoPlayVideo deve usar hook de visibilidade inteligente");
+assert(videoProvider.includes("VideoPlaybackProvider"), "Deve existir VideoPlaybackProvider para coordenar videos");
+assert(videoProvider.includes("IntersectionObserver") || smartHook.includes("IntersectionObserver"), "Autoplay inteligente deve usar IntersectionObserver");
+assert(videoProvider.includes("sort((a, b) => b.ratio - a.ratio)"), "Apenas o video mais visivel deve tocar");
+assert(videoProvider.includes("pauseEntry"), "Videos fora de visibilidade devem pausar");
+assert(videoProvider.includes("active.video.muted = true"), "Autoplay bloqueado deve cair para muted");
+assert(smartHook.includes("observer.disconnect()"), "Observer deve ser limpo no unmount");
 assert(videoPlayer.includes("playsInline"), "VideoHeroPlayer deve preservar playsInline para mobile");
-assert(videoPlayer.includes('preload={priority ? "auto" : "metadata"}'), "VideoHeroPlayer deve usar preload metadata fora de prioridade");
+assert(smartVideo.includes('preload={priority ? "auto" : preload}'), "SmartAutoPlayVideo deve usar preload metadata fora de prioridade");
 assert(soundToggle.includes("Ativar Som"), "VideoSoundToggle deve exibir CTA Ativar Som");
+
+assert(!dashboard.includes("Criar senha"), "Area do cliente nao deve mostrar Criar senha no fluxo de entrada");
+assert(dashboard.includes("Entrar"), "Area do cliente deve trocar acao de acesso para Entrar");
+assert(dashboard.includes("Sair"), "Area do cliente deve expor botao Sair");
+assert(dashboard.includes("clearCustomer()"), "Botao Sair deve limpar sessao do cliente");
+assert(customerStore.includes("localStorage.removeItem(customerSessionKey)"), "Logout do cliente deve limpar localStorage do cliente");
+assert(customerStore.includes("sessionStorage.removeItem(customerSessionKey)"), "Logout do cliente deve limpar sessionStorage do cliente");
+assert(!customerStore.includes("nexusdraw_admin_token"), "Logout do cliente nao deve remover token admin");
 
 const paymentPix = sliceBetween(raffleDetails, "function PaymentPix", "function PremiumTicket");
 assert(!/Suporte WhatsApp|supportUrl|wa\.me|api\.whatsapp\.com/i.test(paymentPix), "Checkout PIX nao pode conter CTA de WhatsApp");

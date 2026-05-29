@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { Link, useLocation } from "react-router-dom";
-import { Camera, ChevronRight, LockKeyhole, Package, Save, Ticket, UploadCloud, User, Users, Wallet } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Camera, ChevronRight, LockKeyhole, LogOut, Package, Save, Ticket, UploadCloud, User, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { useCustomerStore } from "../store/useCustomerStore";
@@ -10,7 +10,8 @@ import { PremiumEmptyState, PremiumPageLayout, SectionTitle } from "../component
 
 export function Dashboard() {
   const location = useLocation();
-  const { customer, setCustomer } = useCustomerStore();
+  const navigate = useNavigate();
+  const { customer, setCustomer, clearCustomer } = useCustomerStore();
   const [purchases, setPurchases] = useState<any[]>([]);
   const [expandedPurchase, setExpandedPurchase] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", photoUrl: "", city: "", state: "", accessPassword: "" });
@@ -68,6 +69,14 @@ export function Dashboard() {
     } finally {
       setUploadingPhoto(false);
     }
+  };
+
+  const logoutCustomer = () => {
+    clearCustomer();
+    setUnlocked(false);
+    setAreaPassword("");
+    toast.success("Você saiu com sucesso");
+    navigate("/", { replace: true });
   };
 
   const unlockArea = async (e: React.FormEvent) => {
@@ -134,7 +143,10 @@ export function Dashboard() {
             className="mt-6 w-full px-5 py-4 text-center font-mono text-2xl tracking-[0.35em]"
           />
           <button className="neon-button mt-5 w-full rounded-xl py-4">
-            {customer.accessPassword ? "Acessar informações" : "Criar senha e acessar"}
+            Entrar
+          </button>
+          <button type="button" onClick={logoutCustomer} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08]">
+            <LogOut className="h-4 w-4" /> Sair
           </button>
         </form>
       </div>
@@ -167,6 +179,9 @@ export function Dashboard() {
             <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neon-purple/10 border border-neon-purple/30 text-neon-purple text-xs font-semibold">
               {customer.totalTickets} cotas compradas
             </div>
+            <button type="button" onClick={logoutCustomer} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08]">
+              <LogOut className="h-4 w-4" /> Sair
+            </button>
           </div>
 
           <div className="glass-card overflow-hidden">

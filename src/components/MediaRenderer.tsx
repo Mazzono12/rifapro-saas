@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { extractVimeoId, extractYouTubeId, getBunnyEmbedUrl } from '../utils/media';
+import { SmartAutoPlayVideo } from './SmartAutoPlayVideo';
 
 interface Props {
   mediaUrl: string;
@@ -65,33 +66,37 @@ export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true,
   }
 
   if (mediaType === 'video') {
-    const toggleVideo = () => {
-      const video = videoRef.current;
-      if (!video) return;
-      if (video.paused) {
-        video.dataset.rifaproUserPaused = "false";
-        video.muted = muted;
-        video.play().catch(() => null);
-      } else {
-        video.dataset.rifaproUserPaused = "true";
-        video.pause();
-      }
-    };
+    if (!autoPlay) {
+      return (
+        <video
+          ref={videoRef}
+          src={mediaUrl}
+          className={`${fitClass} ${className}`}
+          data-rifapro-autoplay="false"
+          data-rifapro-muted={String(muted)}
+          muted={muted}
+          preload={preload}
+          loop
+          playsInline
+          controls={interactive}
+          onLoadedData={onLoad}
+          onError={onError}
+        />
+      );
+    }
 
     return (
-      <video 
-        ref={videoRef}
-        src={mediaUrl} 
+      <SmartAutoPlayVideo
+        src={mediaUrl}
         className={`${fitClass} ${className}`}
-        autoPlay={shouldPlay} 
-        data-rifapro-autoplay={String(autoPlay)}
-        data-rifapro-muted={String(muted)}
-        muted={muted}
+        mutedDefault={muted}
+        priority={priority}
         preload={preload}
-        loop 
-        playsInline 
-        onClick={interactive ? toggleVideo : undefined}
-        onLoadedData={onLoad}
+        controls={false}
+        playsInline
+        mediaFit={mediaFit}
+        threshold={visibilityThreshold}
+        onLoad={onLoad}
         onError={onError}
       />
     );

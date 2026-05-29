@@ -8,6 +8,7 @@ import { PremiumAtmosphere } from "./components/PremiumAtmosphere";
 import { ThemeProvider } from "./context/theme/ThemeContext";
 import { AuthProvider } from "./context/auth/AuthContext";
 import { TenantBrandingProvider } from "./context/tenant-branding/TenantBrandingContext";
+import { VideoPlaybackProvider } from "./context/video-playback/VideoPlaybackContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { PwaInstallPrompt } from "./components/pwa/PwaInstallPrompt";
 import { useCustomerStore } from "./store/useCustomerStore";
@@ -65,18 +66,10 @@ function GlobalVideoGuard() {
 
     document.addEventListener("play", onPlay, true);
     window.addEventListener("rifapro:story-open", onStoryOpen);
-    const interval = window.setInterval(() => {
-      const playing = Array.from(document.querySelectorAll("video")).filter(video => !video.paused);
-      playing.slice(1).forEach(video => {
-        video.muted = true;
-        video.pause();
-      });
-    }, 600);
 
     return () => {
       document.removeEventListener("play", onPlay, true);
       window.removeEventListener("rifapro:story-open", onStoryOpen);
-      window.clearInterval(interval);
     };
   }, []);
 
@@ -242,6 +235,7 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <TenantBrandingProvider>
+        <VideoPlaybackProvider>
         <Router>
           <RouteAtmosphere />
           <Toaster 
@@ -329,6 +323,7 @@ export default function App() {
             </Suspense>
           </MainLayout>
         </Router>
+        </VideoPlaybackProvider>
         </TenantBrandingProvider>
       </AuthProvider>
     </ThemeProvider>

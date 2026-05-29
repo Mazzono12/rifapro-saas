@@ -61,54 +61,6 @@ export function Home() {
     setHeroCinemaMode
   ]);
 
-  useEffect(() => {
-    let frame = 0;
-    const syncVisibleVideo = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        const videos = Array.from(document.querySelectorAll("video"));
-        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-        const scored = videos.map(video => {
-          const rect = video.getBoundingClientRect();
-          const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
-          const visibleWidth = Math.max(0, Math.min(rect.right, window.innerWidth) - Math.max(rect.left, 0));
-          const visibleArea = visibleHeight * visibleWidth;
-          const totalArea = Math.max(1, rect.height * rect.width);
-          return { video, ratio: visibleArea / totalArea, area: totalArea };
-        });
-        const manualWinner = scored
-          .filter(item => item.area > 10000 && item.ratio >= 0.25 && item.video.dataset.rifaproAutoplay === "false" && !item.video.paused)
-          .sort((a, b) => b.ratio - a.ratio)[0]?.video;
-        const winner = manualWinner ?? scored
-          .filter(item => item.area > 10000 && item.ratio >= 0.35 && item.video.dataset.rifaproAutoplay !== "false")
-          .sort((a, b) => b.ratio - a.ratio)[0]?.video;
-
-        scored.forEach(({ video }) => {
-          if (video === winner) {
-            if (video.dataset.rifaproMuted) video.muted = video.dataset.rifaproMuted === "true";
-            if (video.dataset.rifaproAutoplay !== "false" && video.paused && video.dataset.rifaproUserPaused !== "true") {
-              video.play().catch(() => null);
-            }
-          } else if (!video.paused) {
-            video.muted = true;
-            video.pause();
-          }
-        });
-      });
-    };
-
-    syncVisibleVideo();
-    window.addEventListener("scroll", syncVisibleVideo, { passive: true });
-    window.addEventListener("resize", syncVisibleVideo);
-    const interval = window.setInterval(syncVisibleVideo, 2500);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", syncVisibleVideo);
-      window.removeEventListener("resize", syncVisibleVideo);
-      window.clearInterval(interval);
-    };
-  }, []);
-
   const loading = loadingRaffles || loadingSettings;
 
   useEffect(() => {
