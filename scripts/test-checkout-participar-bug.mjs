@@ -11,6 +11,8 @@ function assert(condition, message) {
 const css = read("src/index.css");
 const premiumUi = read("src/components/premium/PremiumUI.tsx");
 const raffleDetails = read("src/pages/RaffleDetails.tsx");
+const checkoutMedia = read("src/components/checkout/CheckoutCampaignMedia.tsx");
+const receipt = read("src/components/checkout/PrePaymentReceiptModal.tsx");
 const packageJson = read("package.json");
 
 assert(premiumUi.includes("CheckoutPrimaryActionButton"), "deve existir CheckoutPrimaryActionButton");
@@ -51,10 +53,7 @@ for (const token of [
   "checkoutCriticalActive",
   "!checkoutCriticalActive && <FloatingActions",
   "!checkoutCriticalActive && (",
-  "checkoutMediaUrl",
-  "checkoutMediaType",
-  "checkout-media-preview",
-  "<CampaignMediaHero",
+  "CheckoutCampaignMedia",
   "checkout-modal-title-block",
   "checkout-modal-kicker",
   "checkout-modal-title",
@@ -66,6 +65,22 @@ for (const token of [
 assert(/@media \(max-width:\s*640px\)[\s\S]*\.checkout-modal-header[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*!important/.test(css), "mobile deve forcar header em uma coluna sem espremer titulo");
 assert(/\.checkout-modal-close[\s\S]*grid-column:\s*1 \/ -1\s*!important/.test(css), "botao Fechar deve ir para linha propria no mobile");
 assert(/\.checkout-media-preview[\s\S]*width:\s*100%/.test(css), "preview de foto/video do checkout deve ocupar largura total");
+assert(!/\.fixed\.inset-0\[class\*="z-\[80\]"\]\s+button/.test(css), "overlay fixo generico nao pode forcar botoes a 100% e comprimir header");
+
+for (const token of [
+  "CheckoutCampaignMedia",
+  "checkout-campaign-media",
+  "checkout-media-preview",
+  "raffle?.checkoutMediaUrl",
+  "raffle?.mediaUrl",
+  "raffle?.image",
+  "checkout-media-fallback"
+]) {
+  assert(checkoutMedia.includes(token), `CheckoutCampaignMedia incompleto: ${token}`);
+}
+
+assert(receipt.includes("<CheckoutCampaignMedia"), "recibo pre-PIX deve mostrar foto/video da campanha");
+assert(receipt.includes("raffleData"), "recibo pre-PIX deve aceitar dados de midia da rifa");
 
 for (const quantity of [1, 5, 700, 3000]) {
   const label = `Confirmar participacao ${quantity.toLocaleString("pt-BR")} cotas - R$ 350,00`;

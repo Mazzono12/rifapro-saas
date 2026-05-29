@@ -1,0 +1,131 @@
+{
+  "startedAt": "2026-05-29T18:19:41.904Z",
+  "mockOnly": true,
+  "host": "cliente-a.meudominio.com",
+  "clients": [
+    {
+      "name": "Cliente Teste 01",
+      "email": "cliente01+staging@teste.local",
+      "city": "Sao Paulo",
+      "state": "SP",
+      "scenario": "1 cota"
+    },
+    {
+      "name": "Cliente Teste 02",
+      "email": "cliente02+staging@teste.local",
+      "city": "Rio de Janeiro",
+      "state": "RJ",
+      "scenario": "pacote pequeno"
+    },
+    {
+      "name": "Cliente Teste 03",
+      "email": "cliente03+staging@teste.local",
+      "city": "Belo Horizonte",
+      "state": "MG",
+      "scenario": "pacote medio"
+    },
+    {
+      "name": "Cliente Teste 04",
+      "email": "cliente04+staging@teste.local",
+      "city": "Curitiba",
+      "state": "PR",
+      "scenario": "pacote grande"
+    },
+    {
+      "name": "Cliente Teste 05",
+      "email": "cliente05+staging@teste.local",
+      "city": "Florianopolis",
+      "state": "SC",
+      "scenario": "quantidade manual"
+    }
+  ],
+  "campaigns": [
+    {
+      "id": "R_992B409A",
+      "title": "Campanha Full Purchase Mock 1780078788800",
+      "media": true
+    }
+  ],
+  "purchases": [
+    {
+      "campaignId": "R_992B409A",
+      "campaignTitle": "Campanha Full Purchase Mock 1780078788800",
+      "customer": "Cliente Teste 01",
+      "email": "cliente01+staging@teste.local",
+      "scenario": "1 cota",
+      "requestedTickets": 1,
+      "orderId": "075C1E5F",
+      "status": "paid",
+      "numbersCount": 1,
+      "pixMock": true,
+      "whatsappQueued": true,
+      "mediaInCampaign": true
+    },
+    {
+      "campaignId": "R_992B409A",
+      "campaignTitle": "Campanha Full Purchase Mock 1780078788800",
+      "customer": "Cliente Teste 02",
+      "email": "cliente02+staging@teste.local",
+      "scenario": "pacote pequeno",
+      "requestedTickets": 5,
+      "orderId": "21FFC398",
+      "status": "paid",
+      "numbersCount": 5,
+      "pixMock": true,
+      "whatsappQueued": true,
+      "mediaInCampaign": true
+    },
+    {
+      "campaignId": "R_992B409A",
+      "campaignTitle": "Campanha Full Purchase Mock 1780078788800",
+      "customer": "Cliente Teste 03",
+      "email": "cliente03+staging@teste.local",
+      "scenario": "pacote medio",
+      "requestedTickets": 100,
+      "orderId": "43B6745B",
+      "status": "paid",
+      "numbersCount": 100,
+      "pixMock": true,
+      "whatsappQueued": true,
+      "mediaInCampaign": true
+    },
+    {
+      "campaignId": "R_992B409A",
+      "campaignTitle": "Campanha Full Purchase Mock 1780078788800",
+      "customer": "Cliente Teste 04",
+      "email": "cliente04+staging@teste.local",
+      "scenario": "pacote grande",
+      "requestedTickets": 700,
+      "orderId": "CA8EECFD",
+      "status": "paid",
+      "numbersCount": 700,
+      "pixMock": true,
+      "whatsappQueued": true,
+      "mediaInCampaign": true
+    },
+    {
+      "campaignId": "R_992B409A",
+      "campaignTitle": "Campanha Full Purchase Mock 1780078788800",
+      "customer": "Cliente Teste 05",
+      "email": "cliente05+staging@teste.local",
+      "scenario": "quantidade manual",
+      "requestedTickets": 37,
+      "orderId": "DBE427A7",
+      "status": "paid",
+      "numbersCount": 37,
+      "pixMock": true,
+      "whatsappQueued": true,
+      "mediaInCampaign": true
+    }
+  ],
+  "validations": {
+    "noVerticalTextStatic": true,
+    "checkoutMediaStatic": true,
+    "floatingButtonsHiddenDuringCheckout": true,
+    "noDuplicateNumbers": true,
+    "whatsappIdempotent": true,
+    "fiveFakeClientsPurchased": true
+  },
+  "errors": [],
+  "finishedAt": "2026-05-29T18:19:50.416Z"
+}

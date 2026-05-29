@@ -3011,8 +3011,8 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   }
 
   .checkout-screen,
-  .fixed.inset-0[class*="z-[80]"],
-  .fixed.inset-0[class*="z-[90]"] {
+  .checkout-modal-overlay,
+  .checkout-receipt-overlay {
     padding-left: calc(var(--mobile-edge-gutter) + env(safe-area-inset-left)) !important;
     padding-right: calc(var(--mobile-edge-gutter) + env(safe-area-inset-right)) !important;
   }
@@ -3103,9 +3103,7 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   .checkout-actions button,
   .checkout-action-button,
   .checkout-primary-button,
-  .checkout-screen button,
-  .fixed.inset-0[class*="z-[80]"] button,
-  .fixed.inset-0[class*="z-[90]"] button {
+  .checkout-screen button {
     width: 100%;
     min-height: 3rem;
     padding-left: .875rem !important;
@@ -3149,15 +3147,13 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   }
 
   .checkout-screen button,
-  .checkout-screen .premium-button,
-  .fixed.inset-0[class*="z-[80]"] button,
-  .fixed.inset-0[class*="z-[90]"] button {
+  .checkout-screen .premium-button {
     max-width: 100%;
     white-space: normal;
   }
 
-  .fixed.inset-0[class*="z-[80]"] section,
-  .fixed.inset-0[class*="z-[90]"] section {
+  .checkout-modal-overlay section,
+  .checkout-receipt-overlay section {
     width: 100%;
     max-width: 100%;
   }
@@ -3222,6 +3218,27 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   max-width: 100%;
   overflow: hidden;
   border-radius: 1rem;
+}
+
+.checkout-campaign-media {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  background: #020617;
+}
+
+.checkout-campaign-media img,
+.checkout-campaign-media video,
+.checkout-campaign-media iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.checkout-media-fallback {
+  color: #f8fafc;
 }
 
 /* Skeleton Loading Animation */

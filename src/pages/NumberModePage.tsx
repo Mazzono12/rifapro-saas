@@ -411,6 +411,12 @@ export function NumberModePage() {
         open={receiptOpen}
         campaign={data.config.name || modeTitles[mode]}
         raffle={modeTitles[mode]}
+        raffleData={{
+          title: data.config.name || modeTitles[mode],
+          image: data.config.mediaUrl || "",
+          mediaUrl: data.config.mediaUrl || "",
+          mediaType: data.config.mediaType as any
+        }}
         selectedQuantity={selected.length}
         selectedPackage={`${selected.length} numero(s)`}
         calculatedPrice={total}

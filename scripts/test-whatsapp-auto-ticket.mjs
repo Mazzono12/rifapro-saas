@@ -124,7 +124,7 @@ try {
   assert.equal(paid.response.status, 200);
   await wait(150);
   messages = await json("/api/admin/whatsapp/messages", { headers: headersA });
-  const ticketMessage = messages.body.find(message => message.order_id === purchase.purchaseId);
+  const ticketMessage = messages.body.find(message => message.order_id === purchase.purchaseId && message.message_type === "ticket_confirmation");
   assert.ok(ticketMessage, "PIX aprovado deve enfileirar WhatsApp.");
   assert.equal(ticketMessage.status, "sent", "Provider mock deve marcar como sent.");
   assert.match(ticketMessage.message_body, /Campanha: WhatsApp Auto Ticket/);

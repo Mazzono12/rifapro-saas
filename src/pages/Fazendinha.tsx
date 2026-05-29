@@ -544,6 +544,12 @@ export function Fazendinha() {
         open={receiptOpen}
         campaign={data.config.name || "Fazendinha"}
         raffle={data.config.name || "Fazendinha"}
+        raffleData={{
+          title: data.config.name || "Fazendinha",
+          image: data.config.mediaUrl || "",
+          mediaUrl: data.config.mediaUrl || "",
+          mediaType: data.config.mediaType as any
+        }}
         selectedQuantity={selectedGroups.flatMap(group => group.numeros).length}
         selectedPackage={`${selectedGroups.length} grupo(s)`}
         calculatedPrice={totalValue}
