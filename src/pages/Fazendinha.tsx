@@ -569,6 +569,7 @@ export function Fazendinha() {
         label="Participar"
         meta={selectedGroups.length ? `${selectedGroups.length} grupos - ${formatCurrency(totalValue)}` : "Escolha seus grupos"}
         onClick={() => setCheckoutOpen(true)}
+        hidden={checkoutOpen || receiptOpen}
       />
     </PremiumPageLayout>
   );

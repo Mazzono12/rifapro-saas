@@ -314,7 +314,8 @@ export function QuickQuantityGrid({ values, selected, onSelect }: { values: numb
   );
 }
 
-export function FloatingCTA({ label, meta, onClick }: { label: string; meta?: string; onClick?: () => void }) {
+export function FloatingCTA({ label, meta, onClick, hidden = false }: { label: string; meta?: string; onClick?: () => void; hidden?: boolean }) {
+  if (hidden) return null;
   return (
     <button type="button" onClick={onClick} className="premium-floating-cta">
       <span className="flex items-center gap-2"><Ticket className="h-5 w-5" /> {label}</span>
@@ -326,11 +327,11 @@ export function FloatingCTA({ label, meta, onClick }: { label: string; meta?: st
 export function PremiumCheckoutModal({ open, title, children, onClose }: { open: boolean; title: string; children: React.ReactNode; onClose: () => void }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3">
-      <motion.section initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_100px_rgba(52,211,153,0.16)] sm:my-5 sm:rounded-[2rem]">
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#090b11]/90 p-4 backdrop-blur-xl">
-          <h2 className="text-xl font-black">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded-full border border-white/10 px-3 py-2 text-sm text-slate-300">Fechar</button>
+    <div className="checkout-modal-overlay fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3">
+      <motion.section initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="checkout-screen checkout-modal-shell mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_100px_rgba(52,211,153,0.16)] sm:my-5 sm:rounded-[2rem]">
+        <header className="checkout-modal-header sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-[#090b11]/90 p-4 backdrop-blur-xl">
+          <h2 className="min-w-0 break-words text-xl font-black">{title}</h2>
+          <button type="button" onClick={onClose} className="grid min-h-11 shrink-0 place-items-center rounded-full border border-white/10 px-3 py-2 text-sm font-black text-slate-200">Fechar</button>
         </header>
         {children}
       </motion.section>

@@ -436,6 +436,7 @@ export function NumberModePage() {
         label="Finalizar compra"
         meta={selected.length ? `${selected.length} cotas - R$ ${total.toFixed(2)}` : "Escolha seus números"}
         onClick={() => setCheckoutOpen(true)}
+        hidden={checkoutOpen || receiptOpen}
       />
 
       <PostPurchaseLootboxModal

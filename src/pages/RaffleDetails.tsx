@@ -783,14 +783,14 @@ function CheckoutModal(props: {
   return (
     <AnimatePresence>
       {props.open && (
-        <motion.div className="fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <motion.div initial={{ y: 36, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 36, scale: 0.97 }} className="mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_110px_rgba(16,185,129,0.16)] sm:my-5 sm:rounded-[2rem]">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#090b11]/90 p-4 backdrop-blur-xl">
-              <div>
+        <motion.div className="checkout-modal-overlay fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.div initial={{ y: 36, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 36, scale: 0.97 }} className="checkout-screen checkout-modal-shell mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_110px_rgba(16,185,129,0.16)] sm:my-5 sm:rounded-[2rem]">
+            <div className="checkout-modal-header sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-[#090b11]/90 p-4 backdrop-blur-xl">
+              <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--theme-primary)]">{props.step === "review" ? "Confirmar participacao" : props.step === "payment" ? "Pagamento PIX" : "Bilhete premium"}</p>
-                <h2 className="text-xl font-black text-white">{props.tickets.toLocaleString("pt-BR")} cotas - {formatCurrency(props.totalValue)}</h2>
+                <h2 className="break-words text-xl font-black text-white">{props.tickets.toLocaleString("pt-BR")} cotas - {formatCurrency(props.totalValue)}</h2>
               </div>
-              <button type="button" onClick={props.onClose} className="rounded-full border border-white/10 px-3 py-2 text-sm text-slate-300">Fechar</button>
+              <button type="button" onClick={props.onClose} className="grid min-h-11 shrink-0 place-items-center rounded-full border border-white/10 px-3 py-2 text-sm font-black text-slate-200">Fechar</button>
             </div>
 
             {props.step === "review" && <CheckoutReview {...props} />}
@@ -805,16 +805,16 @@ function CheckoutModal(props: {
 
 function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
   return (
-    <form onSubmit={props.onSubmit} className="space-y-4 p-4">
+    <form onSubmit={props.onSubmit} className="checkout-form space-y-4 p-4">
       <div className="rounded-3xl border border-white/10 bg-white/[0.045] p-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="checkout-info-grid grid grid-cols-2 gap-3">
           <InfoCard label="Cotas" value={props.tickets.toLocaleString("pt-BR")} />
           <InfoCard label="Total PIX" value={formatCurrency(props.totalValue)} />
         </div>
       </div>
 
       {props.customer && !props.requireIdentity ? (
-        <div className="rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-4">
+        <div className="customer-identified-card rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.08] p-4">
           <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--theme-primary)]">Cliente identificado</p>
           <p className="mt-1 text-xl font-black">Ola, {(props.customer.name || "cliente").split(/\s+/)[0]}</p>
         </div>
@@ -828,7 +828,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
             <>
               <Field label="Nome completo" value={props.customerForm.name} onChange={value => props.setCustomerForm((current: any) => ({ ...current, name: value }))} required />
               <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value }))} required />
-              <div className="grid grid-cols-[1fr_88px] gap-2">
+          <div className="grid gap-2 sm:grid-cols-[1fr_88px]">
                 <Field label="Cidade" value={props.customerForm.city} onChange={value => props.setCustomerForm((current: any) => ({ ...current, city: value }))} required />
                 <Field label="UF" value={props.customerForm.state} onChange={value => props.setCustomerForm((current: any) => ({ ...current, state: value.toUpperCase().slice(0, 2) }))} />
               </div>
@@ -844,7 +844,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
 
       <div className="rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-4">
         <p className="mb-2 text-[11px] font-black uppercase tracking-[0.22em] text-[var(--theme-primary)]">Cupom</p>
-        <div className="grid grid-cols-[1fr_auto] gap-2">
+        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
           <input value={props.couponCode} onChange={e => props.setCouponCode(e.target.value.toUpperCase())} placeholder="BEMVINDO10" className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm font-bold uppercase outline-none" />
           <button type="button" onClick={props.validateCoupon} className="rounded-2xl border border-[var(--theme-border)] px-4 py-3 text-sm font-black text-[var(--theme-text)]">Aplicar</button>
         </div>
@@ -883,7 +883,7 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
         <h3 className="text-3xl font-black">Pague com PIX</h3>
         <p className="mt-2 text-sm text-slate-400">Confirmacao automatica em tempo real. Pedido #{props.purchase?.purchaseId}</p>
       </div>
-      <div className="grid gap-2 rounded-3xl border border-white/10 bg-white/[0.045] p-3 text-left sm:grid-cols-3">
+      <div className="checkout-info-grid grid gap-2 rounded-3xl border border-white/10 bg-white/[0.045] p-3 text-left sm:grid-cols-3">
         <InfoCard label="Status" value={props.purchase?.status === "paid" ? "Pago" : "Aguardando"} />
         <InfoCard label="Gateway" value={String(gateway).toUpperCase()} />
         <InfoCard label="Total" value={formatCurrency(props.totalValue)} />
@@ -903,7 +903,7 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
       <button type="button" onClick={props.onCopyPix} className={cn("flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-black transition", props.copied ? "premium-button" : "border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]")}>
         <Copy className="h-5 w-5" /> {props.copied ? "PIX copiado" : "Copiar PIX copia e cola"}
       </button>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="checkout-actions grid gap-2 sm:grid-cols-2">
         <button type="button" onClick={props.onBackToReview} className="min-h-12 rounded-2xl border border-white/10 py-3 text-sm font-bold text-slate-300">Alterar dados</button>
         <button type="button" onClick={props.onConfirmPix} disabled={props.confirmingPix} className="premium-button flex min-h-12 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black disabled:opacity-60">
           <CheckCircle2 className="h-4 w-4" /> {props.confirmingPix ? "Consultando status..." : "Confirmar PIX"}
@@ -933,7 +933,7 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
             <QRCodeSVG value={String(props.purchase?.purchaseId || "rifapro")} size={86} bgColor="#ffffff" fgColor="#0f172a" />
           </div>
         </div>
-        <div className="mt-6 grid gap-2 sm:grid-cols-2">
+        <div className="checkout-info-grid mt-6 grid gap-2 sm:grid-cols-2">
           <InfoCard label="Comprador" value={buyer.name || props.customerForm.name || "Cliente"} />
           <InfoCard label="WhatsApp" value={maskPhone(buyer.phone || props.customerForm.phone || props.purchase?.contact)} />
           <InfoCard label="E-mail" value={maskEmail(buyer.email || props.purchase?.email || "")} />
@@ -951,7 +951,7 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
         </div>
       </div>
       <GamificationPanel data={props.gamification} purchase={props.purchase} />
-      <div className="grid grid-cols-2 gap-2">
+      <div className="checkout-actions grid grid-cols-2 gap-2">
         <button type="button" onClick={props.onShare} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold"><Share2 className="h-4 w-4" /> Compartilhar</button>
         <button type="button" onClick={() => toast.info("PDF sera gerado no modulo de comprovantes.")} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold"><Download className="h-4 w-4" /> PDF</button>
       </div>
@@ -991,9 +991,9 @@ function Badge({ icon, label, tone }: { icon: React.ReactNode; label: string; to
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
+    <div className="checkout-info-card rounded-2xl border border-white/10 bg-black/25 p-3">
       <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <p className="mt-1 text-lg font-black text-white">{value}</p>
+      <p className="mt-1 break-words text-lg font-black text-white">{value}</p>
     </div>
   );
 }

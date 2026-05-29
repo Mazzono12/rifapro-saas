@@ -33,6 +33,8 @@
     "test:webhooks-hard": "node scripts/test-hard-suite.mjs webhooks-hard",
     "test:frontend-hard": "node scripts/test-hard-suite.mjs frontend-hard",
     "test:ui-contrast-hard": "node scripts/test-ui-contrast-hard.mjs",
+    "test:hover-contrast-hard": "node scripts/test-hover-contrast-hard.mjs",
+    "test:checkout-layout-hard": "node scripts/test-checkout-layout-hard.mjs",
     "test:production-readiness": "node scripts/test-hard-suite.mjs production-readiness",
     "test:superadmin-finance": "node scripts/test-superadmin-finance.mjs",
     "test:tenant-domains": "node scripts/test-tenant-domains.mjs",
