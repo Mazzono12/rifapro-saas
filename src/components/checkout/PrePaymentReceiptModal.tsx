@@ -102,8 +102,8 @@ export function PrePaymentReceiptModal({
       <section className="checkout-receipt-shell mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#070a0f] text-white shadow-[0_30px_120px_rgba(0,0,0,0.5)] sm:my-4 sm:rounded-[1.75rem]">
         <header className="checkout-receipt-header relative overflow-hidden border-b border-white/10 px-4 py-5 sm:px-5">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(16,185,129,0.22),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))]" />
-          <div className="relative flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-3">
+          <div className="checkout-receipt-heading-row relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:gap-4">
+            <div className="checkout-receipt-title-block flex min-w-0 items-center gap-3">
               <TenantLogo className="h-12 w-12 shrink-0" eager />
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-100">Recibo pre-pagamento</p>

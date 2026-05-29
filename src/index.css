@@ -407,6 +407,9 @@
   padding-top: max(0.75rem, env(safe-area-inset-top));
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
   overscroll-behavior: contain;
+  display: block;
+  width: 100vw;
+  min-width: 0;
 }
 
 .checkout-modal-shell,
@@ -417,6 +420,13 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
+}
+
+.checkout-modal-shell,
+.checkout-receipt-shell {
+  inline-size: min(100%, 44rem);
+  max-inline-size: calc(100vw - 1rem - env(safe-area-inset-left) - env(safe-area-inset-right));
+  margin-inline: auto;
 }
 
 .checkout-card,
@@ -446,8 +456,12 @@
   max-width: 100%;
 }
 
-.checkout-title {
+.checkout-title,
+.checkout-modal-title,
+.checkout-modal-kicker {
   overflow-wrap: normal;
+  word-break: normal;
+  writing-mode: horizontal-tb;
 }
 
 .checkout-receipt-body,
@@ -3025,6 +3039,9 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
 
   .checkout-modal-shell,
   .checkout-receipt-shell {
+    width: min(100%, 440px) !important;
+    max-width: calc(100vw - (var(--mobile-edge-gutter) * 2) - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+    min-width: 0 !important;
     margin-top: 0 !important;
     margin-bottom: 0 !important;
     border-radius: 1rem !important;
@@ -3210,6 +3227,53 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
     margin-top: .5rem !important;
     position: static !important;
   }
+
+  .checkout-receipt-heading-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .checkout-receipt-title-block,
+  .checkout-receipt-title-block > div,
+  .checkout-receipt-title-block p,
+  .checkout-receipt-title-block h2 {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    writing-mode: horizontal-tb !important;
+  }
+
+  .checkout-receipt-heading-row button[aria-label="Fechar"] {
+    grid-column: 1 / -1 !important;
+    justify-self: stretch !important;
+    width: 100% !important;
+    min-height: 44px !important;
+    border-radius: .875rem !important;
+  }
+}
+
+.checkout-modal-overlay *,
+.checkout-receipt-overlay *,
+.checkout-screen *,
+.checkout-receipt-shell * {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+.checkout-modal-title,
+.checkout-modal-kicker,
+.checkout-title,
+.checkout-receipt-header p,
+.checkout-receipt-header h2,
+.checkout-primary-action-button,
+.checkout-primary-button,
+.checkout-action-button,
+.checkout-actions button,
+.premium-floating-cta {
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  line-break: auto !important;
+  white-space: normal !important;
 }
 
 .checkout-media-preview {
