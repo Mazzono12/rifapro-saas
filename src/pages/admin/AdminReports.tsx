@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { BadgeDollarSign, FileBarChart, Filter, Gift, ListChecks, Ticket, Users } from "lucide-react";
+import { BadgeDollarSign, Download, FileBarChart, FileText, Filter, Gift, ListChecks, ShieldCheck, Ticket, Users } from "lucide-react";
 import { AdminDataTable, AdminExportButtons, ChartCard, MetricCard } from "../../components/admin/AdminPremium";
 
 type ReportType = "global" | "raffle" | "fazendinha" | "milhar" | "centena" | "dezena";
@@ -37,6 +37,8 @@ export function AdminReports() {
   const [period, setPeriod] = useState("30d");
   const [reportType, setReportType] = useState<ReportType>("global");
   const [selectedRaffleId, setSelectedRaffleId] = useState("");
+  const [officialExports, setOfficialExports] = useState<any[]>([]);
+  const [exportingOfficial, setExportingOfficial] = useState("");
 
   useEffect(() => {
     fetch("/api/admin/stats").then(res => res.json()).then(setStats).catch(() => setStats({}));
@@ -47,6 +49,7 @@ export function AdminReports() {
     }).catch(() => setRaffles([]));
     fetch("/api/admin/fazendinha").then(res => res.json()).then(setFazendinha).catch(() => setFazendinha({}));
     fetch("/api/admin/modalidades").then(res => res.json()).then(setModalidades).catch(() => setModalidades({}));
+    fetch("/api/admin/reports").then(res => res.json()).then(setOfficialExports).catch(() => setOfficialExports([]));
   }, []);
 
   const raffleNameById = useMemo(() => {
@@ -175,6 +178,40 @@ export function AdminReports() {
 
   const exportJSON = () => download(`relatorio-${reportFileName(reportType)}.json`, JSON.stringify({ reportType, reportTitle, period, summary, rows: filteredRows }, null, 2), "application/json");
 
+  const exportOfficial = async (format: "pdf" | "csv") => {
+    setExportingOfficial(format);
+    try {
+      const res = await fetch("/api/admin/reports/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reportType: reportType === "global" ? "financial_tenant" : reportType === "raffle" ? "sold_tickets" : reportType,
+          format,
+          filters: { period, raffleId: reportType === "raffle" ? selectedRaffleId : undefined }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Falha ao gerar relatorio oficial");
+      setOfficialExports(current => [data, ...current]);
+      await downloadOfficial(data.id);
+    } finally {
+      setExportingOfficial("");
+    }
+  };
+
+  const downloadOfficial = async (id: string) => {
+    const res = await fetch(`/api/admin/reports/${id}/download`);
+    const blob = await res.blob();
+    const contentDisposition = res.headers.get("content-disposition") || "";
+    const filename = contentDisposition.match(/filename="([^"]+)"/)?.[1] || `relatorio-${id}.pdf`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <section className="admin-card p-5">
@@ -199,6 +236,12 @@ export function AdminReports() {
               <option value="all">Todo periodo</option>
             </select>
             <AdminExportButtons onCSV={exportCSV} onJSON={exportJSON} />
+            <button onClick={() => void exportOfficial("pdf")} disabled={Boolean(exportingOfficial)} className="admin-button-primary">
+              <FileText className="h-4 w-4" /> {exportingOfficial === "pdf" ? "Gerando..." : "PDF oficial"}
+            </button>
+            <button onClick={() => void exportOfficial("csv")} disabled={Boolean(exportingOfficial)} className="admin-button-secondary">
+              <ShieldCheck className="h-4 w-4" /> CSV auditavel
+            </button>
           </div>
         </div>
       </section>
@@ -268,6 +311,28 @@ export function AdminReports() {
             {reportTitle} · {periodLabel(period)}
           </div>
         </div>
+      </section>
+
+      <section className="admin-card p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-[var(--admin-text)]">Exportacoes oficiais auditaveis</h2>
+            <p className="text-sm text-[var(--admin-muted)]">PDF/CSV com hash, request_id, assinatura e URL de validacao por QR Code.</p>
+          </div>
+          <Download className="h-5 w-5 text-[var(--admin-primary)]" />
+        </div>
+        <AdminDataTable
+          columns={["Tipo", "Formato", "Hash", "Request ID", "Gerado em", "Download"]}
+          rows={officialExports.slice(0, 8).map(item => [
+            item.report_type,
+            String(item.format).toUpperCase(),
+            <span className="font-mono text-xs">{String(item.file_hash).slice(0, 18)}...</span>,
+            <span className="font-mono text-xs">{item.request_id}</span>,
+            item.created_at ? new Date(item.created_at).toLocaleString("pt-BR") : "-",
+            <button onClick={() => void downloadOfficial(item.id)} className="admin-button-secondary py-2 text-xs"><Download className="h-4 w-4" /> Baixar</button>
+          ])}
+          empty="Nenhuma exportacao oficial gerada ainda."
+        />
       </section>
 
       <AdminDataTable

@@ -1338,6 +1338,21 @@ async function startServer() {
     audit_pdf_url?: string;
     created_at: string;
   };
+  type ReportExportStatus = "generated" | "failed";
+  type ReportExportRecord = {
+    id: string;
+    tenant_id: string | null;
+    report_type: string;
+    filters: Record<string, unknown>;
+    format: "pdf" | "csv" | "xlsx";
+    file_url: string;
+    file_hash: string;
+    generated_by: string;
+    status: ReportExportStatus;
+    request_id: string;
+    qr_validation_url: string;
+    created_at: string;
+  };
   type CustomerConsentRecord = {
     id: string;
     tenant_id: string;
@@ -1390,6 +1405,7 @@ async function startServer() {
   let ticketAdjustments: TicketAdjustmentRecord[] = [];
   let walletLedger: WalletLedgerRecord[] = [];
   let raffleDrawAudits: RaffleDrawAuditRecord[] = [];
+  let reportExports: ReportExportRecord[] = [];
   let customerConsents: CustomerConsentRecord[] = [];
   let dataPrivacyRequests: DataPrivacyRequestRecord[] = [];
   let fraudSignals: FraudSignalRecord[] = [];
@@ -3237,6 +3253,173 @@ async function startServer() {
     ].map(escape).join(","))].join("\n");
   }
 
+  function publicReportExport(exportRecord: ReportExportRecord) {
+    const { file_url, ...safe } = exportRecord;
+    return safe;
+  }
+
+  function reportContentType(format: string) {
+    if (format === "pdf") return "application/pdf";
+    if (format === "xlsx") return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    return "text/csv; charset=utf-8";
+  }
+
+  function reportExtension(format: string) {
+    return format === "xlsx" ? "xlsx" : format === "pdf" ? "pdf" : "csv";
+  }
+
+  function escapePdfText(value: unknown) {
+    return String(value ?? "").replace(/[\\()]/g, "\\$&").replace(/\r?\n/g, " ");
+  }
+
+  function buildPdfBuffer(lines: string[]) {
+    const content = lines.slice(0, 56).map((line, index) => `BT /F1 9 Tf 36 ${790 - index * 13} Td (${escapePdfText(line).slice(0, 118)}) Tj ET`).join("\n");
+    const objects = [
+      "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+      "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+      "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
+      "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
+      `5 0 obj << /Length ${Buffer.byteLength(content, "utf8")} >> stream\n${content}\nendstream endobj`
+    ];
+    let pdf = "%PDF-1.4\n";
+    const offsets = [0];
+    for (const object of objects) {
+      offsets.push(Buffer.byteLength(pdf, "utf8"));
+      pdf += `${object}\n`;
+    }
+    const xrefStart = Buffer.byteLength(pdf, "utf8");
+    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+    offsets.slice(1).forEach(offset => { pdf += `${String(offset).padStart(10, "0")} 00000 n \n`; });
+    pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+    return Buffer.from(pdf, "utf8");
+  }
+
+  function maskSensitiveReportRow(row: RevenueRow) {
+    return { ...row, customer: maskDisplayName(row.customer) };
+  }
+
+  function buildOfficialReportPayload(input: { reportType: string; filters: Record<string, unknown>; tenantId?: string | null; global?: boolean }) {
+    const reportType = input.reportType || "financial_tenant";
+    const query = input.filters as express.Request["query"];
+    const report = buildRevenueReport(query, input.global ? undefined : input.tenantId || undefined);
+    const tenant = input.tenantId ? tenants.find(item => item.id === input.tenantId) : null;
+    const rows = report.rows.map(maskSensitiveReportRow);
+    if (reportType === "draw_report" || reportType === "draw_certificate") {
+      const raffleId = String(input.filters.raffleId || input.filters.raffle_id || "");
+      const audit = raffleDrawAudits.find(item => (!input.tenantId || item.tenant_id === input.tenantId) && (!raffleId || item.raffle_id === raffleId));
+      return {
+        title: reportType === "draw_certificate" ? "Certificado do sorteio auditavel" : "Relatorio de sorteio",
+        tenant,
+        summary: audit ? { winning_number: audit.winning_number, server_seed_hash: audit.server_seed_hash, eligible_numbers_hash: audit.eligible_numbers_hash, result_hash: audit.result_hash, algorithm_version: audit.algorithm_version } : {},
+        rows: audit ? [sanitizeDrawAuditForPublic(audit)] : [],
+        report
+      };
+    }
+    const titles: Record<string, string> = {
+      financial_tenant: "Relatorio financeiro por tenant",
+      financial_global: "Relatorio financeiro global superadmin",
+      sold_tickets: "Relatorio de cotas vendidas",
+      ticket_adjustments: "Relatorio de alteracoes de cotas",
+      audit_ledger: "Relatorio de auditoria",
+      lgpd: "Relatorio LGPD",
+      affiliates: "Relatorio de afiliados",
+      whatsapp: "Relatorio de WhatsApp/envios"
+    };
+    return {
+      title: titles[reportType] || "Relatorio oficial",
+      tenant,
+      summary: report.summary,
+      rows,
+      report
+    };
+  }
+
+  function buildOfficialReportFile(input: { reportType: string; format: "pdf" | "csv" | "xlsx"; filters: Record<string, unknown>; tenantId?: string | null; global?: boolean; generatedBy: string; requestId: string; baseUrl: string }) {
+    const generatedAt = new Date().toISOString();
+    const payload = buildOfficialReportPayload(input);
+    const tenantName = payload.tenant?.nome || (input.global ? "Global Plataforma" : findTenantName(input.tenantId || legacyTenantId));
+    const validationPath = `/api/public/reports/validate/${input.requestId}`;
+    const validationUrl = `${input.baseUrl}${validationPath}`;
+    const baseLines = [
+      "RifaPro/CIFHER - Relatorio oficial auditavel",
+      `Tipo: ${payload.title}`,
+      `Tenant: ${tenantName}`,
+      `CNPJ: ${(payload.tenant as any)?.cnpj || "Nao informado"}`,
+      `Periodo/filtros: ${JSON.stringify(input.filters)}`,
+      `Gerado em: ${generatedAt}`,
+      `Gerado por: ${input.generatedBy}`,
+      `Request ID: ${input.requestId}`,
+      `Validacao publica/QR Code: ${validationUrl}`,
+      `Totais: ${JSON.stringify(payload.summary)}`,
+      "Assinatura digital/hash: calculada sobre o conteudo oficial do relatorio",
+      "",
+      "Amostra de registros:",
+      ...payload.rows.slice(0, 30).map((row: any, index: number) => `${index + 1}. ${JSON.stringify(row)}`)
+    ];
+    const csv = input.reportType.includes("financial") || input.reportType === "sold_tickets"
+      ? revenueReportToCsv((payload.rows as RevenueRow[]))
+      : [Object.keys(payload.rows[0] || { tipo: input.reportType }).join(","), ...payload.rows.map((row: any) => Object.values(row).map(value => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","))].join("\n");
+    const body = input.format === "pdf" ? buildPdfBuffer(baseLines) : Buffer.from(csv, "utf8");
+    const fileHash = createHash("sha256").update(body).digest("hex");
+    const finalBody = input.format === "pdf"
+      ? buildPdfBuffer([...baseLines, `Hash do relatorio: ${fileHash}`, `Assinatura digital/hash: ${fileHash}`])
+      : Buffer.from(`${csv}\n# hash_relatorio,${fileHash}\n# request_id,${input.requestId}\n# validacao,${validationUrl}\n`, "utf8");
+    const finalHash = createHash("sha256").update(finalBody).digest("hex");
+    return { body: finalBody, fileHash: finalHash, validationUrl, payload, generatedAt };
+  }
+
+  function createReportExport(req: express.Request, input: { reportType: string; format?: "pdf" | "csv" | "xlsx"; filters?: Record<string, unknown>; tenantId?: string | null; global?: boolean }) {
+    const session = getAuthSession(req);
+    const requestId = (req as express.Request & { requestId?: string }).requestId || randomUUID();
+    const format = input.format || "pdf";
+    const protocol = String(req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0];
+    const host = String(req.headers["x-forwarded-host"] || req.headers.host || "localhost")
+      .split(",")[0]
+      .trim()
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/+$/, "")
+      .replace(/:\d+$/, "");
+    const baseUrl = `${protocol}://${host}`;
+    const generatedBy = session?.email || "system";
+    const file = buildOfficialReportFile({
+      reportType: input.reportType,
+      format,
+      filters: input.filters || {},
+      tenantId: input.tenantId,
+      global: input.global,
+      generatedBy,
+      requestId,
+      baseUrl
+    });
+    const id = createPublicId("REP_");
+    const record: ReportExportRecord = {
+      id,
+      tenant_id: input.global ? null : input.tenantId || resolveRequestTenantId(req),
+      report_type: input.reportType,
+      filters: input.filters || {},
+      format,
+      file_url: `data:${reportContentType(format).split(";")[0]};base64,${file.body.toString("base64")}`,
+      file_hash: file.fileHash,
+      generated_by: generatedBy,
+      status: "generated",
+      request_id: requestId,
+      qr_validation_url: file.validationUrl,
+      created_at: file.generatedAt
+    };
+    reportExports.unshift(record);
+    reportExports = reportExports.slice(0, 1000);
+    return record;
+  }
+
+  function sendReportDownload(res: express.Response, record: ReportExportRecord) {
+    const base64 = record.file_url.split(",")[1] || "";
+    const body = Buffer.from(base64, "base64");
+    res.setHeader("Content-Type", reportContentType(record.format));
+    res.setHeader("Content-Disposition", `attachment; filename="${record.report_type}-${record.id}.${reportExtension(record.format)}"`);
+    res.setHeader("X-Report-Hash", record.file_hash);
+    res.send(body);
+  }
+
   function buildTenantSummary(tenant: TenantRecord) {
     const paidRevenue = getTenantPaidRevenue(tenant.id);
     const commissionAmount = Number((paidRevenue * tenant.percentual_plataforma / 100).toFixed(2));
@@ -3660,6 +3843,27 @@ async function startServer() {
     res.send(revenueReportToCsv(report.rows));
   });
 
+  app.get("/api/superadmin/reports", (_req, res) => {
+    res.json(reportExports.map(publicReportExport));
+  });
+
+  app.post("/api/superadmin/reports/export", (req, res) => {
+    const reportType = String(req.body.report_type || req.body.reportType || "financial_global");
+    const format = (["pdf", "csv", "xlsx"].includes(String(req.body.format)) ? req.body.format : "pdf") as "pdf" | "csv" | "xlsx";
+    const filters = { ...(req.body.filters || {}) };
+    const tenantId = String(req.body.tenant_id || req.body.tenantId || "");
+    const record = createReportExport(req, { reportType, format, filters, tenantId: tenantId || null, global: !tenantId && reportType === "financial_global" });
+    recordSuperadminAudit(req, "OFFICIAL_REPORT_EXPORT", { tenant_id: tenantId || undefined, resource_type: "report_export", resource_id: record.id, metadata: { reportType, format, hash: record.file_hash } });
+    recordAuditLedger(req, { tenant_id: tenantId || legacyTenantId, action: "OFFICIAL_REPORT_EXPORTED", resource_type: "report_export", resource_id: record.id, before_data: null, after_data: publicReportExport(record), reason: "Relatorio oficial auditavel exportado por superadmin" });
+    res.status(201).json(publicReportExport(record));
+  });
+
+  app.get("/api/superadmin/reports/:id/download", (req, res) => {
+    const record = reportExports.find(item => item.id === req.params.id);
+    if (!record) return res.status(404).json({ error: "Relatorio nao encontrado" });
+    sendReportDownload(res, record);
+  });
+
   app.get("/api/superadmin/tenants/:tenantId/financeiro", (req, res) => {
     const tenant = activeTenantOr404(req.params.tenantId);
     if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
@@ -3926,6 +4130,19 @@ async function startServer() {
       checkoutAllowed: ["trial", "active"].includes(tenant.status),
       maintenance: tenant.status === "maintenance",
       blocked: ["suspended", "overdue", "blocked", "canceled", "inactive"].includes(tenant.status)
+    });
+  });
+
+  app.get("/api/public/reports/validate/:requestId", (req, res) => {
+    const record = reportExports.find(item => item.request_id === req.params.requestId);
+    if (!record) return res.status(404).json({ error: "Relatorio nao encontrado" });
+    res.json({
+      valid: record.status === "generated",
+      report_type: record.report_type,
+      file_hash: record.file_hash,
+      generated_by: record.generated_by,
+      created_at: record.created_at,
+      request_id: record.request_id
     });
   });
 
@@ -8847,6 +9064,28 @@ async function startServer() {
     });
   });
 
+  app.get("/api/admin/reports", (req, res) => {
+    res.json(reportExports
+      .filter(item => item.tenant_id && adminCanAccessTenant(req, item.tenant_id))
+      .map(publicReportExport));
+  });
+
+  app.post("/api/admin/reports/export", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const reportType = String(req.body.report_type || req.body.reportType || "financial_tenant");
+    const format = (["pdf", "csv", "xlsx"].includes(String(req.body.format)) ? req.body.format : "pdf") as "pdf" | "csv" | "xlsx";
+    const filters = { ...(req.body.filters || {}), tenant_id: tenantId };
+    const record = createReportExport(req, { reportType, format, filters, tenantId, global: false });
+    recordAuditLedger(req, { tenant_id: tenantId, action: "OFFICIAL_REPORT_EXPORTED", resource_type: "report_export", resource_id: record.id, before_data: null, after_data: publicReportExport(record), reason: "Relatorio oficial auditavel exportado pelo admin tenant" });
+    res.status(201).json(publicReportExport(record));
+  });
+
+  app.get("/api/admin/reports/:id/download", (req, res) => {
+    const record = reportExports.find(item => item.id === req.params.id && item.tenant_id && adminCanAccessTenant(req, item.tenant_id));
+    if (!record) return res.status(404).json({ error: "Relatorio nao encontrado" });
+    sendReportDownload(res, record);
+  });
+
   app.get("/api/admin/reports/export", (req, res) => {
     const tenantPurchases = scoped(purchases, req);
     const tenantModePurchases = scoped(numberModePurchases, req);
@@ -10231,6 +10470,7 @@ async function startServer() {
       ticketAdjustments,
       walletLedger,
       raffleDrawAudits,
+      reportExports,
       customerConsents,
       dataPrivacyRequests,
       fraudSignals,
@@ -10300,6 +10540,7 @@ async function startServer() {
       case "ticketAdjustments": ticketAdjustments = Array.isArray(value) ? value : []; break;
       case "walletLedger": walletLedger = Array.isArray(value) ? value : []; break;
       case "raffleDrawAudits": raffleDrawAudits = Array.isArray(value) ? value : []; break;
+      case "reportExports": reportExports = Array.isArray(value) ? value : []; break;
       case "customerConsents": customerConsents = Array.isArray(value) ? value : []; break;
       case "dataPrivacyRequests": dataPrivacyRequests = Array.isArray(value) ? value : []; break;
       case "fraudSignals": fraudSignals = Array.isArray(value) ? value : []; break;

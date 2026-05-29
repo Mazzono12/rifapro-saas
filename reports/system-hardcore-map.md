@@ -1,15 +1,15 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-29T02:37:58.033Z
+Gerado em: 2026-05-29T02:58:10.949Z
 
 ## Totais
 
-- Rotas backend: 271
-- Paginas frontend: 57
+- Rotas backend: 278
+- Paginas frontend: 58
 - Componentes: 37
-- Arquivos src: 136
-- Migrations: 30
-- Tabelas mapeadas: 54
+- Arquivos src: 137
+- Migrations: 31
+- Tabelas mapeadas: 55
 - Policies mapeadas: 44
 - Providers/arquivos de integracao: 10
 
@@ -65,6 +65,9 @@ Gerado em: 2026-05-29T02:37:58.033Z
 - GET /api/superadmin/reports/revenue/export
 - GET /api/superadmin/tenants/:tenantId/reports/revenue
 - GET /api/superadmin/tenants/:tenantId/reports/revenue/export
+- GET /api/superadmin/reports
+- POST /api/superadmin/reports/export
+- GET /api/superadmin/reports/:id/download
 - GET /api/superadmin/tenants/:tenantId/financeiro
 - GET /api/superadmin/tenants/:tenantId/raffles
 - GET /api/superadmin/tenants/:tenantId/orders
@@ -90,6 +93,7 @@ Gerado em: 2026-05-29T02:37:58.033Z
 - POST /api/superadmin/tenants/:tenantId/branding/favicon
 - POST /api/superadmin/tenants/:tenantId/branding/reset
 - GET /api/public/tenant-governance
+- GET /api/public/reports/validate/:requestId
 - GET /api/admin/me
 - GET /api/admin/plan
 - GET /api/admin/features
@@ -201,6 +205,9 @@ Gerado em: 2026-05-29T02:37:58.033Z
 - GET /api/admin/whatsapp/messages
 - POST /api/admin/whatsapp/messages/:id/resend
 - GET /api/admin/finance-summary
+- GET /api/admin/reports
+- POST /api/admin/reports/export
+- GET /api/admin/reports/:id/download
 - GET /api/admin/reports/export
 - GET /api/admin/purchases
 - GET /api/admin/clientes
@@ -342,6 +349,7 @@ Gerado em: 2026-05-29T02:37:58.033Z
 - integracoes
 - dominios
 - auditoria
+- relatorios
 - tenants/:tenantId/financeiro
 - tenants/:tenantId/aparencia
 - tenants/:tenantId/plano
@@ -385,6 +393,7 @@ Gerado em: 2026-05-29T02:37:58.033Z
 - public_activity_events
 - raffle_draw_audit
 - raffle_ticket_reservations
+- report_exports
 - saas_plan_definitions
 - saas_plans
 - security_audit_logs
@@ -436,6 +445,7 @@ Gerado em: 2026-05-29T02:37:58.033Z
 - supabase/migrations/27_tenant_automation_center.sql
 - supabase/migrations/28_public_activity_events.sql
 - supabase/migrations/29_provably_fair_complete.sql
+- supabase/migrations/30_report_exports_auditable.sql
 
 ## Middlewares, Workers e Webhooks
 
@@ -449,12 +459,12 @@ Gerado em: 2026-05-29T02:37:58.033Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 878 ocorrencias no backend
+- tenant_id: 890 ocorrencias no backend
 - user_id: 16 ocorrencias no backend
 - order_id: 27 ocorrencias no backend
 - purchaseId: 173 ocorrencias no backend
-- raffleId: 187 ocorrencias no backend
-- affiliate: 329 ocorrencias no backend
+- raffleId: 191 ocorrencias no backend
+- affiliate: 330 ocorrencias no backend
 - gateway: 407 ocorrencias no backend
 - wallet: 45 ocorrencias no backend
 - saldo: 2 ocorrencias no backend
