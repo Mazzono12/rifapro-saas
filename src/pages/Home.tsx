@@ -14,7 +14,7 @@ import { PremiumEmptyState, PremiumPageLayout, TrustBadges } from "../components
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
 
 export function Home() {
-  const { data: raffles = [], isLoading: loadingRaffles } = useRaffles();
+  const { data: raffles = [], isLoading: loadingRaffles, isError: rafflesError } = useRaffles();
   const { data: settings = { storiesPosition: 'bottom' }, isLoading: loadingSettings } = useGlobalSettings();
   const activeRaffles = raffles.filter(raffle => raffle.status === "active");
   const featuredRaffle = activeRaffles[0];
@@ -89,6 +89,29 @@ export function Home() {
            </div>
         </div>
       </div>
+    );
+  }
+
+  if (rafflesError || !featuredRaffle) {
+    return (
+      <PremiumPageLayout className="w-full pb-24">
+        <div className="mx-auto flex min-h-[calc(100svh-8rem)] w-full max-w-4xl items-center px-4 py-16">
+          <div className="w-full rounded-[2rem] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-6 shadow-2xl shadow-black/30 sm:p-10">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-emerald-100">
+              <Zap className="h-4 w-4" />
+              Campanhas
+            </div>
+            <PremiumEmptyState
+              title="Nenhuma campanha ativa no momento"
+              description={rafflesError
+                ? "Nao foi possivel carregar as campanhas publicas deste tenant agora. Tente novamente em instantes."
+                : "Este tenant ainda nao possui uma campanha ativa publicada. Assim que uma rifa for ativada, ela aparece aqui automaticamente."
+              }
+              action={<Link to="/" className="premium-button mt-4 px-5">Voltar ao início</Link>}
+            />
+          </div>
+        </div>
+      </PremiumPageLayout>
     );
   }
 
@@ -250,16 +273,6 @@ export function Home() {
             {(heroPlacement === "below" || !heroCinemaMode || !featuredVideoConfig.hideHeroInfoOnPlay) && heroContent}
 
             {!heroCinemaMode && <div className="absolute bottom-4 left-1/2 z-10 h-1.5 w-20 -translate-x-1/2 rounded-full bg-white/45" />}
-        </section>
-      )}
-
-      {!featuredRaffle && (
-        <section className="mx-auto max-w-3xl pt-28">
-          <PremiumEmptyState
-            title="Nenhuma campanha ativa no momento"
-            description="Quando uma nova campanha for publicada pelo tenant, ela aparece aqui com banner, cotas rapidas, PIX e CTA de compra."
-            action={<Link to="/transparencia" className="premium-button mt-4 px-5">Ver transparencia</Link>}
-          />
         </section>
       )}
 

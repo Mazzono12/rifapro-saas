@@ -2562,6 +2562,39 @@ async function startServer() {
     };
   }
 
+  async function buildPublicRafflesDebug(req: express.Request) {
+    const resolution = await resolveDomainTenantInfo(req);
+    const tenant = resolution.tenant || getRequestTenant(req) || null;
+    const tenantRaffles = tenant ? raffles.filter(raffle => raffle.tenant_id === tenant.id) : [];
+    const activeTenantRaffles = tenantRaffles.filter(raffle => raffle.status === "active");
+    const reasonIfEmpty = !tenant
+      ? `tenant_not_found:${resolution.reason}`
+      : tenantRaffles.length === 0
+        ? "no_raffles_for_tenant"
+        : activeTenantRaffles.length === 0
+          ? "no_active_raffles_for_tenant"
+          : "";
+
+    return {
+      tenantId: tenant?.id || null,
+      tenantSlug: tenant?.slug || null,
+      totalRaffles: tenantRaffles.length,
+      activeRaffles: activeTenantRaffles.length,
+      campaigns: tenantRaffles.map(raffle => ({
+        id: raffle.id,
+        title: raffle.title,
+        status: raffle.status,
+        price: raffle.price,
+        totalTickets: raffle.totalTickets,
+        soldTickets: raffle.soldTickets,
+        hasImage: Boolean(raffle.image),
+        hasMedia: Boolean(raffle.mediaUrl || raffle.checkoutMediaUrl),
+        mediaType: raffle.checkoutMediaType || raffle.mediaType || ""
+      })),
+      reasonIfEmpty
+    };
+  }
+
   app.get("/api/public/health", (_req, res) => {
     res.json({ ok: true });
   });
@@ -2595,6 +2628,14 @@ async function startServer() {
 
   app.get("/api/public/tenant-debug", async (req, res) => {
     res.json(await buildPublicTenantDebug(req));
+  });
+
+  app.get("/api/public/raffles-debug", async (req, res) => {
+    const debug = await buildPublicRafflesDebug(req);
+    if (isProductionRuntime && debug.reasonIfEmpty) {
+      console.warn(`[public-raffles] tenant=${debug.tenantSlug || "none"} reason=${debug.reasonIfEmpty}`);
+    }
+    res.json(debug);
   });
 
   app.get("/api/public/branding", async (req, res) => {
@@ -6175,7 +6216,14 @@ async function startServer() {
 
   app.get("/api/raffles", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
-    res.json(raffles.filter(raffle => raffle.tenant_id === tenantId && raffle.status === "active").map(sanitizeRaffleForPublic));
+    const tenant = tenants.find(item => item.id === tenantId);
+    const tenantRaffles = raffles.filter(raffle => raffle.tenant_id === tenantId);
+    const activeTenantRaffles = tenantRaffles.filter(raffle => raffle.status === "active");
+    if (isProductionRuntime && activeTenantRaffles.length === 0) {
+      const reason = tenantRaffles.length === 0 ? "no_raffles_for_tenant" : "no_active_raffles_for_tenant";
+      console.warn(`[public-raffles] tenant=${tenant?.slug || tenantId} reason=${reason}`);
+    }
+    res.json(activeTenantRaffles.map(sanitizeRaffleForPublic));
   });
 
   app.get("/api/raffles/:id", (req, res) => {
