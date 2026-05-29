@@ -431,8 +431,23 @@
   scroll-margin-top: calc(var(--app-header-height) + env(safe-area-inset-top));
 }
 
+.checkout-modal-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: .75rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.checkout-modal-title-block {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .checkout-title {
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 
 .checkout-receipt-body,
@@ -470,6 +485,7 @@
 
 .checkout-actions button,
 .checkout-action-button,
+.checkout-primary-action-button,
 .checkout-primary-button,
 .checkout-screen .premium-button {
   min-height: 3.25rem;
@@ -479,30 +495,63 @@
   white-space: normal;
   word-break: normal;
   overflow-wrap: normal;
+  line-break: auto;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
   line-height: 1.2;
 }
 
+.checkout-primary-action-button,
 .checkout-primary-button {
-  display: inline-flex;
+  display: flex;
+  width: 100%;
+  min-height: 52px;
   min-width: 0;
   max-width: 100%;
+  flex-shrink: 0;
   flex-wrap: wrap;
   gap: .5rem;
+  padding: 14px 18px;
 }
 
+.checkout-primary-action-button > span,
 .checkout-primary-button > span,
+.checkout-primary-action-button svg,
 .checkout-primary-button svg {
   flex: 0 0 auto;
 }
 
 .checkout-modal-header p,
 .checkout-modal-header h2,
+.checkout-modal-kicker,
+.checkout-modal-title,
+.checkout-modal-close,
 .checkout-title,
+.checkout-primary-action-button,
 .premium-floating-cta,
 .premium-floating-cta span {
   word-break: normal;
-  overflow-wrap: break-word;
+  overflow-wrap: normal;
+  line-break: auto;
   writing-mode: horizontal-tb;
+  text-orientation: mixed;
+}
+
+.checkout-modal-close {
+  justify-self: end;
+  flex-shrink: 0;
+}
+
+.checkout-screen p,
+.checkout-screen span,
+.checkout-screen label,
+.checkout-screen button,
+.checkout-modal-header p,
+.checkout-modal-header h2,
+.checkout-modal-header button {
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  writing-mode: horizontal-tb !important;
 }
 
 .wallet-balance-card {
@@ -587,6 +636,18 @@
 
 @media (min-width: 1024px) {
   .premium-floating-cta { display: none; }
+}
+
+@media (max-width: 420px) {
+  .checkout-modal-header {
+    grid-template-columns: 1fr;
+  }
+
+  .checkout-modal-close {
+    width: 100%;
+    margin-top: .35rem;
+    border-radius: .875rem;
+  }
 }
 
 .premium-cta-bg {
@@ -3072,7 +3133,7 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
     max-width: 100%;
     white-space: normal !important;
     word-break: normal !important;
-    overflow-wrap: break-word !important;
+    overflow-wrap: normal !important;
   }
 
   .checkout-screen .sticky.bottom-0 {

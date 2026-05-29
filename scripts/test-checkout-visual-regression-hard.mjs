@@ -30,7 +30,8 @@ for (const file of [
   "src/components/checkout/PrePaymentReceiptModal.tsx",
   "src/components/premium/PremiumUI.tsx"
 ]) {
-  includes(file, ["CheckoutPrimaryButton"], `botao checkout padronizado em ${file}`);
+  const content = read(file);
+  assert(content.includes("CheckoutPrimaryButton") || content.includes("CheckoutPrimaryActionButton"), `botao checkout padronizado em ${file}`);
 }
 
 for (const token of [
@@ -45,6 +46,7 @@ for (const token of [
 }
 
 assert(!/checkout-summary-value[\s\S]{0,140}overflow-wrap:\s*anywhere/.test(css), "valores de checkout nao podem usar overflow-wrap:anywhere");
+assert(!/\.checkout-title\s*\{[\s\S]{0,80}overflow-wrap:\s*anywhere/.test(css), "titulo de checkout nao pode usar overflow-wrap:anywhere");
 assert(!/checkout-primary-button[\s\S]{0,220}break-all/.test(css), "botao primario de checkout nao pode usar break-all");
 assert(!/checkout-primary-button[\s\S]{0,220}writing-mode:\s*vertical/.test(css), "botao primario de checkout nao pode usar writing-mode vertical");
 

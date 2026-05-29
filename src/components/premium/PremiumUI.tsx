@@ -36,17 +36,19 @@ export function PremiumButton({
   );
 }
 
-export function CheckoutPrimaryButton({
+export function CheckoutPrimaryActionButton({
   children,
   className = "",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button type="button" className={cn("checkout-primary-button premium-button", className)} {...props}>
+    <button type="button" className={cn("checkout-primary-action-button checkout-primary-button premium-button", className)} {...props}>
       {children}
     </button>
   );
 }
+
+export const CheckoutPrimaryButton = CheckoutPrimaryActionButton;
 
 export function PremiumInput({
   label,
@@ -341,9 +343,11 @@ export function PremiumCheckoutModal({ open, title, children, onClose }: { open:
   return (
     <div className="checkout-modal-overlay fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3">
       <motion.section initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="checkout-screen checkout-modal-shell mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_100px_rgba(52,211,153,0.16)] sm:my-5 sm:rounded-[2rem]">
-        <header className="checkout-modal-header sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-[#090b11]/90 p-4 backdrop-blur-xl">
-          <h2 className="min-w-0 break-words text-xl font-black">{title}</h2>
-          <button type="button" onClick={onClose} className="grid min-h-11 shrink-0 place-items-center rounded-full border border-white/10 px-3 py-2 text-sm font-black text-slate-200">Fechar</button>
+        <header className="checkout-modal-header sticky top-0 z-10 border-b border-white/10 bg-[#090b11]/90 p-4 backdrop-blur-xl">
+          <div className="checkout-modal-title-block">
+            <h2 className="checkout-modal-title text-xl font-black">{title}</h2>
+          </div>
+          <button type="button" onClick={onClose} className="checkout-modal-close grid min-h-11 place-items-center rounded-full border border-white/10 px-3 py-2 text-sm font-black text-slate-200">Fechar</button>
         </header>
         {children}
       </motion.section>

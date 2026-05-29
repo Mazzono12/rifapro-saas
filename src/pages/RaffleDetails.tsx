@@ -36,7 +36,7 @@ import { PixPaymentResultModal } from "../components/PixPaymentResultModal";
 import { CampaignMediaHero } from "../components/CampaignMediaHero";
 import { GamificationPanel } from "../components/GamificationPanel";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
-import { CheckoutPrimaryButton } from "../components/premium/PremiumUI";
+import { CheckoutPrimaryActionButton } from "../components/premium/PremiumUI";
 import { checkoutService } from "../services/api";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 import { useCityDetection } from "../hooks/useCityDetection";
@@ -188,6 +188,7 @@ export function RaffleDetails() {
   const mediaFit = mediaType === "video" || mediaType === "youtube" || mediaType === "vimeo" || mediaType === "bunny"
     ? "cover"
     : (raffle?.checkoutMediaFit || raffle?.mediaFit || "cover");
+  const checkoutCriticalActive = checkoutOpen || receiptOpen || showNumbers || Boolean(paymentResult);
 
   const setQuantity = (value: number) => {
     const next = Math.min(100000, Math.max(1, Math.floor(Number(value) || 1)));
@@ -409,19 +410,21 @@ export function RaffleDetails() {
           </aside>
         </main>
 
-        <FloatingActions settings={settings} />
+        {!checkoutCriticalActive && <FloatingActions settings={settings} />}
 
-        <button
-          type="button"
-          onClick={openCheckout}
-          className="premium-floating-cta text-left lg:hidden"
-        >
-          <span>
-            <span className="block text-[10px] uppercase tracking-[0.22em] opacity-75">Participar agora</span>
-            <span className="block text-base">{tickets.toLocaleString("pt-BR")} cotas</span>
-          </span>
-          <span className="rounded-xl bg-black/10 px-3 py-2 text-sm">{formatCurrency(totalValue)}</span>
-        </button>
+        {!checkoutCriticalActive && (
+          <button
+            type="button"
+            onClick={openCheckout}
+            className="premium-floating-cta text-left lg:hidden"
+          >
+            <span>
+              <span className="block text-[10px] uppercase tracking-[0.22em] opacity-75">Participar agora</span>
+              <span className="block text-base">{tickets.toLocaleString("pt-BR")} cotas</span>
+            </span>
+            <span className="rounded-xl bg-black/10 px-3 py-2 text-sm">{formatCurrency(totalValue)}</span>
+          </button>
+        )}
 
         <CheckoutModal
         open={checkoutOpen}
@@ -736,9 +739,9 @@ function PurchaseSummary({ raffle, tickets, totalValue, progress, onParticipate,
       <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
         <div style={{ width: `${progress}%` }} className="h-full rounded-full premium-cta-bg" />
       </div>
-      <CheckoutPrimaryButton disabled={loading} onClick={onParticipate} className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 disabled:opacity-60">
+      <CheckoutPrimaryActionButton disabled={loading} onClick={onParticipate} className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 disabled:opacity-60">
         <ShoppingCart className="h-5 w-5" /> Participar
-      </CheckoutPrimaryButton>
+      </CheckoutPrimaryActionButton>
     </div>
   );
 }
@@ -786,12 +789,12 @@ function CheckoutModal(props: {
       {props.open && (
         <motion.div className="checkout-modal-overlay fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.div initial={{ y: 36, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 36, scale: 0.97 }} className="checkout-screen checkout-modal-shell mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_110px_rgba(16,185,129,0.16)] sm:my-5 sm:rounded-[2rem]">
-            <div className="checkout-modal-header sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-[#090b11]/90 p-4 backdrop-blur-xl">
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--theme-primary)]">{props.step === "review" ? "Confirmar participacao" : props.step === "payment" ? "Pagamento PIX" : "Bilhete premium"}</p>
-                <h2 className="break-words text-xl font-black text-white">{props.tickets.toLocaleString("pt-BR")} cotas - {formatCurrency(props.totalValue)}</h2>
+            <div className="checkout-modal-header sticky top-0 z-10 border-b border-white/10 bg-[#090b11]/90 p-4 backdrop-blur-xl">
+              <div className="checkout-modal-title-block">
+                <p className="checkout-modal-kicker text-[10px] font-black uppercase tracking-[0.25em] text-[var(--theme-primary)]">{props.step === "review" ? "Confirmar participacao" : props.step === "payment" ? "Pagamento PIX" : "Bilhete premium"}</p>
+                <h2 className="checkout-modal-title text-xl font-black text-white">{props.tickets.toLocaleString("pt-BR")} cotas - {formatCurrency(props.totalValue)}</h2>
               </div>
-              <button type="button" onClick={props.onClose} className="grid min-h-11 shrink-0 place-items-center rounded-full border border-white/10 px-3 py-2 text-sm font-black text-slate-200">Fechar</button>
+              <button type="button" onClick={props.onClose} className="checkout-modal-close grid min-h-11 place-items-center rounded-full border border-white/10 px-3 py-2 text-sm font-black text-slate-200">Fechar</button>
             </div>
 
             {props.step === "review" && <CheckoutReview {...props} />}
@@ -862,9 +865,9 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         <ToggleCard checked={props.useBalance} onChange={props.setUseBalance} title="Usar saldo afiliado" description="Abater valor com saldo disponivel." />
       )}
 
-      <CheckoutPrimaryButton type="submit" disabled={props.isSubmitting} className="flex min-h-14 w-full items-center justify-center gap-2 disabled:opacity-60">
+      <CheckoutPrimaryActionButton type="submit" disabled={props.isSubmitting} className="flex min-h-14 w-full items-center justify-center gap-2 disabled:opacity-60">
         <WalletCards className="h-5 w-5" /> {props.isSubmitting ? "Calculando resumo..." : "Revisar compra"}
-      </CheckoutPrimaryButton>
+      </CheckoutPrimaryActionButton>
     </form>
   );
 }
@@ -906,9 +909,9 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
       </button>
       <div className="checkout-actions grid gap-2 sm:grid-cols-2">
         <button type="button" onClick={props.onBackToReview} className="min-h-12 rounded-2xl border border-white/10 py-3 text-sm font-bold text-slate-300">Alterar dados</button>
-        <CheckoutPrimaryButton onClick={props.onConfirmPix} disabled={props.confirmingPix} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black disabled:opacity-60">
+        <CheckoutPrimaryActionButton onClick={props.onConfirmPix} disabled={props.confirmingPix} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black disabled:opacity-60">
           <CheckCircle2 className="h-4 w-4" /> {props.confirmingPix ? "Consultando status..." : "Confirmar PIX"}
-        </CheckoutPrimaryButton>
+        </CheckoutPrimaryActionButton>
       </div>
     </div>
   );
@@ -956,9 +959,9 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
         <button type="button" onClick={props.onShare} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold"><Share2 className="h-4 w-4" /> Compartilhar</button>
         <button type="button" onClick={() => toast.info("PDF sera gerado no modulo de comprovantes.")} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold"><Download className="h-4 w-4" /> PDF</button>
       </div>
-      <CheckoutPrimaryButton onClick={props.onShowNumbers} className="flex min-h-14 w-full items-center justify-center gap-2">
+      <CheckoutPrimaryActionButton onClick={props.onShowNumbers} className="flex min-h-14 w-full items-center justify-center gap-2">
         <Ticket className="h-5 w-5" /> Ver meus numeros
-      </CheckoutPrimaryButton>
+      </CheckoutPrimaryActionButton>
     </div>
   );
 }
