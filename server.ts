@@ -181,7 +181,7 @@ async function startServer() {
     ativo: boolean;
     criado_em: string;
   };
-  type TenantBrandingMode = "dark" | "light" | "premium";
+  type TenantBrandingMode = "vimeu_dark" | "dark" | "light" | "premium";
   type TenantBrandingSettings = {
     id: string;
     tenant_id: string;
@@ -320,7 +320,7 @@ async function startServer() {
       logoAlt: "NexusDraw"
     },
     theme: {
-      defaultTheme: "apple-glass",
+      defaultTheme: "vimeu_dark",
       paletteOverrides: {}
     },
     footer: {
@@ -480,7 +480,7 @@ async function startServer() {
       primary_color: tenant?.cor_primaria || "#00d66b",
       secondary_color: "#0f2d1d",
       cta_color: "#00d66b",
-      theme_mode: "premium",
+      theme_mode: "vimeu_dark",
       slogan: "Sorteios premium com PIX automatico",
       support_whatsapp: tenantScopedSettings.socialLinks?.whatsapp || "",
       footer_text: tenantScopedSettings.footer?.mission || "RifaPro SaaS",
@@ -594,7 +594,7 @@ async function startServer() {
   }
 
   function normalizeTenantBranding(tenantId: string, incoming: Record<string, unknown>, current = getTenantBranding(tenantId)) {
-    const themeMode = String(incoming.theme_mode || current.theme_mode || "premium");
+    const themeMode = String(incoming.theme_mode || current.theme_mode || "vimeu_dark");
     const next: TenantBrandingSettings = {
       ...current,
       header_name: String(incoming.header_name ?? current.header_name ?? "").trim().slice(0, 80) || defaultTenantBranding(tenantId).header_name,
@@ -604,7 +604,7 @@ async function startServer() {
       primary_color: isHexColor(incoming.primary_color) ? String(incoming.primary_color) : current.primary_color,
       secondary_color: isHexColor(incoming.secondary_color) ? String(incoming.secondary_color) : current.secondary_color,
       cta_color: isHexColor(incoming.cta_color) ? String(incoming.cta_color) : current.cta_color,
-      theme_mode: ["dark", "light", "premium"].includes(themeMode) ? themeMode as TenantBrandingMode : "premium",
+      theme_mode: ["vimeu_dark", "dark", "light", "premium"].includes(themeMode) ? themeMode as TenantBrandingMode : "vimeu_dark",
       slogan: String(incoming.slogan ?? current.slogan ?? "").trim().slice(0, 140),
       support_whatsapp: String(incoming.support_whatsapp ?? current.support_whatsapp ?? "").trim().slice(0, 80),
       footer_text: String(incoming.footer_text ?? current.footer_text ?? "").trim().slice(0, 280),

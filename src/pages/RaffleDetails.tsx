@@ -36,6 +36,7 @@ import { PixPaymentResultModal } from "../components/PixPaymentResultModal";
 import { CampaignMediaHero } from "../components/CampaignMediaHero";
 import { GamificationPanel } from "../components/GamificationPanel";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
+import { CheckoutPrimaryButton } from "../components/premium/PremiumUI";
 import { checkoutService } from "../services/api";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 import { useCityDetection } from "../hooks/useCityDetection";
@@ -735,9 +736,9 @@ function PurchaseSummary({ raffle, tickets, totalValue, progress, onParticipate,
       <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
         <div style={{ width: `${progress}%` }} className="h-full rounded-full premium-cta-bg" />
       </div>
-      <button type="button" disabled={loading} onClick={onParticipate} className="premium-button mt-5 flex min-h-14 w-full items-center justify-center gap-2 disabled:opacity-60">
+      <CheckoutPrimaryButton disabled={loading} onClick={onParticipate} className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 disabled:opacity-60">
         <ShoppingCart className="h-5 w-5" /> Participar
-      </button>
+      </CheckoutPrimaryButton>
     </div>
   );
 }
@@ -861,9 +862,9 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         <ToggleCard checked={props.useBalance} onChange={props.setUseBalance} title="Usar saldo afiliado" description="Abater valor com saldo disponivel." />
       )}
 
-      <button type="submit" disabled={props.isSubmitting} className="premium-button flex min-h-14 w-full items-center justify-center gap-2 disabled:opacity-60">
+      <CheckoutPrimaryButton type="submit" disabled={props.isSubmitting} className="flex min-h-14 w-full items-center justify-center gap-2 disabled:opacity-60">
         <WalletCards className="h-5 w-5" /> {props.isSubmitting ? "Calculando resumo..." : "Revisar compra"}
-      </button>
+      </CheckoutPrimaryButton>
     </form>
   );
 }
@@ -900,14 +901,14 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
         <p className="mt-1 text-2xl font-black text-[var(--theme-primary)]">{String(expiresIn.minutes).padStart(2, "0")}:{String(expiresIn.seconds).padStart(2, "0")}</p>
         <p className="mt-2 text-xs text-slate-400">A tela atualiza sozinha quando o webhook confirmar o pagamento.</p>
       </div>
-      <button type="button" onClick={props.onCopyPix} className={cn("flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-black transition", props.copied ? "premium-button" : "border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]")}>
+      <button type="button" onClick={props.onCopyPix} className={cn("checkout-primary-button flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-black transition", props.copied ? "premium-button" : "border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]")}>
         <Copy className="h-5 w-5" /> {props.copied ? "PIX copiado" : "Copiar PIX copia e cola"}
       </button>
       <div className="checkout-actions grid gap-2 sm:grid-cols-2">
         <button type="button" onClick={props.onBackToReview} className="min-h-12 rounded-2xl border border-white/10 py-3 text-sm font-bold text-slate-300">Alterar dados</button>
-        <button type="button" onClick={props.onConfirmPix} disabled={props.confirmingPix} className="premium-button flex min-h-12 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black disabled:opacity-60">
+        <CheckoutPrimaryButton onClick={props.onConfirmPix} disabled={props.confirmingPix} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black disabled:opacity-60">
           <CheckCircle2 className="h-4 w-4" /> {props.confirmingPix ? "Consultando status..." : "Confirmar PIX"}
-        </button>
+        </CheckoutPrimaryButton>
       </div>
     </div>
   );
@@ -955,9 +956,9 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
         <button type="button" onClick={props.onShare} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold"><Share2 className="h-4 w-4" /> Compartilhar</button>
         <button type="button" onClick={() => toast.info("PDF sera gerado no modulo de comprovantes.")} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold"><Download className="h-4 w-4" /> PDF</button>
       </div>
-      <button type="button" onClick={props.onShowNumbers} className="premium-button flex min-h-14 w-full items-center justify-center gap-2">
+      <CheckoutPrimaryButton onClick={props.onShowNumbers} className="flex min-h-14 w-full items-center justify-center gap-2">
         <Ticket className="h-5 w-5" /> Ver meus numeros
-      </button>
+      </CheckoutPrimaryButton>
     </div>
   );
 }

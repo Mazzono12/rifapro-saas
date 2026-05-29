@@ -34,7 +34,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
       logoAlt: "NexusDraw"
     },
     theme: {
-      defaultTheme: "apple-glass",
+      defaultTheme: "vimeu_dark",
       paletteOverrides: {}
     },
     footer: {

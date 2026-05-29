@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Bell, Instagram, MessageCircle, MoreVertical, User, Users, Ticket } from "lucide-react";
-import { ThemeSwitcher } from "./ThemeSwitcher";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { TenantLogo } from "./branding/TenantLogo";
 import { TenantHeaderName } from "./branding/TenantHeaderName";
@@ -128,7 +127,6 @@ export function Navbar() {
 
             {open && (
               <div className="absolute right-0 top-12 w-64 rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface-strong)] text-[var(--theme-text)] backdrop-blur-2xl shadow-2xl overflow-visible">
-                <ThemeSwitcher label />
                 {settings?.socialLinks?.group && (
                   <a onClick={() => setOpen(false)} href={settings.socialLinks.group} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white">
                     <Users className="w-4 h-4 text-[var(--theme-primary)]" /> Participar do grupo

@@ -12,6 +12,7 @@ import type { NumberModeId } from "../types";
 import { cn } from "../lib/utils";
 import {
   FloatingCTA,
+  CheckoutPrimaryButton,
   PixPaymentCard,
   PremiumCheckoutModal,
   PremiumHero,
@@ -238,7 +239,7 @@ export function NumberModePage() {
         title={data.config.name || modeTitles[mode]}
         subtitle={data.config.description || `Escolha seus números na modalidade ${modeTitles[mode]} e pague via PIX automático.`}
         image={data.config.mediaUrl}
-        cta={<button type="button" onClick={() => setCheckoutOpen(true)} disabled={!selected.length} className="premium-button px-7 py-4 disabled:opacity-50">Finalizar compra</button>}
+        cta={<CheckoutPrimaryButton onClick={() => setCheckoutOpen(true)} disabled={!selected.length} className="px-7 py-4 disabled:opacity-50">Finalizar compra</CheckoutPrimaryButton>}
       >
         <TrustBadges />
       </PremiumHero>
@@ -302,9 +303,9 @@ export function NumberModePage() {
                   <p className="mt-1 font-display text-xl font-black text-white">Olá, {(customer.name || "cliente").split(/\s+/)[0]}</p>
                 </div>
               )}
-              <button type="button" onClick={() => setCheckoutOpen(true)} disabled={!selected.length} className="premium-button mt-4 w-full px-6 py-4 disabled:opacity-50">
+              <CheckoutPrimaryButton onClick={() => setCheckoutOpen(true)} disabled={!selected.length} className="mt-4 w-full px-6 py-4 disabled:opacity-50">
                 Finalizar compra
-              </button>
+              </CheckoutPrimaryButton>
             </div>
 
             <div className="premium-card p-5">
@@ -332,9 +333,9 @@ export function NumberModePage() {
                 numbers={receiptNumbers}
                 onShare={shareConfirmedReceipt}
               />
-              <button type="button" onClick={() => setCheckoutOpen(false)} className="premium-button w-full">
+              <CheckoutPrimaryButton onClick={() => setCheckoutOpen(false)} className="w-full">
                 Voltar para campanha
-              </button>
+              </CheckoutPrimaryButton>
             </>
           ) : pendingPix ? (
             <>
@@ -344,9 +345,9 @@ export function NumberModePage() {
                 <p className="mt-2 text-sm text-slate-300">Escaneie o QR Code ou copie o código PIX.</p>
               </div>
               <PixPaymentCard payload={pendingPix.pixPayload} copied={copiedPix} onCopy={copyPixPayload} />
-              <button type="button" onClick={checkPixPayment} disabled={buying} className="premium-button min-h-14 w-full disabled:opacity-50">
+              <CheckoutPrimaryButton onClick={checkPixPayment} disabled={buying} className="min-h-14 w-full disabled:opacity-50">
                 {buying ? "Consultando status..." : "Confirmar PIX"}
-              </button>
+              </CheckoutPrimaryButton>
             </>
           ) : (
             <>
@@ -395,9 +396,9 @@ export function NumberModePage() {
                 </div>
               )}
 
-              <button type="button" onClick={openPrePaymentReceipt} disabled={buying || !selected.length} className="premium-button min-h-14 w-full disabled:opacity-50">
+              <CheckoutPrimaryButton onClick={openPrePaymentReceipt} disabled={buying || !selected.length} className="min-h-14 w-full disabled:opacity-50">
                 <CheckCircle2 className="h-5 w-5" /> {buying ? "Calculando resumo..." : `Revisar compra - R$ ${total.toFixed(2)}`}
-              </button>
+              </CheckoutPrimaryButton>
               <p className="flex items-center justify-center gap-2 text-center text-xs font-semibold text-slate-400">
                 <ShieldCheck className="h-4 w-4 text-emerald-200" /> Compra segura, PIX automático e bilhete liberado após confirmação.
               </p>

@@ -11,7 +11,7 @@ export type PublicTenantBranding = {
     secondary: string;
     cta: string;
   };
-  theme_mode: "dark" | "light" | "premium";
+  theme_mode: "vimeu_dark" | "dark" | "light" | "premium";
   slogan: string;
   footer_text: string;
   support_whatsapp: string;
@@ -26,7 +26,7 @@ const fallbackBranding: PublicTenantBranding = {
     secondary: "#0f2d1d",
     cta: "#00d66b"
   },
-  theme_mode: "premium",
+  theme_mode: "vimeu_dark",
   slogan: "Sorteios premium com PIX automatico",
   footer_text: "RifaPro SaaS",
   support_whatsapp: ""

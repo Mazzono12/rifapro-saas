@@ -2,6 +2,7 @@ import type React from "react";
 import { CreditCard, Gift, ShieldCheck, UserRound, X } from "lucide-react";
 import { TenantLogo } from "../branding/TenantLogo";
 import { TenantHeaderName } from "../branding/TenantHeaderName";
+import { CheckoutPrimaryButton } from "../premium/PremiumUI";
 import { cn } from "../../lib/utils";
 
 export type CheckoutPreview = {
@@ -130,9 +131,9 @@ export function PrePaymentReceiptModal({
             <button type="button" onClick={onEdit} className="checkout-action-button min-h-14 rounded-2xl border border-white/10 bg-white/10 px-5 text-base font-black text-slate-100 transition hover:bg-white/15">
               Alterar Dados
             </button>
-            <button type="button" onClick={onConfirm} disabled={loading} className="checkout-action-button min-h-14 rounded-2xl bg-emerald-500 px-5 text-base font-black text-white shadow-[0_18px_44px_rgba(16,185,129,0.28)] transition hover:bg-emerald-400 disabled:opacity-60">
+            <CheckoutPrimaryButton onClick={onConfirm} disabled={loading} className="checkout-action-button min-h-14 rounded-2xl px-5 text-base font-black disabled:opacity-60">
               {loading ? "Concluindo..." : "Concluir Compra"}
-            </button>
+            </CheckoutPrimaryButton>
           </div>
 
           <p className="flex items-center justify-center gap-2 text-center text-xs font-semibold text-slate-400">

@@ -15,6 +15,7 @@ import { cn } from "../lib/utils";
 import { fazendinhaOrderIndex } from "../lib/fazendinha";
 import {
   BonusRouletteCard,
+  CheckoutPrimaryButton,
   FloatingCTA,
   PixPaymentCard,
   PremiumHero,
@@ -306,7 +307,7 @@ export function Fazendinha() {
         title={data.config.name || "Fazendinha dos Sonhos"}
         subtitle="Concorra a uma Fazendinha dos Sonhos com PIX automático, bilhetes instantâneos e sorteio auditável pela Loteria Federal."
         image={data.config.mediaUrl || "/fazendinha-animais-premium.png"}
-        cta={<button type="button" onClick={() => setCheckoutOpen(true)} className="premium-button inline-flex min-h-14 items-center justify-center rounded-2xl px-7">Participar Agora</button>}
+        cta={<CheckoutPrimaryButton onClick={() => setCheckoutOpen(true)} className="inline-flex min-h-14 items-center justify-center rounded-2xl px-7">Participar Agora</CheckoutPrimaryButton>}
       >
         <TrustBadges />
       </PremiumHero>
@@ -375,9 +376,9 @@ export function Fazendinha() {
               </div>
             )}
           </div>
-          <button onClick={() => setCheckoutOpen(true)} disabled={!selectedGroups.length} className="premium-button inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 disabled:opacity-40">
+          <CheckoutPrimaryButton onClick={() => setCheckoutOpen(true)} disabled={!selectedGroups.length} className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 disabled:opacity-40">
             <TicketCheck className="h-5 w-5" /> Participar
-          </button>
+          </CheckoutPrimaryButton>
         </div>
       </div>
 
@@ -420,9 +421,9 @@ export function Fazendinha() {
                 numbers={confirmedReceipt.groups.flatMap(group => group.numeros).map(number => Number(number)).filter(Number.isFinite)}
                 onShare={shareConfirmedReceipt}
               />
-              <button type="button" onClick={() => setCheckoutOpen(false)} className="premium-button w-full">
+              <CheckoutPrimaryButton onClick={() => setCheckoutOpen(false)} className="w-full">
                 Voltar para campanha
-              </button>
+              </CheckoutPrimaryButton>
             </>
           ) : pendingPix ? (
             <>
@@ -432,9 +433,9 @@ export function Fazendinha() {
                 <p className="mt-2 text-sm text-slate-300">Use o código abaixo e confirme o pagamento para liberar seu bilhete premium.</p>
               </div>
               <PixPaymentCard payload={pendingPix.pixPayload} copied={copiedPix} onCopy={copyPixPayload} />
-              <button type="button" onClick={checkPixPayment} disabled={buying} className="premium-button min-h-14 w-full disabled:opacity-50">
+              <CheckoutPrimaryButton onClick={checkPixPayment} disabled={buying} className="min-h-14 w-full disabled:opacity-50">
                 {buying ? "Consultando status..." : "Confirmar PIX"}
-              </button>
+              </CheckoutPrimaryButton>
             </>
           ) : (
             <>
@@ -529,9 +530,9 @@ export function Fazendinha() {
                 </label>
               )}
 
-              <button type="button" onClick={openPrePaymentReceipt} disabled={buying} className="premium-button min-h-14 w-full disabled:opacity-50">
+              <CheckoutPrimaryButton onClick={openPrePaymentReceipt} disabled={buying} className="min-h-14 w-full disabled:opacity-50">
                 {buying ? "Calculando resumo..." : `Revisar compra - ${formatCurrency(totalValue)}`}
-              </button>
+              </CheckoutPrimaryButton>
               <p className="flex items-center justify-center gap-2 text-center text-xs font-semibold text-slate-400">
                 <ShieldCheck className="h-4 w-4 text-emerald-200" /> Compra segura, PIX automático e bilhete liberado após confirmação.
               </p>

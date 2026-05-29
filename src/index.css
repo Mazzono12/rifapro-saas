@@ -453,7 +453,8 @@
 .checkout-summary-value {
   min-width: 0;
   max-width: 62%;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
   color: var(--checkout-value) !important;
 }
 
@@ -469,11 +470,39 @@
 
 .checkout-actions button,
 .checkout-action-button,
+.checkout-primary-button,
 .checkout-screen .premium-button {
   min-height: 3.25rem;
   align-items: center;
   justify-content: center;
   text-align: center;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  line-height: 1.2;
+}
+
+.checkout-primary-button {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.checkout-primary-button > span,
+.checkout-primary-button svg {
+  flex: 0 0 auto;
+}
+
+.checkout-modal-header p,
+.checkout-modal-header h2,
+.checkout-title,
+.premium-floating-cta,
+.premium-floating-cta span {
+  word-break: normal;
+  overflow-wrap: break-word;
+  writing-mode: horizontal-tb;
 }
 
 .wallet-balance-card {
@@ -3012,6 +3041,7 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
 
   .checkout-actions button,
   .checkout-action-button,
+  .checkout-primary-button,
   .checkout-screen button,
   .fixed.inset-0[class*="z-[80]"] button,
   .fixed.inset-0[class*="z-[90]"] button {
@@ -3020,6 +3050,29 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
     padding-left: .875rem !important;
     padding-right: .875rem !important;
     text-align: center;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    writing-mode: horizontal-tb !important;
+  }
+
+  .checkout-primary-button {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    white-space: normal !important;
+    line-height: 1.18 !important;
+  }
+
+  .checkout-modal-header {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .checkout-modal-header p {
+    max-width: 100%;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
   }
 
   .checkout-screen .sticky.bottom-0 {

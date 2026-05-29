@@ -36,6 +36,18 @@ export function PremiumButton({
   );
 }
 
+export function CheckoutPrimaryButton({
+  children,
+  className = "",
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button type="button" className={cn("checkout-primary-button premium-button", className)} {...props}>
+      {children}
+    </button>
+  );
+}
+
 export function PremiumInput({
   label,
   helper,
@@ -352,7 +364,7 @@ export function PixPaymentCard({ payload, copied, onCopy }: { payload?: string; 
       ) : (
         <div className="premium-card border-red-300/20 bg-red-500/10 text-red-100">PIX indisponível.</div>
       )}
-      <button type="button" onClick={onCopy} className={cn("premium-button w-full", copied && "bg-emerald-200")}>{copied ? "PIX copiado" : "Copiar PIX"}</button>
+      <CheckoutPrimaryButton onClick={onCopy} className={cn("w-full", copied && "bg-emerald-200")}>{copied ? "PIX copiado" : "Copiar PIX"}</CheckoutPrimaryButton>
     </div>
   );
 }

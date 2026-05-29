@@ -15,6 +15,7 @@ import { DynamicMedia } from "./DynamicMedia";
 import { PostPurchaseLootboxModal } from "./PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "./PixPaymentResultModal";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "./checkout/PrePaymentReceiptModal";
+import { CheckoutPrimaryButton } from "./premium/PremiumUI";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 
@@ -367,9 +368,9 @@ export function FazendinhaSection() {
               </div>
             )}
           </div>
-          <button onClick={() => setCheckoutOpen(true)} disabled={!selectedGroups.length} className="premium-button inline-flex min-h-14 items-center justify-center gap-2 rounded-xl px-8 py-4 text-base font-black disabled:cursor-not-allowed disabled:opacity-40">
+          <CheckoutPrimaryButton onClick={() => setCheckoutOpen(true)} disabled={!selectedGroups.length} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl px-8 py-4 text-base font-black disabled:cursor-not-allowed disabled:opacity-40">
             <TicketCheck className="h-5 w-5" /> Participar
-          </button>
+          </CheckoutPrimaryButton>
         </div>
       </div>
 
@@ -566,9 +567,9 @@ export function FazendinhaSection() {
                   <strong className="font-display text-xl text-white">{formatCurrency(totalValue)}</strong>
                 </div>
               </div>
-              <button onClick={pendingPix ? checkPixPayment : openPrePaymentReceipt} disabled={buying} className="premium-button sticky bottom-0 z-20 mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-black shadow-[0_-18px_45px_rgba(0,0,0,0.38)] disabled:opacity-50">
+              <CheckoutPrimaryButton onClick={pendingPix ? checkPixPayment : openPrePaymentReceipt} disabled={buying} className="sticky bottom-0 z-20 mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-black shadow-[0_-18px_45px_rgba(0,0,0,0.38)] disabled:opacity-50">
                 <CheckCircle2 className="h-5 w-5" /> {buying ? "Processando..." : pendingPix ? "Confirmar PIX" : "Revisar compra"}
-              </button>
+              </CheckoutPrimaryButton>
             </div>
             </motion.div>
           </motion.div>

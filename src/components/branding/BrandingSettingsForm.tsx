@@ -31,10 +31,8 @@ export function BrandingSettingsForm({
           <ColorPicker label="Cor CTA" value={value.cta_color || "#00d66b"} onChange={next => set("cta_color", next)} />
         </div>
         <label className="grid gap-2 text-sm font-semibold text-slate-300">Modo visual
-          <select value={value.theme_mode || "premium"} onChange={event => set("theme_mode", event.target.value)} className="admin-input">
-            <option value="premium">Premium</option>
-            <option value="dark">Escuro</option>
-            <option value="light">Claro</option>
+          <select value={value.theme_mode || "vimeu_dark"} onChange={event => set("theme_mode", event.target.value)} className="admin-input">
+            <option value="vimeu_dark">Vimeu Dark</option>
           </select>
         </label>
         <div className="flex flex-wrap gap-3">

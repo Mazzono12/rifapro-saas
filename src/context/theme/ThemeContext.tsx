@@ -14,7 +14,7 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-const VIMEO_THEME_IDS: ThemeId[] = ["vimeo-original", "vimeo-dark"];
+const LOCKED_THEME_ID: ThemeId = "vimeu_dark";
 
 function readStoredPalette(raw: string | null): PaletteOverrides | null {
   if (!raw) return null;
@@ -37,51 +37,41 @@ function applyThemeVariables(themeId: ThemeId, overrides: PaletteOverrides = {})
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeIdState] = useState<ThemeId>(defaultThemeId);
-  const [previewId, setPreviewId] = useState<ThemeId | null>(null);
   const [paletteOverrides, setPaletteOverrides] = useState<PaletteOverrides>({});
 
   useEffect(() => {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY) as ThemeId | null;
     const storedOverrides = readStoredPalette(localStorage.getItem(`${THEME_STORAGE_KEY}_palette`));
+    localStorage.setItem(THEME_STORAGE_KEY, LOCKED_THEME_ID);
 
     fetch("/api/settings")
       .then(res => res.json())
       .then(settings => {
-        const defaultFromAdmin = settings?.theme?.defaultTheme as ThemeId | undefined;
         const adminPalette = settings?.theme?.paletteOverrides || {};
-        const nextTheme = VIMEO_THEME_IDS.includes(stored as ThemeId)
-          ? stored
-          : (defaultFromAdmin && VIMEO_THEME_IDS.includes(defaultFromAdmin) ? defaultFromAdmin : defaultThemeId);
         const nextOverrides = storedOverrides || adminPalette;
-        setThemeIdState(getTheme(nextTheme).id);
+        setThemeIdState(LOCKED_THEME_ID);
         setPaletteOverrides(nextOverrides);
-        applyThemeVariables(getTheme(nextTheme).id, nextOverrides);
+        applyThemeVariables(LOCKED_THEME_ID, nextOverrides);
       })
       .catch(() => {
-        const nextTheme = getTheme(stored || defaultThemeId).id;
         const nextOverrides = storedOverrides || {};
-        setThemeIdState(nextTheme);
+        setThemeIdState(LOCKED_THEME_ID);
         setPaletteOverrides(nextOverrides);
-        applyThemeVariables(nextTheme, nextOverrides);
+        applyThemeVariables(LOCKED_THEME_ID, nextOverrides);
       });
   }, []);
 
   useEffect(() => {
-    applyThemeVariables(previewId || themeId, paletteOverrides);
-  }, [themeId, previewId, paletteOverrides]);
+    applyThemeVariables(LOCKED_THEME_ID, paletteOverrides);
+  }, [themeId, paletteOverrides]);
 
-  const setThemeId = useCallback((nextThemeId: ThemeId) => {
-    const normalized = getTheme(nextThemeId).id;
-    localStorage.setItem(THEME_STORAGE_KEY, normalized);
-    setThemeIdState(normalized);
-    setPreviewId(null);
+  const setThemeId = useCallback((_nextThemeId: ThemeId) => {
+    localStorage.setItem(THEME_STORAGE_KEY, LOCKED_THEME_ID);
+    setThemeIdState(LOCKED_THEME_ID);
   }, []);
 
-  const previewTheme = useCallback((nextThemeId: ThemeId) => {
-    setPreviewId(getTheme(nextThemeId).id);
-  }, []);
+  const previewTheme = useCallback((_nextThemeId: ThemeId) => undefined, []);
 
-  const clearPreview = useCallback(() => setPreviewId(null), []);
+  const clearPreview = useCallback(() => undefined, []);
 
   const applyPaletteOverrides = useCallback((overrides: PaletteOverrides) => {
     localStorage.setItem(`${THEME_STORAGE_KEY}_palette`, JSON.stringify(overrides));
