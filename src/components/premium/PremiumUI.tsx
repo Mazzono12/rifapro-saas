@@ -7,9 +7,9 @@ import { cn } from "../../lib/utils";
 
 export function PremiumPageLayout({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("premium-page min-h-screen text-white", className)}>
+    <div className={cn("premium-page min-h-screen w-full min-w-0 text-white", className)}>
       <div className="premium-ambient" />
-      <div className="relative z-10">{children}</div>
+      <div className="relative z-10 w-full min-w-0">{children}</div>
     </div>
   );
 }
@@ -237,7 +237,7 @@ export function PremiumHero({
     <section className="premium-hero">
       {image && <img src={image} alt={title} className="absolute inset-0 h-full w-full object-cover opacity-42" loading="lazy" decoding="async" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/20" />
-      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 mx-auto flex min-h-[560px] max-w-7xl flex-col justify-end px-4 pb-8 pt-24 sm:min-h-[640px] sm:pb-12">
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 mx-auto flex min-h-[560px] w-full max-w-7xl min-w-0 flex-col justify-end px-4 pb-8 pt-24 sm:min-h-[640px] sm:pb-12">
         {eyebrow && <p className="premium-eyebrow mb-4">{eyebrow}</p>}
         <h1 className="max-w-4xl text-5xl font-black leading-[0.92] tracking-tight sm:text-7xl">{title}</h1>
         {subtitle && <p className="mt-5 max-w-2xl text-lg leading-7 text-slate-200 sm:text-2xl">{subtitle}</p>}
@@ -326,8 +326,8 @@ export function FloatingCTA({ label, meta, onClick }: { label: string; meta?: st
 export function PremiumCheckoutModal({ open, title, children, onClose }: { open: boolean; title: string; children: React.ReactNode; onClose: () => void }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-3 backdrop-blur-2xl">
-      <motion.section initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mx-auto my-5 max-w-2xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#090b11] shadow-[0_0_100px_rgba(52,211,153,0.16)]">
+    <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3">
+      <motion.section initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_100px_rgba(52,211,153,0.16)] sm:my-5 sm:rounded-[2rem]">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#090b11]/90 p-4 backdrop-blur-xl">
           <h2 className="text-xl font-black">{title}</h2>
           <button type="button" onClick={onClose} className="rounded-full border border-white/10 px-3 py-2 text-sm text-slate-300">Fechar</button>
@@ -345,8 +345,8 @@ export function PixPaymentCard({ payload, copied, onCopy }: { payload?: string; 
         <QrCode className="h-8 w-8" />
       </div>
       {payload ? (
-        <div className="mx-auto w-fit rounded-[1.75rem] bg-white p-5">
-          <QRCodeSVG value={payload} size={236} bgColor="#ffffff" fgColor="#0f172a" level="M" />
+        <div className="mx-auto w-full max-w-[min(18rem,calc(100vw-3rem))] rounded-[1.35rem] bg-white p-3 sm:w-fit sm:max-w-none sm:rounded-[1.75rem] sm:p-5">
+          <QRCodeSVG value={payload} className="h-auto w-full sm:h-[236px] sm:w-[236px]" bgColor="#ffffff" fgColor="#0f172a" level="M" />
         </div>
       ) : (
         <div className="premium-card border-red-300/20 bg-red-500/10 text-red-100">PIX indisponível.</div>

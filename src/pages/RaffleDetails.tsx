@@ -783,8 +783,8 @@ function CheckoutModal(props: {
   return (
     <AnimatePresence>
       {props.open && (
-        <motion.div className="fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-3 backdrop-blur-2xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <motion.div initial={{ y: 36, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 36, scale: 0.97 }} className="mx-auto my-5 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#090b11] shadow-[0_0_110px_rgba(16,185,129,0.16)]">
+        <motion.div className="fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.div initial={{ y: 36, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 36, scale: 0.97 }} className="mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_110px_rgba(16,185,129,0.16)] sm:my-5 sm:rounded-[2rem]">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#090b11]/90 p-4 backdrop-blur-xl">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--theme-primary)]">{props.step === "review" ? "Confirmar participacao" : props.step === "payment" ? "Pagamento PIX" : "Bilhete premium"}</p>
@@ -889,8 +889,8 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
         <InfoCard label="Total" value={formatCurrency(props.totalValue)} />
       </div>
       {props.purchase?.pixPayload ? (
-        <div className="mx-auto w-fit rounded-[1.75rem] bg-white p-5 shadow-[0_0_42px_rgba(34,211,238,0.18)]">
-          <QRCodeSVG value={props.purchase.pixPayload} size={250} bgColor="#ffffff" fgColor="#0f172a" level="M" />
+        <div className="mx-auto w-full max-w-[min(18rem,calc(100vw-3rem))] rounded-[1.35rem] bg-white p-3 shadow-[0_0_42px_rgba(34,211,238,0.18)] sm:w-fit sm:max-w-none sm:rounded-[1.75rem] sm:p-5">
+          <QRCodeSVG value={props.purchase.pixPayload} className="h-auto w-full sm:h-[250px] sm:w-[250px]" bgColor="#ffffff" fgColor="#0f172a" level="M" />
         </div>
       ) : (
         <div className="rounded-2xl border border-red-300/20 bg-red-500/10 p-4 text-sm text-red-100">PIX indisponivel. Revise o gateway do tenant.</div>

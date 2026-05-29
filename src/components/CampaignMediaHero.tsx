@@ -43,7 +43,7 @@ export function CampaignMediaHero({
   return (
     <div
       className={cn(
-        "campaign-media-hero relative isolate overflow-hidden bg-[#030805]",
+        "campaign-media-hero relative isolate min-w-0 overflow-hidden bg-[#030805]",
         fullWidth ? "left-1/2 w-screen -translate-x-1/2" : "w-full",
         className
       )}

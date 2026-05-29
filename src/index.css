@@ -2704,6 +2704,184 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   color: var(--text-primary) !important;
 }
 
+/* Mobile width hardening: keep every shell using the real device width without
+   inheriting desktop container constraints. */
+:root {
+  --mobile-edge-gutter: clamp(0.5rem, 2.4vw, 0.875rem);
+}
+
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  @supports not (overflow-x: clip) {
+    html,
+    body,
+    #root {
+      overflow-x: hidden;
+    }
+  }
+
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .public-shell,
+  .premium-page,
+  .admin-shell,
+  .checkout-screen,
+  .public-shell main,
+  .premium-page > .relative,
+  .admin-shell main {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .public-shell .container,
+  .premium-page .container,
+  .admin-shell .container,
+  .checkout-screen.container {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: calc(var(--mobile-edge-gutter) + env(safe-area-inset-left)) !important;
+    padding-right: calc(var(--mobile-edge-gutter) + env(safe-area-inset-right)) !important;
+  }
+
+  .public-shell [class*="max-w-7xl"],
+  .public-shell [class*="max-w-6xl"],
+  .public-shell [class*="max-w-5xl"],
+  .public-shell [class*="max-w-4xl"],
+  .public-shell [class*="max-w-3xl"],
+  .premium-page [class*="max-w-7xl"],
+  .premium-page [class*="max-w-6xl"],
+  .premium-page [class*="max-w-5xl"],
+  .premium-page [class*="max-w-4xl"],
+  .premium-page [class*="max-w-3xl"],
+  .admin-shell [class*="max-w-7xl"],
+  .admin-shell [class*="max-w-6xl"],
+  .admin-shell [class*="max-w-5xl"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .public-shell .glass-card,
+  .public-shell .premium-card,
+  .premium-page .glass-card,
+  .premium-page .premium-card,
+  .admin-shell .glass-card,
+  .admin-shell .admin-card,
+  .checkout-screen .glass-card,
+  .checkout-screen .premium-card,
+  .campaign-media-hero {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .public-shell section,
+  .premium-page section,
+  .admin-shell section,
+  .public-shell article,
+  .premium-page article,
+  .admin-shell article,
+  .public-shell aside,
+  .premium-page aside,
+  .admin-shell aside {
+    min-width: 0;
+  }
+
+  .public-shell .grid,
+  .premium-page .grid,
+  .admin-shell .grid,
+  .public-shell .flex,
+  .premium-page .flex,
+  .admin-shell .flex {
+    min-width: 0;
+  }
+
+  .public-shell [class*="lg:grid-cols-"],
+  .premium-page [class*="lg:grid-cols-"],
+  .admin-shell [class*="lg:grid-cols-"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .public-shell .w-screen,
+  .premium-page .w-screen {
+    width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+  }
+
+  .campaign-media-hero,
+  .campaign-media-hero video,
+  .campaign-media-hero img,
+  .campaign-media-hero iframe,
+  .premium-hero,
+  .premium-hero img {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .premium-hero {
+    overflow: hidden;
+  }
+
+  .checkout-screen,
+  .fixed.inset-0[class*="z-[80]"],
+  .fixed.inset-0[class*="z-[90]"] {
+    padding-left: calc(var(--mobile-edge-gutter) + env(safe-area-inset-left)) !important;
+    padding-right: calc(var(--mobile-edge-gutter) + env(safe-area-inset-right)) !important;
+  }
+
+  .checkout-screen button,
+  .checkout-screen .premium-button,
+  .fixed.inset-0[class*="z-[80]"] button,
+  .fixed.inset-0[class*="z-[90]"] button {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .fixed.inset-0[class*="z-[80]"] section,
+  .fixed.inset-0[class*="z-[90]"] section {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .premium-site-header > div,
+  .premium-header > div,
+  .admin-shell header > div,
+  .premium-site-footer > div {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-left: calc(var(--mobile-edge-gutter) + env(safe-area-inset-left)) !important;
+    padding-right: calc(var(--mobile-edge-gutter) + env(safe-area-inset-right)) !important;
+  }
+
+  .public-shell .px-4,
+  .premium-page .px-4,
+  .admin-shell main.p-4 {
+    padding-left: calc(var(--mobile-edge-gutter) + env(safe-area-inset-left)) !important;
+    padding-right: calc(var(--mobile-edge-gutter) + env(safe-area-inset-right)) !important;
+  }
+
+  .public-shell .w-fit,
+  .premium-page .w-fit,
+  .checkout-screen .w-fit {
+    max-width: 100%;
+  }
+}
+
 /* Skeleton Loading Animation */
 .skeleton {
   @apply relative overflow-hidden bg-white/[0.02] border border-white/[0.05] rounded-xl;

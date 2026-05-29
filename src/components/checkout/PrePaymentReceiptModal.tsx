@@ -87,9 +87,9 @@ export function PrePaymentReceiptModal({
   const gateway = preview?.gateway || gatewayInfo || "PIX";
 
   return (
-    <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/72 p-3 backdrop-blur-xl">
-      <section className="mx-auto my-4 w-full max-w-2xl overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#070a0f] text-white shadow-[0_30px_120px_rgba(0,0,0,0.5)]">
-        <header className="relative overflow-hidden border-b border-white/10 px-5 py-5">
+    <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/72 p-2 backdrop-blur-xl sm:p-3">
+      <section className="mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#070a0f] text-white shadow-[0_30px_120px_rgba(0,0,0,0.5)] sm:my-4 sm:rounded-[1.75rem]">
+        <header className="relative overflow-hidden border-b border-white/10 px-4 py-5 sm:px-5">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(16,185,129,0.22),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))]" />
           <div className="relative flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
@@ -108,7 +108,7 @@ export function PrePaymentReceiptModal({
           </div>
         </header>
 
-        <div className="space-y-4 p-4 sm:p-5">
+        <div className="space-y-4 p-3 sm:p-5">
           <CheckoutReceiptSummary
             campaign={campaign}
             raffle={raffle}

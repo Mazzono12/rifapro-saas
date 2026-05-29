@@ -376,7 +376,7 @@ export function FazendinhaSection() {
       <AnimatePresence>
         {checkoutOpen && (
           <motion.div className="fixed inset-0 z-[70] overflow-hidden bg-black/70 backdrop-blur-xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 10, opacity: 0 }} className="h-dvh overflow-y-auto overscroll-contain px-3 pb-8 pt-[calc(env(safe-area-inset-top)+2rem)] sm:px-4 md:pt-[calc(env(safe-area-inset-top)+2.5rem)]">
+            <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 10, opacity: 0 }} className="h-dvh overflow-y-auto overscroll-contain px-2 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-4 md:pt-[calc(env(safe-area-inset-top)+2.5rem)]">
             <div className="checkout-screen glass-card mx-auto w-full max-w-2xl p-4 sm:p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -530,8 +530,8 @@ export function FazendinhaSection() {
                 <div className="mt-5 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4 text-center">
                   <p className="text-xs font-mono uppercase tracking-widest text-emerald-200">PIX gerado</p>
                   <p className="mt-1 text-sm text-slate-300">Escaneie o QR Code ou copie o código PIX.</p>
-                  <div className="mx-auto mt-4 w-fit rounded-2xl bg-white p-4 shadow-[0_0_35px_rgba(16,185,129,0.22)]">
-                    <QRCodeSVG value={pendingPix.pixPayload} size={210} bgColor="#ffffff" fgColor="#0f172a" level="M" />
+                  <div className="mx-auto mt-4 w-full max-w-[min(17rem,calc(100vw-3rem))] rounded-2xl bg-white p-3 shadow-[0_0_35px_rgba(16,185,129,0.22)] sm:w-fit sm:max-w-none sm:p-4">
+                    <QRCodeSVG value={pendingPix.pixPayload} className="h-auto w-full sm:h-[210px] sm:w-[210px]" bgColor="#ffffff" fgColor="#0f172a" level="M" />
                   </div>
                   <p className="mt-4 max-h-24 overflow-y-auto break-all rounded-xl bg-black/35 p-3 text-left font-mono text-xs text-emerald-50">
                     {pendingPix.pixPayload}
