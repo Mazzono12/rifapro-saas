@@ -28,6 +28,7 @@ import {
   TrustBadges
 } from "../components/premium/PremiumUI";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
+import { CheckoutCampaignMedia } from "../components/checkout/CheckoutCampaignMedia";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 
@@ -87,6 +88,13 @@ export function Fazendinha() {
   const selectedTotal = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
   const addonValue = acceptAddon && addonSuggestion ? addonSuggestion.amount : 0;
   const totalValue = selectedTotal + addonValue;
+  const fazendinhaMedia = {
+    title: data.config.name || "Fazendinha",
+    subtitle: (data.config as any).prize || "Premio principal",
+    image: data.config.mediaUrl || "",
+    mediaUrl: data.config.mediaUrl || "",
+    mediaType: data.config.mediaType as any
+  };
   const hasSavedCustomer = Boolean(customer?.name && customer.phone && customer.cpf);
   const canUseSavedCustomer = hasSavedCustomer && !requireIdentity;
   const isReturningCustomerVerification = hasSavedCustomer && requireIdentity && customerMode === "existing";
@@ -413,6 +421,14 @@ export function Fazendinha() {
         onClose={() => setCheckoutOpen(false)}
       >
         <div className="space-y-5 p-4 sm:p-5">
+          <CheckoutCampaignMedia
+            modality={fazendinhaMedia}
+            compact
+            showStatus
+            showPrice
+            statusLabel={pendingPix ? "Aguardando pagamento" : confirmedReceipt ? "Bilhete confirmado" : "Checkout seguro"}
+            priceLabel={`${selectedGroups.flatMap(group => group.numeros).length} cotas - ${formatCurrency(totalValue || pendingPix?.purchase.valorPago || confirmedReceipt?.purchase.valorPago || 0)}`}
+          />
           {confirmedReceipt ? (
             <>
               <PremiumTicketReceipt
@@ -544,12 +560,7 @@ export function Fazendinha() {
         open={receiptOpen}
         campaign={data.config.name || "Fazendinha"}
         raffle={data.config.name || "Fazendinha"}
-        raffleData={{
-          title: data.config.name || "Fazendinha",
-          image: data.config.mediaUrl || "",
-          mediaUrl: data.config.mediaUrl || "",
-          mediaType: data.config.mediaType as any
-        }}
+        raffleData={fazendinhaMedia}
         selectedQuantity={selectedGroups.flatMap(group => group.numeros).length}
         selectedPackage={`${selectedGroups.length} grupo(s)`}
         calculatedPrice={totalValue}

@@ -23,6 +23,7 @@ import {
 } from "../components/premium/PremiumUI";
 import { NotFoundPage } from "./SystemStatus";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
+import { CheckoutCampaignMedia } from "../components/checkout/CheckoutCampaignMedia";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 
@@ -231,6 +232,13 @@ export function NumberModePage() {
   const receiptNumbers = confirmedReceipt?.numbers.map(number => Number(number)).filter(Number.isFinite) || [];
   const modalTitle = confirmedReceipt ? "Bilhete confirmado" : pendingPix ? "Pagamento PIX" : "Confirmar participação";
   const checkoutTotal = total || pendingPix?.purchase?.valorPago || confirmedReceipt?.purchase?.valorPago || 0;
+  const modalityMedia = {
+    title: data.config.name || modeTitles[mode],
+    subtitle: data.config.prize || data.config.description || modeTitles[mode],
+    image: data.config.mediaUrl || "",
+    mediaUrl: data.config.mediaUrl || "",
+    mediaType: data.config.mediaType as any
+  };
 
   return (
     <PremiumPageLayout className="pb-28">
@@ -325,6 +333,14 @@ export function NumberModePage() {
 
       <PremiumCheckoutModal open={checkoutOpen} title={modalTitle} onClose={() => setCheckoutOpen(false)}>
         <div className="space-y-5 p-4 sm:p-5">
+          <CheckoutCampaignMedia
+            modality={modalityMedia}
+            compact
+            showStatus
+            showPrice
+            statusLabel={pendingPix ? "Aguardando pagamento" : confirmedReceipt ? "Bilhete confirmado" : "Checkout seguro"}
+            priceLabel={`${selected.length || confirmedReceipt?.numbers.length || pendingPix?.purchase?.numbers?.length || 0} cotas - R$ ${checkoutTotal.toFixed(2)}`}
+          />
           {confirmedReceipt ? (
             <>
               <PremiumTicketReceipt
@@ -411,12 +427,7 @@ export function NumberModePage() {
         open={receiptOpen}
         campaign={data.config.name || modeTitles[mode]}
         raffle={modeTitles[mode]}
-        raffleData={{
-          title: data.config.name || modeTitles[mode],
-          image: data.config.mediaUrl || "",
-          mediaUrl: data.config.mediaUrl || "",
-          mediaType: data.config.mediaType as any
-        }}
+        raffleData={modalityMedia}
         selectedQuantity={selected.length}
         selectedPackage={`${selected.length} numero(s)`}
         calculatedPrice={total}

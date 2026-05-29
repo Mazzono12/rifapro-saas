@@ -801,7 +801,15 @@ function CheckoutModal(props: {
             </div>
 
             <div className="px-4 pt-4 sm:px-5 sm:pt-5">
-              <CheckoutCampaignMedia raffle={props.raffle} fallbackTitle={props.raffle.title} compact />
+              <CheckoutCampaignMedia
+                raffle={props.raffle}
+                fallbackTitle={props.raffle.title}
+                compact
+                showStatus
+                showPrice
+                statusLabel={props.step === "payment" ? "Aguardando pagamento" : props.step === "ticket" ? "Bilhete confirmado" : "Checkout seguro"}
+                priceLabel={`${props.tickets.toLocaleString("pt-BR")} cotas - ${formatCurrency(props.totalValue)}`}
+              />
             </div>
 
             {props.step === "review" && <CheckoutReview {...props} />}

@@ -3,28 +3,91 @@ import { CampaignMediaHero } from "../CampaignMediaHero";
 import { cn } from "../../lib/utils";
 import type { Raffle } from "../../types";
 
+type CheckoutMediaKind = "image" | "video" | "youtube" | "vimeo" | "bunny" | "fallback";
+
 type CheckoutCampaignMediaProps = {
-  campaign?: string;
+  campaign?: string | Record<string, any>;
   raffle?: Partial<Raffle> | null;
+  modality?: string | Record<string, any>;
   mediaUrl?: string;
-  mediaType?: Raffle["mediaType"] | Raffle["checkoutMediaType"] | string;
+  mediaType?: CheckoutMediaKind | Raffle["mediaType"] | Raffle["checkoutMediaType"] | string;
+  posterUrl?: string;
+  title?: string;
+  subtitle?: string;
   fallbackTitle?: string;
   compact?: boolean;
+  showStatus?: boolean;
+  showPrice?: boolean;
+  statusLabel?: string;
+  priceLabel?: string;
   className?: string;
 };
+
+export function getCampaignCheckoutMedia(campaign?: any, raffle?: any, modality?: any) {
+  const sources = [campaign, raffle, modality].filter(Boolean);
+  const first = (...keys: string[]) => {
+    for (const source of sources) {
+      for (const key of keys) {
+        const value = source?.[key];
+        if (typeof value === "string" && value.trim()) return value.trim();
+      }
+    }
+    return "";
+  };
+  const explicitVideo = first("checkout_video_url", "checkoutVideoUrl", "videoUrl", "mainVideoUrl", "prizeVideo", "premioVideo", "campanhaVideo");
+  const explicitImage = first("checkout_image_url", "checkoutImageUrl", "checkoutMediaUrl", "imageUrl", "bannerUrl", "coverImage", "prizeImage", "mainImage", "thumbnailUrl", "premioImagem", "campanhaImagem", "image", "mediaUrl");
+  const posterUrl = first("checkout_video_poster_url", "checkoutVideoPosterUrl", "posterUrl", "videoPosterUrl", "thumbnailUrl", "imageUrl", "image");
+  const rawMediaUrl = first("checkoutMediaUrl", "mediaUrl");
+  const mediaUrl = explicitVideo || rawMediaUrl || explicitImage;
+  const rawType = String(first("checkoutMediaType", "mediaType") || "").toLowerCase();
+  const mediaType = explicitVideo
+    ? inferCheckoutMediaType(explicitVideo, "video")
+    : inferCheckoutMediaType(mediaUrl, rawType || (mediaUrl === explicitImage ? "image" : ""));
+  const title = first("title", "name", "nome", "campaignName", "nomeCampanha") || (typeof campaign === "string" ? campaign : "") || "Campanha";
+  const subtitle = first("subtitle", "description", "descricao", "prize", "premio", "prizeName") || "Preview do premio";
+  return {
+    mediaUrl,
+    mediaType: mediaUrl ? mediaType : "fallback" as CheckoutMediaKind,
+    title,
+    subtitle,
+    posterUrl
+  };
+}
+
+function inferCheckoutMediaType(url?: string, declared?: string): CheckoutMediaKind {
+  const value = String(url || "").toLowerCase();
+  const type = String(declared || "").toLowerCase();
+  if (["video", "youtube", "vimeo", "bunny", "image"].includes(type)) return type as CheckoutMediaKind;
+  if (/player\.mediadelivery\.net\/play\//i.test(value)) return "bunny";
+  if (/youtube\.com|youtu\.be/.test(value)) return "youtube";
+  if (/vimeo\.com/.test(value)) return "vimeo";
+  if (/\.(mp4|webm|mov|m4v)(\?|#|$)/.test(value)) return "video";
+  return "image";
+}
 
 export function CheckoutCampaignMedia({
   campaign,
   raffle,
+  modality,
   mediaUrl,
   mediaType,
+  posterUrl,
+  title,
+  subtitle,
   fallbackTitle,
   compact,
+  showStatus = true,
+  showPrice = false,
+  statusLabel = "Campanha ativa",
+  priceLabel,
   className
 }: CheckoutCampaignMediaProps) {
-  const resolvedUrl = mediaUrl || raffle?.checkoutMediaUrl || raffle?.mediaUrl || raffle?.image || "";
-  const resolvedType = mediaType || (raffle?.checkoutMediaUrl ? raffle.checkoutMediaType : raffle?.mediaType) || "image";
-  const title = fallbackTitle || raffle?.title || campaign || "Premio da campanha";
+  const resolved = getCampaignCheckoutMedia(campaign, raffle, modality);
+  const resolvedUrl = mediaUrl || resolved.mediaUrl;
+  const resolvedType = (mediaType || resolved.mediaType || "fallback") as CheckoutMediaKind;
+  const resolvedTitle = title || fallbackTitle || resolved.title || raffle?.title || (typeof campaign === "string" ? campaign : "") || "Premio da campanha";
+  const resolvedSubtitle = subtitle || resolved.subtitle;
+  const resolvedPoster = posterUrl || resolved.posterUrl;
 
   if (!resolvedUrl) {
     return (
@@ -33,9 +96,10 @@ export function CheckoutCampaignMedia({
           <ImageOff className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100">Campanha</p>
-          <p className="mt-1 line-clamp-2 text-sm font-black text-white">{title}</p>
-          <p className="mt-1 text-xs font-semibold text-slate-400">Preview do premio indisponivel.</p>
+          {showStatus && <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100">{statusLabel}</p>}
+          <p className="mt-1 line-clamp-2 text-sm font-black text-white">{resolvedTitle}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-400">{resolvedSubtitle || "Preview do premio indisponivel."}</p>
+          {showPrice && priceLabel && <p className="mt-2 text-xs font-black text-emerald-100">{priceLabel}</p>}
         </div>
       </div>
     );
@@ -44,12 +108,22 @@ export function CheckoutCampaignMedia({
   return (
     <CampaignMediaHero
       mediaUrl={resolvedUrl}
-      mediaType={resolvedType as Raffle["mediaType"]}
+      mediaType={(resolvedType === "fallback" ? "image" : resolvedType) as Raffle["mediaType"]}
       mediaFit="cover"
-      title={title}
-      subtitle="Preview da campanha"
-      overlay={false}
+      title={resolvedTitle}
+      subtitle={resolvedSubtitle}
+      overlay
+      mediaClassName={resolvedPoster ? "bg-slate-950" : undefined}
       className={cn("checkout-campaign-media checkout-media-preview border border-white/10 bg-slate-950", compact ? "aspect-[16/9]" : "aspect-video", className)}
-    />
+    >
+      <div className="absolute inset-x-0 bottom-0 z-10 p-3 sm:p-4">
+        <div className="min-w-0">
+          {showStatus && <p className="mb-2 inline-flex rounded-full border border-emerald-300/25 bg-black/45 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100 backdrop-blur-xl">{statusLabel}</p>}
+          <h3 className="line-clamp-2 text-base font-black leading-tight text-white sm:text-lg">{resolvedTitle}</h3>
+          {resolvedSubtitle && <p className="mt-1 line-clamp-2 text-xs font-semibold text-emerald-50/85">{resolvedSubtitle}</p>}
+          {showPrice && priceLabel && <p className="mt-2 text-xs font-black text-emerald-100">{priceLabel}</p>}
+        </div>
+      </div>
+    </CampaignMediaHero>
   );
 }

@@ -127,6 +127,9 @@ export function PrePaymentReceiptModal({
             mediaType={mediaType}
             fallbackTitle={campaign || raffle}
             compact
+            showStatus
+            showPrice
+            priceLabel={`${quantity.toLocaleString("pt-BR")} cotas - ${currency.format(total)}`}
           />
 
           <CheckoutReceiptSummary

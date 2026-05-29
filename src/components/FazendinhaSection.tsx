@@ -15,6 +15,7 @@ import { DynamicMedia } from "./DynamicMedia";
 import { PostPurchaseLootboxModal } from "./PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "./PixPaymentResultModal";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "./checkout/PrePaymentReceiptModal";
+import { CheckoutCampaignMedia } from "./checkout/CheckoutCampaignMedia";
 import { CheckoutPrimaryButton } from "./premium/PremiumUI";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { GeoPrefillService } from "../services/GeoPrefillService";
@@ -70,6 +71,13 @@ export function FazendinhaSection() {
   const selectedTotal = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
   const addonValue = acceptAddon && addonSuggestion ? addonSuggestion.amount : 0;
   const totalValue = selectedTotal + addonValue;
+  const fazendinhaMedia = {
+    title: data.config.name || "Fazendinha",
+    subtitle: (data.config as any).prize || "Premio principal",
+    image: data.config.mediaUrl || "",
+    mediaUrl: data.config.mediaUrl || "",
+    mediaType: data.config.mediaType as any
+  };
   const hasSavedCustomer = Boolean(customer?.name && customer.phone && customer.cpf);
   const canUseSavedCustomer = hasSavedCustomer && !requireIdentity;
   const isReturningCustomerVerification = hasSavedCustomer && requireIdentity && customerMode === "existing";
@@ -379,6 +387,15 @@ export function FazendinhaSection() {
           <motion.div className="fixed inset-0 z-[70] overflow-hidden bg-black/70 backdrop-blur-xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 10, opacity: 0 }} className="h-dvh overflow-y-auto overscroll-contain px-2 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-4 md:pt-[calc(env(safe-area-inset-top)+2.5rem)]">
             <div className="checkout-screen glass-card mx-auto w-full max-w-2xl p-4 sm:p-5">
+              <CheckoutCampaignMedia
+                modality={fazendinhaMedia}
+                compact
+                showStatus
+                showPrice
+                statusLabel={pendingPix ? "Aguardando pagamento" : "Checkout seguro"}
+                priceLabel={`${selectedGroups.flatMap(group => group.numeros).length} cotas - ${formatCurrency(totalValue || pendingPix?.purchase.valorPago || 0)}`}
+                className="mb-5"
+              />
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-mono uppercase tracking-widest text-slate-500">Participar da Fazendinha</p>
@@ -579,12 +596,7 @@ export function FazendinhaSection() {
         open={receiptOpen}
         campaign={data.config.name || "Fazendinha"}
         raffle={data.config.name || "Fazendinha"}
-        raffleData={{
-          title: data.config.name || "Fazendinha",
-          image: data.config.mediaUrl || "",
-          mediaUrl: data.config.mediaUrl || "",
-          mediaType: data.config.mediaType as any
-        }}
+        raffleData={fazendinhaMedia}
         selectedQuantity={selectedGroups.flatMap(group => group.numeros).length}
         selectedPackage={`${selectedGroups.length} grupo(s)`}
         calculatedPrice={totalValue}
