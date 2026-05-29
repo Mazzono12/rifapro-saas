@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-29T02:03:43.791Z",
-  "totalRoutes": 267,
+  "generatedAt": "2026-05-29T02:37:58.048Z",
+  "totalRoutes": 271,
   "directRuntimeNote": "Cobertura runtime profunda delegada aos scripts hardcore por modulo; este arquivo garante inventario e contrato de todas as rotas detectadas.",
   "results": [
     {
@@ -2549,6 +2549,42 @@
     },
     {
       "method": "POST",
+      "path": "/api/admin/raffles/:id/draw/prepare",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/raffles/:id/draw/publish",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/raffles/:id/draw/certificate",
+      "status": "mapped_static",
+      "expectedSecurity": "tenant_admin_only",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "exige_tenant_admin",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
       "path": "/api/admin/raffles/:id/draw",
       "status": "mapped_static",
       "expectedSecurity": "tenant_admin_only",
@@ -2562,6 +2598,18 @@
     {
       "method": "GET",
       "path": "/api/public/raffles/:raffleId/draw-audit",
+      "status": "mapped_static",
+      "expectedSecurity": "public_or_tenant_context",
+      "checks": [
+        "metodo_http_mapeado",
+        "parametros_identificados",
+        "rota_publica_ou_contextual",
+        "tenant_scope_revisado"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/public/raffles/:raffleId/draw-audit/verify",
       "status": "mapped_static",
       "expectedSecurity": "public_or_tenant_context",
       "checks": [

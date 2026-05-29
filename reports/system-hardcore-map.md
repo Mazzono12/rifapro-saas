@@ -1,14 +1,14 @@
 # RifaPro SaaS - Mapa Hardcore do Sistema
 
-Gerado em: 2026-05-29T02:03:43.789Z
+Gerado em: 2026-05-29T02:37:58.033Z
 
 ## Totais
 
-- Rotas backend: 267
+- Rotas backend: 271
 - Paginas frontend: 57
 - Componentes: 37
 - Arquivos src: 136
-- Migrations: 29
+- Migrations: 30
 - Tabelas mapeadas: 54
 - Policies mapeadas: 44
 - Providers/arquivos de integracao: 10
@@ -227,8 +227,12 @@ Gerado em: 2026-05-29T02:03:43.789Z
 - POST /api/admin/orders/:orderId/manual-confirm-payment
 - POST /api/admin/purchases/:purchaseId/reject
 - GET /api/admin/tickets/search
+- POST /api/admin/raffles/:id/draw/prepare
+- POST /api/admin/raffles/:id/draw/publish
+- POST /api/admin/raffles/:id/draw/certificate
 - POST /api/admin/raffles/:id/draw
 - GET /api/public/raffles/:raffleId/draw-audit
+- POST /api/public/raffles/:raffleId/draw-audit/verify
 - GET /api/admin/raffles/:raffleId/draw-audit
 - POST /api/admin/tickets/assign
 - POST /api/admin/purchases/:purchaseId/tickets/adjust
@@ -431,6 +435,7 @@ Gerado em: 2026-05-29T02:03:43.789Z
 - supabase/migrations/26_tenant_native_crm.sql
 - supabase/migrations/27_tenant_automation_center.sql
 - supabase/migrations/28_public_activity_events.sql
+- supabase/migrations/29_provably_fair_complete.sql
 
 ## Middlewares, Workers e Webhooks
 
@@ -444,11 +449,11 @@ Gerado em: 2026-05-29T02:03:43.789Z
 
 ## Campos e Identificadores Criticos
 
-- tenant_id: 853 ocorrencias no backend
+- tenant_id: 878 ocorrencias no backend
 - user_id: 16 ocorrencias no backend
 - order_id: 27 ocorrencias no backend
 - purchaseId: 173 ocorrencias no backend
-- raffleId: 178 ocorrencias no backend
+- raffleId: 187 ocorrencias no backend
 - affiliate: 329 ocorrencias no backend
 - gateway: 407 ocorrencias no backend
 - wallet: 45 ocorrencias no backend

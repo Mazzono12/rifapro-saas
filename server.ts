@@ -1317,12 +1317,21 @@ async function startServer() {
     id: string;
     tenant_id: string;
     raffle_id: string;
+    status?: "prepared" | "locked" | "executed" | "published";
     draw_method: string;
     public_seed: string;
+    server_seed_secret?: string;
     server_seed_hash: string;
     server_seed_revealed: string;
     external_reference?: string;
     eligible_numbers_hash: string;
+    eligible_numbers?: number[];
+    locked_at?: string;
+    scheduled_at?: string;
+    executed_at?: string;
+    published_at?: string;
+    nonce?: number;
+    verification_payload?: Record<string, unknown>;
     winning_number: string;
     algorithm_version: string;
     result_hash: string;
@@ -9320,6 +9329,174 @@ async function startServer() {
     });
   });
 
+  const provablyFairAlgorithmVersion = "rifapro-provably-fair-v2-sha256-mod";
+
+  function getEligibleDrawNumbers(raffle: typeof raffles[number]) {
+    return purchases
+      .filter(purchase => purchase.tenant_id === raffle.tenant_id && purchase.raffleId === raffle.id && purchase.status === "paid")
+      .flatMap(purchase => purchase.numeros)
+      .filter(number => Number.isInteger(number) && number >= 1 && number <= raffle.totalTickets)
+      .sort((a, b) => a - b);
+  }
+
+  function hashJson(value: unknown) {
+    return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  }
+
+  function computeProvablyFairDraw(input: { serverSeed: string; publicSeed: string; raffleId: string; timestamp: string; nonce: number; eligibleNumbers: number[] }) {
+    if (!input.eligibleNumbers.length) throw new Error("Lista elegivel vazia");
+    const base = `${input.serverSeed}:${input.publicSeed}:${input.raffleId}:${input.timestamp}:${input.nonce}`;
+    const digest = createHash("sha256").update(base).digest("hex");
+    const index = Number(BigInt(`0x${digest}`) % BigInt(input.eligibleNumbers.length));
+    const winningNumber = input.eligibleNumbers[index];
+    return {
+      base,
+      random_hash: digest,
+      selected_index: index,
+      winning_number: winningNumber,
+      result_hash: createHash("sha256").update(JSON.stringify({
+        algorithm_version: provablyFairAlgorithmVersion,
+        random_hash: digest,
+        selected_index: index,
+        winning_number: winningNumber,
+        eligible_numbers_hash: hashJson(input.eligibleNumbers)
+      })).digest("hex")
+    };
+  }
+
+  function buildDrawCertificate(audit: RaffleDrawAuditRecord) {
+    const certificate = [
+      "RifaPro/CIFHER - Certificado de Sorteio Auditavel",
+      `raffle_id=${audit.raffle_id}`,
+      `server_seed_hash=${audit.server_seed_hash}`,
+      `server_seed_revealed=${audit.server_seed_revealed || "nao_revelada"}`,
+      `public_seed=${audit.public_seed}`,
+      `nonce=${audit.nonce ?? 0}`,
+      `eligible_numbers_hash=${audit.eligible_numbers_hash}`,
+      `winning_number=${audit.winning_number}`,
+      `algorithm_version=${audit.algorithm_version}`,
+      `result_hash=${audit.result_hash}`,
+      `published_at=${audit.published_at || ""}`
+    ].join("\n");
+    return `data:application/pdf;base64,${Buffer.from(certificate, "utf8").toString("base64")}`;
+  }
+
+  function sanitizeDrawAuditForPublic(audit: RaffleDrawAuditRecord) {
+    const revealed = ["executed", "published"].includes(audit.status || "") && Boolean(audit.server_seed_revealed);
+    const safe: RaffleDrawAuditRecord = {
+      ...audit,
+      server_seed_secret: undefined,
+      server_seed_revealed: revealed ? audit.server_seed_revealed : "",
+      eligible_numbers: undefined,
+      verification_payload: revealed ? audit.verification_payload : {
+        algorithm_version: audit.algorithm_version,
+        status: audit.status,
+        nonce: audit.nonce,
+        eligible_numbers_hash: audit.eligible_numbers_hash
+      }
+    };
+    return safe;
+  }
+
+  function ensureDrawAuditPrepared(req: express.Request, raffle: typeof raffles[number]) {
+    const existing = raffleDrawAudits.find(item => item.tenant_id === raffle.tenant_id && item.raffle_id === raffle.id);
+    if (existing) return existing;
+    if (!tenantHasFeature(raffle.tenant_id, "provably_fair")) throw new Error("Plano atual nao libera sorteio provably fair");
+    const eligibleNumbers = getEligibleDrawNumbers(raffle);
+    if (!eligibleNumbers.length) throw new Error("Nao ha cotas pagas elegiveis para travar");
+    const serverSeed = randomBytes(32).toString("hex");
+    const publicSeed = String((req.body && (req.body.publicSeed || req.body.public_seed)) || `rifapro-public-${raffle.id}-${new Date().toISOString()}`);
+    const now = new Date().toISOString();
+    const record: RaffleDrawAuditRecord = {
+      id: createPublicId("RDA_"),
+      tenant_id: raffle.tenant_id,
+      raffle_id: raffle.id,
+      status: "locked",
+      draw_method: "provably_fair_sha256",
+      public_seed: publicSeed,
+      server_seed_secret: serverSeed,
+      server_seed_hash: createHash("sha256").update(serverSeed).digest("hex"),
+      server_seed_revealed: "",
+      external_reference: req.body?.externalReference || req.body?.external_reference || "",
+      eligible_numbers_hash: hashJson(eligibleNumbers),
+      eligible_numbers: eligibleNumbers,
+      locked_at: now,
+      scheduled_at: String(req.body?.scheduledAt || req.body?.scheduled_at || raffle.drawDate || now),
+      nonce: Number.isInteger(Number(req.body?.nonce)) ? Number(req.body.nonce) : 1,
+      winning_number: "",
+      algorithm_version: provablyFairAlgorithmVersion,
+      result_hash: "",
+      audit_pdf_url: "",
+      created_at: now
+    };
+    raffleDrawAudits.unshift(record);
+    recordAuditLedger(req, {
+      tenant_id: raffle.tenant_id,
+      action: "RAFFLE_DRAW_PARTICIPANTS_LOCKED",
+      resource_type: "raffle_draw_audit",
+      resource_id: record.id,
+      before_data: null,
+      after_data: { ...record, server_seed_secret: undefined, eligible_numbers: undefined },
+      reason: "Participantes elegiveis travados antes do sorteio"
+    });
+    return record;
+  }
+
+  function assertRaffleNotDrawLocked(tenantId: string, raffleId: string) {
+    const audit = raffleDrawAudits.find(item => item.tenant_id === tenantId && item.raffle_id === raffleId && ["locked", "executed", "published"].includes(item.status || ""));
+    if (audit) throw new Error("Cotas bloqueadas: participantes elegiveis ja foram travados para o sorteio auditavel");
+  }
+
+  function executeProvablyFairDraw(req: express.Request, raffle: typeof raffles[number]) {
+    const audit = ensureDrawAuditPrepared(req, raffle);
+    if (audit.status === "published" || audit.status === "executed") return audit;
+    const serverSeed = audit.server_seed_secret;
+    if (!serverSeed) throw new Error("Server seed secreto indisponivel");
+    const eligibleNumbers = audit.eligible_numbers?.length ? audit.eligible_numbers : getEligibleDrawNumbers(raffle);
+    const currentHash = hashJson(eligibleNumbers);
+    if (currentHash !== audit.eligible_numbers_hash) throw new Error("Lista elegivel diverge do hash travado");
+    const executedAt = new Date().toISOString();
+    const result = computeProvablyFairDraw({
+      serverSeed,
+      publicSeed: audit.public_seed,
+      raffleId: raffle.id,
+      timestamp: executedAt,
+      nonce: audit.nonce || 1,
+      eligibleNumbers
+    });
+    audit.status = "executed";
+    audit.server_seed_revealed = serverSeed;
+    audit.winning_number = String(result.winning_number);
+    audit.executed_at = executedAt;
+    audit.result_hash = result.result_hash;
+    audit.verification_payload = {
+      algorithm_version: audit.algorithm_version,
+      raffle_id: raffle.id,
+      public_seed: audit.public_seed,
+      server_seed: serverSeed,
+      server_seed_hash: audit.server_seed_hash,
+      timestamp: executedAt,
+      nonce: audit.nonce || 1,
+      eligible_numbers_hash: audit.eligible_numbers_hash,
+      eligible_numbers: eligibleNumbers,
+      random_hash: result.random_hash,
+      selected_index: result.selected_index,
+      winning_number: result.winning_number,
+      result_hash: result.result_hash
+    };
+    audit.audit_pdf_url = buildDrawCertificate(audit);
+    recordAuditLedger(req, {
+      tenant_id: raffle.tenant_id,
+      action: "RAFFLE_DRAW_PROVABLY_FAIR_EXECUTED",
+      resource_type: "raffle_draw_audit",
+      resource_id: audit.id,
+      before_data: { status: "locked", server_seed_hash: audit.server_seed_hash },
+      after_data: sanitizeDrawAuditForPublic(audit),
+      reason: "Sorteio deterministico executado com seed revelada"
+    });
+    return audit;
+  }
+
   function createRaffleDrawAudit(req: express.Request, raffle: typeof raffles[number], winningNumber: number, method = "manual_admin") {
     const existing = raffleDrawAudits.find(item => item.tenant_id === raffle.tenant_id && item.raffle_id === raffle.id);
     if (existing) return existing;
@@ -9353,29 +9530,80 @@ async function startServer() {
     return record;
   }
 
-  app.post("/api/admin/raffles/:id/draw", (req, res) => {
+  app.post("/api/admin/raffles/:id/draw/prepare", (req, res) => {
     const raffle = raffles.find(r => r.id === req.params.id && adminCanAccessTenant(req, r.tenant_id));
-    const number = Number(req.body.number);
-    if (!raffle || !Number.isInteger(number) || number < 1 || number > raffle.totalTickets) {
+    if (!raffle) {
       res.status(400).json({ error: "Informe sorteio e cota validos" });
       return;
     }
+    try {
+      const audit = ensureDrawAuditPrepared(req, raffle);
+      res.json({ drawAudit: { ...sanitizeDrawAuditForPublic(audit), eligible_count: audit.eligible_numbers?.length || 0 }, message: "Participantes travados e hash publicado." });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Nao foi possivel preparar sorteio" });
+    }
+  });
+
+  app.post("/api/admin/raffles/:id/draw/publish", (req, res) => {
+    const raffle = raffles.find(r => r.id === req.params.id && adminCanAccessTenant(req, r.tenant_id));
+    const audit = raffle ? raffleDrawAudits.find(item => item.tenant_id === raffle.tenant_id && item.raffle_id === raffle.id) : null;
+    if (!raffle || !audit) {
+      res.status(404).json({ error: "Auditoria de sorteio nao encontrada" });
+      return;
+    }
+    if (audit.status !== "executed" && audit.status !== "published") {
+      res.status(409).json({ error: "Execute o sorteio antes de publicar" });
+      return;
+    }
+    audit.status = "published";
+    audit.published_at = audit.published_at || new Date().toISOString();
+    audit.audit_pdf_url = audit.audit_pdf_url || buildDrawCertificate(audit);
+    recordAuditLedger(req, { tenant_id: raffle.tenant_id, action: "RAFFLE_DRAW_RESULT_PUBLISHED", resource_type: "raffle_draw_audit", resource_id: audit.id, before_data: { status: "executed" }, after_data: sanitizeDrawAuditForPublic(audit), reason: "Resultado provably fair publicado" });
+    res.json({ drawAudit: sanitizeDrawAuditForPublic(audit), certificateUrl: audit.audit_pdf_url });
+  });
+
+  app.post("/api/admin/raffles/:id/draw/certificate", (req, res) => {
+    const raffle = raffles.find(r => r.id === req.params.id && adminCanAccessTenant(req, r.tenant_id));
+    const audit = raffle ? raffleDrawAudits.find(item => item.tenant_id === raffle.tenant_id && item.raffle_id === raffle.id) : null;
+    if (!raffle || !audit || !audit.server_seed_revealed) {
+      res.status(404).json({ error: "Certificado indisponivel" });
+      return;
+    }
+    audit.audit_pdf_url = buildDrawCertificate(audit);
+    recordAuditLedger(req, { tenant_id: raffle.tenant_id, action: "RAFFLE_DRAW_CERTIFICATE_GENERATED", resource_type: "raffle_draw_audit", resource_id: audit.id, before_data: null, after_data: { audit_pdf_url: audit.audit_pdf_url }, reason: "Certificado publico gerado" });
+    res.json({ certificateUrl: audit.audit_pdf_url, drawAudit: sanitizeDrawAuditForPublic(audit) });
+  });
+
+  app.post("/api/admin/raffles/:id/draw", (req, res) => {
+    const raffle = raffles.find(r => r.id === req.params.id && adminCanAccessTenant(req, r.tenant_id));
+    if (!raffle) {
+      res.status(400).json({ error: "Informe sorteio e cota validos" });
+      return;
+    }
+    let drawAudit: RaffleDrawAuditRecord;
+    try {
+      drawAudit = executeProvablyFairDraw(req, raffle);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Erro ao realizar sorteio provably fair" });
+      return;
+    }
+    const number = Number(drawAudit.winning_number);
     const purchase = purchases.find(p => p.tenant_id === raffle.tenant_id && p.raffleId === raffle.id && p.numeros.includes(number));
     if (!purchase) {
       res.json({
         status: "available",
         number,
         raffle: sanitizeRaffleForAdmin(raffle),
+        drawAudit: sanitizeDrawAuditForPublic(drawAudit),
         message: "Cota disponivel. Sorteio sem comprador para este numero."
       });
       return;
     }
     recordSecurityEvent({ tenant_id: raffle.tenant_id, action: "DRAW_EXECUTED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "medium", actor: getAuthSession(req)?.email, detail: `${raffle.id}:${number}` });
-    const drawAudit = createRaffleDrawAudit(req, raffle, number);
     res.json({
       status: purchase.status === "paid" ? "winner" : "reserved",
       number,
-      drawAudit,
+      drawAudit: sanitizeDrawAuditForPublic(drawAudit),
       raffle: sanitizeRaffleForAdmin(raffle),
       purchase,
       customer: purchase.customer,
@@ -9388,13 +9616,48 @@ async function startServer() {
     const tenantId = resolveRequestTenantId(req);
     const audit = raffleDrawAudits.find(item => item.tenant_id === tenantId && item.raffle_id === req.params.raffleId);
     if (!audit) return res.status(404).json({ error: "Auditoria de sorteio nao encontrada" });
-    res.json(audit);
+    res.json(sanitizeDrawAuditForPublic(audit));
+  });
+
+  app.post("/api/public/raffles/:raffleId/draw-audit/verify", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const audit = raffleDrawAudits.find(item => item.tenant_id === tenantId && item.raffle_id === req.params.raffleId);
+    if (!audit || !audit.server_seed_revealed || !audit.verification_payload) {
+      res.status(404).json({ error: "Prova publica indisponivel" });
+      return;
+    }
+    const payload = audit.verification_payload as Record<string, unknown>;
+    const eligibleNumbers = Array.isArray(payload.eligible_numbers) ? payload.eligible_numbers.map(Number) : [];
+    const recomputed = computeProvablyFairDraw({
+      serverSeed: String(payload.server_seed || ""),
+      publicSeed: String(payload.public_seed || ""),
+      raffleId: String(payload.raffle_id || audit.raffle_id),
+      timestamp: String(payload.timestamp || audit.executed_at || ""),
+      nonce: Number(payload.nonce || audit.nonce || 1),
+      eligibleNumbers
+    });
+    const seedHashOk = createHash("sha256").update(String(payload.server_seed || "")).digest("hex") === audit.server_seed_hash;
+    const eligibleHashOk = hashJson(eligibleNumbers) === audit.eligible_numbers_hash;
+    const resultOk = String(recomputed.winning_number) === audit.winning_number && recomputed.result_hash === audit.result_hash;
+    res.json({
+      verified: seedHashOk && eligibleHashOk && resultOk,
+      seedHashOk,
+      eligibleHashOk,
+      resultOk,
+      recomputed,
+      expected: {
+        server_seed_hash: audit.server_seed_hash,
+        eligible_numbers_hash: audit.eligible_numbers_hash,
+        winning_number: audit.winning_number,
+        result_hash: audit.result_hash
+      }
+    });
   });
 
   app.get("/api/admin/raffles/:raffleId/draw-audit", (req, res) => {
     const audit = raffleDrawAudits.find(item => item.raffle_id === req.params.raffleId && adminCanAccessTenant(req, item.tenant_id));
     if (!audit) return res.status(404).json({ error: "Auditoria de sorteio nao encontrada" });
-    res.json(audit);
+    res.json({ ...audit, server_seed_secret: audit.status === "locked" ? undefined : audit.server_seed_secret });
   });
 
   app.post("/api/admin/tickets/assign", (req, res) => {
@@ -9403,6 +9666,12 @@ async function startServer() {
     const customer = Object.values(customersByPhone).find(c => c.id === req.body.customerId && raffle && c.tenant_id === raffle.tenant_id);
     if (!raffle || !Number.isInteger(number) || number < 1 || number > raffle.totalTickets || !customer) {
       res.status(400).json({ error: "Rifa, cota ou cliente invalido" });
+      return;
+    }
+    try {
+      assertRaffleNotDrawLocked(raffle.tenant_id, raffle.id);
+    } catch (error) {
+      res.status(409).json({ error: error instanceof Error ? error.message : "Cotas bloqueadas apos lock do sorteio" });
       return;
     }
 

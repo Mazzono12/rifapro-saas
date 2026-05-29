@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import confetti from "canvas-confetti";
-import { Flame, Rocket, Search, Sparkles, Trophy } from "lucide-react";
+import { Download, Flame, Lock, Rocket, Search, ShieldCheck, Sparkles, Trophy } from "lucide-react";
 import type { Raffle } from "../../types";
 import { cn } from "../../lib/utils";
 import { toast } from "sonner";
@@ -11,6 +11,8 @@ export function AdminLiveDraw() {
   const [raffleDraft, setRaffleDraft] = useState({ soldTickets: "", totalTickets: "", drawDate: "" });
   const [result, setResult] = useState<any | null>(null);
   const [drawing, setDrawing] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [savingRaffle, setSavingRaffle] = useState(false);
 
   useEffect(() => {
@@ -49,8 +51,8 @@ export function AdminLiveDraw() {
   };
 
   const runDraw = async () => {
-    if (!form.raffleId || !form.number) {
-      toast.error("Informe o sorteio e a cota");
+    if (!form.raffleId) {
+      toast.error("Informe o sorteio");
       return;
     }
     setDrawing(true);
@@ -58,7 +60,7 @@ export function AdminLiveDraw() {
       const res = await fetch(`/api/admin/raffles/${form.raffleId}/draw`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ number: Number(form.number) }),
+        body: JSON.stringify({ publicSeed: `rifapro-public-${form.raffleId}-${new Date().toISOString()}` }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao realizar sorteio");
@@ -74,6 +76,51 @@ export function AdminLiveDraw() {
     } finally {
       setDrawing(false);
     }
+  };
+
+  const prepareDraw = async () => {
+    if (!form.raffleId) return;
+    setPreparing(true);
+    try {
+      const res = await fetch(`/api/admin/raffles/${form.raffleId}/draw/prepare`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicSeed: `rifapro-public-${form.raffleId}-${new Date().toISOString()}` }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao preparar sorteio");
+      setResult(data);
+      toast.success("Participantes travados e hash publicado");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao preparar sorteio");
+    } finally {
+      setPreparing(false);
+    }
+  };
+
+  const publishDraw = async () => {
+    if (!form.raffleId) return;
+    setPublishing(true);
+    try {
+      const res = await fetch(`/api/admin/raffles/${form.raffleId}/draw/publish`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao publicar resultado");
+      setResult((current: any) => ({ ...(current || {}), drawAudit: data.drawAudit }));
+      toast.success("Resultado publicado com certificado");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao publicar resultado");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const downloadCertificate = () => {
+    const url = result?.drawAudit?.audit_pdf_url;
+    if (!url) return;
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `certificado-sorteio-${form.raffleId}.pdf`;
+    link.click();
   };
 
   const saveRaffleDetails = async () => {
@@ -127,17 +174,22 @@ export function AdminLiveDraw() {
             <Sparkles className="h-4 w-4" /> Tema Sorteio
           </p>
           <h1 className="mt-5 font-sans text-5xl font-black uppercase tracking-[0.14em] text-white md:text-7xl">Número da SORTE</h1>
-          <p className="mt-3 text-slate-300">Tela preparada para sorteio ao vivo com busca por ID do sorteio e cota.</p>
+          <p className="mt-3 text-slate-300">Sorteio provably fair com lock de participantes, seed secreta, hash publico e certificado auditavel.</p>
         </div>
 
         <section className="glass-card p-5 md:p-6">
-          <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_auto]">
+          <div className="grid gap-3 md:grid-cols-[1.4fr_auto_auto_auto]">
             <select value={form.raffleId} onChange={e => setForm({ ...form, raffleId: e.target.value })} className="p-4">
               {raffles.map(item => <option key={item.id} value={item.id}>{item.id} • {item.title}</option>)}
             </select>
-            <input value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} placeholder="Número da cota" className="p-4 text-center font-display text-2xl font-black" />
+            <button onClick={prepareDraw} disabled={preparing} className="rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-6 py-4 font-bold text-cyan-100 disabled:opacity-50">
+              <Lock className="mr-2 inline h-5 w-5" /> {preparing ? "Travando..." : "Preparar"}
+            </button>
             <button onClick={runDraw} disabled={drawing} className="neon-button rounded-xl px-8 py-4 disabled:opacity-50">
-              <Search className="mr-2 inline h-5 w-5" /> {drawing ? "Apurando..." : "Sortear"}
+              <Search className="mr-2 inline h-5 w-5" /> {drawing ? "Apurando..." : "Executar"}
+            </button>
+            <button onClick={publishDraw} disabled={publishing || !result?.drawAudit?.server_seed_revealed} className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-6 py-4 font-bold text-emerald-100 disabled:opacity-50">
+              <ShieldCheck className="mr-2 inline h-5 w-5" /> {publishing ? "Publicando..." : "Publicar"}
             </button>
           </div>
           {raffle && (
@@ -173,6 +225,23 @@ export function AdminLiveDraw() {
 
         {result && (
           <section className={cn("glass-card overflow-hidden p-6 text-center md:p-10", winner ? "border-amber-300/30 bg-amber-300/10" : "border-cyan-300/20 bg-cyan-300/5")}>
+            {result.drawAudit && (
+              <div className="mb-6 rounded-2xl border border-white/10 bg-black/25 p-4 text-left">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Info label="Status provably fair" value={result.drawAudit.status || "locked"} />
+                  <Info label="Hash da seed" value={result.drawAudit.server_seed_hash} />
+                  <Info label="Hash cotas elegiveis" value={result.drawAudit.eligible_numbers_hash} />
+                  <Info label="Algoritmo" value={result.drawAudit.algorithm_version} />
+                  <Info label="Seed revelada" value={result.drawAudit.server_seed_revealed || "Nao revelada antes da execucao"} />
+                  <Info label="Hash resultado" value={result.drawAudit.result_hash || "Aguardando execucao"} />
+                </div>
+                {result.drawAudit.audit_pdf_url && (
+                  <button onClick={downloadCertificate} className="mt-4 rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-bold text-white hover:bg-white/[0.1]">
+                    <Download className="mr-2 inline h-4 w-4" /> Baixar certificado
+                  </button>
+                )}
+              </div>
+            )}
             {winner ? (
               <>
                 <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-amber-300 text-black shadow-[0_0_80px_rgba(250,204,21,0.75)]">

@@ -4,7 +4,7 @@ const mode = process.argv[2] || "all";
 const read = path => readFileSync(path, "utf8");
 const server = read("server.ts");
 const app = read("src/App.tsx");
-const migration = read("supabase/migrations/24_compliance_audit_ticket_ledger.sql");
+const migration = `${read("supabase/migrations/24_compliance_audit_ticket_ledger.sql")}\n${read("supabase/migrations/29_provably_fair_complete.sql")}`;
 const adminLayout = read("src/pages/admin/AdminLayout.tsx");
 const adminCompliance = read("src/pages/admin/AdminComplianceCenter.tsx");
 const drawAudit = read("src/pages/DrawAudit.tsx");
@@ -39,10 +39,10 @@ function financialLedger() {
 }
 
 function provablyFairDraw() {
-  includesAll(migration, ["raffle_draw_audit", "server_seed_hash", "eligible_numbers_hash", "result_hash"], "migration draw audit");
-  includesAll(server, ["createRaffleDrawAudit", "server_seed_revealed", "rifapro-provably-fair-v1", "/api/public/raffles/:raffleId/draw-audit"], "backend draw audit");
+  includesAll(migration, ["raffle_draw_audit", "server_seed_hash", "eligible_numbers_hash", "result_hash", "server_seed_secret", "eligible_numbers", "verification_payload", "published_at"], "migration draw audit");
+  includesAll(server, ["computeProvablyFairDraw", "ensureDrawAuditPrepared", "executeProvablyFairDraw", "server_seed_revealed", "rifapro-provably-fair-v2-sha256-mod", "/api/public/raffles/:raffleId/draw-audit", "/api/public/raffles/:raffleId/draw-audit/verify", "/api/admin/raffles/:id/draw/prepare", "/api/admin/raffles/:id/draw/publish", "assertRaffleNotDrawLocked"], "backend draw audit");
   includesAll(app, ["/sorteio/:raffleId/auditoria", "DrawAudit"], "rota publica draw audit");
-  includesAll(drawAudit, ["Seed publica", "Hash cotas elegiveis", "Hash final do resultado", "Base de verificacao"], "pagina draw audit");
+  includesAll(drawAudit, ["Seed publica", "Hash cotas elegiveis", "Hash final do resultado", "Base de verificacao", "Verificar resultado", "Exportar certificado", "crypto.subtle.digest"], "pagina draw audit");
 }
 
 function complianceLgpd() {
