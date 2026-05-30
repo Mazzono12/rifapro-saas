@@ -59,6 +59,7 @@ type Props = {
   walletUsage?: CheckoutPreview["walletUsage"];
   gatewayInfo?: string;
   preview?: CheckoutPreview | null;
+  hideMedia?: boolean;
   loading?: boolean;
   onConfirm: () => void;
   onEdit: () => void;
@@ -83,6 +84,7 @@ export function PrePaymentReceiptModal({
   walletUsage,
   gatewayInfo,
   preview,
+  hideMedia = false,
   loading,
   onConfirm,
   onEdit,
@@ -120,17 +122,19 @@ export function PrePaymentReceiptModal({
         </header>
 
         <div className="checkout-receipt-body space-y-4 p-3 sm:p-5">
-          <CheckoutCampaignMedia
-            campaign={campaign || raffle}
-            raffle={raffleData}
-            mediaUrl={mediaUrl}
-            mediaType={mediaType}
-            fallbackTitle={campaign || raffle}
-            compact
-            showStatus
-            showPrice
-            priceLabel={`${quantity.toLocaleString("pt-BR")} cotas - ${currency.format(total)}`}
-          />
+          {!hideMedia && (
+            <CheckoutCampaignMedia
+              campaign={campaign || raffle}
+              raffle={raffleData}
+              mediaUrl={mediaUrl}
+              mediaType={mediaType}
+              fallbackTitle={campaign || raffle}
+              compact
+              showStatus
+              showPrice
+              priceLabel={`${quantity.toLocaleString("pt-BR")} cotas - ${currency.format(total)}`}
+            />
+          )}
 
           <CheckoutReceiptSummary
             campaign={campaign}

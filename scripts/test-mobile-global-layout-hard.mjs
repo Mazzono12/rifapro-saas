@@ -54,10 +54,12 @@ assert(css.includes("overflow-wrap: normal !important"), "checkout/mobile deve n
 includesAll(home, ["PremiumPageLayout", "safeProgress", "FazendinhaSection", "ModalidadesSection"], "Home mobile");
 includesAll(raffle, ["checkout-modal-overlay", "CheckoutCampaignMedia", "PrePaymentReceiptModal", "FloatingActions"], "RaffleDetails mobile checkout");
 includesAll(numberMode, ["CheckoutCampaignMedia", "PrePaymentReceiptModal", "FloatingCTA", "ranking.length === 0"], "NumberModePage mobile");
-includesAll(fazendinha, ["PremiumCheckoutModal", "PrePaymentReceiptModal", "FloatingCTA", "config.mediaUrl"], "Fazendinha page mobile");
-includesAll(fazendinhaSection, ["FazendinhaAnimalPickerBanner", "h-dvh overflow-y-auto", "PrePaymentReceiptModal", "CheckoutCampaignMedia"], "FazendinhaSection mobile");
+includesAll(fazendinha, ["PremiumCheckoutModal", "PrePaymentReceiptModal", "FloatingCTA", "config.mediaUrl", "hideMedia"], "Fazendinha page mobile");
+assert(!fazendinha.includes("CheckoutCampaignMedia"), "Fazendinha page mobile nao deve mostrar midia no checkout");
+includesAll(fazendinhaSection, ["FazendinhaAnimalPickerBanner", "h-dvh overflow-y-auto", "PrePaymentReceiptModal", "hideMedia"], "FazendinhaSection mobile");
+assert(!fazendinhaSection.includes("CheckoutCampaignMedia"), "FazendinhaSection mobile nao deve mostrar midia no checkout");
 includesAll(checkoutMedia, ["ResponsiveMediaFrame", "max-h-[44svh]", "checkout-campaign-media"], "checkout media mobile");
-includesAll(receipt, ["checkout-receipt-overlay", "max-h-[100dvh]", "CheckoutCampaignMedia"], "recibo pre-PIX mobile");
+includesAll(receipt, ["checkout-receipt-overlay", "max-h-[100dvh]", "hideMedia", "CheckoutCampaignMedia"], "recibo pre-PIX mobile");
 includesAll(adminLayout, ["mobileOpen", "w-[min(88vw,288px)]", "overflow-y-auto"], "admin mobile");
 includesAll(superadminLayout, ["sticky top-0", "overflow-y-auto", "sm:"], "superadmin mobile");
 includesAll(dashboard, ["overflow", "customer", "tickets"], "area cliente mobile");

@@ -11,6 +11,7 @@ function includesAll(source, tokens, label) {
 
 const home = read("src/pages/Home.tsx");
 const section = read("src/components/FazendinhaSection.tsx");
+const fazendinhaPage = read("src/pages/Fazendinha.tsx");
 const block = read("src/components/FazendinhaHomeMediaBlock.tsx");
 const wrapper = read("src/components/FazendinhaAnimalPickerBanner.tsx");
 const admin = read("src/pages/admin/AdminFazendinha.tsx");
@@ -31,6 +32,13 @@ includesAll(section, [
 ], "banner na area de bichos");
 assert(section.indexOf("<FazendinhaAnimalPickerBanner") < section.indexOf("boardGroupIds.map"), "banner deve ficar acima da grade/lista de bichos");
 assert(section.indexOf("boardGroupIds.map") < section.indexOf("Cotas escolhidas"), "grade/lista de bichos deve vir antes da area escolher/desfazer");
+assert(!section.includes("CheckoutCampaignMedia"), "checkout da Fazendinha na Home nao deve renderizar midia/banner");
+assert(!section.includes("<DynamicMedia"), "checkout da Fazendinha na Home nao deve renderizar banner dinamico antes de Cliente identificado");
+assert(section.includes("hideMedia"), "recibo pre-PIX da Fazendinha na Home deve ocultar midia/banner");
+
+assert(!fazendinhaPage.includes("CheckoutCampaignMedia"), "pagina Fazendinha nao deve renderizar midia/banner no checkout");
+assert(!fazendinhaPage.includes("<DynamicMedia"), "pagina Fazendinha nao deve renderizar banner dinamico no checkout");
+assert(fazendinhaPage.includes("hideMedia"), "recibo pre-PIX da pagina Fazendinha deve ocultar midia/banner");
 
 includesAll(wrapper, [
   "FazendinhaAnimalPickerBanner",

@@ -11,12 +11,9 @@ import { useCustomerStore } from "../store/useCustomerStore";
 import { cn } from "../lib/utils";
 import { FAZENDINHA_ANIMAL_MARKS, FAZENDINHA_GROUP_ORDER } from "../lib/fazendinha";
 import type { FazendinhaGroup, FazendinhaPurchase, Raffle } from "../types";
-import { DynamicMedia } from "./DynamicMedia";
-import { ResponsiveMediaFrame } from "./ResponsiveMediaFrame";
 import { PostPurchaseLootboxModal } from "./PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "./PixPaymentResultModal";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "./checkout/PrePaymentReceiptModal";
-import { CheckoutCampaignMedia } from "./checkout/CheckoutCampaignMedia";
 import { CheckoutPrimaryButton } from "./premium/PremiumUI";
 import { FazendinhaAnimalPickerBanner } from "./FazendinhaAnimalPickerBanner";
 import { useCityDetection } from "../hooks/useCityDetection";
@@ -108,13 +105,6 @@ export function FazendinhaSection() {
   const configDescription = String(config.description || "Escolha seus bichinhos e participe da modalidade especial.");
   const configMainPrize = String(config.mainPrize || (config as any).prize || "Premio principal");
   const configPricePerGroup = safeNumber(config.pricePerGroup);
-  const fazendinhaMedia = {
-    title: configName,
-    subtitle: (config as any).prize || configMainPrize,
-    image: config.mediaUrl || "",
-    mediaUrl: config.mediaUrl || "",
-    mediaType: config.mediaType as any
-  };
   const hasSavedCustomer = Boolean(customer?.name && customer.phone && customer.cpf);
   const canUseSavedCustomer = hasSavedCustomer && !requireIdentity;
   const isReturningCustomerVerification = hasSavedCustomer && requireIdentity && customerMode === "existing";
@@ -425,34 +415,12 @@ export function FazendinhaSection() {
           <motion.div className="fixed inset-0 z-[70] overflow-hidden bg-black/70 backdrop-blur-xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 10, opacity: 0 }} className="h-dvh overflow-y-auto overscroll-contain px-2 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-4 md:pt-[calc(env(safe-area-inset-top)+2.5rem)]">
             <div className="checkout-screen glass-card mx-auto w-full max-w-2xl p-4 sm:p-5">
-              <CheckoutCampaignMedia
-                modality={fazendinhaMedia}
-                compact
-                showStatus
-                showPrice
-                statusLabel={pendingPix ? "Aguardando pagamento" : "Checkout seguro"}
-                priceLabel={`${selectedNumbers.length} cotas - ${formatCurrency(totalValue || pendingPix?.purchase.valorPago || 0)}`}
-                className="mb-5"
-              />
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-mono uppercase tracking-widest text-slate-500">Participar da Fazendinha</p>
                   <h2 className="font-display text-3xl font-black text-white">{selectedGroups.length} grupo(s)</h2>
                 </div>
                 <button onClick={() => setCheckoutOpen(false)} className="rounded-full border border-white/10 p-2 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
-              </div>
-
-              <div className="mt-5 aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-                <DynamicMedia
-                  mediaUrl={config.mediaUrl || "/fazendinha-animais-premium.png"}
-                  mediaType={config.mediaType || "image"}
-                  autoPlay={false}
-                  muted={true}
-                  interactive={true}
-                  mediaFit="cover"
-                  className="h-full w-full"
-                  fallback={<ResponsiveMediaFrame src="/fazendinha-animais-premium.png" type="image" alt={configName} preferredFit="auto" aspectMode="auto" className="w-full rounded-none" />}
-                />
               </div>
 
               {canUseSavedCustomer ? (
@@ -634,7 +602,7 @@ export function FazendinhaSection() {
         open={receiptOpen}
         campaign={configName}
         raffle={configName}
-        raffleData={fazendinhaMedia}
+        hideMedia
         selectedQuantity={selectedNumbers.length}
         selectedPackage={`${selectedGroups.length} grupo(s)`}
         calculatedPrice={totalValue}

@@ -73,6 +73,9 @@ includesAll(section, [
   "boardGroupIds.map"
 ], "FazendinhaSection posiciona banner acima dos bichos");
 assert(section.indexOf("<FazendinhaAnimalPickerBanner") < section.indexOf("boardGroupIds.map"), "banner deve vir antes da grade de bichos");
+assert(!section.includes("CheckoutCampaignMedia"), "checkout da Fazendinha nao deve renderizar midia/banner");
+assert(!section.includes("<DynamicMedia"), "checkout da Fazendinha nao deve renderizar midia/banner dinamico");
+assert(section.includes("hideMedia"), "recibo pre-PIX da Fazendinha deve ocultar midia/banner");
 
 includesAll(pickerBanner, [
   "FazendinhaAnimalPickerBanner",
