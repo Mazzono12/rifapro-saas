@@ -34,6 +34,7 @@
     "test:multitenant-hard": "node scripts/test-hard-suite.mjs multitenant-hard",
     "test:webhooks-hard": "node scripts/test-hard-suite.mjs webhooks-hard",
     "test:frontend-hard": "node scripts/test-hard-suite.mjs frontend-hard",
+    "test:public-home-render-hard": "node scripts/test-public-home-render-hard.mjs",
     "test:ui-contrast-hard": "node scripts/test-ui-contrast-hard.mjs",
     "test:hover-contrast-hard": "node scripts/test-hover-contrast-hard.mjs",
     "test:checkout-layout-hard": "node scripts/test-checkout-layout-hard.mjs",

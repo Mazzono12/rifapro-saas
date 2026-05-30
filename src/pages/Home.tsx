@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import { Zap, Activity, Terminal, ChevronRight, PlayCircle } from "lucide-react";
 import { StoriesSection } from "../components/StoriesSection";
 import { WinnersGallery } from "../components/WinnersGallery";
-import { normalizeMessageVideoConfig } from "../components/MessageVideoPlayer";
 import { CampaignMediaHero } from "../components/CampaignMediaHero";
+import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
 import { FazendinhaSection } from "../components/FazendinhaSection";
 import { ModalidadesSection } from "../components/ModalidadesSection";
 import { useRaffles, useGlobalSettings } from "../hooks/useRaffles";
@@ -136,47 +136,6 @@ function HomeContent() {
   const activeRaffles = raffles.filter(raffle => raffle.status === "active");
   const featuredRaffle = activeRaffles[0];
   const secondaryRaffles = activeRaffles.slice(1);
-  const featuredVideoConfig = normalizeMessageVideoConfig(featuredRaffle?.videoConfig || settings.mainVideoPlayer);
-  const [heroCinemaMode, setHeroCinemaModeState] = useState(false);
-  const setHeroCinemaMode = useCallback((active: boolean) => {
-    const nextActive = Boolean(active && featuredVideoConfig.focusModeEnabled);
-    setHeroCinemaModeState(nextActive);
-    window.dispatchEvent(new CustomEvent("rifapro:hero-video-cinema", {
-      detail: { active: nextActive && featuredVideoConfig.hideHeaderOnPlay }
-    }));
-  }, [featuredVideoConfig.focusModeEnabled, featuredVideoConfig.hideHeaderOnPlay]);
-
-  useEffect(() => {
-    if (!featuredRaffle || !featuredVideoConfig.focusModeEnabled) return;
-    let topTimer: number | undefined;
-    const clearTopTimer = () => {
-      window.clearTimeout(topTimer);
-      topTimer = undefined;
-    };
-    const onScroll = () => {
-      clearTopTimer();
-      if (window.scrollY > 24) {
-        setHeroCinemaMode(false);
-        return;
-      }
-      if (featuredVideoConfig.autoplay && featuredVideoConfig.autoFocusOnAutoplay) {
-        topTimer = window.setTimeout(() => setHeroCinemaMode(true), featuredVideoConfig.refocusOnTopDelaySeconds * 1000);
-      }
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      clearTopTimer();
-      setHeroCinemaMode(false);
-    };
-  }, [
-    featuredRaffle?.id,
-    featuredVideoConfig.autoFocusOnAutoplay,
-    featuredVideoConfig.autoplay,
-    featuredVideoConfig.focusModeEnabled,
-    featuredVideoConfig.refocusOnTopDelaySeconds,
-    setHeroCinemaMode
-  ]);
 
   const loading = loadingRaffles || loadingSettings;
 
@@ -279,110 +238,39 @@ function HomeContent() {
   };
 
   const featuredProgress = safeProgress(featuredRaffle);
-  const heroPlacement = featuredRaffle?.heroContentPlacement || "below";
-  const heroEyebrow = featuredRaffle?.heroEyebrow || "Plataforma de rifas premium";
-  const heroTitle = featuredRaffle?.heroTitle || "Sorteios com experiência cinematográfica.";
-  const heroSubtitle = featuredRaffle?.heroSubtitle || (featuredRaffle ? `Participe de ${featuredRaffle.title}. Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.` : "");
-  const heroPrimaryButton = featuredRaffle?.heroPrimaryButton || "Participar agora";
-  const heroSecondaryText = featuredRaffle?.heroSecondaryText || "";
-  const heroShowStats = featuredRaffle?.heroShowStats !== false;
-  const heroTextTone = "text-white";
-  const heroMutedTone = "text-slate-200";
-  const heroStatsClass = heroPlacement === "below"
-    ? "border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]"
-    : "border-white/18 bg-black/34 text-white";
-  const heroContent = featuredRaffle ? (
-    <div className={heroPlacement === "below" ? "mx-auto max-w-7xl px-4 py-10 md:py-14" : "relative z-10 mx-auto flex min-h-[calc(100svh-4rem)] max-w-7xl items-end px-4 pb-14 pt-24 md:items-center md:pb-24"}>
-      <div className="max-w-3xl">
-        {heroEyebrow && (
-          <div className={cn("mb-6 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.24em] backdrop-blur-2xl", heroPlacement === "below" ? "border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-muted)]" : "border-white/20 bg-white/10 text-white")}>
-            <Zap className="h-3.5 w-3.5 fill-[var(--theme-primary)] text-[var(--theme-primary)]" />
-            {heroEyebrow}
-          </div>
-        )}
-
-        <h1 className={cn("mb-6 max-w-4xl text-5xl font-black leading-[0.92] md:text-7xl xl:text-8xl", heroTextTone)}>
-          {heroTitle}
-        </h1>
-
-        {heroSubtitle && (
-          <p className={cn("mb-8 max-w-2xl text-lg leading-relaxed md:text-2xl", heroMutedTone)}>
-            {heroSubtitle}
-          </p>
-        )}
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Link to={`/raffle/${featuredRaffle.id}`} className="premium-button px-8 py-4 text-sm">
-            {heroPrimaryButton} <ChevronRight className="h-4 w-4" />
-          </Link>
-          {heroShowStats && (
-            <div className={cn("inline-flex items-center gap-4 rounded-full border px-6 py-4 text-xs font-bold backdrop-blur-2xl", heroStatsClass)}>
-              <PlayCircle className="h-5 w-5 text-[var(--theme-primary)]" />
-              <span>{featuredRaffle.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/cota</span>
-              <span className="h-5 w-px bg-current opacity-20" />
-              <span>{featuredProgress.toFixed(1)}% vendido</span>
-            </div>
-          )}
-        </div>
-        {heroSecondaryText && (
-          <p className={cn("mt-5 text-sm font-semibold", heroMutedTone)}>{heroSecondaryText}</p>
-        )}
-        <div className="mt-5">
-          <TrustBadges />
-        </div>
-      </div>
-    </div>
-  ) : null;
 
   return (
     <PremiumPageLayout className="w-full relative pb-40">
-      {!heroCinemaMode && renderStories('top')}
-      {!heroCinemaMode && renderStories('floating-left')}
-      {!heroCinemaMode && renderStories('floating-right')}
+      {renderStories('top')}
+      {renderStories('floating-left')}
+      {renderStories('floating-right')}
 
       <div className="w-full max-w-7xl mx-auto px-4 pb-8 pt-0 space-y-16">
         {/* 1. Featured Prize (Top) */}
         {featuredRaffle && (
-          <section
-            onWheel={event => {
-              if (!heroCinemaMode) return;
-              setHeroCinemaMode(false);
-              if (event.deltaY > 0) {
-                document.documentElement.scrollTop += event.deltaY;
-                document.body.scrollTop += event.deltaY;
-              }
-            }}
-            className={cn(
-            "relative left-1/2 w-screen -translate-x-1/2 overflow-hidden",
-            heroPlacement === "below" ? "bg-[var(--theme-bg)]" : "min-h-[calc(100svh-4rem)] bg-black",
-            heroCinemaMode && "min-h-[100svh]"
-          )}>
-            <div className={cn(
-              "relative overflow-hidden bg-black transition-all duration-300",
-              heroPlacement === "below" ? "min-h-[62svh]" : "absolute inset-0",
-              heroCinemaMode && "absolute inset-0 z-[45] min-h-[100svh]"
-            )}>
-              <CampaignMediaHero
+          <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[var(--theme-bg)] px-4">
+            <div className="mx-auto max-w-7xl">
+              <StandardRaffleMediaBlock
                 mediaUrl={featuredRaffle.mediaUrl || featuredRaffle.image}
                 mediaType={(featuredRaffle.mediaType || "image") as any}
-                mediaFit={featuredRaffle.mediaFit === "fill" ? "fill" : "cover"}
                 title={featuredRaffle.title}
-                overlay={false}
+                description={featuredRaffle.description}
+                price={featuredRaffle.price}
+                showDescriptionBelow
+                noOverlay
+                href={`/raffle/${featuredRaffle.id}`}
+                ctaLabel={featuredRaffle.heroPrimaryButton || "Participar agora"}
+                progress={featuredProgress}
+                soldTickets={featuredRaffle.soldTickets}
+                totalTickets={featuredRaffle.totalTickets}
                 priority
-                className="absolute inset-0 h-full w-full"
+                className="rounded-none border-x-0 sm:rounded-[1.25rem] sm:border-x"
               />
-              {!heroCinemaMode && (
-                <>
-                  <div className={cn("pointer-events-none absolute inset-0", heroPlacement === "below" ? "bg-gradient-to-t from-[var(--theme-bg)]/40 via-transparent to-transparent" : "bg-[linear-gradient(90deg,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.44)_44%,rgba(0,0,0,0.14)_100%)]")} />
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-[var(--theme-bg)] via-[var(--theme-bg)]/70 to-transparent" />
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(0,173,239,0.24),transparent_30%)]" />
-                </>
-              )}
+              <div className="mt-5">
+                <TrustBadges />
+              </div>
             </div>
-            {(heroPlacement === "below" || !heroCinemaMode || !featuredVideoConfig.hideHeroInfoOnPlay) && heroContent}
-
-            {!heroCinemaMode && <div className="absolute bottom-4 left-1/2 z-10 h-1.5 w-20 -translate-x-1/2 rounded-full bg-white/45" />}
-        </section>
+          </section>
       )}
 
       <ModalidadesSection />
@@ -495,7 +383,7 @@ function HomeContent() {
       </section>
     </div>
 
-    {!heroCinemaMode && renderStories('bottom')}
+    {renderStories('bottom')}
     </PremiumPageLayout>
   );
 }

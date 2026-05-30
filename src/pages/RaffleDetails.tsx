@@ -33,7 +33,7 @@ import { usePurchasePolling } from "../hooks/usePurchasePolling";
 import { NumberRevealModal } from "../components/NumberRevealModal";
 import { PostPurchaseLootboxModal } from "../components/PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "../components/PixPaymentResultModal";
-import { CampaignMediaHero } from "../components/CampaignMediaHero";
+import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
 import { GamificationPanel } from "../components/GamificationPanel";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 import { CheckoutCampaignMedia } from "../components/checkout/CheckoutCampaignMedia";
@@ -548,37 +548,25 @@ function PremiumRaffleHeader({ cartCount, slogan }: { cartCount: number; slogan?
   );
 }
 
-function HeroCard({ raffle, mediaUrl, mediaType, mediaFit, progress }: { raffle: Raffle; mediaUrl: string; mediaType?: any; mediaFit: "cover" | "contain" | "fill"; progress: number }) {
+function HeroCard({ raffle, mediaUrl, mediaType, mediaFit: _mediaFit, progress }: { raffle: Raffle; mediaUrl: string; mediaType?: any; mediaFit: "cover" | "contain" | "fill"; progress: number }) {
   return (
-    <motion.article initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.045] shadow-[0_34px_120px_rgba(0,0,0,0.45)]">
-      <CampaignMediaHero
+    <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+      <StandardRaffleMediaBlock
         mediaUrl={mediaUrl}
         mediaType={(mediaType || "image") as any}
-        mediaFit={mediaFit === "fill" ? "fill" : "cover"}
         title={raffle.title}
-        subtitle={(raffle as any).subtitle || "Premio principal"}
+        description={raffle.description || (raffle as any).subtitle || "Premio principal"}
+        price={raffle.price}
+        showDescriptionBelow
+        noOverlay
+        progress={progress}
+        soldTickets={raffle.soldTickets}
+        totalTickets={raffle.totalTickets}
+        href={`/raffle/${raffle.id}`}
         priority
-        className="relative aspect-[4/5] bg-slate-950 sm:aspect-[16/9]"
-      >
-        <div className="absolute left-4 right-4 top-4 flex items-center justify-between">
-          <span className="rounded-full border border-amber-200/30 bg-amber-200/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-amber-100">Premium</span>
-          <span className="rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[var(--theme-text)]">Em andamento</span>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 p-5">
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-[var(--theme-primary)]">{(raffle as any).subtitle || "Premio principal"}</p>
-          <h1 className="max-w-2xl text-3xl font-black leading-[0.95] tracking-tight text-white sm:text-5xl">{raffle.title}</h1>
-          <div className="mt-5 rounded-2xl border border-white/10 bg-black/35 p-3 backdrop-blur-xl">
-            <div className="mb-2 flex items-center justify-between text-xs text-slate-300">
-              <span>{raffle.soldTickets.toLocaleString("pt-BR")} vendidos</span>
-              <span>{progress.toFixed(0)}%</span>
-            </div>
-            <div className="h-3 overflow-hidden rounded-full bg-white/10">
-              <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} className="h-full rounded-full premium-cta-bg" />
-            </div>
-          </div>
-        </div>
-      </CampaignMediaHero>
-    </motion.article>
+        className="border-white/10 bg-white/[0.045] shadow-[0_34px_120px_rgba(0,0,0,0.45)]"
+      />
+    </motion.div>
   );
 }
 

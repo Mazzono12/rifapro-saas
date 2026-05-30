@@ -18,6 +18,7 @@ interface CampaignMediaHeroProps {
   mediaFit?: "cover" | "contain" | "fill";
   className?: string;
   mediaClassName?: string;
+  noOverlay?: boolean;
   children?: ReactNode;
 }
 
@@ -32,6 +33,7 @@ export function CampaignMediaHero({
   mediaFit = "cover",
   className,
   mediaClassName,
+  noOverlay = false,
   children
 }: CampaignMediaHeroProps) {
   const [loaded, setLoaded] = useState(false);
@@ -93,7 +95,7 @@ export function CampaignMediaHero({
         </div>
       )}
 
-      {overlay && (
+      {overlay && !noOverlay && (
         <>
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08)_0%,rgba(0,0,0,0.32)_48%,rgba(0,0,0,0.88)_100%)]" />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(0,214,107,0.22),transparent_34%)]" />
@@ -102,7 +104,7 @@ export function CampaignMediaHero({
 
       {children ? (
         <div className="absolute inset-0 z-10">{children}</div>
-      ) : (title || subtitle) && (
+      ) : overlay && !noOverlay && (title || subtitle) && (
         <div className="absolute inset-x-0 bottom-0 z-10 p-4 sm:p-6">
           <div className="max-w-3xl">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-black/40 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100 backdrop-blur-xl">

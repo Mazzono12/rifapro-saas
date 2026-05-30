@@ -68,8 +68,8 @@ includesAll(raffle, [
 includesAll(numberMode, [
   "import { CheckoutCampaignMedia }",
   "modalityMedia",
-  "data.config.mediaUrl",
-  "data.config.mediaType",
+  "config.mediaUrl",
+  "config.mediaType",
   "<CheckoutCampaignMedia",
   "Aguardando pagamento",
   "raffleData={modalityMedia}"
@@ -89,8 +89,8 @@ includesAll(fazendinha, [
 includesAll(fazendinhaSection, [
   "import { CheckoutCampaignMedia }",
   "fazendinhaMedia",
-  "data.config.mediaUrl",
-  "data.config.mediaType",
+  "config.mediaUrl",
+  "config.mediaType",
   "<CheckoutCampaignMedia",
   "Aguardando pagamento",
   "raffleData={fazendinhaMedia}"
