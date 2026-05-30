@@ -3285,6 +3285,15 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   max-height: min(58svh, 520px);
 }
 
+.fazendinha-checkout-media {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.fazendinha-checkout-media .responsive-media-frame {
+  max-height: min(38svh, 360px);
+}
+
 @media (max-width: 640px) {
   html,
   body,
@@ -3357,6 +3366,10 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
 
   .fazendinha-animal-picker-banner .responsive-media-frame {
     max-height: 48svh;
+  }
+
+  .fazendinha-checkout-media .responsive-media-frame {
+    max-height: 32svh;
   }
 
   .checkout-modal-overlay,

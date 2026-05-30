@@ -336,7 +336,17 @@ export interface FazendinhaHomeMediaSettings {
   description: string;
   fitMode: 'auto' | 'contain' | 'cover';
   alt: string;
+  altText?: string;
   position: 'above-fazendinha';
+}
+
+export type FazendinhaMediaSlotSettings = Omit<FazendinhaHomeMediaSettings, 'position'> & {
+  position?: 'above-fazendinha' | 'home-banner' | 'checkout';
+};
+
+export interface FazendinhaMediaSettings {
+  homeBanner: FazendinhaMediaSlotSettings & { position: 'home-banner' };
+  checkoutMedia: FazendinhaMediaSlotSettings & { position: 'checkout' };
 }
 
 export interface FazendinhaGroup {
@@ -380,6 +390,7 @@ export interface FazendinhaWinner {
 export interface FazendinhaState {
   config: FazendinhaConfig;
   homeMedia?: FazendinhaHomeMediaSettings;
+  mediaSettings?: FazendinhaMediaSettings;
   groups: FazendinhaGroup[];
   purchases: FazendinhaPurchase[];
   winners: FazendinhaWinner[];

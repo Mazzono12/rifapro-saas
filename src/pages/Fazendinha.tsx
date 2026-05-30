@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { FazendinhaCard } from "../components/FazendinhaCard";
 import { PostPurchaseLootboxModal } from "../components/PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "../components/PixPaymentResultModal";
-import { useFazendinha } from "../hooks/useRaffles";
+import { useFazendinha, useFazendinhaMediaSettings } from "../hooks/useRaffles";
 import { checkoutService, fazendinhaService } from "../services/api";
 import { useCustomerStore } from "../store/useCustomerStore";
 import type { FazendinhaGroup, FazendinhaGroupStatus, FazendinhaPurchase, Raffle } from "../types";
@@ -28,11 +28,13 @@ import {
   TrustBadges
 } from "../components/premium/PremiumUI";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
+import { FazendinhaCheckoutMedia } from "../components/FazendinhaCheckoutMedia";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 
 export function Fazendinha() {
   const { data, isLoading } = useFazendinha();
+  const { data: mediaSettings } = useFazendinhaMediaSettings();
   const queryClient = useQueryClient();
   const { customer, setCustomer } = useCustomerStore();
   const [filter, setFilter] = useState<FazendinhaGroupStatus | "all">("all");
@@ -96,6 +98,7 @@ export function Fazendinha() {
   const isReturningCustomerVerification = hasSavedCustomer && requireIdentity && customerMode === "existing";
   const firstName = (customer?.name || form.name || "").trim().split(/\s+/)[0] || "cliente";
   const formatCurrency = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const checkoutMedia = mediaSettings?.checkoutMedia || data?.mediaSettings?.checkoutMedia;
 
   const toggleGroup = (group: FazendinhaGroup) => {
     if (group.status !== "available") return;
@@ -417,6 +420,7 @@ export function Fazendinha() {
         onClose={() => setCheckoutOpen(false)}
       >
         <div className="space-y-5 p-4 sm:p-5">
+          <FazendinhaCheckoutMedia {...checkoutMedia} />
           {confirmedReceipt ? (
             <>
               <PremiumTicketReceipt
@@ -548,7 +552,8 @@ export function Fazendinha() {
         open={receiptOpen}
         campaign={config.name || "Fazendinha"}
         raffle={config.name || "Fazendinha"}
-        hideMedia
+        hideMedia={!checkoutMedia?.enabled}
+        fazendinhaCheckoutMedia={checkoutMedia}
         selectedQuantity={selectedGroups.flatMap(group => group.numeros).length}
         selectedPackage={`${selectedGroups.length} grupo(s)`}
         calculatedPrice={totalValue}

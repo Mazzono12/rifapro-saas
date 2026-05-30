@@ -1,6 +1,6 @@
-import { FazendinhaHomeMediaBlock } from "./FazendinhaHomeMediaBlock";
-import type { FazendinhaHomeMediaSettings } from "../types";
+import { FazendinhaHomeBanner } from "./FazendinhaHomeBanner";
+import type { FazendinhaMediaSlotSettings } from "../types";
 
-export function FazendinhaAnimalPickerBanner(props: Partial<FazendinhaHomeMediaSettings>) {
-  return <FazendinhaHomeMediaBlock {...props} className="fazendinha-animal-picker-banner mb-5" />;
+export function FazendinhaAnimalPickerBanner(props: Partial<FazendinhaMediaSlotSettings>) {
+  return <FazendinhaHomeBanner {...props} className="fazendinha-animal-picker-banner" />;
 }

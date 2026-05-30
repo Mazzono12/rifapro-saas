@@ -76,24 +76,20 @@ includesAll(numberMode, [
 ], "NumberModePage checkout");
 
 includesAll(fazendinha, [
-  "import { CheckoutCampaignMedia }",
-  "fazendinhaMedia",
-  "config.mediaUrl",
-  "config.mediaType",
-  "<CheckoutCampaignMedia",
-  "Aguardando pagamento",
-  "raffleData={fazendinhaMedia}",
+  "import { FazendinhaCheckoutMedia }",
+  "useFazendinhaMediaSettings",
+  "checkoutMedia",
+  "<FazendinhaCheckoutMedia {...checkoutMedia} />",
+  "fazendinhaCheckoutMedia={checkoutMedia}",
   "hidden={checkoutOpen || receiptOpen}"
 ], "Fazendinha checkout");
 
 includesAll(fazendinhaSection, [
-  "import { CheckoutCampaignMedia }",
-  "fazendinhaMedia",
-  "config.mediaUrl",
-  "config.mediaType",
-  "<CheckoutCampaignMedia",
-  "Aguardando pagamento",
-  "raffleData={fazendinhaMedia}"
+  "import { FazendinhaCheckoutMedia }",
+  "useFazendinhaMediaSettings",
+  "checkoutMedia",
+  "<FazendinhaCheckoutMedia {...checkoutMedia}",
+  "fazendinhaCheckoutMedia={checkoutMedia}"
 ], "FazendinhaSection checkout");
 
 includesAll(adminRaffles, [

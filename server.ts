@@ -1782,10 +1782,18 @@ async function startServer() {
     description: string;
     fitMode: "auto" | "contain" | "cover";
     alt: string;
-    position: "above-fazendinha";
+    altText: string;
+    position: "above-fazendinha" | "home-banner" | "checkout";
+    updated_at: string;
+  };
+  type FazendinhaMediaSettings = {
+    tenant_id: string;
+    homeBanner: FazendinhaHomeMediaSettings;
+    checkoutMedia: FazendinhaHomeMediaSettings;
     updated_at: string;
   };
   const fazendinhaHomeMediaSettings: Record<string, FazendinhaHomeMediaSettings> = {};
+  const fazendinhaCheckoutMediaSettings: Record<string, FazendinhaHomeMediaSettings> = {};
   function defaultFazendinhaHomeMedia(tenantId: string): FazendinhaHomeMediaSettings {
     return {
       tenant_id: tenantId,
@@ -1797,14 +1805,31 @@ async function startServer() {
       description: "",
       fitMode: "auto",
       alt: "Mídia da Fazendinha",
-      position: "above-fazendinha",
+      altText: "Mídia da Fazendinha",
+      position: "home-banner",
       updated_at: new Date().toISOString()
     };
   }
-  function normalizeFazendinhaHomeMedia(tenantId: string, input: Partial<FazendinhaHomeMediaSettings> = {}) {
-    const current = fazendinhaHomeMediaSettings[tenantId] || defaultFazendinhaHomeMedia(tenantId);
+  function defaultFazendinhaCheckoutMedia(tenantId: string): FazendinhaHomeMediaSettings {
+    return {
+      tenant_id: tenantId,
+      enabled: false,
+      mediaUrl: "",
+      mediaType: "image",
+      posterUrl: "",
+      title: "Resumo da Fazendinha",
+      description: "",
+      fitMode: "auto",
+      alt: "Mídia do checkout da Fazendinha",
+      altText: "Mídia do checkout da Fazendinha",
+      position: "checkout",
+      updated_at: new Date().toISOString()
+    };
+  }
+  function normalizeFazendinhaMediaSlot(tenantId: string, input: Partial<FazendinhaHomeMediaSettings> = {}, current: FazendinhaHomeMediaSettings, position: FazendinhaHomeMediaSettings["position"]) {
     const mediaType = String(input.mediaType || current.mediaType || "image").toLowerCase();
     const fitMode = String(input.fitMode || current.fitMode || "auto").toLowerCase();
+    const fallbackAlt = position === "checkout" ? "Mídia do checkout da Fazendinha" : "Mídia da Fazendinha";
     return {
       ...current,
       tenant_id: tenantId,
@@ -1815,18 +1840,46 @@ async function startServer() {
       title: String(input.title ?? current.title ?? "A Fazendinha").slice(0, 120),
       description: String(input.description ?? current.description ?? "").slice(0, 280),
       fitMode: (["auto", "contain", "cover"].includes(fitMode) ? fitMode : "auto") as FazendinhaHomeMediaSettings["fitMode"],
-      alt: String(input.alt ?? current.alt ?? "Mídia da Fazendinha").slice(0, 160),
-      position: "above-fazendinha" as const,
+      alt: String(input.altText ?? input.alt ?? current.altText ?? current.alt ?? fallbackAlt).slice(0, 160),
+      altText: String(input.altText ?? input.alt ?? current.altText ?? current.alt ?? fallbackAlt).slice(0, 160),
+      position,
       updated_at: new Date().toISOString()
     };
+  }
+  function normalizeFazendinhaHomeMedia(tenantId: string, input: Partial<FazendinhaHomeMediaSettings> = {}) {
+    const current = fazendinhaHomeMediaSettings[tenantId] || defaultFazendinhaHomeMedia(tenantId);
+    return normalizeFazendinhaMediaSlot(tenantId, input, current, "home-banner");
+  }
+  function normalizeFazendinhaCheckoutMedia(tenantId: string, input: Partial<FazendinhaHomeMediaSettings> = {}) {
+    const current = fazendinhaCheckoutMediaSettings[tenantId] || defaultFazendinhaCheckoutMedia(tenantId);
+    return normalizeFazendinhaMediaSlot(tenantId, input, current, "checkout");
   }
   function getFazendinhaHomeMedia(tenantId: string) {
     fazendinhaHomeMediaSettings[tenantId] ||= defaultFazendinhaHomeMedia(tenantId);
     return fazendinhaHomeMediaSettings[tenantId];
   }
+  function getFazendinhaCheckoutMedia(tenantId: string) {
+    fazendinhaCheckoutMediaSettings[tenantId] ||= defaultFazendinhaCheckoutMedia(tenantId);
+    return fazendinhaCheckoutMediaSettings[tenantId];
+  }
   function publicFazendinhaHomeMedia(tenantId: string) {
-    const { enabled, mediaUrl, mediaType, posterUrl, title, description, fitMode, alt, position } = getFazendinhaHomeMedia(tenantId);
-    return { enabled, mediaUrl, mediaType, posterUrl, title, description, fitMode, alt, position };
+    const { enabled, mediaUrl, mediaType, posterUrl, title, description, fitMode, alt, altText } = getFazendinhaHomeMedia(tenantId);
+    return { enabled, mediaUrl, mediaType, posterUrl, title, description, fitMode, alt, altText, position: "home-banner" as const };
+  }
+  function publicFazendinhaCheckoutMedia(tenantId: string) {
+    const { enabled, mediaUrl, mediaType, posterUrl, title, description, fitMode, alt, altText } = getFazendinhaCheckoutMedia(tenantId);
+    return { enabled, mediaUrl, mediaType, posterUrl, title, description, fitMode, alt, altText, position: "checkout" as const };
+  }
+  function publicFazendinhaMediaSettings(tenantId: string) {
+    return {
+      homeBanner: publicFazendinhaHomeMedia(tenantId),
+      checkoutMedia: publicFazendinhaCheckoutMedia(tenantId)
+    };
+  }
+  function normalizeFazendinhaMediaSettings(tenantId: string, input: Partial<FazendinhaMediaSettings> = {}) {
+    fazendinhaHomeMediaSettings[tenantId] = normalizeFazendinhaHomeMedia(tenantId, input.homeBanner || {});
+    fazendinhaCheckoutMediaSettings[tenantId] = normalizeFazendinhaCheckoutMedia(tenantId, input.checkoutMedia || {});
+    return publicFazendinhaMediaSettings(tenantId);
   }
   let fazendinhaGroups: FazendinhaGroup[] = fazendinhaSeed.map(([id, nomeBicho, numeros]) => ({
     id,
@@ -4598,6 +4651,20 @@ async function startServer() {
     fazendinhaHomeMediaSettings[tenant.id] = normalizeFazendinhaHomeMedia(tenant.id, req.body || {});
     recordSuperadminAudit(req, "FAZENDINHA_HOME_MEDIA_UPDATED", { tenant_id: tenant.id, resource_type: "fazendinha_home_media", resource_id: tenant.id });
     res.json(publicFazendinhaHomeMedia(tenant.id));
+  });
+
+  app.get("/api/superadmin/tenants/:tenantId/fazendinha/media-settings", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
+    res.json(publicFazendinhaMediaSettings(tenant.id));
+  });
+
+  app.put("/api/superadmin/tenants/:tenantId/fazendinha/media-settings", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
+    const mediaSettings = normalizeFazendinhaMediaSettings(tenant.id, req.body || {});
+    recordSuperadminAudit(req, "FAZENDINHA_MEDIA_SETTINGS_UPDATED", { tenant_id: tenant.id, resource_type: "fazendinha_media_settings", resource_id: tenant.id });
+    res.json(mediaSettings);
   });
 
   app.get("/api/superadmin/theme-templates", (_req, res) => {
@@ -8089,6 +8156,7 @@ async function startServer() {
     res.json({
       config: { ...fazendinhaConfig, tenant_id: tenantId },
       homeMedia: publicFazendinhaHomeMedia(tenantId),
+      mediaSettings: publicFazendinhaMediaSettings(tenantId),
       groups: fazendinhaGroups.filter(item => item.tenant_id === tenantId),
       purchases: fazendinhaCompras.filter(item => item.tenant_id === tenantId),
       winners: fazendinhaGanhadores.filter(item => item.tenant_id === tenantId).slice(0, 8),
@@ -8101,6 +8169,13 @@ async function startServer() {
     const tenant = resolution.tenant || getRequestTenant(req);
     const tenantId = tenant?.id || legacyTenantId;
     res.json(publicFazendinhaHomeMedia(tenantId));
+  });
+
+  app.get("/api/public/fazendinha/media-settings", async (req, res) => {
+    const resolution = await resolveDomainTenantInfo(req);
+    const tenant = resolution.tenant || getRequestTenant(req);
+    const tenantId = tenant?.id || legacyTenantId;
+    res.json(publicFazendinhaMediaSettings(tenantId));
   });
 
   app.get("/api/fazendinha/customer/:customerId/history", (req, res) => {
@@ -8433,6 +8508,7 @@ async function startServer() {
     res.json({
       config: { ...fazendinhaConfig, tenant_id: tenantId },
       homeMedia: publicFazendinhaHomeMedia(tenantId),
+      mediaSettings: publicFazendinhaMediaSettings(tenantId),
       groups: scoped(fazendinhaGroups, req),
       purchases: scoped(fazendinhaCompras, req),
       results: scoped(fazendinhaResultados, req),
@@ -8449,6 +8525,18 @@ async function startServer() {
     fazendinhaHomeMediaSettings[tenantId] = normalizeFazendinhaHomeMedia(tenantId, req.body || {});
     recordAuditLedger(req, { tenant_id: tenantId, action: "FAZENDINHA_HOME_MEDIA_UPDATED", resource_type: "fazendinha_home_media", resource_id: tenantId, before_data: null, after_data: publicFazendinhaHomeMedia(tenantId), reason: String(req.body.reason || "Atualizacao da midia da Fazendinha na Home") });
     res.json(publicFazendinhaHomeMedia(tenantId));
+  });
+
+  app.get("/api/admin/fazendinha/media-settings", (req, res) => {
+    res.json(publicFazendinhaMediaSettings(resolveRequestTenantId(req)));
+  });
+
+  app.put("/api/admin/fazendinha/media-settings", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const before = publicFazendinhaMediaSettings(tenantId);
+    const after = normalizeFazendinhaMediaSettings(tenantId, req.body || {});
+    recordAuditLedger(req, { tenant_id: tenantId, action: "FAZENDINHA_MEDIA_SETTINGS_UPDATED", resource_type: "fazendinha_media_settings", resource_id: tenantId, before_data: before, after_data: after, reason: String(req.body.reason || "Atualizacao das midias da Fazendinha") });
+    res.json(after);
   });
 
   app.put("/api/admin/fazendinha/config", (req, res) => {

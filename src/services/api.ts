@@ -1,6 +1,6 @@
 // /src/services/api.ts
 // Arquitetura Clean: Todo o acesso externo passa por services estruturados
-import { FazendinhaGroup, FazendinhaHomeMediaSettings, FazendinhaPurchase, FazendinhaState, ModalidadesState, NumberModeId, NumberModeState, Raffle } from '../types';
+import { FazendinhaGroup, FazendinhaHomeMediaSettings, FazendinhaMediaSettings, FazendinhaPurchase, FazendinhaState, ModalidadesState, NumberModeId, NumberModeState, Raffle } from '../types';
 
 type CheckoutCustomerPayload = {
   name: string;
@@ -139,6 +139,12 @@ export const fazendinhaService = {
     return res.json() as Promise<FazendinhaHomeMediaSettings>;
   },
 
+  async getMediaSettings() {
+    const res = await fetch("/api/public/fazendinha/media-settings");
+    if (!res.ok) throw new Error("Falha ao carregar mídias da Fazendinha");
+    return res.json() as Promise<FazendinhaMediaSettings>;
+  },
+
   async getAdminState() {
     const res = await fetch("/api/admin/fazendinha");
     if (!res.ok) throw new Error("Falha ao carregar admin da Fazendinha");
@@ -151,6 +157,12 @@ export const fazendinhaService = {
     return res.json() as Promise<FazendinhaHomeMediaSettings>;
   },
 
+  async getAdminMediaSettings() {
+    const res = await fetch("/api/admin/fazendinha/media-settings");
+    if (!res.ok) throw new Error("Falha ao carregar mídias da Fazendinha");
+    return res.json() as Promise<FazendinhaMediaSettings>;
+  },
+
   async updateHomeMedia(config: Partial<FazendinhaHomeMediaSettings>) {
     const res = await fetch("/api/admin/fazendinha/home-media", {
       method: "PUT",
@@ -160,6 +172,17 @@ export const fazendinhaService = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Falha ao salvar mídia da Home da Fazendinha");
     return data as FazendinhaHomeMediaSettings;
+  },
+
+  async updateMediaSettings(config: Partial<FazendinhaMediaSettings>) {
+    const res = await fetch("/api/admin/fazendinha/media-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Falha ao salvar mídias da Fazendinha");
+    return data as FazendinhaMediaSettings;
   },
 
   async updateConfig(config: Partial<FazendinhaState["config"]>) {

@@ -44,6 +44,15 @@ export function useFazendinhaHomeMedia() {
   });
 }
 
+export function useFazendinhaMediaSettings() {
+  return useQuery({
+    queryKey: ['fazendinha-media-settings'],
+    queryFn: () => fazendinhaService.getMediaSettings(),
+    staleTime: 1000 * 60 * 5,
+    retry: false,
+  });
+}
+
 export function useModalidades() {
   return useQuery({
     queryKey: ['modalidades'],

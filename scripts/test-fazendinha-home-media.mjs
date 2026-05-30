@@ -67,50 +67,55 @@ includesAll(home, [
 assert(!home.includes("<FazendinhaHomeMediaBlock"), "Home nao deve renderizar o banner fora da selecao de bichos");
 
 includesAll(section, [
-  "useFazendinhaHomeMedia",
+  "useFazendinhaMediaSettings",
   "FazendinhaAnimalPickerBanner",
-  "<FazendinhaAnimalPickerBanner {...(animalPickerBanner || data?.homeMedia)} />",
+  "<FazendinhaAnimalPickerBanner {...homeBanner} />",
   "boardGroupIds.map"
 ], "FazendinhaSection posiciona banner acima dos bichos");
 assert(section.indexOf("<FazendinhaAnimalPickerBanner") < section.indexOf("boardGroupIds.map"), "banner deve vir antes da grade de bichos");
 assert(!section.includes("CheckoutCampaignMedia"), "checkout da Fazendinha nao deve renderizar midia/banner");
 assert(!section.includes("<DynamicMedia"), "checkout da Fazendinha nao deve renderizar midia/banner dinamico");
-assert(section.includes("hideMedia"), "recibo pre-PIX da Fazendinha deve ocultar midia/banner");
+assert(section.includes("FazendinhaCheckoutMedia"), "checkout da Fazendinha deve usar midia propria separada");
+assert(section.includes("fazendinhaCheckoutMedia={checkoutMedia}"), "recibo pre-PIX da Fazendinha deve receber midia propria do checkout");
 
 includesAll(pickerBanner, [
   "FazendinhaAnimalPickerBanner",
-  "FazendinhaHomeMediaBlock",
+  "FazendinhaHomeBanner",
   "fazendinha-animal-picker-banner"
 ], "wrapper do banner da selecao");
 
 includesAll(admin, [
-  "Banner acima da seleção de bichos",
-  "state.homeMedia?.enabled",
-  "fazendinhaService.updateHomeMedia",
+  "Banner da modalidade Fazendinha na Home",
+  "Mídia do checkout da Fazendinha",
+  "fazendinhaService.updateMediaSettings",
   "MediaPicker",
   "ResponsiveMediaFrame",
   "Poster/thumbnail do vídeo",
   "Modo de exibição",
   "Texto alternativo/acessibilidade",
-  "Posição: acima da seleção de bichos"
+  "Aparece na Home pública antes da grade dos bichos"
 ], "admin preview e campos");
 
 includesAll(api, [
   "getHomeMedia",
   "/api/public/fazendinha/home-media",
+  "getMediaSettings",
+  "/api/public/fazendinha/media-settings",
   "getAdminHomeMedia",
   "/api/admin/fazendinha/home-media",
-  "updateHomeMedia"
+  "updateMediaSettings"
 ], "service api");
 
 includesAll(hooks, [
   "useFazendinhaHomeMedia",
+  "useFazendinhaMediaSettings",
   "fazendinhaService.getHomeMedia",
   "retry: false"
 ], "hook publico");
 
 includesAll(types, [
   "FazendinhaHomeMediaSettings",
+  "FazendinhaMediaSettings",
   "posterUrl",
   "fitMode",
   "position: 'above-fazendinha'",

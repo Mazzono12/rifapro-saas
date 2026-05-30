@@ -44,7 +44,7 @@ assert.ok(home.includes("mediaUrl={raffle.mediaUrl || raffle.image}"), "Midia nu
 
 const configGuard = "if (!config?.enabled || config.status !== \"active\") return null;";
 assert.ok(fazendinhaSection.includes("const config = data?.config;"), "FazendinhaSection deve guardar config opcional.");
-assert.ok(fazendinhaSection.indexOf(configGuard) < fazendinhaSection.indexOf("const fazendinhaMedia"), "FazendinhaSection nao pode acessar config antes do guard.");
+assert.ok(fazendinhaSection.indexOf(configGuard) < fazendinhaSection.indexOf("const configName"), "FazendinhaSection nao pode acessar config antes do guard.");
 assert.ok(!fazendinhaSection.includes("data.config"), "FazendinhaSection nao deve acessar data.config diretamente.");
 
 includesAll(theme, ["LOCKED_THEME_ID", "\"vimeu_dark\"", "applyThemeVariables"], "Tema vimeu_dark deve continuar aplicado.");

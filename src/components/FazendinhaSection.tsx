@@ -5,7 +5,7 @@ import confetti from "canvas-confetti";
 import { QRCodeSVG } from "qrcode.react";
 import { CheckCircle2, Clover, Copy, Sparkles, TicketCheck, X } from "lucide-react";
 import { toast } from "sonner";
-import { useFazendinha, useFazendinhaHomeMedia } from "../hooks/useRaffles";
+import { useFazendinha, useFazendinhaMediaSettings } from "../hooks/useRaffles";
 import { checkoutService, fazendinhaService } from "../services/api";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { cn } from "../lib/utils";
@@ -16,6 +16,7 @@ import { PixPaymentResultModal } from "./PixPaymentResultModal";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "./checkout/PrePaymentReceiptModal";
 import { CheckoutPrimaryButton } from "./premium/PremiumUI";
 import { FazendinhaAnimalPickerBanner } from "./FazendinhaAnimalPickerBanner";
+import { FazendinhaCheckoutMedia } from "./FazendinhaCheckoutMedia";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 
@@ -44,7 +45,7 @@ function normalizeFazendinhaGroup(group: Partial<FazendinhaGroup> | null | undef
 
 export function FazendinhaSection() {
   const { data } = useFazendinha();
-  const { data: animalPickerBanner } = useFazendinhaHomeMedia();
+  const { data: mediaSettings } = useFazendinhaMediaSettings();
   const queryClient = useQueryClient();
   const { customer, setCustomer } = useCustomerStore();
   const [selectedGroups, setSelectedGroups] = useState<FazendinhaGroup[]>([]);
@@ -111,6 +112,8 @@ export function FazendinhaSection() {
   const firstName = (customer?.name || form.name || "").trim().split(/\s+/)[0] || "cliente";
   const formatCurrency = (value: number) => safeNumber(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const selectedNumbers = selectedGroups.flatMap(group => safeGroupNumbers(group));
+  const homeBanner = mediaSettings?.homeBanner || data?.mediaSettings?.homeBanner || data?.homeMedia;
+  const checkoutMedia = mediaSettings?.checkoutMedia || data?.mediaSettings?.checkoutMedia;
 
   const toggleGroup = (group?: FazendinhaGroup) => {
     if (!group || group.status !== "available") return;
@@ -313,7 +316,7 @@ export function FazendinhaSection() {
       </div>
 
       <div className="relative z-10 mx-auto max-w-[980px]">
-        <FazendinhaAnimalPickerBanner {...(animalPickerBanner || data?.homeMedia)} />
+        <FazendinhaAnimalPickerBanner {...homeBanner} />
         <div className="relative overflow-hidden rounded-[1.75rem] border border-[var(--theme-border)] bg-[var(--theme-bg-soft)] p-2 shadow-[0_30px_90px_rgba(15,23,42,0.18)]">
           <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_20%,var(--theme-glow),transparent_38%)] opacity-70" />
           <div className="relative z-10 grid grid-cols-5 gap-2 rounded-2xl bg-black/10 p-2 sm:gap-3 sm:p-3">
@@ -422,6 +425,7 @@ export function FazendinhaSection() {
                 </div>
                 <button onClick={() => setCheckoutOpen(false)} className="rounded-full border border-white/10 p-2 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
               </div>
+              <FazendinhaCheckoutMedia {...checkoutMedia} className="mt-5" />
 
               {canUseSavedCustomer ? (
                 <div className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
@@ -602,7 +606,8 @@ export function FazendinhaSection() {
         open={receiptOpen}
         campaign={configName}
         raffle={configName}
-        hideMedia
+        hideMedia={!checkoutMedia?.enabled}
+        fazendinhaCheckoutMedia={checkoutMedia}
         selectedQuantity={selectedNumbers.length}
         selectedPackage={`${selectedGroups.length} grupo(s)`}
         calculatedPrice={totalValue}

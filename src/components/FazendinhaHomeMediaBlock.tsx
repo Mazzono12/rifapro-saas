@@ -1,8 +1,8 @@
 import { ResponsiveMediaFrame } from "./ResponsiveMediaFrame";
 import { cn } from "../lib/utils";
-import type { FazendinhaHomeMediaSettings } from "../types";
+import type { FazendinhaMediaSlotSettings } from "../types";
 
-type FazendinhaHomeMediaBlockProps = Partial<FazendinhaHomeMediaSettings> & {
+type FazendinhaHomeMediaBlockProps = Partial<FazendinhaMediaSlotSettings> & {
   className?: string;
 };
 
@@ -15,6 +15,7 @@ export function FazendinhaHomeMediaBlock({
   description,
   fitMode = "auto",
   alt,
+  altText,
   className
 }: FazendinhaHomeMediaBlockProps) {
   if (!enabled || !mediaUrl) return null;
@@ -30,7 +31,7 @@ export function FazendinhaHomeMediaBlock({
             src={mediaUrl}
             type={mediaType}
             poster={posterUrl}
-            alt={alt || resolvedTitle}
+            alt={altText || alt || resolvedTitle}
             preferredFit={fitMode}
             aspectMode="auto"
             autoPlay

@@ -37,6 +37,7 @@ export function FazendinhaCard({ group, selected, onSelect }: FazendinhaCardProp
       whileHover={!disabled ? { y: -6, scale: 1.015 } : undefined}
       whileTap={!disabled ? { scale: 0.98 } : undefined}
       onClick={disabled ? undefined : onSelect}
+      disabled={disabled}
       className={cn(
         "group relative min-h-[128px] overflow-hidden rounded-2xl border p-2 text-left transition-all sm:min-h-[170px] sm:p-3 lg:min-h-[196px] lg:p-4",
         "bg-white/[0.055] shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur-2xl",
@@ -67,7 +68,7 @@ export function FazendinhaCard({ group, selected, onSelect }: FazendinhaCardProp
             <p className="text-[8px] font-mono uppercase tracking-widest text-slate-500 sm:text-[10px]">Grupo</p>
             <p className="hidden text-sm text-slate-300 sm:block">4 numeros</p>
           </div>
-          <p className="text-right font-display text-[11px] font-bold text-white sm:text-lg lg:text-2xl">R$ {group.preco.toFixed(2).replace(".", ",")}</p>
+          <p className="text-right font-display text-[11px] font-bold text-white sm:text-lg lg:text-2xl">R$ {Number(group.preco || 0).toFixed(2).replace(".", ",")}</p>
         </div>
       </div>
     </motion.button>

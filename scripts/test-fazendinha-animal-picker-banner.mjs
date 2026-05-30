@@ -22,10 +22,10 @@ assert(!home.includes("FazendinhaHomeMediaBlock"), "banner nao pode aparecer for
 assert(!home.includes("useFazendinhaHomeMedia"), "Home nao deve carregar banner duplicado antes da FazendinhaSection");
 
 includesAll(section, [
-  "useFazendinhaHomeMedia",
-  "animalPickerBanner",
+  "useFazendinhaMediaSettings",
+  "homeBanner",
   "FazendinhaAnimalPickerBanner",
-  "<FazendinhaAnimalPickerBanner {...(animalPickerBanner || data?.homeMedia)} />",
+  "<FazendinhaAnimalPickerBanner {...homeBanner} />",
   "boardGroupIds.map",
   "toggleGroup(group)",
   "selectedGroups.some"
@@ -34,15 +34,17 @@ assert(section.indexOf("<FazendinhaAnimalPickerBanner") < section.indexOf("board
 assert(section.indexOf("boardGroupIds.map") < section.indexOf("Cotas escolhidas"), "grade/lista de bichos deve vir antes da area escolher/desfazer");
 assert(!section.includes("CheckoutCampaignMedia"), "checkout da Fazendinha na Home nao deve renderizar midia/banner");
 assert(!section.includes("<DynamicMedia"), "checkout da Fazendinha na Home nao deve renderizar banner dinamico antes de Cliente identificado");
-assert(section.includes("hideMedia"), "recibo pre-PIX da Fazendinha na Home deve ocultar midia/banner");
+assert(section.includes("FazendinhaCheckoutMedia"), "checkout da Fazendinha na Home deve usar midia especifica do checkout");
+assert(section.includes("fazendinhaCheckoutMedia={checkoutMedia}"), "recibo pre-PIX da Fazendinha na Home deve receber midia especifica do checkout");
 
 assert(!fazendinhaPage.includes("CheckoutCampaignMedia"), "pagina Fazendinha nao deve renderizar midia/banner no checkout");
 assert(!fazendinhaPage.includes("<DynamicMedia"), "pagina Fazendinha nao deve renderizar banner dinamico no checkout");
-assert(fazendinhaPage.includes("hideMedia"), "recibo pre-PIX da pagina Fazendinha deve ocultar midia/banner");
+assert(fazendinhaPage.includes("FazendinhaCheckoutMedia"), "pagina Fazendinha deve renderizar apenas midia especifica do checkout");
+assert(fazendinhaPage.includes("fazendinhaCheckoutMedia={checkoutMedia}"), "recibo pre-PIX da pagina Fazendinha deve receber midia especifica do checkout");
 
 includesAll(wrapper, [
   "FazendinhaAnimalPickerBanner",
-  "FazendinhaHomeMediaBlock",
+  "FazendinhaHomeBanner",
   "fazendinha-animal-picker-banner"
 ], "wrapper sem duplicar layout");
 
@@ -58,16 +60,16 @@ includesAll(block, [
 assert(!/absolute[\s\S]{0,180}(resolvedTitle|resolvedDescription|title|description)/i.test(block), "banner nao pode ter texto sobreposto na midia");
 
 includesAll(admin, [
-  "Banner acima da seleção de bichos",
-  "Exibir banner acima dos bichos para escolher/desfazer",
+  "Banner da modalidade Fazendinha na Home",
+  "Mídia do checkout da Fazendinha",
   "MediaPicker",
   "ResponsiveMediaFrame",
-  "fazendinhaService.updateHomeMedia"
+  "fazendinhaService.updateMediaSettings"
 ], "admin salva configuracao");
 
 includesAll(server, [
-  "app.get(\"/api/public/fazendinha/home-media\"",
-  "publicFazendinhaHomeMedia",
+  "app.get(\"/api/public/fazendinha/media-settings\"",
+  "publicFazendinhaMediaSettings",
   "enabled",
   "mediaUrl",
   "mediaType",
@@ -75,7 +77,7 @@ includesAll(server, [
   "fitMode"
 ], "endpoint publico seguro");
 
-const publicHelper = server.slice(server.indexOf("function publicFazendinhaHomeMedia"), server.indexOf("let fazendinhaGroups"));
+const publicHelper = server.slice(server.indexOf("function publicFazendinhaMediaSettings"), server.indexOf("function normalizeFazendinhaMediaSettings"));
 assert(!publicHelper.includes("tenant_id"), "endpoint publico nao deve retornar tenant_id");
 assert(!/secret|token|apiKey/i.test(publicHelper), "endpoint publico nao deve retornar segredo");
 assert(pkg.includes('"test:fazendinha-animal-picker-banner"'), "package.json deve expor test:fazendinha-animal-picker-banner");

@@ -4,8 +4,9 @@ import { TenantLogo } from "../branding/TenantLogo";
 import { TenantHeaderName } from "../branding/TenantHeaderName";
 import { CheckoutPrimaryButton } from "../premium/PremiumUI";
 import { CheckoutCampaignMedia } from "./CheckoutCampaignMedia";
+import { FazendinhaCheckoutMedia } from "../FazendinhaCheckoutMedia";
 import { cn } from "../../lib/utils";
-import type { Raffle } from "../../types";
+import type { FazendinhaMediaSlotSettings, Raffle } from "../../types";
 
 export type CheckoutPreview = {
   quantity?: number;
@@ -50,6 +51,7 @@ type Props = {
   raffleData?: Partial<Raffle>;
   mediaUrl?: string;
   mediaType?: Raffle["mediaType"] | Raffle["checkoutMediaType"] | string;
+  fazendinhaCheckoutMedia?: Partial<FazendinhaMediaSlotSettings>;
   selectedQuantity?: number;
   selectedPackage?: string;
   calculatedPrice?: number;
@@ -75,6 +77,7 @@ export function PrePaymentReceiptModal({
   raffleData,
   mediaUrl,
   mediaType,
+  fazendinhaCheckoutMedia,
   selectedQuantity,
   selectedPackage,
   calculatedPrice,
@@ -122,7 +125,9 @@ export function PrePaymentReceiptModal({
         </header>
 
         <div className="checkout-receipt-body space-y-4 p-3 sm:p-5">
-          {!hideMedia && (
+          {fazendinhaCheckoutMedia?.enabled ? (
+            <FazendinhaCheckoutMedia {...fazendinhaCheckoutMedia} />
+          ) : !hideMedia && (
             <CheckoutCampaignMedia
               campaign={campaign || raffle}
               raffle={raffleData}
