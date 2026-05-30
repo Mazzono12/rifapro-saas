@@ -11,6 +11,8 @@ function includesAll(source, tokens, label) {
 
 const server = read("server.ts");
 const home = read("src/pages/Home.tsx");
+const section = read("src/components/FazendinhaSection.tsx");
+const pickerBanner = read("src/components/FazendinhaAnimalPickerBanner.tsx");
 const block = read("src/components/FazendinhaHomeMediaBlock.tsx");
 const admin = read("src/pages/admin/AdminFazendinha.tsx");
 const api = read("src/services/api.ts");
@@ -59,16 +61,27 @@ includesAll(block, [
 assert(!/absolute[\s\S]{0,140}(title|description|resolvedTitle|resolvedDescription)/i.test(block), "titulo/descricao nao podem sobrepor a midia");
 
 includesAll(home, [
-  "useFazendinhaHomeMedia",
-  "FazendinhaHomeMediaBlock",
   "<ModalidadesSection />",
-  "<FazendinhaHomeMediaBlock {...fazendinhaHomeMedia} />",
   "<FazendinhaSection />"
-], "Home posiciona midia acima da Fazendinha");
-assert(home.indexOf("<FazendinhaHomeMediaBlock {...fazendinhaHomeMedia} />") < home.indexOf("<FazendinhaSection />"), "midia deve vir antes da FazendinhaSection");
+], "Home renderiza Fazendinha sem banner duplicado externo");
+assert(!home.includes("<FazendinhaHomeMediaBlock"), "Home nao deve renderizar o banner fora da selecao de bichos");
+
+includesAll(section, [
+  "useFazendinhaHomeMedia",
+  "FazendinhaAnimalPickerBanner",
+  "<FazendinhaAnimalPickerBanner {...(animalPickerBanner || data?.homeMedia)} />",
+  "boardGroupIds.map"
+], "FazendinhaSection posiciona banner acima dos bichos");
+assert(section.indexOf("<FazendinhaAnimalPickerBanner") < section.indexOf("boardGroupIds.map"), "banner deve vir antes da grade de bichos");
+
+includesAll(pickerBanner, [
+  "FazendinhaAnimalPickerBanner",
+  "FazendinhaHomeMediaBlock",
+  "fazendinha-animal-picker-banner"
+], "wrapper do banner da selecao");
 
 includesAll(admin, [
-  "Mídia da Fazendinha na Home",
+  "Banner acima da seleção de bichos",
   "state.homeMedia?.enabled",
   "fazendinhaService.updateHomeMedia",
   "MediaPicker",
@@ -76,7 +89,7 @@ includesAll(admin, [
   "Poster/thumbnail do vídeo",
   "Modo de exibição",
   "Texto alternativo/acessibilidade",
-  "Posição: acima da Fazendinha"
+  "Posição: acima da seleção de bichos"
 ], "admin preview e campos");
 
 includesAll(api, [

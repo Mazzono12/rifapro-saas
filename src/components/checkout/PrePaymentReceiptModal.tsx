@@ -98,7 +98,7 @@ export function PrePaymentReceiptModal({
   const gateway = preview?.gateway || gatewayInfo || "PIX";
 
   return (
-    <div className="checkout-receipt-overlay fixed inset-0 z-[90] overflow-y-auto bg-black/72 p-2 backdrop-blur-xl sm:p-3">
+    <div className="checkout-receipt-overlay fixed inset-0 z-[90] max-h-[100dvh] overflow-y-auto bg-black/72 p-2 backdrop-blur-xl sm:p-3">
       <section className="checkout-receipt-shell mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#070a0f] text-white shadow-[0_30px_120px_rgba(0,0,0,0.5)] sm:my-4 sm:rounded-[1.75rem]">
         <header className="checkout-receipt-header relative overflow-hidden border-b border-white/10 px-4 py-5 sm:px-5">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(16,185,129,0.22),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))]" />

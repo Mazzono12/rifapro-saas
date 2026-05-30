@@ -60,7 +60,7 @@ function SuperAdminLayoutContent() {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-[1536px] px-4 py-5 sm:px-6">
+      <main className="mx-auto w-full max-w-[1536px] overflow-y-auto px-4 py-5 sm:px-6">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm text-[var(--admin-muted)]">Plataforma / Clientes</p>

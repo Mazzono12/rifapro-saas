@@ -3276,6 +3276,100 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   white-space: normal !important;
 }
 
+.fazendinha-animal-picker-banner {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.fazendinha-animal-picker-banner .responsive-media-frame {
+  max-height: min(58svh, 520px);
+}
+
+@media (max-width: 640px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  @supports not (overflow-x: clip) {
+    html,
+    body,
+    #root {
+      overflow-x: hidden;
+    }
+  }
+
+  .public-shell,
+  .premium-page,
+  .admin-shell,
+  .checkout-screen,
+  .glass-card,
+  .premium-card,
+  .admin-card,
+  section,
+  article,
+  main,
+  form {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  input,
+  select,
+  textarea,
+  button,
+  .premium-button,
+  .neon-button,
+  .admin-button,
+  .admin-button-primary,
+  .admin-button-secondary {
+    min-height: 44px;
+  }
+
+  .premium-button,
+  .checkout-primary-action-button,
+  .checkout-primary-button,
+  .checkout-action-button {
+    min-height: 48px;
+  }
+
+  .admin-shell table,
+  .premium-page table,
+  .public-shell table {
+    min-width: 640px;
+  }
+
+  .admin-shell .overflow-x-auto,
+  .premium-page .overflow-x-auto,
+  .public-shell .overflow-x-auto {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .fazendinha-animal-picker-banner {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .fazendinha-animal-picker-banner .responsive-media-frame {
+    max-height: 48svh;
+  }
+
+  .checkout-modal-overlay,
+  .checkout-receipt-overlay {
+    max-height: 100dvh;
+    overflow-y: auto;
+  }
+
+  .premium-floating-cta {
+    max-width: calc(100vw - 1rem - env(safe-area-inset-left) - env(safe-area-inset-right));
+  }
+}
+
 .responsive-media-frame {
   width: 100%;
   max-width: 100%;

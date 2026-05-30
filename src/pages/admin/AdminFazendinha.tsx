@@ -150,11 +150,11 @@ export function AdminFazendinha() {
         </div>
 
         <div className="glass-card p-6">
-          <h2 className="mb-5 font-display text-xl font-bold">Mídia da Fazendinha na Home</h2>
+          <h2 className="mb-5 font-display text-xl font-bold">Banner acima da seleção de bichos</h2>
           <div className="grid gap-4">
             <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <input type="checkbox" checked={Boolean(state.homeMedia?.enabled)} onChange={e => patchHomeMedia({ enabled: e.target.checked })} />
-              <span className="text-sm text-white">Exibir mídia acima da seção Fazendinha na Home</span>
+              <span className="text-sm text-white">Exibir banner acima dos bichos para escolher/desfazer</span>
             </label>
             <Field label="Título da mídia" value={state.homeMedia?.title || ""} onChange={value => patchHomeMedia({ title: value })} />
             <label className="space-y-2">
@@ -190,7 +190,7 @@ export function AdminFazendinha() {
               </label>
             </div>
             <Field label="Texto alternativo/acessibilidade" value={state.homeMedia?.alt || ""} onChange={value => patchHomeMedia({ alt: value })} />
-            <p className="text-xs text-slate-500">Posição: acima da Fazendinha na Home pública.</p>
+            <p className="text-xs text-slate-500">Posição: acima da seleção de bichos na Home pública.</p>
             {state.homeMedia?.mediaUrl && (
               <div className="overflow-hidden rounded-2xl border border-white/10 bg-black">
                 <ResponsiveMediaFrame

@@ -45,6 +45,8 @@
     "test:checkout-media-hard": "node scripts/test-checkout-media-hard.mjs",
     "test:responsive-media-hard": "node scripts/test-responsive-media-hard.mjs",
     "test:fazendinha-home-media": "node scripts/test-fazendinha-home-media.mjs",
+    "test:fazendinha-animal-picker-banner": "node scripts/test-fazendinha-animal-picker-banner.mjs",
+    "test:mobile-global-layout-hard": "node scripts/test-mobile-global-layout-hard.mjs",
     "test:production-readiness": "node scripts/test-hard-suite.mjs production-readiness",
     "test:superadmin-finance": "node scripts/test-superadmin-finance.mjs",
     "test:tenant-domains": "node scripts/test-tenant-domains.mjs",

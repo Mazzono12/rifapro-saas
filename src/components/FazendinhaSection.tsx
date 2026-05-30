@@ -5,7 +5,7 @@ import confetti from "canvas-confetti";
 import { QRCodeSVG } from "qrcode.react";
 import { CheckCircle2, Clover, Copy, Sparkles, TicketCheck, X } from "lucide-react";
 import { toast } from "sonner";
-import { useFazendinha } from "../hooks/useRaffles";
+import { useFazendinha, useFazendinhaHomeMedia } from "../hooks/useRaffles";
 import { checkoutService, fazendinhaService } from "../services/api";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { cn } from "../lib/utils";
@@ -18,6 +18,7 @@ import { PixPaymentResultModal } from "./PixPaymentResultModal";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "./checkout/PrePaymentReceiptModal";
 import { CheckoutCampaignMedia } from "./checkout/CheckoutCampaignMedia";
 import { CheckoutPrimaryButton } from "./premium/PremiumUI";
+import { FazendinhaAnimalPickerBanner } from "./FazendinhaAnimalPickerBanner";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 
@@ -46,6 +47,7 @@ function normalizeFazendinhaGroup(group: Partial<FazendinhaGroup> | null | undef
 
 export function FazendinhaSection() {
   const { data } = useFazendinha();
+  const { data: animalPickerBanner } = useFazendinhaHomeMedia();
   const queryClient = useQueryClient();
   const { customer, setCustomer } = useCustomerStore();
   const [selectedGroups, setSelectedGroups] = useState<FazendinhaGroup[]>([]);
@@ -321,6 +323,7 @@ export function FazendinhaSection() {
       </div>
 
       <div className="relative z-10 mx-auto max-w-[980px]">
+        <FazendinhaAnimalPickerBanner {...(animalPickerBanner || data?.homeMedia)} />
         <div className="relative overflow-hidden rounded-[1.75rem] border border-[var(--theme-border)] bg-[var(--theme-bg-soft)] p-2 shadow-[0_30px_90px_rgba(15,23,42,0.18)]">
           <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_20%,var(--theme-glow),transparent_38%)] opacity-70" />
           <div className="relative z-10 grid grid-cols-5 gap-2 rounded-2xl bg-black/10 p-2 sm:gap-3 sm:p-3">
