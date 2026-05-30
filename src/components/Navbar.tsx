@@ -106,7 +106,7 @@ export function Navbar() {
   return (
     <>
       <nav className={`premium-site-header fixed top-0 inset-x-0 z-50 border-b border-[var(--theme-border)] bg-[var(--theme-surface-strong)]/90 backdrop-blur-2xl transition-transform duration-300 ${heroVideoCinema && !isAdmin ? "-translate-y-full" : "translate-y-0"}`}>
-        <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-3 px-3 sm:px-5 lg:px-8">
+        <div className="app-content-container flex h-16 items-center justify-between gap-3">
           <Link to="/" onClick={goHomeTop} className="group flex min-w-0 items-center gap-2.5 sm:gap-3" aria-label="Ir para a página principal">
             <TenantLogo className="h-9 w-9 shrink-0 sm:h-10 sm:w-10" eager />
             <span className="min-w-0 truncate font-display text-lg font-bold tracking-wide text-[var(--theme-text)] sm:text-xl">
@@ -157,7 +157,7 @@ export function Navbar() {
       </nav>
 
       {!isAdmin && !heroVideoCinema && (settings?.socialLinks || branding.support_whatsapp) && (
-        <div className="fixed right-4 bottom-24 z-50 flex flex-col gap-3">
+        <div className="public-floating-actions fixed right-4 bottom-24 z-50 flex flex-col gap-3 transition duration-200">
           {settings?.socialLinks?.group && (
             <a href={settings.socialLinks.group} target="_blank" rel="noreferrer" className="premium-button h-12 w-12 rounded-full p-0" aria-label="Participar do grupo">
               <Users className="w-5 h-5" />

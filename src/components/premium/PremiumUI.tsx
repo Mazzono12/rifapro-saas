@@ -7,6 +7,21 @@ import { cn } from "../../lib/utils";
 import { ResponsiveMediaFrame } from "../ResponsiveMediaFrame";
 import { TenantHeaderName } from "../branding/TenantHeaderName";
 import { TenantLogo } from "../branding/TenantLogo";
+import { CheckoutPageContainer } from "../layout/PremiumContainers";
+
+let checkoutOverlayCount = 0;
+
+function useCheckoutOverlayMode() {
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    checkoutOverlayCount += 1;
+    document.body.dataset.checkoutOpen = "true";
+    return () => {
+      checkoutOverlayCount = Math.max(0, checkoutOverlayCount - 1);
+      if (checkoutOverlayCount === 0) delete document.body.dataset.checkoutOpen;
+    };
+  }, []);
+}
 
 export function PremiumPageLayout({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -221,7 +236,7 @@ export function PremiumHeader({
 }) {
   return (
     <header className="premium-header">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+      <div className="app-content-container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
           <span className="premium-logo-mark">R</span>
           <span className="leading-none">
@@ -364,30 +379,33 @@ export function PremiumCheckoutModal({ open, title, children, onClose }: { open:
   if (!open) return null;
   return (
     <div className="checkout-modal-overlay fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3">
-      <motion.section initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="checkout-screen checkout-modal-shell mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_100px_rgba(52,211,153,0.16)] sm:my-5 sm:rounded-[2rem]">
-        <CheckoutModalHeader title={title} eyebrow="Checkout seguro" onClose={onClose} />
+      <motion.section initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="checkout-screen checkout-modal-shell mx-auto my-3 w-full overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_100px_rgba(52,211,153,0.16)] sm:my-5 sm:rounded-[2rem]">
+        <CheckoutModalHeader title={title} eyebrow="Checkout seguro" onClose={onClose} compact />
         {children}
       </motion.section>
     </div>
   );
 }
 
-export function CheckoutModalHeader({ title, eyebrow = "Checkout seguro", onClose }: { title: string; eyebrow?: string; onClose: () => void }) {
+export function CheckoutModalHeader({ title, eyebrow = "Checkout seguro", onClose, compact = false }: { title: string; eyebrow?: string; onClose: () => void; compact?: boolean }) {
+  useCheckoutOverlayMode();
   return (
-    <header className="checkout-modal-header premium-site-header sticky top-0 z-10 border-b border-white/10 bg-[#090b11]/92 px-3 py-3 backdrop-blur-xl sm:px-4">
+    <header className={cn("checkout-modal-header premium-site-header sticky top-0 z-10 border-b border-white/10 bg-[#090b11]/92 backdrop-blur-xl", compact ? "px-3 py-2" : "px-3 py-3 sm:px-4")} data-media-aware={compact ? "compact-no-media" : "standard-media"}>
+      <CheckoutPageContainer className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-0">
       <div className="checkout-modal-title-block flex min-w-0 items-center gap-2.5 sm:gap-3">
-        <TenantLogo className="h-9 w-9 shrink-0 sm:h-10 sm:w-10" eager />
+        <TenantLogo className={cn("shrink-0", compact ? "h-8 w-8" : "h-9 w-9 sm:h-10 sm:w-10")} eager />
         <div className="min-w-0">
-          <p className="checkout-modal-kicker text-[9px] font-black uppercase tracking-[0.18em] text-[var(--theme-primary)] sm:text-[10px]">
+          <p className={cn("checkout-modal-kicker font-black uppercase tracking-[0.18em] text-[var(--theme-primary)]", compact ? "text-[8px]" : "text-[9px] sm:text-[10px]")}>
             {eyebrow}
           </p>
-          <h2 className="checkout-modal-title text-lg font-black leading-tight text-white sm:text-xl">{title}</h2>
-          <p className="text-xs font-semibold leading-tight text-slate-400">
+          <h2 className={cn("checkout-modal-title font-black leading-tight text-white", compact ? "text-base sm:text-lg" : "text-lg sm:text-xl")}>{title}</h2>
+          <p className={cn("font-semibold leading-tight text-slate-400", compact ? "text-[11px]" : "text-xs")}>
             <TenantHeaderName />
           </p>
         </div>
       </div>
       <button type="button" onClick={onClose} className="checkout-modal-close grid min-h-11 shrink-0 place-items-center rounded-full border border-white/10 px-3 py-2 text-sm font-black text-slate-200">Fechar</button>
+      </CheckoutPageContainer>
     </header>
   );
 }

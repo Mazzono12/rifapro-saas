@@ -781,11 +781,12 @@ function CheckoutModal(props: {
     <AnimatePresence>
       {props.open && (
         <motion.div className="checkout-modal-overlay fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <motion.div initial={{ y: 36, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 36, scale: 0.97 }} className="checkout-screen checkout-modal-shell mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_110px_rgba(16,185,129,0.16)] sm:my-5 sm:rounded-[2rem]">
+          <motion.div initial={{ y: 36, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 36, scale: 0.97 }} className="checkout-screen checkout-modal-shell mx-auto my-3 w-full overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_110px_rgba(16,185,129,0.16)] sm:my-5 sm:rounded-[2rem]">
             <CheckoutModalHeader
               eyebrow={props.step === "review" ? "Confirmar participacao" : props.step === "payment" ? "Pagamento PIX" : "Bilhete premium"}
               title={`${props.tickets.toLocaleString("pt-BR")} cotas - ${formatCurrency(props.totalValue)}`}
               onClose={props.onClose}
+              compact={props.step !== "review"}
             />
 
             <div className="px-4 pt-4 sm:px-5 sm:pt-5">

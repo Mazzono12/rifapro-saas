@@ -11,6 +11,7 @@ import { ModalidadesSection } from "../components/ModalidadesSection";
 import { useRaffles, useGlobalSettings } from "../hooks/useRaffles";
 import { cn } from "../lib/utils";
 import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout, TrustBadges } from "../components/premium/PremiumUI";
+import { PublicPageContainer } from "../components/layout/PremiumContainers";
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import type { Raffle } from "../types";
 
@@ -245,11 +246,11 @@ function HomeContent() {
       {renderStories('floating-left')}
       {renderStories('floating-right')}
 
-      <div className="w-full max-w-[1500px] mx-auto px-3 pb-8 pt-0 space-y-10 sm:px-4 md:space-y-12">
+      <PublicPageContainer className="pb-8 pt-0 space-y-10 md:space-y-12">
         {/* 1. Featured Prize (Top) */}
         {featuredRaffle && (
           <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-x-clip bg-[var(--theme-bg)] px-0 sm:px-4">
-            <div className="mx-auto w-full max-w-[1600px]">
+            <div className="public-page-container px-0">
               <StandardRaffleMediaBlock
                 mediaUrl={featuredRaffle.mediaUrl || featuredRaffle.image}
                 mediaType={(featuredRaffle.mediaType || "image") as any}
@@ -381,7 +382,7 @@ function HomeContent() {
       <section>
         <WinnersGallery />
       </section>
-    </div>
+    </PublicPageContainer>
 
     {renderStories('bottom')}
     </PremiumPageLayout>

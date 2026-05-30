@@ -24,6 +24,7 @@ import {
 import { NotFoundPage } from "./SystemStatus";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 import { CheckoutCampaignMedia } from "../components/checkout/CheckoutCampaignMedia";
+import { AppContentContainer } from "../components/layout/PremiumContainers";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 
@@ -269,7 +270,7 @@ export function NumberModePage() {
         <TrustBadges />
       </PremiumHero>
 
-      <div className="container mx-auto max-w-7xl px-4 py-8">
+      <AppContentContainer className="py-8">
         <Link to="/" className="mb-5 inline-flex items-center gap-2 text-slate-400 hover:text-white">
           <ArrowLeft className="h-4 w-4" /> Voltar
         </Link>
@@ -346,7 +347,7 @@ export function NumberModePage() {
             </div>
           </aside>
         </section>
-      </div>
+      </AppContentContainer>
 
       <PremiumCheckoutModal open={checkoutOpen} title={modalTitle} onClose={() => setCheckoutOpen(false)}>
         <div className="space-y-5 p-4 sm:p-5">

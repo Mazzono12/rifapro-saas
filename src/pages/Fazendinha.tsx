@@ -29,6 +29,7 @@ import {
 } from "../components/premium/PremiumUI";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 import { FazendinhaCheckoutMedia } from "../components/FazendinhaCheckoutMedia";
+import { AppContentContainer } from "../components/layout/PremiumContainers";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 
@@ -319,7 +320,7 @@ export function Fazendinha() {
         <TrustBadges />
       </PremiumHero>
 
-      <div className="container mx-auto max-w-7xl px-4 py-8">
+      <AppContentContainer className="py-8">
         <Link to="/" className="mb-4 inline-flex items-center gap-2 text-slate-400 hover:text-white">
           <ArrowLeft className="h-4 w-4" /> Voltar para inicio
         </Link>
@@ -413,6 +414,7 @@ export function Fazendinha() {
           </div>
         </div>
       </section>
+      </AppContentContainer>
 
       <PremiumCheckoutModal
         open={checkoutOpen}
@@ -575,7 +577,6 @@ export function Fazendinha() {
         onEdit={() => setReceiptOpen(false)}
         onClose={() => setReceiptOpen(false)}
       />
-      </div>
       <FloatingCTA
         label="Participar"
         meta={selectedGroups.length ? `${selectedGroups.length} grupos - ${formatCurrency(totalValue)}` : "Escolha seus grupos"}

@@ -52,6 +52,8 @@
     "test:fazendinha-premium-experience": "node scripts/test-fazendinha-premium-experience.mjs",
     "test:home-premium-spacing-hard": "node scripts/test-home-premium-spacing-hard.mjs",
     "test:premium-final-review": "node scripts/test-premium-final-review.mjs",
+    "test:premium-global-audit-hard": "node scripts/test-premium-global-audit-hard.mjs",
+    "test:global-width-alignment-hard": "node scripts/test-global-width-alignment-hard.mjs",
     "test:production-readiness": "node scripts/test-hard-suite.mjs production-readiness",
     "test:superadmin-finance": "node scripts/test-superadmin-finance.mjs",
     "test:tenant-domains": "node scripts/test-tenant-domains.mjs",

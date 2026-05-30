@@ -391,8 +391,8 @@ export function FazendinhaSection() {
         {checkoutOpen && (
           <motion.div className="fixed inset-0 z-[70] overflow-hidden bg-black/70 backdrop-blur-xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 10, opacity: 0 }} className="h-dvh overflow-y-auto overscroll-contain px-2 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-4 md:pt-[calc(env(safe-area-inset-top)+2.5rem)]">
-            <div className="checkout-screen checkout-modal-shell glass-card mx-auto w-full max-w-2xl overflow-hidden p-0">
-              <CheckoutModalHeader title={`${selectedGroups.length} grupo(s)`} eyebrow="Participar da Fazendinha" onClose={() => setCheckoutOpen(false)} />
+            <div className="checkout-screen checkout-modal-shell glass-card mx-auto w-full overflow-hidden p-0">
+              <CheckoutModalHeader title={`${selectedGroups.length} grupo(s)`} eyebrow="Participar da Fazendinha" onClose={() => setCheckoutOpen(false)} compact={!checkoutMedia?.enabled || !checkoutMedia?.mediaUrl} />
               <div className="p-4 sm:p-5">
               <FazendinhaCheckoutMedia {...checkoutMedia} className="mt-5" />
 
