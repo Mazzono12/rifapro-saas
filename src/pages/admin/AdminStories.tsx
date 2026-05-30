@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Plus, Edit2, Trash2, X, Check, PlaySquare } from "lucide-react";
-import { MediaRenderer } from "../../components/MediaRenderer";
+import { ResponsiveMediaFrame } from "../../components/ResponsiveMediaFrame";
 import { inferMediaType } from "../../utils/media";
 import type { Story } from "../../types";
 import { MediaPicker } from "../../components/admin/MediaPicker";
@@ -104,7 +104,7 @@ export function AdminStories() {
             {stories.map(s => (
                <div key={s.id} className="glass-card rounded-xl border border-white/5 overflow-hidden group">
                   <div className="aspect-[9/16] relative bg-cyber-900">
-                     <MediaRenderer mediaUrl={s.mediaUrl} mediaType={s.mediaType} className="w-full h-full object-cover" autoPlay={true} />
+                     <ResponsiveMediaFrame src={s.mediaUrl} type={s.mediaType} alt={s.title} preferredFit="auto" aspectMode="story" className="h-full w-full rounded-none" autoPlay />
                      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
                      <div className="absolute bottom-0 inset-x-0 p-3">
                         <p className="text-xs font-bold text-white mb-2 truncate">{s.title}</p>

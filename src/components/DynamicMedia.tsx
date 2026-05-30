@@ -1,5 +1,5 @@
 import { inferMediaType } from "../utils/media";
-import { MediaRenderer } from "./MediaRenderer";
+import { ResponsiveMediaFrame } from "./ResponsiveMediaFrame";
 import type React from "react";
 
 export function DynamicMedia({ mediaUrl, mediaType, className, autoPlay = true, muted = true, interactive = true, fallback, mediaFit = "cover" }: {
@@ -13,5 +13,16 @@ export function DynamicMedia({ mediaUrl, mediaType, className, autoPlay = true, 
   mediaFit?: "cover" | "contain" | "fill";
 }) {
   if (!mediaUrl) return <>{fallback || null}</>;
-  return <MediaRenderer mediaUrl={mediaUrl} mediaType={mediaType || inferMediaType(mediaUrl)} className={className} autoPlay={autoPlay} muted={muted} interactive={interactive} mediaFit={mediaFit} />;
+  return (
+    <ResponsiveMediaFrame
+      src={mediaUrl}
+      type={mediaType || inferMediaType(mediaUrl)}
+      preferredFit={mediaFit === "fill" ? "cover" : mediaFit}
+      aspectMode="auto"
+      autoPlay={autoPlay}
+      muted={muted}
+      controls={interactive}
+      className={className}
+    />
+  );
 }

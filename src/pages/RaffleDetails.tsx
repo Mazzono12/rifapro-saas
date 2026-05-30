@@ -116,8 +116,8 @@ export function RaffleDetails() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/raffles/${id}/ranking`).then(res => res.json()).then(setRanking).catch(() => null);
-    fetch(`/api/raffles/${id}/instant-prizes`).then(res => res.json()).then(setInstantPrizeNumbers).catch(() => null);
+    fetch(`/api/raffles/${id}/ranking`).then(res => res.json()).then(payload => setRanking(Array.isArray(payload) ? payload : [])).catch(() => setRanking([]));
+    fetch(`/api/raffles/${id}/instant-prizes`).then(res => res.json()).then(payload => setInstantPrizeNumbers(Array.isArray(payload) ? payload : [])).catch(() => setInstantPrizeNumbers([]));
     fetch(`/api/raffles/${id}/gamification`).then(res => res.json()).then(setGamification).catch(() => null);
     fetch(`/api/raffles/${id}/addon-suggestion`).then(res => res.ok ? res.json() : null).then(data => data && setAddonSuggestion(data)).catch(() => null);
     fetch("/api/settings").then(res => res.json()).then(setSettings).catch(() => null);
@@ -173,7 +173,9 @@ export function RaffleDetails() {
   }, [purchase]);
 
   const countdown = useCountdown(raffle?.drawDate || (raffle as any)?.endDate || (raffle as any)?.createdAt);
-  const progress = raffle ? Math.min(100, Math.max(0, raffle.progressOverride ?? (raffle.soldTickets / raffle.totalTickets) * 100)) : 0;
+  const totalTickets = Math.max(1, Number(raffle?.totalTickets || 1));
+  const soldTickets = Math.max(0, Number(raffle?.soldTickets || 0));
+  const progress = raffle ? Math.min(100, Math.max(0, raffle.progressOverride ?? (soldTickets / totalTickets) * 100)) : 0;
   const subtotalValue = raffle ? tickets * raffle.price : 0;
   const addonValue = acceptAddon && addonSuggestion ? addonSuggestion.amount : 0;
   const orderBumpValue = acceptOrderBump && gamification?.orderBump?.enabled && raffle

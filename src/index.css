@@ -3276,6 +3276,72 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   white-space: normal !important;
 }
 
+.responsive-media-frame {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(52, 211, 153, 0.16), transparent 34%),
+    linear-gradient(135deg, #020604, #07150d 52%, #020604);
+  contain: layout paint;
+}
+
+.responsive-media-frame img,
+.responsive-media-frame video,
+.responsive-media-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  object-fit: cover;
+}
+
+.responsive-media-contain img,
+.responsive-media-contain video,
+.responsive-media-contain iframe,
+.responsive-media-frame[data-fit="contain"] img,
+.responsive-media-frame[data-fit="contain"] video,
+.responsive-media-frame[data-fit="contain"] iframe {
+  object-fit: contain;
+}
+
+.responsive-media-frame[data-orientation="story"],
+.responsive-media-frame[data-orientation="vertical"],
+.responsive-media-frame[data-orientation="portrait"] {
+  max-height: min(78svh, 720px);
+}
+
+.responsive-media-frame[data-orientation="banner"] {
+  max-height: min(42svh, 360px);
+}
+
+.responsive-media-frame[data-orientation="square"] {
+  max-height: min(72svh, 640px);
+}
+
+.checkout-campaign-media .responsive-media-frame {
+  max-height: min(44svh, 380px);
+}
+
+.checkout-campaign-media .responsive-media-frame[data-orientation="story"],
+.checkout-campaign-media .responsive-media-frame[data-orientation="vertical"],
+.checkout-campaign-media .responsive-media-frame[data-orientation="portrait"] {
+  max-height: min(46svh, 420px);
+}
+
+@media (max-width: 480px) {
+  .responsive-media-frame[data-orientation="story"],
+  .responsive-media-frame[data-orientation="vertical"],
+  .responsive-media-frame[data-orientation="portrait"] {
+    max-height: 62svh;
+  }
+
+  .checkout-campaign-media .responsive-media-frame {
+    max-height: 38svh;
+  }
+}
+
 .checkout-media-preview {
   width: 100%;
   min-width: 0;

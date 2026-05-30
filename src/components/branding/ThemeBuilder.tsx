@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, Eye, Save, Send } from "lucide-react";
 import { ColorPicker } from "./ColorPicker";
+import { ResponsiveMediaFrame } from "../ResponsiveMediaFrame";
 
 const blockLabels: Record<string, string> = {
   hero: "Hero",
@@ -110,7 +111,16 @@ export function ThemeBuilder({
               <p className="text-xs font-black uppercase" style={{ color: colors.primary || "#00d66b" }}>{blockLabels[block.id] || block.id}</p>
               <h3 className="mt-1 text-lg font-black text-white">{block.title || blockLabels[block.id]}</h3>
               <p className="mt-1 text-sm text-slate-300">{block.subtitle || "Conteudo configuravel do tenant."}</p>
-              {block.imageUrl && <div className="mt-3 h-24 rounded-xl bg-cover bg-center" style={{ backgroundImage: `url(${block.imageUrl})` }} />}
+              {block.imageUrl && (
+                <ResponsiveMediaFrame
+                  src={block.imageUrl}
+                  type="image"
+                  alt={block.title || blockLabels[block.id] || "Preview do bloco"}
+                  preferredFit="auto"
+                  aspectMode="auto"
+                  className="mt-3 max-h-40 rounded-xl"
+                />
+              )}
             </section>
           ))}
         </div>

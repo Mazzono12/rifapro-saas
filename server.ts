@@ -4614,13 +4614,7 @@ async function startServer() {
     res.json(report);
   });
 
-  app.use((req, res, next) => {
-    if (req.path.startsWith("/api/public/")) {
-      next();
-      return;
-    }
-    resolveTenant(req, res, next);
-  });
+  app.use(resolveTenant);
 
   app.use("/api/admin", rateLimiter, requireTenantAdmin);
   const adminFeatureRoutes: Array<{ pattern: RegExp; feature: TenantFeatureFlag }> = [
@@ -9242,15 +9236,17 @@ async function startServer() {
   function creditAffiliateCommission(input: { tenantId: string; refCode?: string; buyerCustomerId?: string; amount: number; source: string }) {
     const referrer = input.refCode ? affiliates[tenantCustomerKey(input.tenantId, input.refCode)] : undefined;
     if (!referrer || referrer.customerId === input.buyerCustomerId) return null;
-    if (referrer.history.some(entry => entry.type === input.source)) return referrer;
+    const affiliate = referrer;
+    const purchase = { amount: input.amount };
+    if (affiliate.history.some(entry => entry.type === input.source)) return affiliate;
     const tenantScopedSettings = getTenantSettings(input.tenantId);
-    const comm = Number((input.amount * (tenantScopedSettings.affiliateProgram.commissionRate / 100)).toFixed(2));
-    referrer.conversions++;
-    referrer.revenue += input.amount;
-    referrer.commissionBalance += comm;
-    referrer.commission = referrer.commissionBalance + referrer.prizeBalance;
-    referrer.history.push({ amount: comm, type: input.source, date: new Date().toISOString() });
-    return referrer;
+    const comm = Number((purchase.amount * (tenantScopedSettings.affiliateProgram.commissionRate / 100)).toFixed(2));
+    affiliate.conversions++;
+    affiliate.revenue += purchase.amount;
+    affiliate.commissionBalance += comm;
+    affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
+    affiliate.history.push({ amount: comm, type: input.source, date: new Date().toISOString() });
+    return affiliate;
   }
 
   function manuallyConfirmPurchasePayment(purchase: PurchaseRecord, req: express.Request, reason: string) {

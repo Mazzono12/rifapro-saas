@@ -6,6 +6,7 @@ import { cn } from "../../lib/utils";
 import { MediaPicker } from "../../components/admin/MediaPicker";
 import { LootboxRulesEditor, normalizeLootboxConfig, RewardExperienceSelector } from "../../components/admin/LootboxRulesEditor";
 import { defaultVideoConfig, mergeVideoConfig, VideoSettingsEditor } from "../../components/admin/VideoSettingsEditor";
+import { ResponsiveMediaFrame } from "../../components/ResponsiveMediaFrame";
 import { toast } from "sonner";
 
 const DEFAULT_MEDIADELIVERY_VIDEO_URL = "https://player.mediadelivery.net/play/670514/b27261d2-ffd9-4e39-aa23-d7c400424177";
@@ -569,7 +570,7 @@ export function AdminRaffles() {
             {raffles.map(r => (
                <div key={r.id} className="glass-card p-4 rounded-xl border border-white/5 flex flex-col md:flex-row gap-6 items-center">
                   <div className="w-full md:w-48 h-32 rounded-lg bg-cyber-900 overflow-hidden relative shrink-0">
-                     <img src={r.image} alt={r.title} className="w-full h-full object-cover" />
+                     <ResponsiveMediaFrame src={r.image} type="image" alt={r.title} preferredFit="auto" aspectMode="auto" className="h-full w-full rounded-none" />
                      <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-md px-2 py-1 rounded text-[10px] font-mono border border-white/10 uppercase">
                         {r.status}
                      </div>

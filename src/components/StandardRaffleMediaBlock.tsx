@@ -2,7 +2,8 @@ import { ImageOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "../lib/utils";
 import type { Raffle } from "../types";
-import { MediaRenderer } from "./MediaRenderer";
+import { ResponsiveMediaFrame } from "./ResponsiveMediaFrame";
+import type { ResponsiveMediaAspectMode, ResponsiveMediaFit } from "../utils/mediaAspect";
 
 type StandardRaffleMediaBlockProps = {
   mediaUrl?: string | null;
@@ -18,6 +19,8 @@ type StandardRaffleMediaBlockProps = {
   soldTickets?: number;
   totalTickets?: number;
   priority?: boolean;
+  preferredFit?: ResponsiveMediaFit;
+  aspectMode?: ResponsiveMediaAspectMode;
   className?: string;
 };
 
@@ -41,9 +44,10 @@ export function StandardRaffleMediaBlock({
   soldTickets,
   totalTickets,
   priority = false,
+  preferredFit = "auto",
+  aspectMode = "auto",
   className
 }: StandardRaffleMediaBlockProps) {
-  const resolvedType = mediaType || "image";
   const hasMedia = Boolean(mediaUrl);
   const safeProgress = Math.min(100, Math.max(0, Number.isFinite(Number(progress)) ? Number(progress) : 0));
   const safeSold = Math.max(0, Math.floor(Number(soldTickets || 0)));
@@ -51,19 +55,17 @@ export function StandardRaffleMediaBlock({
 
   return (
     <article className={cn("overflow-hidden rounded-[1.25rem] border border-[var(--theme-border)] bg-[var(--theme-surface)]", className)}>
-      <div className="relative aspect-video w-full overflow-hidden bg-black">
+      <div className="relative w-full overflow-hidden bg-black">
         {hasMedia ? (
-          <MediaRenderer
-            mediaUrl={mediaUrl!}
-            mediaType={resolvedType}
-            mediaFit="cover"
+          <ResponsiveMediaFrame
+            src={mediaUrl}
+            type={mediaType || "image"}
+            alt={title}
+            preferredFit={preferredFit}
+            aspectMode={aspectMode}
             priority={priority}
-            preload={priority ? "auto" : "metadata"}
-            autoPlay={resolvedType !== "image"}
             muted={false}
-            playWhenVisible={!priority}
-            interactive={resolvedType !== "image"}
-            className="h-full w-full"
+            className="w-full max-h-[78svh] rounded-none"
           />
         ) : (
           <div className="grid h-full w-full place-items-center bg-[#030805] text-emerald-50/80">

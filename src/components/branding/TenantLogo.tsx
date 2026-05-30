@@ -2,18 +2,21 @@ import { useState } from "react";
 import { Hexagon } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
+import { ResponsiveMediaFrame } from "../ResponsiveMediaFrame";
 
 export function TenantLogo({ className, eager = false }: { className?: string; eager?: boolean }) {
   const { branding } = useTenantBranding();
   const [failed, setFailed] = useState(false);
   if (branding.logo_url && !failed) {
     return (
-      <img
+      <ResponsiveMediaFrame
         src={branding.logo_url}
+        type="image"
         alt={branding.header_name}
-        className={cn("h-10 w-10 rounded-xl border border-white/10 object-contain", className)}
-        loading={eager ? "eager" : "lazy"}
-        decoding="async"
+        preferredFit="contain"
+        aspectMode="square"
+        priority={eager}
+        className={cn("h-10 w-10 rounded-xl border border-white/10", className)}
         onError={() => setFailed(true)}
       />
     );

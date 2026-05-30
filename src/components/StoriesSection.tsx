@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
-import { MediaRenderer } from './MediaRenderer';
+import { ResponsiveMediaFrame } from './ResponsiveMediaFrame';
 import type { Story } from '../types';
 
 function normalizeStories(payload: unknown): Story[] {
@@ -62,7 +62,7 @@ export function StoriesSection() {
             <div className="relative h-[72px] w-[72px] rounded-full bg-[conic-gradient(from_210deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5,#feda75)] p-[3px] shadow-[0_10px_28px_rgba(0,0,0,0.28)] transition-transform duration-300 group-hover:scale-105">
               <div className="h-full w-full rounded-full bg-[var(--theme-bg)] p-[3px]">
                 <div className="h-full w-full overflow-hidden rounded-full bg-black">
-                  <MediaRenderer mediaUrl={story.mediaUrl} mediaType={story.mediaType} autoPlay={false} className="h-full w-full object-cover" />
+                  <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} autoPlay={false} preferredFit="cover" aspectMode="square" className="h-full w-full rounded-full" />
                 </div>
               </div>
             </div>
@@ -132,7 +132,7 @@ function StoryViewer({ story, onClose, onNext }: { story: Story, onClose: () => 
               <div className="flex min-w-0 items-center gap-3">
                 <div className="h-10 w-10 rounded-full bg-[conic-gradient(from_210deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5,#feda75)] p-[2px]">
                   <div className="h-full w-full overflow-hidden rounded-full bg-black">
-                    <MediaRenderer mediaUrl={story.mediaUrl} mediaType={story.mediaType} className="h-full w-full object-cover" autoPlay={false} />
+                    <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} className="h-full w-full rounded-full" autoPlay={false} preferredFit="cover" aspectMode="square" />
                   </div>
                 </div>
                 <span className="truncate text-sm font-bold text-white drop-shadow">{story.title}</span>
@@ -143,7 +143,7 @@ function StoryViewer({ story, onClose, onNext }: { story: Story, onClose: () => 
             </div>
 
             <div key={story.id} className="relative h-full w-full flex-1" onClick={onNext}>
-               <MediaRenderer mediaUrl={story.mediaUrl} mediaType={story.mediaType} className="absolute inset-0 h-full w-full object-cover" autoPlay={true} muted={false} interactive={false} />
+               <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} className="absolute inset-0 h-full w-full rounded-none" preferredFit="auto" aspectMode="story" autoPlay muted={false} controls={false} />
                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/60" />
                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-5 pb-8">
                  <p className="text-base font-bold leading-snug text-white drop-shadow md:text-lg">{story.title}</p>

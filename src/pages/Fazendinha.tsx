@@ -78,22 +78,26 @@ export function Fazendinha() {
     setForm(current => current.city ? current : { ...current, city: detectedCity.city, state: current.state || detectedCity.state });
   }, [detectedCity]);
 
+  const config = data?.config && typeof data.config === "object" ? data.config : {} as NonNullable<typeof data>["config"];
+  const winners = Array.isArray(data?.winners) ? data.winners : [];
+  const purchases = Array.isArray(data?.purchases) ? data.purchases : [];
+
   const groups = useMemo(() => {
-    if (!data) return [];
-    const filtered = filter === "all" ? data.groups : data.groups.filter(group => group.status === filter);
+    const rawGroups = Array.isArray(data?.groups) ? data.groups : [];
+    const filtered = filter === "all" ? rawGroups : rawGroups.filter(group => group.status === filter);
     return [...filtered].sort((a, b) => fazendinhaOrderIndex(a.id) - fazendinhaOrderIndex(b.id));
   }, [data, filter]);
 
-  const history = data?.purchases.filter(item => item.usuarioId === customer?.id) || [];
+  const history = purchases.filter(item => item.usuarioId === customer?.id);
   const selectedTotal = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
   const addonValue = acceptAddon && addonSuggestion ? addonSuggestion.amount : 0;
   const totalValue = selectedTotal + addonValue;
   const fazendinhaMedia = {
-    title: data.config.name || "Fazendinha",
-    subtitle: (data.config as any).prize || "Premio principal",
-    image: data.config.mediaUrl || "",
-    mediaUrl: data.config.mediaUrl || "",
-    mediaType: data.config.mediaType as any
+    title: config.name || "Fazendinha",
+    subtitle: (config as any).prize || "Premio principal",
+    image: config.mediaUrl || "",
+    mediaUrl: config.mediaUrl || "",
+    mediaType: config.mediaType as any
   };
   const hasSavedCustomer = Boolean(customer?.name && customer.phone && customer.cpf);
   const canUseSavedCustomer = hasSavedCustomer && !requireIdentity;
@@ -306,15 +310,15 @@ export function Fazendinha() {
         onClose={() => setLootboxReward({ ...lootboxReward, open: false })}
         earnedCount={lootboxReward.count}
         contact={lootboxReward.contact}
-        config={data.config.lootboxConfig}
+        config={config.lootboxConfig}
       />
       <PixPaymentResultModal result={paymentResult} onClose={closePaymentResult} />
 
       <PremiumHero
         eyebrow="Fazendinha premium"
-        title={data.config.name || "Fazendinha dos Sonhos"}
+        title={config.name || "Fazendinha dos Sonhos"}
         subtitle="Concorra a uma Fazendinha dos Sonhos com PIX automático, bilhetes instantâneos e sorteio auditável pela Loteria Federal."
-        image={data.config.mediaUrl || "/fazendinha-animais-premium.png"}
+        image={config.mediaUrl || "/fazendinha-animais-premium.png"}
         cta={<CheckoutPrimaryButton onClick={() => setCheckoutOpen(true)} className="inline-flex min-h-14 items-center justify-center rounded-2xl px-7">Participar Agora</CheckoutPrimaryButton>}
       >
         <TrustBadges />
@@ -326,7 +330,7 @@ export function Fazendinha() {
         </Link>
 
         <section className="grid gap-3 md:grid-cols-3">
-          <PrizeCard title="Prêmio principal" description="Uma experiência completa para realizar o sonho da sua fazenda." image={data.config.mediaUrl || "/fazendinha-animais-premium.png"} badge="Principal" />
+          <PrizeCard title="Prêmio principal" description="Uma experiência completa para realizar o sonho da sua fazenda." image={config.mediaUrl || "/fazendinha-animais-premium.png"} badge="Principal" />
           <PrizeCard title="Prêmios extras" description="Rodadas promocionais, bônus e ativações especiais durante a campanha." badge="Bônus" />
           <PrizeCard title="Bilhete premium" description="Comprovante visual com validação, status do PIX e seus grupos comprados." badge="Seguro" />
         </section>
@@ -405,7 +409,7 @@ export function Fazendinha() {
         <div className="glass-card p-6">
           <h2 className="font-display text-2xl font-bold">Ultimos ganhadores</h2>
           <div className="mt-5 space-y-3">
-            {data.winners.length === 0 ? <p className="text-slate-500">Nenhum resultado apurado ainda.</p> : data.winners.map(winner => (
+            {winners.length === 0 ? <p className="text-slate-500">Nenhum resultado apurado ainda.</p> : winners.map(winner => (
               <div key={winner.id} className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
                 <p className="font-bold text-white">{winner.semGanhador ? "Sem ganhador" : winner.nomeBicho}</p>
                 <p className="text-sm font-mono text-slate-400">Numero {winner.numeroSorteado} • {winner.premio}</p>
@@ -432,7 +436,7 @@ export function Fazendinha() {
           {confirmedReceipt ? (
             <>
               <PremiumTicketReceipt
-                title={data.config.name || "Fazendinha"}
+                title={config.name || "Fazendinha"}
                 purchaseId={confirmedReceipt.purchase.id}
                 numbers={confirmedReceipt.groups.flatMap(group => group.numeros).map(number => Number(number)).filter(Number.isFinite)}
                 onShare={shareConfirmedReceipt}
@@ -558,8 +562,8 @@ export function Fazendinha() {
       </PremiumCheckoutModal>
       <PrePaymentReceiptModal
         open={receiptOpen}
-        campaign={data.config.name || "Fazendinha"}
-        raffle={data.config.name || "Fazendinha"}
+        campaign={config.name || "Fazendinha"}
+        raffle={config.name || "Fazendinha"}
         raffleData={fazendinhaMedia}
         selectedQuantity={selectedGroups.flatMap(group => group.numeros).length}
         selectedPackage={`${selectedGroups.length} grupo(s)`}

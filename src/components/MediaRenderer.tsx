@@ -14,11 +14,15 @@ interface Props {
   interactive?: boolean;
   priority?: boolean;
   preload?: 'none' | 'metadata' | 'auto';
+  poster?: string;
+  loop?: boolean;
+  playsInline?: boolean;
   onLoad?: () => void;
   onError?: () => void;
+  onMetadata?: (width: number, height: number) => void;
 }
 
-export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true, muted = true, playWhenVisible = false, visibilityThreshold = 0.55, mediaFit = 'cover', interactive = true, priority = false, preload = 'metadata', onLoad, onError }: Props) {
+export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true, muted = true, playWhenVisible = false, visibilityThreshold = 0.55, mediaFit = 'cover', interactive = true, priority = false, preload = 'metadata', poster, loop = true, playsInline = true, onLoad, onError, onMetadata }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [visible, setVisible] = useState(!playWhenVisible);
@@ -59,7 +63,10 @@ export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true,
         className={`${fitClass} ${className}`}
         loading={priority ? "eager" : "lazy"}
         decoding="async"
-        onLoad={onLoad}
+        onLoad={event => {
+          onMetadata?.(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight);
+          onLoad?.();
+        }}
         onError={onError}
       />
     );
@@ -75,10 +82,14 @@ export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true,
           data-rifapro-autoplay="false"
           data-rifapro-muted={String(muted)}
           muted={muted}
+          poster={poster}
           preload={preload}
-          loop
-          playsInline
+          loop={loop}
+          playsInline={playsInline}
           controls={interactive}
+          onLoadedMetadata={event => {
+            onMetadata?.(event.currentTarget.videoWidth, event.currentTarget.videoHeight);
+          }}
           onLoadedData={onLoad}
           onError={onError}
         />
@@ -93,11 +104,14 @@ export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true,
         priority={priority}
         preload={preload}
         controls={false}
-        playsInline
+        poster={poster}
+        loop={loop}
+        playsInline={playsInline}
         mediaFit={mediaFit}
         threshold={visibilityThreshold}
         onLoad={onLoad}
         onError={onError}
+        onMetadata={onMetadata}
       />
     );
   }

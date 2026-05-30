@@ -18,6 +18,7 @@ type Props = {
   threshold?: number;
   onLoad?: () => void;
   onError?: () => void;
+  onMetadata?: (width: number, height: number) => void;
 };
 
 export function SmartAutoPlayVideo({
@@ -34,7 +35,8 @@ export function SmartAutoPlayVideo({
   mediaFit = "cover",
   threshold = 0.62,
   onLoad,
-  onError
+  onError,
+  onMetadata
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [muted, setMuted] = useState(mutedDefault);
@@ -64,6 +66,9 @@ export function SmartAutoPlayVideo({
         playsInline={playsInline}
         preload={priority ? "auto" : preload}
         controls={controls}
+        onLoadedMetadata={event => {
+          onMetadata?.(event.currentTarget.videoWidth, event.currentTarget.videoHeight);
+        }}
         onCanPlay={onLoad}
         onLoadedData={onLoad}
         onError={onError}

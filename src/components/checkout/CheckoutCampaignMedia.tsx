@@ -1,5 +1,5 @@
 import { ImageOff } from "lucide-react";
-import { CampaignMediaHero } from "../CampaignMediaHero";
+import { ResponsiveMediaFrame } from "../ResponsiveMediaFrame";
 import { cn } from "../../lib/utils";
 import type { Raffle } from "../../types";
 
@@ -106,24 +106,25 @@ export function CheckoutCampaignMedia({
   }
 
   return (
-    <CampaignMediaHero
-      mediaUrl={resolvedUrl}
-      mediaType={(resolvedType === "fallback" ? "image" : resolvedType) as Raffle["mediaType"]}
-      mediaFit="cover"
-      title={resolvedTitle}
-      subtitle={resolvedSubtitle}
-      overlay
-      mediaClassName={resolvedPoster ? "bg-slate-950" : undefined}
-      className={cn("checkout-campaign-media checkout-media-preview border border-white/10 bg-slate-950", compact ? "aspect-[16/9]" : "aspect-video", className)}
-    >
-      <div className="absolute inset-x-0 bottom-0 z-10 p-3 sm:p-4">
+    <div className={cn("checkout-campaign-media checkout-media-preview overflow-hidden rounded-2xl border border-white/10 bg-slate-950", className)}>
+      <ResponsiveMediaFrame
+        src={resolvedUrl}
+        type={(resolvedType === "fallback" ? "image" : resolvedType) as Raffle["mediaType"]}
+        alt={resolvedTitle}
+        preferredFit="auto"
+        aspectMode="auto"
+        priority={false}
+        muted
+        className={cn(compact ? "max-h-[38svh]" : "max-h-[44svh]", resolvedPoster ? "bg-slate-950" : undefined)}
+      />
+      <div className="p-3 sm:p-4">
         <div className="min-w-0">
-          {showStatus && <p className="mb-2 inline-flex rounded-full border border-emerald-300/25 bg-black/45 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100 backdrop-blur-xl">{statusLabel}</p>}
+          {showStatus && <p className="mb-2 inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">{statusLabel}</p>}
           <h3 className="line-clamp-2 text-base font-black leading-tight text-white sm:text-lg">{resolvedTitle}</h3>
-          {resolvedSubtitle && <p className="mt-1 line-clamp-2 text-xs font-semibold text-emerald-50/85">{resolvedSubtitle}</p>}
+          {resolvedSubtitle && <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-300">{resolvedSubtitle}</p>}
           {showPrice && priceLabel && <p className="mt-2 text-xs font-black text-emerald-100">{priceLabel}</p>}
         </div>
       </div>
-    </CampaignMediaHero>
+    </div>
   );
 }

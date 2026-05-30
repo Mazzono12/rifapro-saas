@@ -38,6 +38,7 @@ import { AdminThemeProvider, useAdminTheme } from "../../context/admin/AdminThem
 import { cn } from "../../lib/utils";
 import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
 import { supportSessionStorageKey } from "../../lib/authSession";
+import { ResponsiveMediaFrame } from "../../components/ResponsiveMediaFrame";
 
 function AdminLayoutContent() {
   const location = useLocation();
@@ -162,7 +163,7 @@ function AdminLayoutContent() {
     )}>
       <div className={cn("flex min-h-[76px] items-center border-b border-[var(--admin-border)]", minimized ? "justify-center" : "gap-3")}>
         <Link to="/admin" className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--admin-primary)] text-white">
-          {logo ? <img src={logo} alt={companyName} className="h-full w-full object-contain" loading="lazy" /> : <Hexagon className="h-7 w-7 text-white" />}
+          {logo ? <ResponsiveMediaFrame src={logo} type="image" alt={companyName} preferredFit="contain" aspectMode="square" className="h-full w-full rounded-none" /> : <Hexagon className="h-7 w-7 text-white" />}
         </Link>
         {!minimized && (
           <Link to="/admin" className="min-w-0">

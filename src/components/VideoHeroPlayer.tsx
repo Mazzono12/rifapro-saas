@@ -8,6 +8,7 @@ type Props = {
   className?: string;
   onLoad?: () => void;
   onError?: () => void;
+  onMetadata?: (width: number, height: number) => void;
 };
 
 export function VideoHeroPlayer({
@@ -17,7 +18,8 @@ export function VideoHeroPlayer({
   mediaFit = "cover",
   className,
   onLoad,
-  onError
+  onError,
+  onMetadata
 }: Props) {
   return (
     <SmartAutoPlayVideo
@@ -33,6 +35,7 @@ export function VideoHeroPlayer({
       threshold={0.62}
       onLoad={onLoad}
       onError={onError}
+      onMetadata={onMetadata}
     />
   );
 }

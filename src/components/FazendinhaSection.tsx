@@ -12,6 +12,7 @@ import { cn } from "../lib/utils";
 import { FAZENDINHA_ANIMAL_MARKS, FAZENDINHA_GROUP_ORDER } from "../lib/fazendinha";
 import type { FazendinhaGroup, FazendinhaPurchase, Raffle } from "../types";
 import { DynamicMedia } from "./DynamicMedia";
+import { ResponsiveMediaFrame } from "./ResponsiveMediaFrame";
 import { PostPurchaseLootboxModal } from "./PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "./PixPaymentResultModal";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "./checkout/PrePaymentReceiptModal";
@@ -447,7 +448,7 @@ export function FazendinhaSection() {
                   interactive={true}
                   mediaFit="cover"
                   className="h-full w-full"
-                  fallback={<img src="/fazendinha-animais-premium.png" alt={configName} loading="lazy" decoding="async" className="aspect-video w-full object-cover" />}
+                  fallback={<ResponsiveMediaFrame src="/fazendinha-animais-premium.png" type="image" alt={configName} preferredFit="auto" aspectMode="auto" className="w-full rounded-none" />}
                 />
               </div>
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Plus, Trash2, X, Check, Trophy } from "lucide-react";
 import type { Winner } from "../../types";
 
-import { MediaRenderer } from "../../components/MediaRenderer";
+import { ResponsiveMediaFrame } from "../../components/ResponsiveMediaFrame";
 import { inferMediaType } from "../../utils/media";
 import { MediaPicker } from "../../components/admin/MediaPicker";
 
@@ -112,11 +112,7 @@ export function AdminWinners() {
             {winners.map(w => (
                <div key={w.id} className="glass-card rounded-xl border border-white/5 overflow-hidden group">
                   <div className="aspect-[4/3] bg-cyber-900 relative">
-                     {w.mediaType ? (
-                       <MediaRenderer mediaUrl={w.mediaUrl} mediaType={w.mediaType} className="w-full h-full object-cover" autoPlay={true} />
-                     ) : (
-                       <img src={w.mediaUrl} alt={w.winnerName} className="w-full h-full object-cover" />
-                     )}
+                     <ResponsiveMediaFrame src={w.mediaUrl} type={w.mediaType || "image"} alt={w.winnerName} preferredFit="auto" aspectMode="auto" className="h-full w-full rounded-none" autoPlay />
                      <button onClick={async () => { await fetch(`/api/admin/winners/${w.id}`, {method: 'DELETE'}); loadWinners(); }} className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-red-500 rounded-lg text-white backdrop-blur transition-colors opacity-0 group-hover:opacity-100 z-10">
                         <Trash2 className="w-4 h-4" />
                      </button>

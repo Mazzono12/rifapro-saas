@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Trophy, Calendar } from 'lucide-react';
 import { motion } from 'motion/react';
-import { MediaRenderer } from './MediaRenderer';
+import { ResponsiveMediaFrame } from './ResponsiveMediaFrame';
 import type { Winner } from '../types';
 
 function normalizeWinners(payload: unknown): Winner[] {
@@ -57,13 +57,17 @@ export function WinnersGallery() {
              className="glass-card group w-[82vw] min-w-[82vw] max-w-[360px] shrink-0 snap-start sm:w-[360px] sm:min-w-[360px] lg:w-[380px] lg:min-w-[380px]"
            >
              <div className="aspect-[4/3] w-full relative border-b border-white/[0.05] overflow-hidden">
-                <MediaRenderer 
-                   mediaUrl={winner.mediaUrl} 
-                   mediaType={winner.mediaType} 
-                   className="absolute inset-0 w-full h-full cursor-pointer object-cover transform duration-1000 ease-out group-hover:scale-110" 
+                <ResponsiveMediaFrame
+                   src={winner.mediaUrl}
+                   type={winner.mediaType}
+                   alt={winner.winnerName}
+                   className="absolute inset-0 h-full w-full cursor-pointer rounded-none"
+                   mediaClassName="transform duration-1000 ease-out group-hover:scale-110"
+                   preferredFit="auto"
+                   aspectMode="auto"
                    autoPlay={false}
                    muted={false}
-                   interactive={true}
+                   controls
                 />
              </div>
              <div className="p-8 relative">

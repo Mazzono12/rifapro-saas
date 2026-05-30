@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useLootboxOpen } from '../hooks/useLootboxOpen';
 import { lootboxService, type LootboxOpenResult, type PrizeRarity } from '../services/lootboxService';
 import type { LootboxConfig, RewardWheelSegment } from '../types';
+import { ResponsiveMediaFrame } from './ResponsiveMediaFrame';
 
 interface Props {
   isOpen: boolean;
@@ -382,7 +383,7 @@ export function PostPurchaseLootboxModal({ isOpen, onClose, earnedCount, contact
                         className="absolute left-1/2 top-1/2 z-10 text-center"
                         style={{ transform: `translate(-50%, -50%) rotate(${index * wheelSegmentDegrees + wheelSegmentDegrees / 2}deg) translateY(-7.4rem)` }}
                       >
-                        {segment.imageUrl && <img src={segment.imageUrl} alt="" className="mx-auto mb-1 h-9 w-9 rounded-full border border-white/80 object-cover shadow-sm" />}
+                        {segment.imageUrl && <ResponsiveMediaFrame src={segment.imageUrl} type="image" alt={segment.label || "Premio"} preferredFit="cover" aspectMode="square" className="mx-auto mb-1 h-9 w-9 rounded-full border border-white/80 shadow-sm" />}
                         <span
                           className="block rotate-90 whitespace-nowrap text-xs font-semibold sm:text-base"
                           style={{ color: segmentTextColor(segment.color), textShadow: segmentTextColor(segment.color) === "#ffffff" ? "0 1px 2px rgba(0,0,0,.38)" : "none" }}

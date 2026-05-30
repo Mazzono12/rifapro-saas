@@ -78,8 +78,8 @@ includesAll(numberMode, [
 includesAll(fazendinha, [
   "import { CheckoutCampaignMedia }",
   "fazendinhaMedia",
-  "data.config.mediaUrl",
-  "data.config.mediaType",
+  "config.mediaUrl",
+  "config.mediaType",
   "<CheckoutCampaignMedia",
   "Aguardando pagamento",
   "raffleData={fazendinhaMedia}",

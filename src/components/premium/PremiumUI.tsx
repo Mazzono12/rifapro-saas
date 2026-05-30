@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, Clock3, Inbox, QrCode, ShieldCheck, Ticket
 import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "../../lib/utils";
+import { ResponsiveMediaFrame } from "../ResponsiveMediaFrame";
 
 export function PremiumPageLayout({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -249,7 +250,17 @@ export function PremiumHero({
 }) {
   return (
     <section className="premium-hero">
-      {image && <img src={image} alt={title} className="absolute inset-0 h-full w-full object-cover opacity-42" loading="lazy" decoding="async" />}
+      {image && (
+        <ResponsiveMediaFrame
+          src={image}
+          type="image"
+          alt={title}
+          preferredFit="auto"
+          aspectMode="auto"
+          className="absolute inset-0 h-full w-full rounded-none opacity-42"
+          priority={false}
+        />
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/20" />
       <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 mx-auto flex min-h-[560px] w-full max-w-7xl min-w-0 flex-col justify-end px-4 pb-8 pt-24 sm:min-h-[640px] sm:pb-12">
         {eyebrow && <p className="premium-eyebrow mb-4">{eyebrow}</p>}
@@ -276,7 +287,16 @@ export function PrizeCard({ title, description, image, badge }: { title: string;
   return (
     <article className="premium-card overflow-hidden p-0">
       <div className="relative aspect-[16/10] bg-slate-950">
-        {image ? <img src={image} alt={title} className="h-full w-full object-cover" loading="lazy" decoding="async" /> : <div className="h-full w-full bg-gradient-to-br from-emerald-400/20 to-cyan-400/10" />}
+        {image ? (
+          <ResponsiveMediaFrame
+            src={image}
+            type="image"
+            alt={title}
+            preferredFit="auto"
+            aspectMode="auto"
+            className="h-full w-full rounded-none"
+          />
+        ) : <div className="h-full w-full bg-gradient-to-br from-emerald-400/20 to-cyan-400/10" />}
         {badge && <span className="absolute left-3 top-3 rounded-full bg-emerald-300 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-950">{badge}</span>}
       </div>
       <div className="p-4">

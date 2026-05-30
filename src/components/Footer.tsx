@@ -1,6 +1,7 @@
 import { Mail, Building2, ExternalLink } from "lucide-react";
 import { useGlobalSettings } from "../hooks/useRaffles";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
+import { ResponsiveMediaFrame } from "./ResponsiveMediaFrame";
 
 export function Footer() {
   const { data: settings } = useGlobalSettings();
@@ -14,7 +15,7 @@ export function Footer() {
         <div>
           <div className="flex items-center gap-3">
             {branding.logo_url || footer.ownerLogoUrl ? (
-              <img src={branding.logo_url || footer.ownerLogoUrl} alt={branding.header_name || footer.ownerName} className="h-11 w-11 rounded-xl object-contain border border-white/10" loading="lazy" />
+              <ResponsiveMediaFrame src={branding.logo_url || footer.ownerLogoUrl} type="image" alt={branding.header_name || footer.ownerName} preferredFit="contain" aspectMode="square" className="h-11 w-11 rounded-xl border border-white/10" />
             ) : (
               <div className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-white/[0.04]">
                 <Building2 className="h-5 w-5 text-[var(--theme-primary)]" />
