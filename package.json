@@ -50,6 +50,7 @@
     "test:fazendinha-audit-hard": "node scripts/test-fazendinha-audit-hard.mjs",
     "test:fazendinha-media-settings-hard": "node scripts/test-fazendinha-media-settings-hard.mjs",
     "test:fazendinha-premium-experience": "node scripts/test-fazendinha-premium-experience.mjs",
+    "test:home-premium-spacing-hard": "node scripts/test-home-premium-spacing-hard.mjs",
     "test:production-readiness": "node scripts/test-hard-suite.mjs production-readiness",
     "test:superadmin-finance": "node scripts/test-superadmin-finance.mjs",
     "test:tenant-domains": "node scripts/test-tenant-domains.mjs",

@@ -17,7 +17,7 @@ import { PrePaymentReceiptModal, type CheckoutPreview } from "./checkout/PrePaym
 import { CheckoutPrimaryButton } from "./premium/PremiumUI";
 import { FazendinhaAnimalPickerBanner } from "./FazendinhaAnimalPickerBanner";
 import { FazendinhaCheckoutMedia } from "./FazendinhaCheckoutMedia";
-import { FazendinhaCaixinhaHighlight, FazendinhaExtractionBadge, FazendinhaParticipateCTA, FazendinhaPremiumInfo, FazendinhaPrizeInfo } from "./FazendinhaPremiumExperience";
+import { FazendinhaCompactPremiumInfo, FazendinhaParticipateCTA } from "./FazendinhaPremiumExperience";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 
@@ -288,7 +288,7 @@ export function FazendinhaSection() {
   };
 
   return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-[var(--theme-border)] bg-[var(--theme-surface-strong)] p-5 shadow-[0_34px_110px_rgba(15,23,42,0.12)] md:p-8">
+    <section className="relative overflow-hidden rounded-[1.5rem] border border-[var(--theme-border)] bg-[var(--theme-surface-strong)] p-3 shadow-[0_24px_80px_rgba(15,23,42,0.10)] sm:p-4 md:p-5">
       <PostPurchaseLootboxModal
         isOpen={lootboxReward.open}
         onClose={() => setLootboxReward({ ...lootboxReward, open: false })}
@@ -300,18 +300,15 @@ export function FazendinhaSection() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,var(--theme-glow),transparent_30%),radial-gradient(circle_at_86%_18%,var(--theme-glow-2),transparent_34%)]" />
       <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/18 to-transparent opacity-70" />
 
-      <div className="relative z-10 mx-auto max-w-[980px] space-y-5">
+      <div className="relative z-10 mx-auto max-w-[980px] space-y-3 sm:space-y-4">
         <FazendinhaAnimalPickerBanner {...homeBanner} />
-        <FazendinhaPremiumInfo settings={premiumExperience} />
-        <FazendinhaCaixinhaHighlight settings={premiumExperience} active={Boolean(config.lootboxEnabled)} />
-        <FazendinhaExtractionBadge settings={premiumExperience} drawDate={config.drawDate} />
-        <FazendinhaPrizeInfo settings={premiumExperience} prize={configMainPrize} price={formattedPricePerGroup} />
-        <div className="fazendinha-animal-picker-header rounded-[1.5rem] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--theme-primary)]/25 bg-[var(--theme-primary)]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--theme-primary)]">
+        <FazendinhaCompactPremiumInfo settings={premiumExperience} prize={configMainPrize} price={formattedPricePerGroup} drawDate={config.drawDate} caixinhaActive={Boolean(config.lootboxEnabled)} />
+        <div className="fazendinha-animal-picker-header rounded-[1.15rem] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-3 sm:p-4">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--theme-primary)]/25 bg-[var(--theme-primary)]/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--theme-primary)]">
             <Sparkles className="h-3.5 w-3.5" /> Escolha os bichos
           </span>
-          <h2 className="mt-3 font-display text-3xl font-black leading-tight text-[var(--theme-text)] sm:text-4xl">{configName}</h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--theme-muted)] sm:text-base">{configDescription}</p>
+          <h2 className="mt-2 font-display text-2xl font-black leading-tight text-[var(--theme-text)] sm:text-3xl">{configName}</h2>
+          <p className="mt-1 line-clamp-2 text-sm leading-5 text-[var(--theme-muted)]">{configDescription}</p>
         </div>
         <div className="relative overflow-hidden rounded-[1.75rem] border border-[var(--theme-border)] bg-[var(--theme-bg-soft)] p-2 shadow-[0_30px_90px_rgba(15,23,42,0.18)]">
           <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_20%,var(--theme-glow),transparent_38%)] opacity-70" />

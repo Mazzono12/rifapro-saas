@@ -245,11 +245,11 @@ function HomeContent() {
       {renderStories('floating-left')}
       {renderStories('floating-right')}
 
-      <div className="w-full max-w-7xl mx-auto px-4 pb-8 pt-0 space-y-16">
+      <div className="w-full max-w-[1500px] mx-auto px-3 pb-8 pt-0 space-y-10 sm:px-4 md:space-y-12">
         {/* 1. Featured Prize (Top) */}
         {featuredRaffle && (
-          <section className="relative left-1/2 w-screen -translate-x-1/2 bg-[var(--theme-bg)] px-4">
-            <div className="mx-auto max-w-7xl">
+          <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-x-clip bg-[var(--theme-bg)] px-0 sm:px-4">
+            <div className="mx-auto w-full max-w-[1600px]">
               <StandardRaffleMediaBlock
                 mediaUrl={featuredRaffle.mediaUrl || featuredRaffle.image}
                 mediaType={(featuredRaffle.mediaType || "image") as any}
@@ -264,9 +264,9 @@ function HomeContent() {
                 soldTickets={featuredRaffle.soldTickets}
                 totalTickets={featuredRaffle.totalTickets}
                 priority
-                className="rounded-none border-x-0 sm:rounded-[1.25rem] sm:border-x"
+                className="home-featured-raffle-block rounded-none border-x-0 sm:rounded-[1.25rem] sm:border-x"
               />
-              <div className="mt-5">
+              <div className="mt-4 px-3 sm:px-0">
                 <TrustBadges />
               </div>
             </div>

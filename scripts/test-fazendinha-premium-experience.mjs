@@ -22,24 +22,23 @@ const pkg = read("package.json");
 
 includesAll(section, [
   "<FazendinhaAnimalPickerBanner {...homeBanner} />",
-  "<FazendinhaPremiumInfo",
-  "<FazendinhaCaixinhaHighlight",
-  "<FazendinhaExtractionBadge",
-  "<FazendinhaPrizeInfo",
+  "<FazendinhaCompactPremiumInfo",
+  "fazendinha-animal-picker-header",
   "boardGroupIds.map",
   "<FazendinhaParticipateCTA",
   "setCheckoutOpen(true)"
 ], "ordem premium da Fazendinha");
-assert(section.indexOf("<FazendinhaAnimalPickerBanner") < section.indexOf("<FazendinhaPremiumInfo"), "banner deve ser o topo da experiencia");
-assert(section.indexOf("<FazendinhaPremiumInfo") < section.indexOf("<FazendinhaCaixinhaHighlight"), "info premium deve vir antes da caixinha");
-assert(section.indexOf("<FazendinhaCaixinhaHighlight") < section.indexOf("<FazendinhaExtractionBadge"), "caixinha deve vir antes da extracao");
-assert(section.indexOf("<FazendinhaExtractionBadge") < section.indexOf("<FazendinhaPrizeInfo"), "extracao deve vir antes dos valores");
-assert(section.indexOf("<FazendinhaPrizeInfo") < section.indexOf("boardGroupIds.map"), "valores devem vir antes da grade");
+assert(section.indexOf("<FazendinhaAnimalPickerBanner") < section.indexOf("<FazendinhaCompactPremiumInfo"), "banner deve ser o topo da experiencia");
+assert(section.indexOf("<FazendinhaCompactPremiumInfo") < section.indexOf("fazendinha-animal-picker-header"), "chips premium devem vir antes do titulo da escolha");
+assert(section.indexOf("fazendinha-animal-picker-header") < section.indexOf("boardGroupIds.map"), "titulo compacto deve vir antes da grade");
 assert(section.indexOf("boardGroupIds.map") < section.indexOf("<FazendinhaParticipateCTA"), "CTA deve ficar na ultima parte da selecao");
 assert(section.indexOf("<FazendinhaCheckoutMedia") > section.indexOf("checkout-screen"), "midia do checkout continua independente");
 
 includesAll(premium, [
+  "FazendinhaCompactPremiumInfo",
   "FazendinhaPremiumInfo",
+  "fazendinha-info-chips",
+  "fazendinha-info-chip",
   "FazendinhaCaixinhaHighlight",
   "FazendinhaExtractionBadge",
   "FazendinhaPrizeInfo",

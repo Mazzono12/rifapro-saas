@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Sparkles, TicketCheck, Timer, Trophy } from "lucide-react";
+import { Gift, Sparkles, TicketCheck, Timer, Trophy } from "lucide-react";
 import { cn } from "../lib/utils";
 import type { FazendinhaPremiumExperienceSettings } from "../types";
 
@@ -11,27 +11,38 @@ export function formatFazendinhaExtractionLabel(settings: Partial<FazendinhaPrem
   return `${settings?.extractionText || "Próxima extração"}: ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-export function FazendinhaPremiumInfo({ settings }: { settings?: Partial<FazendinhaPremiumExperienceSettings> }) {
-  if (settings?.premiumInfoEnabled === false) return null;
-  const title = settings?.premiumTitle || "Escolha seus bichinhos da sorte";
-  const description = settings?.premiumDescription || "Concorra com chances extras, prêmios instantâneos e caixinha premiada.";
-  const highlight = settings?.premiumHighlight || "PIX automático, seleção simples e experiência premium.";
+export function FazendinhaCompactPremiumInfo({ settings, prize, price, drawDate, caixinhaActive }: { settings?: Partial<FazendinhaPremiumExperienceSettings>; prize: string; price: string; drawDate?: string; caixinhaActive?: boolean }) {
+  const chips = [
+    settings?.premiumInfoEnabled === false ? null : { icon: <Sparkles className="h-3.5 w-3.5" />, label: "Premium", value: settings?.premiumTitle || "Bichinhos da sorte", tone: "emerald" },
+    settings?.caixinhaHighlightEnabled === false ? null : { icon: <Gift className="h-3.5 w-3.5" />, label: "Caixinha", value: caixinhaActive ? (settings?.caixinhaPrizeValue || "Ativa") : "Especial", tone: "amber" },
+    settings?.extractionEnabled === false ? null : { icon: <Timer className="h-3.5 w-3.5" />, label: "Extração", value: shortExtractionLabel(settings, drawDate), tone: "cyan" },
+    { icon: <Trophy className="h-3.5 w-3.5" />, label: settings?.prizeLabel || "Prêmio", value: settings?.prizeValue || prize, tone: "violet" },
+    { icon: <TicketCheck className="h-3.5 w-3.5" />, label: "Cota", value: settings?.ticketPriceValue || price, tone: "rose" }
+  ].filter(Boolean) as Array<{ icon: ReactNode; label: string; value: string; tone: string }>;
+
   return (
-    <section className="fazendinha-premium-info rounded-[1.5rem] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5 shadow-[0_18px_60px_rgba(15,23,42,0.10)] sm:p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0">
-          <p className="inline-flex items-center gap-2 rounded-full border border-[var(--theme-primary)]/25 bg-[var(--theme-primary)]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-[var(--theme-primary)]">
-            <Sparkles className="h-3.5 w-3.5" /> Informações premium
-          </p>
-          <h2 className="mt-3 font-display text-3xl font-black leading-tight text-[var(--theme-text)] sm:text-4xl">{title}</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--theme-muted)] sm:text-base">{description}</p>
+    <section className="fazendinha-info-chips fazendinha-compact-premium-info" data-compact-premium-info="fazendinha">
+      {chips.map(chip => (
+        <div key={`${chip.label}-${chip.tone}`} className={cn("fazendinha-info-chip", `fazendinha-info-chip-${chip.tone}`)}>
+          <span className="fazendinha-info-chip-icon">{chip.icon}</span>
+          <span className="fazendinha-info-chip-text">
+            <span className="fazendinha-info-chip-label">{chip.label}</span>
+            <strong>{chip.value}</strong>
+          </span>
         </div>
-        <div className="rounded-2xl border border-[var(--theme-primary)]/20 bg-[var(--theme-primary)]/10 p-4 text-sm font-bold leading-6 text-[var(--theme-text)] md:max-w-xs">
-          {highlight}
-        </div>
-      </div>
+      ))}
     </section>
   );
+}
+
+export const FazendinhaPremiumInfo = FazendinhaCompactPremiumInfo;
+
+function shortExtractionLabel(settings: Partial<FazendinhaPremiumExperienceSettings> | undefined, drawDate?: string) {
+  if (settings?.extractionTime) return settings.extractionTime;
+  if (!drawDate) return "Em breve";
+  const date = new Date(drawDate);
+  if (!Number.isFinite(date.getTime())) return "Em breve";
+  return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
 export function FazendinhaCaixinhaHighlight({ settings, active }: { settings?: Partial<FazendinhaPremiumExperienceSettings>; active?: boolean }) {

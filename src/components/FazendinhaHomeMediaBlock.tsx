@@ -26,7 +26,7 @@ export function FazendinhaHomeMediaBlock({
   const resolvedDescription = description?.trim();
 
   const mediaCard = (
-    <div className="overflow-hidden rounded-[1.25rem] border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+    <div className="overflow-hidden rounded-[1.1rem] border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-[0_18px_60px_rgba(0,0,0,0.16)]">
       <ResponsiveMediaFrame
         src={mediaUrl}
         type={mediaType}
@@ -36,13 +36,13 @@ export function FazendinhaHomeMediaBlock({
         aspectMode="auto"
         autoPlay
         muted
-        className="max-h-[64svh] rounded-none sm:max-h-[68svh]"
+        className="max-h-[52svh] rounded-none sm:max-h-[58svh]"
         fallbackTitle="Mídia da Fazendinha indisponível"
         fallbackSubtitle="Revise a URL configurada no painel admin."
       />
-      <div className="p-4 sm:p-5">
-        {resolvedTitle && <h2 className="text-2xl font-black leading-tight text-[var(--theme-text)] sm:text-3xl">{resolvedTitle}</h2>}
-        {resolvedDescription && <p className="mt-2 text-sm leading-6 text-[var(--theme-muted)] sm:text-base">{resolvedDescription}</p>}
+      <div className="p-3 sm:p-4">
+        {resolvedTitle && <h2 className="text-xl font-black leading-tight text-[var(--theme-text)] sm:text-2xl">{resolvedTitle}</h2>}
+        {resolvedDescription && <p className="mt-1.5 line-clamp-2 text-sm leading-5 text-[var(--theme-muted)]">{resolvedDescription}</p>}
       </div>
     </div>
   );

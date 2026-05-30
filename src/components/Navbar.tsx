@@ -106,15 +106,15 @@ export function Navbar() {
   return (
     <>
       <nav className={`premium-site-header fixed top-0 inset-x-0 z-50 border-b border-[var(--theme-border)] bg-[var(--theme-surface-strong)]/90 backdrop-blur-2xl transition-transform duration-300 ${heroVideoCinema && !isAdmin ? "-translate-y-full" : "translate-y-0"}`}>
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" onClick={goHomeTop} className="flex items-center gap-3 group" aria-label="Ir para a página principal">
-            <TenantLogo className="h-9 w-9" eager />
-            <span className="font-display font-bold text-xl tracking-wider text-[var(--theme-text)]">
+        <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-3 px-3 sm:px-5 lg:px-8">
+          <Link to="/" onClick={goHomeTop} className="group flex min-w-0 items-center gap-2.5 sm:gap-3" aria-label="Ir para a página principal">
+            <TenantLogo className="h-9 w-9 shrink-0 sm:h-10 sm:w-10" eager />
+            <span className="min-w-0 truncate font-display text-lg font-bold tracking-wide text-[var(--theme-text)] sm:text-xl">
               <TenantHeaderName />
             </span>
           </Link>
           
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <div className="relative">
             <button
               onClick={() => setOpen(!open)}
@@ -130,7 +130,7 @@ export function Navbar() {
             </button>
 
             {open && (
-              <div className="absolute right-0 top-12 w-64 rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface-strong)] text-[var(--theme-text)] backdrop-blur-2xl shadow-2xl overflow-visible">
+              <div className="absolute right-0 top-12 w-[min(16rem,calc(100vw-1rem))] rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface-strong)] text-[var(--theme-text)] backdrop-blur-2xl shadow-2xl overflow-visible">
                 {settings?.socialLinks?.group && (
                   <a onClick={() => setOpen(false)} href={settings.socialLinks.group} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white">
                     <Users className="w-4 h-4 text-[var(--theme-primary)]" /> Participar do grupo
