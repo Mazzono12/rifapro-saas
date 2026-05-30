@@ -44,6 +44,7 @@
     "test:checkout-mobile-text-bug": "node scripts/test-checkout-mobile-text-bug.mjs",
     "test:checkout-media-hard": "node scripts/test-checkout-media-hard.mjs",
     "test:responsive-media-hard": "node scripts/test-responsive-media-hard.mjs",
+    "test:fazendinha-home-media": "node scripts/test-fazendinha-home-media.mjs",
     "test:production-readiness": "node scripts/test-hard-suite.mjs production-readiness",
     "test:superadmin-finance": "node scripts/test-superadmin-finance.mjs",
     "test:tenant-domains": "node scripts/test-tenant-domains.mjs",

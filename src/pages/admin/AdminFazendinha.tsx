@@ -6,6 +6,8 @@ import type { FazendinhaState } from "../../types";
 import { cn } from "../../lib/utils";
 import { MediaPicker } from "../../components/admin/MediaPicker";
 import { LootboxRulesEditor, normalizeLootboxConfig, RewardExperienceSelector } from "../../components/admin/LootboxRulesEditor";
+import { ResponsiveMediaFrame } from "../../components/ResponsiveMediaFrame";
+import type { FazendinhaHomeMediaSettings } from "../../types";
 
 export function AdminFazendinha() {
   const [state, setState] = useState<FazendinhaState | null>(null);
@@ -23,11 +25,31 @@ export function AdminFazendinha() {
     if (!state) return;
     try {
       await fazendinhaService.updateConfig(state.config);
+      if (state.homeMedia) await fazendinhaService.updateHomeMedia(state.homeMedia);
       toast.success("Configurações da Fazendinha salvas");
       load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro ao salvar");
     }
+  };
+
+  const patchHomeMedia = (patch: Partial<FazendinhaHomeMediaSettings>) => {
+    if (!state) return;
+    setState({
+      ...state,
+      homeMedia: {
+        enabled: false,
+        mediaUrl: "",
+        mediaType: "image",
+        title: "A Fazendinha",
+        description: "",
+        fitMode: "auto",
+        alt: "Mídia da Fazendinha",
+        position: "above-fazendinha",
+        ...(state.homeMedia || {}),
+        ...patch
+      }
+    });
   };
 
   const publishResult = async () => {
@@ -124,6 +146,70 @@ export function AdminFazendinha() {
                 showExperienceSelector={false}
               />
             </div>
+          </div>
+        </div>
+
+        <div className="glass-card p-6">
+          <h2 className="mb-5 font-display text-xl font-bold">Mídia da Fazendinha na Home</h2>
+          <div className="grid gap-4">
+            <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <input type="checkbox" checked={Boolean(state.homeMedia?.enabled)} onChange={e => patchHomeMedia({ enabled: e.target.checked })} />
+              <span className="text-sm text-white">Exibir mídia acima da seção Fazendinha na Home</span>
+            </label>
+            <Field label="Título da mídia" value={state.homeMedia?.title || ""} onChange={value => patchHomeMedia({ title: value })} />
+            <label className="space-y-2">
+              <span className="text-xs font-mono uppercase text-slate-500">Descrição abaixo da mídia</span>
+              <textarea value={state.homeMedia?.description || ""} onChange={e => patchHomeMedia({ description: e.target.value })} className="min-h-24 w-full p-3" />
+            </label>
+            <MediaPicker
+              label="Imagem, GIF ou vídeo da Home"
+              value={state.homeMedia?.mediaUrl || ""}
+              mediaType={state.homeMedia?.mediaType || "image"}
+              onChange={(mediaUrl, mediaType) => patchHomeMedia({ mediaUrl, mediaType: mediaType as any })}
+            />
+            <Field label="Poster/thumbnail do vídeo" value={state.homeMedia?.posterUrl || ""} onChange={value => patchHomeMedia({ posterUrl: value })} />
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-2">
+                <span className="text-xs font-mono uppercase text-slate-500">Tipo da mídia</span>
+                <select value={state.homeMedia?.mediaType || "image"} onChange={e => patchHomeMedia({ mediaType: e.target.value as any })} className="w-full p-3">
+                  <option value="image">Imagem / GIF</option>
+                  <option value="gif">GIF animado</option>
+                  <option value="video">MP4</option>
+                  <option value="youtube">YouTube</option>
+                  <option value="vimeo">Vimeo</option>
+                  <option value="bunny">MediaDelivery / Bunny.net</option>
+                </select>
+              </label>
+              <label className="space-y-2">
+                <span className="text-xs font-mono uppercase text-slate-500">Modo de exibição</span>
+                <select value={state.homeMedia?.fitMode || "auto"} onChange={e => patchHomeMedia({ fitMode: e.target.value as any })} className="w-full p-3">
+                  <option value="auto">Automático</option>
+                  <option value="contain">Mostrar inteiro</option>
+                  <option value="cover">Preencher/cortar</option>
+                </select>
+              </label>
+            </div>
+            <Field label="Texto alternativo/acessibilidade" value={state.homeMedia?.alt || ""} onChange={value => patchHomeMedia({ alt: value })} />
+            <p className="text-xs text-slate-500">Posição: acima da Fazendinha na Home pública.</p>
+            {state.homeMedia?.mediaUrl && (
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-black">
+                <ResponsiveMediaFrame
+                  src={state.homeMedia.mediaUrl}
+                  type={state.homeMedia.mediaType}
+                  poster={state.homeMedia.posterUrl}
+                  preferredFit={state.homeMedia.fitMode || "auto"}
+                  aspectMode="auto"
+                  alt={state.homeMedia.alt || state.homeMedia.title || "Mídia da Fazendinha"}
+                  className="max-h-[420px] rounded-none"
+                />
+                {(state.homeMedia.title || state.homeMedia.description) && (
+                  <div className="bg-slate-950 p-4">
+                    {state.homeMedia.title && <p className="font-bold text-white">{state.homeMedia.title}</p>}
+                    {state.homeMedia.description && <p className="mt-1 text-sm text-slate-400">{state.homeMedia.description}</p>}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

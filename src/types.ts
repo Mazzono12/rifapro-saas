@@ -327,6 +327,18 @@ export interface FazendinhaConfig {
   addonSuggestionTickets?: number;
 }
 
+export interface FazendinhaHomeMediaSettings {
+  enabled: boolean;
+  mediaUrl: string;
+  mediaType: 'image' | 'video' | 'gif' | 'youtube' | 'vimeo' | 'bunny';
+  posterUrl?: string;
+  title: string;
+  description: string;
+  fitMode: 'auto' | 'contain' | 'cover';
+  alt: string;
+  position: 'above-fazendinha';
+}
+
 export interface FazendinhaGroup {
   id: string;
   nomeBicho: string;
@@ -367,6 +379,7 @@ export interface FazendinhaWinner {
 
 export interface FazendinhaState {
   config: FazendinhaConfig;
+  homeMedia?: FazendinhaHomeMediaSettings;
   groups: FazendinhaGroup[];
   purchases: FazendinhaPurchase[];
   winners: FazendinhaWinner[];

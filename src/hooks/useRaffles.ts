@@ -35,6 +35,15 @@ export function useFazendinha() {
   });
 }
 
+export function useFazendinhaHomeMedia() {
+  return useQuery({
+    queryKey: ['fazendinha-home-media'],
+    queryFn: () => fazendinhaService.getHomeMedia(),
+    staleTime: 1000 * 60 * 5,
+    retry: false,
+  });
+}
+
 export function useModalidades() {
   return useQuery({
     queryKey: ['modalidades'],

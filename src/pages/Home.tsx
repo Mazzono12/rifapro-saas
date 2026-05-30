@@ -7,8 +7,9 @@ import { WinnersGallery } from "../components/WinnersGallery";
 import { CampaignMediaHero } from "../components/CampaignMediaHero";
 import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
 import { FazendinhaSection } from "../components/FazendinhaSection";
+import { FazendinhaHomeMediaBlock } from "../components/FazendinhaHomeMediaBlock";
 import { ModalidadesSection } from "../components/ModalidadesSection";
-import { useRaffles, useGlobalSettings } from "../hooks/useRaffles";
+import { useRaffles, useGlobalSettings, useFazendinhaHomeMedia } from "../hooks/useRaffles";
 import { cn } from "../lib/utils";
 import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout, TrustBadges } from "../components/premium/PremiumUI";
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
@@ -125,6 +126,7 @@ function safeProgress(raffle: Raffle) {
 function HomeContent() {
   const { data: rawRaffles, isLoading: loadingRaffles, isError: rafflesError, refetch: refetchRaffles } = useRaffles();
   const { data: rawSettings, isLoading: loadingSettings } = useGlobalSettings();
+  const { data: fazendinhaHomeMedia } = useFazendinhaHomeMedia();
   const settings = rawSettings && typeof rawSettings === "object" && !Array.isArray(rawSettings)
     ? { ...fallbackHomeSettings, ...rawSettings }
     : fallbackHomeSettings;
@@ -274,6 +276,7 @@ function HomeContent() {
       )}
 
       <ModalidadesSection />
+      <FazendinhaHomeMediaBlock {...fazendinhaHomeMedia} />
       <FazendinhaSection />
 
       <section className="grid gap-3 md:grid-cols-4">

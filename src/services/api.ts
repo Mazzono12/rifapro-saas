@@ -1,6 +1,6 @@
 // /src/services/api.ts
 // Arquitetura Clean: Todo o acesso externo passa por services estruturados
-import { FazendinhaGroup, FazendinhaPurchase, FazendinhaState, ModalidadesState, NumberModeId, NumberModeState, Raffle } from '../types';
+import { FazendinhaGroup, FazendinhaHomeMediaSettings, FazendinhaPurchase, FazendinhaState, ModalidadesState, NumberModeId, NumberModeState, Raffle } from '../types';
 
 type CheckoutCustomerPayload = {
   name: string;
@@ -133,10 +133,33 @@ export const fazendinhaService = {
     return res.json() as Promise<{ raffle: Raffle; tickets: number; amount: number }>;
   },
 
+  async getHomeMedia() {
+    const res = await fetch("/api/public/fazendinha/home-media");
+    if (!res.ok) throw new Error("Falha ao carregar mídia da Fazendinha");
+    return res.json() as Promise<FazendinhaHomeMediaSettings>;
+  },
+
   async getAdminState() {
     const res = await fetch("/api/admin/fazendinha");
     if (!res.ok) throw new Error("Falha ao carregar admin da Fazendinha");
     return res.json() as Promise<FazendinhaState>;
+  },
+
+  async getAdminHomeMedia() {
+    const res = await fetch("/api/admin/fazendinha/home-media");
+    if (!res.ok) throw new Error("Falha ao carregar mídia da Home da Fazendinha");
+    return res.json() as Promise<FazendinhaHomeMediaSettings>;
+  },
+
+  async updateHomeMedia(config: Partial<FazendinhaHomeMediaSettings>) {
+    const res = await fetch("/api/admin/fazendinha/home-media", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Falha ao salvar mídia da Home da Fazendinha");
+    return data as FazendinhaHomeMediaSettings;
   },
 
   async updateConfig(config: Partial<FazendinhaState["config"]>) {
