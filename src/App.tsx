@@ -103,6 +103,7 @@ const AdminFazendinha = lazy(() => import("./pages/admin/AdminFazendinha").then(
 const AdminModalidades = lazy(() => import("./pages/admin/AdminModalidades").then(module => ({ default: module.AdminModalidades })));
 const AdminLootboxes = lazy(() => import("./pages/admin/AdminLootboxes").then(module => ({ default: module.AdminLootboxes })));
 const AdminGamification = lazy(() => import("./pages/admin/AdminGamification").then(module => ({ default: module.AdminGamification })));
+const AdminPromotions = lazy(() => import("./pages/admin/AdminPromotions").then(module => ({ default: module.AdminPromotions })));
 const AdminLiveDraw = lazy(() => import("./pages/admin/AdminLiveDraw").then(module => ({ default: module.AdminLiveDraw })));
 const AdminMessages = lazy(() => import("./pages/admin/AdminMessages").then(module => ({ default: module.AdminMessages })));
 const AdminUsers = lazy(() => import("./pages/admin/AdminCRM").then(module => ({ default: module.AdminUsers })));
@@ -291,6 +292,7 @@ export default function App() {
                 <Route path="fazendinha" element={<AdminFazendinha />} />
                 <Route path="caixinhas" element={<AdminLootboxes />} />
                 <Route path="gamificacao" element={<AdminGamification />} />
+                <Route path="promocoes" element={<AdminPromotions />} />
                 <Route path="modalidades" element={<AdminModalidades />} />
                 <Route path="sorteio" element={<AdminLiveDraw />} />
                 <Route path="mensagens" element={<AdminMessages />} />

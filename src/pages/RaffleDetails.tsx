@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
-import type { Raffle } from "../types";
+import type { PromotionType, Raffle } from "../types";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { usePurchasePolling } from "../hooks/usePurchasePolling";
 import { NumberRevealModal } from "../components/NumberRevealModal";
@@ -46,6 +46,7 @@ import { TenantLogo } from "../components/branding/TenantLogo";
 import { TenantHeaderName } from "../components/branding/TenantHeaderName";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
 import { PublicConversionWidgets } from "../components/PublicConversionWidgets";
+import { PromotionBadges, PromotionSummaryCard } from "../components/promotions/PromotionBadges";
 
 type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
@@ -82,6 +83,7 @@ export function RaffleDetails() {
   const [ranking, setRanking] = useState<Array<{ name: string; phone: string; tickets: number; amount: number }>>([]);
   const [instantPrizeNumbers, setInstantPrizeNumbers] = useState<Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }>>([]);
   const [gamification, setGamification] = useState<any>(null);
+  const [publicPromotions, setPublicPromotions] = useState<Array<{ label: string; type: PromotionType; promotionId: string }>>([]);
   const [settings, setSettings] = useState<any>(null);
   const [addonSuggestion, setAddonSuggestion] = useState<{ raffle: Raffle; tickets: number; amount: number } | null>(null);
   const [acceptAddon, setAcceptAddon] = useState(false);
@@ -119,6 +121,7 @@ export function RaffleDetails() {
     fetch(`/api/raffles/${id}/ranking`).then(res => res.json()).then(payload => setRanking(Array.isArray(payload) ? payload : [])).catch(() => setRanking([]));
     fetch(`/api/raffles/${id}/instant-prizes`).then(res => res.json()).then(payload => setInstantPrizeNumbers(Array.isArray(payload) ? payload : [])).catch(() => setInstantPrizeNumbers([]));
     fetch(`/api/raffles/${id}/gamification`).then(res => res.json()).then(setGamification).catch(() => null);
+    fetch(`/api/public/promotions?raffleId=${encodeURIComponent(id)}`).then(res => res.json()).then(payload => setPublicPromotions(Array.isArray(payload?.badges) ? payload.badges : [])).catch(() => setPublicPromotions([]));
     fetch(`/api/raffles/${id}/addon-suggestion`).then(res => res.ok ? res.json() : null).then(data => data && setAddonSuggestion(data)).catch(() => null);
     fetch("/api/settings").then(res => res.json()).then(setSettings).catch(() => null);
   }, [id]);
@@ -393,6 +396,8 @@ export function RaffleDetails() {
             <CountdownStrip countdown={countdown} />
             <DrawInfo raffle={raffle} />
             <PriceImpact price={raffle.price} />
+            <PromotionBadges badges={publicPromotions} />
+            <PromotionSummaryCard summary={checkoutPreview?.promotionSummary} />
             <GamificationPanel data={gamification} />
             <PromotionalPackages packages={promotionalPackages} selected={selectedQuick} onSelect={handlePackageClick} />
             <QuickGrid selected={selectedQuick} onSelect={handlePackageClick} />

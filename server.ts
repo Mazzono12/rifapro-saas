@@ -38,6 +38,18 @@ import {
   normalizeBrazilianPhone,
   type TicketConfirmationOrder
 } from "./src/server/whatsapp/whatsappService";
+import {
+  buildAbandonedPixRecoveryMessages,
+  calculatePromotionSummary,
+  evaluatePromotions,
+  getActivePromotions,
+  maskBuyerName,
+  normalizePromotionRule,
+  persistPromotionUsage,
+  type PromotionRule,
+  type PromotionSummary,
+  type PromotionUsage
+} from "./src/server/promotions/promotionEngine";
 import { sendMockWhatsAppMessage } from "./src/server/whatsapp/providers/mockWhatsAppProvider";
 import { sendMetaCloudWhatsAppMessage } from "./src/server/whatsapp/providers/metaCloudWhatsAppProvider";
 
@@ -1244,6 +1256,7 @@ async function startServer() {
     couponCode?: string;
     discountAmount?: number;
     bonusTickets?: number;
+    promotionSummary?: PromotionSummary;
     ticketWeights?: Array<{ number: number; weight: number; reason?: string }>;
     gamification?: {
       orderBump?: { offered: boolean; accepted: boolean; tickets: number; discountPercent: number; amount: number };
@@ -1678,6 +1691,8 @@ async function startServer() {
   ];
 
   let purchases: PurchaseRecord[] = [];
+  let promotionRules: PromotionRule[] = [];
+  let promotionUsages: PromotionUsage[] = [];
   let tenantDomains: TenantDomainRecord[] = tenants.flatMap(tenant => ([
     {
       id: createPublicId("DOM_"),
@@ -3085,6 +3100,131 @@ async function startServer() {
   function scoped<T extends { tenant_id: string }>(items: T[], req: express.Request) {
     const session = getAuthSession(req);
     return normalizeAuthRole(session?.role) === "superadmin" ? items : items.filter(item => item.tenant_id === resolveRequestTenantId(req));
+  }
+
+  function publicPromotionRule(rule: PromotionRule) {
+    return {
+      id: rule.id,
+      raffleId: rule.raffle_id || null,
+      name: rule.name,
+      type: rule.type,
+      enabled: rule.enabled,
+      priority: rule.priority,
+      startsAt: rule.starts_at,
+      endsAt: rule.ends_at,
+      publicText: rule.conditions.publicText || rule.rewards.label || rule.name,
+      rewards: rule.rewards,
+      stackable: rule.stackable
+    };
+  }
+
+  function adminPromotionRule(rule: PromotionRule) {
+    return {
+      ...rule,
+      raffleId: rule.raffle_id || "",
+      startsAt: rule.starts_at || "",
+      endsAt: rule.ends_at || ""
+    };
+  }
+
+  function normalizePromotionPayload(req: express.Request, current?: PromotionRule) {
+    const tenantId = current?.tenant_id || resolveRequestTenantId(req);
+    const body = req.body || {};
+    const parsedJson = (value: unknown, fallback: Record<string, unknown>) => {
+      if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
+      if (typeof value === "string" && value.trim()) {
+        try {
+          const parsed = JSON.parse(value);
+          return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : fallback;
+        } catch {
+          return fallback;
+        }
+      }
+      return fallback;
+    };
+    return normalizePromotionRule({
+      ...(current || {}),
+      id: current?.id || body.id || createPublicId("PROM_"),
+      tenant_id: tenantId,
+      raffle_id: body.raffle_id ?? body.raffleId ?? current?.raffle_id ?? null,
+      name: body.name ?? current?.name ?? "Promocao",
+      type: body.type ?? current?.type ?? "double_tickets",
+      enabled: body.enabled ?? current?.enabled ?? true,
+      priority: Number(body.priority ?? current?.priority ?? 100),
+      starts_at: body.starts_at ?? body.startsAt ?? current?.starts_at ?? null,
+      ends_at: body.ends_at ?? body.endsAt ?? current?.ends_at ?? null,
+      conditions: parsedJson(body.conditions, current?.conditions || {}),
+      rewards: parsedJson(body.rewards, current?.rewards || {}),
+      limits: parsedJson(body.limits, current?.limits || {}),
+      stackable: Boolean(body.stackable ?? current?.stackable ?? false),
+      created_by: current?.created_by || getAuthSession(req)?.sub || null,
+      created_at: current?.created_at
+    });
+  }
+
+  function evaluatePromotionForRaffle(input: {
+    tenantId: string;
+    raffleId?: string | null;
+    customer?: CustomerRecord;
+    quantity: number;
+    amount: number;
+    price?: number;
+    availableTickets?: number;
+    raffleStatus?: string;
+    orderId?: string;
+    refCode?: string;
+    paymentStatus?: string;
+  }) {
+    return evaluatePromotions({
+      tenantId: input.tenantId,
+      raffleId: input.raffleId,
+      customerId: input.customer?.id,
+      customerName: input.customer?.name,
+      customerPhone: input.customer?.phone,
+      orderId: input.orderId,
+      quantity: input.quantity,
+      amount: input.amount,
+      price: input.price,
+      availableTickets: input.availableTickets,
+      raffleStatus: input.raffleStatus,
+      paymentStatus: input.paymentStatus,
+      affiliateRefCode: input.refCode,
+      isFirstPurchase: input.customer ? !purchases.some(item => item.tenant_id === input.tenantId && item.customer?.id === input.customer?.id && item.status === "paid") : false,
+      isVip: Boolean(input.customer && input.customer.totalTickets >= 1000),
+      rules: promotionRules,
+      usages: promotionUsages
+    });
+  }
+
+  function persistAppliedPromotions(context: { tenantId: string; raffleId?: string | null; orderId: string; customer?: CustomerRecord; amount: number; quantity: number }, summary?: PromotionSummary) {
+    if (!summary) return [];
+    const usages = summary.appliedRules.map(rule => persistPromotionUsage({
+      tenantId: context.tenantId,
+      raffleId: context.raffleId,
+      orderId: context.orderId,
+      customerId: context.customer?.id,
+      quantity: context.quantity,
+      amount: context.amount,
+      rules: promotionRules,
+      usages: promotionUsages
+    }, rule, {
+      usage_type: rule.type,
+      quantity: rule.type === "double_tickets" ? summary.doubleTickets?.bonusTickets || 0 : context.quantity,
+      amount: context.amount,
+      metadata: { badges: summary.badges, rewards: summary.rewards, bonusTickets: summary.bonusTickets }
+    }, promotionUsages));
+    usages.forEach(usage => {
+      recordSystemAuditLedger({
+        tenant_id: context.tenantId,
+        action: "PROMOTION_APPLIED",
+        resource_type: "promotion_rule",
+        resource_id: usage.promotion_id,
+        before_data: null,
+        after_data: usage,
+        reason: "Promocao aplicada no checkout"
+      });
+    });
+    return usages;
   }
 
   function recordSuperadminAudit(req: express.Request, action: string, input: Partial<Omit<SuperadminAuditLog, "id" | "superadmin_user_id" | "action" | "metadata" | "ip_address" | "user_agent" | "created_at">> & { metadata?: Record<string, unknown> } = {}) {
@@ -7856,7 +7996,20 @@ async function startServer() {
         const subtotal = tickets * raffle.price + (addonRaffle ? addonTickets * addonRaffle.price : 0) + orderBumpAmount;
         const couponBenefit = calculateCouponBenefit(coupon, subtotal, tickets);
         const total = Math.max(0, Number((subtotal - couponBenefit.discount - luckyDiscount).toFixed(2)));
-        const quantity = tickets + couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets + doubleTicketsBonus;
+        const promotionSummary = evaluatePromotionForRaffle({
+          tenantId,
+          raffleId: raffle.id,
+          customer: existingCustomer,
+          quantity: tickets,
+          amount: total,
+          price: raffle.price,
+          availableTickets: Math.max(0, raffle.totalTickets - raffle.soldTickets - tickets - couponBenefit.bonusTickets - luckyBonusTickets - luckyExtraChance - orderBumpTickets - doubleTicketsBonus),
+          raffleStatus: raffle.status,
+          refCode: affiliateInfo?.refCode,
+          paymentStatus: "pending"
+        });
+        const promotionBonusTickets = promotionSummary.bonusTickets || 0;
+        const quantity = tickets + couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets + doubleTicketsBonus + promotionBonusTickets;
         if (raffle.soldTickets + quantity > raffle.totalTickets) return res.status(409).json({ error: "Cotas insuficientes para esta compra" });
         if (addonRaffle && addonRaffle.soldTickets + addonTickets > addonRaffle.totalTickets) return res.status(409).json({ error: "Cotas adicionais insuficientes" });
 
@@ -7868,7 +8021,7 @@ async function startServer() {
           walletUsage.amount = walletUsage.enabled ? Math.min(total, walletBalance) : 0;
         }
 
-        if (couponBenefit.bonusTickets || luckyBonusTickets || luckyExtraChance || doubleTicketsBonus) warnings.push("Bonus recalculado pelo servidor antes da reserva.");
+        if (couponBenefit.bonusTickets || luckyBonusTickets || luckyExtraChance || doubleTicketsBonus || promotionBonusTickets) warnings.push("Bonus recalculado pelo servidor antes da reserva.");
         res.json({
           quantity,
           subtotal,
@@ -7877,14 +8030,16 @@ async function startServer() {
           gateway: pixConfig.gateway,
           packageLabel: tickets >= 100 ? `${tickets.toLocaleString("pt-BR")} cotas` : undefined,
           bonuses: {
-            bonusTickets: couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets + doubleTicketsBonus,
-            doubleTickets: doubleTicketsPromotion ? { applied: true, bonusTickets: doubleTicketsBonus, minTickets: doubleTicketsPromotion.minTickets, label: doubleTicketsPromotion.label } : { applied: false, bonusTickets: 0 },
+            bonusTickets: couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets + doubleTicketsBonus + promotionBonusTickets,
+            doubleTickets: promotionSummary.doubleTickets || (doubleTicketsPromotion ? { applied: true, bonusTickets: doubleTicketsBonus, minTickets: doubleTicketsPromotion.minTickets, label: doubleTicketsPromotion.label } : { applied: false, bonusTickets: 0 }),
             doubleChance: Boolean(gamificationConfig.modules.doubleChance && isWithinWindow(Date.now(), gamificationConfig.doubleChance.startsAt, gamificationConfig.doubleChance.endsAt) && quantity >= gamificationConfig.doubleChance.minTickets),
-            roulettes: Math.floor(quantity / 700),
-            lootboxes: raffle.lootboxEnabled ? Math.floor(quantity / 1000) : 0,
-            scratchcards: Math.floor(quantity / 1800),
-            description: doubleTicketsPromotion ? `${doubleTicketsPromotion.label}: +${doubleTicketsBonus} cotas extras` : orderBump ? "Compra em dobro aplicada no resumo" : undefined
+            roulettes: Math.floor(quantity / 700) + promotionSummary.rewards.filter(reward => reward.type === "roulette").reduce((sum, reward) => sum + reward.quantity, 0),
+            lootboxes: (raffle.lootboxEnabled ? Math.floor(quantity / 1000) : 0) + promotionSummary.rewards.filter(reward => ["lootbox", "mystery_box"].includes(reward.type)).reduce((sum, reward) => sum + reward.quantity, 0),
+            scratchcards: Math.floor(quantity / 1800) + promotionSummary.rewards.filter(reward => reward.type === "scratchcard").reduce((sum, reward) => sum + reward.quantity, 0),
+            description: promotionSummary.badges.map(badge => badge.label).join(" • ") || (doubleTicketsPromotion ? `${doubleTicketsPromotion.label}: +${doubleTicketsBonus} cotas extras` : orderBump ? "Compra em dobro aplicada no resumo" : undefined)
           },
+          promotionSummary,
+          upsellOffer: promotionSummary.upsellOffer,
           walletUsage,
           affiliateInfo,
           warnings
@@ -8053,7 +8208,21 @@ async function startServer() {
     const subtotalAmount = tickets * raffle.price + (addonRaffle ? addonTickets * addonRaffle.price : 0) + orderBumpAmount;
     const couponBenefit = calculateCouponBenefit(coupon, subtotalAmount, tickets);
     const amount = Math.max(0, Number((subtotalAmount - couponBenefit.discount - luckyDiscount).toFixed(2)));
-    const effectiveTickets = tickets + couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets + doubleTicketsBonus;
+    const promotionSummary = evaluatePromotionForRaffle({
+      tenantId,
+      raffleId: id,
+      customer,
+      quantity: tickets,
+      amount,
+      price: raffle.price,
+      availableTickets: Math.max(0, raffle.totalTickets - raffle.soldTickets - tickets - couponBenefit.bonusTickets - luckyBonusTickets - luckyExtraChance - orderBumpTickets - doubleTicketsBonus),
+      raffleStatus: raffle.status,
+      orderId: createPublicId("PRE_"),
+      refCode,
+      paymentStatus: "pending"
+    });
+    const promotionBonusTickets = promotionSummary.bonusTickets || 0;
+    const effectiveTickets = tickets + couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + orderBumpTickets + doubleTicketsBonus + promotionBonusTickets;
     if (raffle.soldTickets + effectiveTickets > raffle.totalTickets) {
       res.status(400).json({ error: "Quantidade com bônus indisponível" });
       return;
@@ -8105,15 +8274,18 @@ async function startServer() {
       paidWithBalance: balancePayment,
       couponCode: coupon?.code,
       discountAmount: couponBenefit.discount,
-      bonusTickets: couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + doubleTicketsBonus,
+      bonusTickets: couponBenefit.bonusTickets + luckyBonusTickets + luckyExtraChance + doubleTicketsBonus + promotionBonusTickets,
       gamification: {
         orderBump: orderBump ? { offered: true, accepted: true, tickets: orderBumpTickets, discountPercent: orderBumpDiscount, amount: orderBumpAmount } : (getActiveOrderBump(gamificationConfig) ? { offered: true, accepted: false, tickets: 0, discountPercent: 0, amount: 0 } : undefined),
         luckyHour: luckyHour ? { applied: true, type: luckyHour.type, value: luckyHour.value, bonusTickets: luckyBonusTickets, discount: luckyDiscount, extraChance: luckyExtraChance } : { applied: false },
-        doubleTickets: doubleTicketsPromotion ? { applied: true, bonusTickets: doubleTicketsBonus, minTickets: doubleTicketsPromotion.minTickets, label: doubleTicketsPromotion.label } : { applied: false, bonusTickets: 0, minTickets: gamificationConfig.doubleTickets.minTickets, label: gamificationConfig.doubleTickets.label || "Cotas em dobro" },
+        doubleTickets: promotionSummary.doubleTickets
+          ? { applied: true, bonusTickets: promotionSummary.doubleTickets.bonusTickets, minTickets: promotionSummary.doubleTickets.minTickets || gamificationConfig.doubleTickets.minTickets || tickets, label: promotionSummary.doubleTickets.label }
+          : (doubleTicketsPromotion ? { applied: true, bonusTickets: doubleTicketsBonus, minTickets: doubleTicketsPromotion.minTickets, label: doubleTicketsPromotion.label } : { applied: false, bonusTickets: 0, minTickets: gamificationConfig.doubleTickets.minTickets, label: gamificationConfig.doubleTickets.label || "Cotas em dobro" }),
         doubleChance: gamificationConfig.modules.doubleChance && isWithinWindow(Date.now(), gamificationConfig.doubleChance.startsAt, gamificationConfig.doubleChance.endsAt) && effectiveTickets >= gamificationConfig.doubleChance.minTickets
           ? { applied: true, weight: Math.max(2, Number(gamificationConfig.doubleChance.weight || 2)) }
           : { applied: false, weight: 1 }
-      }
+      },
+      promotionSummary
     };
 
     if (coupon) coupon.used++;
@@ -8145,6 +8317,10 @@ async function startServer() {
     
     purchases.push(purchase);
     if (purchase.linkedPurchases) purchases.push(...purchase.linkedPurchases);
+    persistAppliedPromotions({ tenantId, raffleId: id, orderId: purchase.purchaseId, customer, amount, quantity: effectiveTickets }, promotionSummary);
+    if (purchase.status === "pending") {
+      scheduleAutomation("abandoned_pix_recovery", { tenant_id: tenantId, customer_id: customer.id, order_id: purchase.purchaseId, purchase, customer });
+    }
     recordPublicActivityEvent({
       tenant_id: tenantId,
       raffle_id: id,
@@ -8255,6 +8431,26 @@ async function startServer() {
     const tenant = resolution.tenant || getRequestTenant(req);
     const tenantId = tenant?.id || legacyTenantId;
     res.json(publicFazendinhaMediaSettings(tenantId));
+  });
+
+  app.get("/api/public/promotions", async (req, res) => {
+    const resolution = await resolveDomainTenantInfo(req);
+    const tenant = resolution.tenant || getRequestTenant(req);
+    const tenantId = tenant?.id || legacyTenantId;
+    const raffleId = String(req.query.raffleId || req.query.raffle_id || "");
+    const raffle = raffleId ? raffles.find(item => item.tenant_id === tenantId && item.id === raffleId) : undefined;
+    const rules = getActivePromotions(tenantId, raffleId || null, promotionRules, new Date())
+      .filter(rule => !rule.deleted_at)
+      .map(publicPromotionRule);
+    const ranking = raffleId
+      ? getBuyerRanking(tenantId, raffleId, "tickets", 10).map(item => ({ ...item, name: maskBuyerName(item.name) }))
+      : [];
+    res.json({
+      rules,
+      ranking,
+      badges: rules.map(rule => ({ label: rule.publicText, type: rule.type, promotionId: rule.id })),
+      raffleStatus: raffle?.status || null
+    });
   });
 
   app.get("/api/fazendinha/customer/:customerId/history", (req, res) => {
@@ -9986,6 +10182,130 @@ async function startServer() {
     });
   });
 
+  app.get("/api/admin/promotions", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const rules = scoped(promotionRules, req)
+      .filter(rule => !rule.deleted_at)
+      .sort((a, b) => a.priority - b.priority || b.updated_at.localeCompare(a.updated_at));
+    const tenantUsages = promotionUsages.filter(usage => adminCanAccessTenant(req, usage.tenant_id));
+    res.json({
+      rules: rules.map(adminPromotionRule),
+      usages: tenantUsages,
+      stats: {
+        active: rules.filter(rule => rule.enabled).length,
+        bonusTickets: tenantUsages.filter(usage => usage.usage_type === "double_tickets").reduce((sum, usage) => sum + Number(usage.quantity || 0), 0),
+        recoveredPix: tenantUsages.filter(usage => usage.usage_type === "abandoned_pix_recovery").length,
+        revenueAttributed: Number(tenantUsages.reduce((sum, usage) => sum + Number(usage.amount || 0), 0).toFixed(2)),
+        tenantId
+      }
+    });
+  });
+
+  app.post("/api/admin/promotions", (req, res) => {
+    try {
+      const rule = normalizePromotionPayload(req);
+      promotionRules.unshift(rule);
+      recordAuditLedger(req, { tenant_id: rule.tenant_id, action: "PROMOTION_CREATED", resource_type: "promotion_rule", resource_id: rule.id, before_data: null, after_data: rule, reason: String(req.body.reason || "Criacao de promocao comercial") });
+      res.status(201).json(adminPromotionRule(rule));
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Nao foi possivel criar promocao" });
+    }
+  });
+
+  app.put("/api/admin/promotions/:id", (req, res) => {
+    const index = promotionRules.findIndex(rule => rule.id === req.params.id && adminCanAccessTenant(req, rule.tenant_id));
+    if (index < 0) return res.status(404).json({ error: "Promocao nao encontrada" });
+    const before = promotionRules[index];
+    try {
+      const after = normalizePromotionPayload(req, before);
+      promotionRules[index] = after;
+      recordAuditLedger(req, { tenant_id: after.tenant_id, action: "PROMOTION_UPDATED", resource_type: "promotion_rule", resource_id: after.id, before_data: before, after_data: after, reason: String(req.body.reason || "Atualizacao de promocao comercial") });
+      res.json(adminPromotionRule(after));
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Nao foi possivel atualizar promocao" });
+    }
+  });
+
+  app.post("/api/admin/promotions/:id/duplicate", (req, res) => {
+    const current = promotionRules.find(rule => rule.id === req.params.id && adminCanAccessTenant(req, rule.tenant_id));
+    if (!current) return res.status(404).json({ error: "Promocao nao encontrada" });
+    const clone = normalizePromotionRule({ ...current, id: createPublicId("PROM_"), name: `${current.name} (copia)`, created_at: undefined, created_by: getAuthSession(req)?.sub || null });
+    promotionRules.unshift(clone);
+    recordAuditLedger(req, { tenant_id: clone.tenant_id, action: "PROMOTION_DUPLICATED", resource_type: "promotion_rule", resource_id: clone.id, before_data: current, after_data: clone, reason: String(req.body.reason || "Duplicacao de promocao") });
+    res.status(201).json(adminPromotionRule(clone));
+  });
+
+  app.delete("/api/admin/promotions/:id", (req, res) => {
+    const rule = promotionRules.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!rule) return res.status(404).json({ error: "Promocao nao encontrada" });
+    const before = { ...rule };
+    rule.enabled = false;
+    rule.deleted_at = new Date().toISOString();
+    rule.updated_at = rule.deleted_at;
+    recordAuditLedger(req, { tenant_id: rule.tenant_id, action: "PROMOTION_DELETED", resource_type: "promotion_rule", resource_id: rule.id, before_data: before, after_data: rule, reason: String(req.body?.reason || "Exclusao logica de promocao") });
+    res.json({ success: true, rule: adminPromotionRule(rule) });
+  });
+
+  app.get("/api/admin/promotions/stats", (req, res) => {
+    const rules = scoped(promotionRules, req).filter(rule => !rule.deleted_at);
+    const usages = promotionUsages.filter(usage => adminCanAccessTenant(req, usage.tenant_id));
+    res.json({
+      activeRules: rules.filter(rule => rule.enabled).length,
+      usages: usages.length,
+      conversionRevenue: usages.reduce((sum, usage) => sum + Number(usage.amount || 0), 0),
+      pixRecovered: usages.filter(usage => usage.usage_type === "abandoned_pix_recovery").length,
+      bonusTicketsIssued: usages.filter(usage => usage.usage_type === "double_tickets" || usage.metadata?.bonusTickets).reduce((sum, usage) => sum + Number(usage.quantity || usage.metadata?.bonusTickets || 0), 0)
+    });
+  });
+
+  app.post("/api/admin/promotions/process-abandoned-pix", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const pendingPurchases = purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.status === "pending");
+    const queued: WhatsAppMessageQueueRecord[] = [];
+    pendingPurchases.forEach(purchase => {
+      const messages = buildAbandonedPixRecoveryMessages({
+        tenantId,
+        raffleId: purchase.raffleId,
+        orderId: purchase.purchaseId,
+        customerId: purchase.customer?.id,
+        customerName: purchase.customer?.name,
+        customerPhone: purchase.customer?.phone || purchase.contact,
+        quantity: purchase.tickets,
+        amount: purchase.amount,
+        paymentStatus: purchase.status,
+        paymentLink: `/checkout/orders/${purchase.purchaseId}`,
+        rules: promotionRules,
+        usages: promotionUsages
+      });
+      const config = getWhatsAppConfig(tenantId);
+      messages.forEach(message => {
+        if (whatsappMessageQueue.some(item => item.idempotency_key === message.idempotencyKey)) return;
+        const phone = normalizeBrazilianPhone(purchase.customer?.phone || purchase.contact || "");
+        const now = new Date().toISOString();
+        const item: WhatsAppMessageQueueRecord = {
+          id: createPublicId("WAPP_"),
+          tenant_id: tenantId,
+          order_id: purchase.purchaseId,
+          customer_id: purchase.customer?.id,
+          phone,
+          message_type: "abandoned_pix_recovery",
+          message_body: message.message,
+          provider: config?.provider || "mock",
+          status: isValidBrazilianWhatsAppPhone(phone) ? "pending" : "failed",
+          attempts: 0,
+          max_attempts: 3,
+          last_error: isValidBrazilianWhatsAppPhone(phone) ? "" : "Telefone invalido para WhatsApp",
+          created_at: now,
+          updated_at: now,
+          idempotency_key: message.idempotencyKey
+        };
+        whatsappMessageQueue.unshift(item);
+        queued.push(item);
+      });
+    });
+    res.json({ queued: queued.length, messages: queued.map(item => ({ ...item, phone: maskPhone(item.phone) })) });
+  });
+
   app.get("/api/admin/audit-logs", (req, res) => {
     res.json(scoped(auditLogs, req));
   });
@@ -11633,6 +11953,8 @@ async function startServer() {
       webhookEndpoints,
       webhookEvents,
       campaignCoupons,
+      promotionRules,
+      promotionUsages,
       lootboxes,
       raffles,
       purchases,
@@ -11707,6 +12029,8 @@ async function startServer() {
       case "webhookEndpoints": webhookEndpoints = Array.isArray(value) ? value : []; break;
       case "webhookEvents": webhookEvents = Array.isArray(value) ? value : []; break;
       case "campaignCoupons": campaignCoupons = Array.isArray(value) ? value : []; break;
+      case "promotionRules": promotionRules = Array.isArray(value) ? value.map((item: any) => normalizePromotionRule(item)) : []; break;
+      case "promotionUsages": promotionUsages = Array.isArray(value) ? value : []; break;
       case "lootboxes": lootboxes = value || {}; break;
       case "raffles": raffles = Array.isArray(value) ? value.map((raffle: any) => ({ ...raffle, soldNumbers: raffle.soldNumbers instanceof Set ? raffle.soldNumbers : new Set(raffle.soldNumbers?.values || raffle.soldNumbers || []) })) : raffles; break;
       case "purchases": purchases = Array.isArray(value) ? value : []; break;

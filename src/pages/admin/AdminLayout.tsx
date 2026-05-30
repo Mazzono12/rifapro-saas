@@ -31,6 +31,7 @@ import {
   Users,
   Scale,
   ShieldAlert,
+  Zap,
   X
 } from "lucide-react";
 import { AdminPageTransition, AdminThemeSwitcher } from "../../components/admin/AdminPremium";
@@ -122,6 +123,7 @@ function AdminLayoutContent() {
     { name: "Modelos de Jogos", path: "/admin/modalidades", icon: Gamepad2, group: "Jogos" },
     { name: "Roleta Premiada", path: "/admin/caixinhas", icon: Gift, group: "Jogos" },
     { name: "Gamificação", path: "/admin/gamificacao", icon: Sparkles, group: "Jogos" },
+    { name: "Promoções", path: "/admin/promocoes", icon: Zap, group: "Jogos" },
     { name: "Cotas Premiadas", path: "/admin/cotas", icon: Star, group: "Jogos" },
     { name: "Sorteio Ao Vivo", path: "/admin/sorteio", icon: Rocket, group: "Jogos" },
     { name: "Stories", path: "/admin/stories", icon: PlaySquare, group: "Conteudo" },

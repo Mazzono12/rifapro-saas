@@ -1,6 +1,6 @@
 // /src/services/api.ts
 // Arquitetura Clean: Todo o acesso externo passa por services estruturados
-import { FazendinhaGroup, FazendinhaHomeMediaSettings, FazendinhaMediaSettings, FazendinhaPurchase, FazendinhaState, ModalidadesState, NumberModeId, NumberModeState, Raffle } from '../types';
+import { FazendinhaGroup, FazendinhaHomeMediaSettings, FazendinhaMediaSettings, FazendinhaPurchase, FazendinhaState, ModalidadesState, NumberModeId, NumberModeState, PromotionRule, PromotionSummary, Raffle } from '../types';
 
 type CheckoutCustomerPayload = {
   name: string;
@@ -65,6 +65,8 @@ export const checkoutService = {
       };
       walletUsage?: { enabled: boolean; amount: number };
       affiliateInfo?: { refCode?: string; name?: string };
+      promotionSummary?: PromotionSummary;
+      upsellOffer?: PromotionSummary["upsellOffer"];
       warnings?: string[];
     }>;
   },
@@ -85,6 +87,48 @@ export const checkoutService = {
       ticketUrl?: string;
       message: string;
     }>;
+  }
+};
+
+export const promotionService = {
+  async getAdminPromotions() {
+    const res = await fetch("/api/admin/promotions");
+    if (!res.ok) throw new Error("Falha ao carregar promoções");
+    return res.json() as Promise<{ rules: PromotionRule[]; usages: unknown[]; stats: Record<string, unknown> }>;
+  },
+
+  async savePromotion(payload: Partial<PromotionRule>) {
+    const method = payload.id ? "PUT" : "POST";
+    const url = payload.id ? `/api/admin/promotions/${payload.id}` : "/api/admin/promotions";
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Falha ao salvar promoção");
+    return data as PromotionRule;
+  },
+
+  async duplicatePromotion(id: string) {
+    const res = await fetch(`/api/admin/promotions/${id}/duplicate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: "Duplicacao de promocao pelo admin" }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Falha ao duplicar promoção");
+    return data as PromotionRule;
+  },
+
+  async deletePromotion(id: string) {
+    const res = await fetch(`/api/admin/promotions/${id}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: "Exclusao logica de promocao pelo admin" }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Falha ao excluir promoção");
+    return data;
+  },
+
+  async getPublicPromotions(raffleId?: string) {
+    const query = raffleId ? `?raffleId=${encodeURIComponent(raffleId)}` : "";
+    const res = await fetch(`/api/public/promotions${query}`);
+    if (!res.ok) throw new Error("Falha ao carregar promoções públicas");
+    return res.json() as Promise<{ rules: PromotionRule[]; ranking: Array<{ name: string; tickets: number; amount: number }>; badges: Array<{ label: string; type: string; promotionId: string }> }>;
   }
 };
 

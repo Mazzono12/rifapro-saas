@@ -178,6 +178,7 @@ export interface Purchase {
   linkedPurchases?: Purchase[];
   paidWithBalance?: number;
   earnedLootboxes?: number;
+  promotionSummary?: PromotionSummary;
   ticketWeights?: Array<{ number: number; weight: number; reason?: string }>;
   gamification?: {
     orderBump?: { offered: boolean; accepted: boolean; tickets: number; discountPercent: number; amount: number };
@@ -188,6 +189,53 @@ export interface Purchase {
     mysteryBoxEventId?: string;
     autoPrizes?: string[];
   };
+}
+
+export type PromotionType =
+  | 'double_tickets'
+  | 'buy_and_win'
+  | 'pre_pix_upsell'
+  | 'lucky_hour'
+  | 'abandoned_pix_recovery'
+  | 'package_bonus'
+  | 'affiliate_bonus'
+  | 'first_purchase_bonus'
+  | 'vip_bonus'
+  | 'buyer_ranking';
+
+export interface PromotionRule {
+  id: string;
+  tenant_id: string;
+  raffle_id?: string | null;
+  raffleId?: string;
+  name: string;
+  type: PromotionType;
+  enabled: boolean;
+  priority: number;
+  starts_at?: string | null;
+  startsAt?: string;
+  ends_at?: string | null;
+  endsAt?: string;
+  conditions: Record<string, unknown>;
+  rewards: Record<string, unknown>;
+  limits: Record<string, unknown>;
+  stackable: boolean;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string | null;
+}
+
+export interface PromotionSummary {
+  appliedRules?: PromotionRule[];
+  badges?: Array<{ label: string; type: PromotionType; promotionId: string }>;
+  bonusTickets?: number;
+  doubleTickets?: { applied: boolean; bonusTickets: number; minTickets?: number; label: string; promotionId?: string };
+  rewards?: Array<{ promotionId: string; type: string; quantity: number; label: string; metadata?: Record<string, unknown> }>;
+  upsellOffer?: { promotionId: string; label: string; description: string; extraTickets: number; extraAmount: number; rewardType: string; accepted?: boolean };
+  luckyHour?: { applied: boolean; label: string; promotionId: string; bonusTickets?: number; rewardType?: string };
+  recoveryMessages?: Array<{ delayMinutes: number; message: string; idempotencyKey: string }>;
+  warnings?: string[];
 }
 
 export type GamificationModuleId = 'scratchcard' | 'winningTicket' | 'luckyHour' | 'mysteryBox' | 'doubleTickets' | 'doubleChance' | 'extremeTickets' | 'buyerRanking' | 'orderBump';

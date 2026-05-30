@@ -4,7 +4,7 @@ import { CheckoutModalHeader, CheckoutPrimaryButton } from "../premium/PremiumUI
 import { CheckoutCampaignMedia } from "./CheckoutCampaignMedia";
 import { FazendinhaCheckoutMedia } from "../FazendinhaCheckoutMedia";
 import { cn } from "../../lib/utils";
-import type { FazendinhaMediaSlotSettings, Raffle } from "../../types";
+import type { FazendinhaMediaSlotSettings, PromotionSummary, Raffle } from "../../types";
 
 export type CheckoutPreview = {
   quantity?: number;
@@ -30,6 +30,8 @@ export type CheckoutPreview = {
     refCode?: string;
     name?: string;
   };
+  promotionSummary?: PromotionSummary;
+  upsellOffer?: PromotionSummary["upsellOffer"];
   warnings?: string[];
 };
 
@@ -138,7 +140,7 @@ export function PrePaymentReceiptModal({
             affiliateInfo={mergedAffiliate}
           />
 
-          <PurchaseBonusesSummary bonuses={mergedBonuses} warnings={preview?.warnings || []} />
+          <PurchaseBonusesSummary bonuses={mergedBonuses} promotionSummary={preview?.promotionSummary} warnings={preview?.warnings || []} />
 
           <CustomerDataSummary customerData={customerData} />
 
@@ -219,7 +221,7 @@ export function CustomerDataSummary({ customerData }: { customerData?: CustomerD
   );
 }
 
-export function PurchaseBonusesSummary({ bonuses, warnings }: { bonuses?: CheckoutPreview["bonuses"]; warnings?: string[] }) {
+export function PurchaseBonusesSummary({ bonuses, promotionSummary, warnings }: { bonuses?: CheckoutPreview["bonuses"]; promotionSummary?: PromotionSummary; warnings?: string[] }) {
   const items = [
     bonuses?.bonusTickets ? [`Bônus`, `${bonuses.bonusTickets} cotas extras`] : null,
     bonuses?.doubleTickets?.applied ? [bonuses.doubleTickets.label || "Cotas em dobro", `+${bonuses.doubleTickets.bonusTickets} cotas extras reais`] : null,
@@ -227,7 +229,10 @@ export function PurchaseBonusesSummary({ bonuses, warnings }: { bonuses?: Checko
     bonuses?.roulettes ? ["Roletas recebidas", String(bonuses.roulettes)] : null,
     bonuses?.lootboxes ? ["Caixinhas recebidas", String(bonuses.lootboxes)] : null,
     bonuses?.scratchcards ? ["Raspadinhas recebidas", String(bonuses.scratchcards)] : null,
-    bonuses?.description ? ["Benefício", bonuses.description] : null
+    bonuses?.description ? ["Benefício", bonuses.description] : null,
+    promotionSummary?.luckyHour?.applied ? ["Hora Premiada", promotionSummary.luckyHour.label] : null,
+    promotionSummary?.upsellOffer ? ["Oferta antes do PIX", `${promotionSummary.upsellOffer.extraTickets} cotas por ${currency.format(promotionSummary.upsellOffer.extraAmount)}`] : null,
+    ...(promotionSummary?.rewards || []).map(reward => [reward.label, `${reward.quantity} ${reward.type}`] as [string, string])
   ].filter(Boolean) as Array<[string, string]>;
 
   if (!items.length && !warnings?.length) return null;
