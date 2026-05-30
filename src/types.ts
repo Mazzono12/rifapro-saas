@@ -337,6 +337,8 @@ export interface FazendinhaHomeMediaSettings {
   fitMode: 'auto' | 'contain' | 'cover';
   alt: string;
   altText?: string;
+  linkUrl?: string;
+  linkTarget?: '_self' | '_blank';
   position: 'above-fazendinha';
 }
 
@@ -347,6 +349,28 @@ export type FazendinhaMediaSlotSettings = Omit<FazendinhaHomeMediaSettings, 'pos
 export interface FazendinhaMediaSettings {
   homeBanner: FazendinhaMediaSlotSettings & { position: 'home-banner' };
   checkoutMedia: FazendinhaMediaSlotSettings & { position: 'checkout' };
+  premiumExperience?: FazendinhaPremiumExperienceSettings;
+}
+
+export interface FazendinhaPremiumExperienceSettings {
+  premiumInfoEnabled: boolean;
+  premiumTitle: string;
+  premiumDescription: string;
+  premiumHighlight: string;
+  caixinhaHighlightEnabled: boolean;
+  caixinhaTitle: string;
+  caixinhaDescription: string;
+  caixinhaPrizeValue: string;
+  caixinhaIcon: string;
+  extractionEnabled: boolean;
+  extractionTime: string;
+  extractionText: string;
+  prizeLabel: string;
+  prizeValue: string;
+  ticketPriceLabel: string;
+  ticketPriceValue: string;
+  ctaLabel: string;
+  ctaSubtitle: string;
 }
 
 export interface FazendinhaGroup {

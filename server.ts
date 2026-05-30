@@ -1783,17 +1783,41 @@ async function startServer() {
     fitMode: "auto" | "contain" | "cover";
     alt: string;
     altText: string;
+    linkUrl: string;
+    linkTarget: "_self" | "_blank";
     position: "above-fazendinha" | "home-banner" | "checkout";
     updated_at: string;
+  };
+  type FazendinhaPremiumExperienceSettings = {
+    premiumInfoEnabled: boolean;
+    premiumTitle: string;
+    premiumDescription: string;
+    premiumHighlight: string;
+    caixinhaHighlightEnabled: boolean;
+    caixinhaTitle: string;
+    caixinhaDescription: string;
+    caixinhaPrizeValue: string;
+    caixinhaIcon: string;
+    extractionEnabled: boolean;
+    extractionTime: string;
+    extractionText: string;
+    prizeLabel: string;
+    prizeValue: string;
+    ticketPriceLabel: string;
+    ticketPriceValue: string;
+    ctaLabel: string;
+    ctaSubtitle: string;
   };
   type FazendinhaMediaSettings = {
     tenant_id: string;
     homeBanner: FazendinhaHomeMediaSettings;
     checkoutMedia: FazendinhaHomeMediaSettings;
+    premiumExperience: FazendinhaPremiumExperienceSettings;
     updated_at: string;
   };
   const fazendinhaHomeMediaSettings: Record<string, FazendinhaHomeMediaSettings> = {};
   const fazendinhaCheckoutMediaSettings: Record<string, FazendinhaHomeMediaSettings> = {};
+  const fazendinhaPremiumExperienceSettings: Record<string, FazendinhaPremiumExperienceSettings> = {};
   function defaultFazendinhaHomeMedia(tenantId: string): FazendinhaHomeMediaSettings {
     return {
       tenant_id: tenantId,
@@ -1806,6 +1830,8 @@ async function startServer() {
       fitMode: "auto",
       alt: "Mídia da Fazendinha",
       altText: "Mídia da Fazendinha",
+      linkUrl: "",
+      linkTarget: "_self",
       position: "home-banner",
       updated_at: new Date().toISOString()
     };
@@ -1822,8 +1848,32 @@ async function startServer() {
       fitMode: "auto",
       alt: "Mídia do checkout da Fazendinha",
       altText: "Mídia do checkout da Fazendinha",
+      linkUrl: "",
+      linkTarget: "_self",
       position: "checkout",
       updated_at: new Date().toISOString()
+    };
+  }
+  function defaultFazendinhaPremiumExperience(tenantId: string): FazendinhaPremiumExperienceSettings {
+    return {
+      premiumInfoEnabled: true,
+      premiumTitle: "Escolha seus bichinhos da sorte",
+      premiumDescription: "Participe da modalidade especial com grupos rápidos, PIX automático e experiência premium.",
+      premiumHighlight: "Concorra com chances extras, prêmios instantâneos e caixinha premiada.",
+      caixinhaHighlightEnabled: true,
+      caixinhaTitle: "Caixinha Premiada",
+      caixinhaDescription: "Compras confirmadas podem liberar uma caixinha com prêmio surpresa.",
+      caixinhaPrizeValue: String(fazendinhaConfig.lootboxConfig?.prizeName || "Prêmio instantâneo"),
+      caixinhaIcon: "🎁",
+      extractionEnabled: true,
+      extractionTime: "",
+      extractionText: "Próxima extração",
+      prizeLabel: "Prêmio",
+      prizeValue: String(fazendinhaConfig.mainPrize || "Prêmio principal"),
+      ticketPriceLabel: "Cada bichinho por apenas",
+      ticketPriceValue: String(fazendinhaConfig.pricePerGroup || ""),
+      ctaLabel: "Participar da Fazendinha",
+      ctaSubtitle: "Escolha seus bichinhos e revise a compra antes do PIX."
     };
   }
   function normalizeFazendinhaMediaSlot(tenantId: string, input: Partial<FazendinhaHomeMediaSettings> = {}, current: FazendinhaHomeMediaSettings, position: FazendinhaHomeMediaSettings["position"]) {
@@ -1842,8 +1892,34 @@ async function startServer() {
       fitMode: (["auto", "contain", "cover"].includes(fitMode) ? fitMode : "auto") as FazendinhaHomeMediaSettings["fitMode"],
       alt: String(input.altText ?? input.alt ?? current.altText ?? current.alt ?? fallbackAlt).slice(0, 160),
       altText: String(input.altText ?? input.alt ?? current.altText ?? current.alt ?? fallbackAlt).slice(0, 160),
+      linkUrl: sanitizeThemeUrl(input.linkUrl ?? current.linkUrl ?? ""),
+      linkTarget: input.linkTarget === "_blank" || current.linkTarget === "_blank" ? "_blank" as const : "_self" as const,
       position,
       updated_at: new Date().toISOString()
+    };
+  }
+  function normalizeFazendinhaPremiumExperience(tenantId: string, input: Partial<FazendinhaPremiumExperienceSettings> = {}) {
+    const current = fazendinhaPremiumExperienceSettings[tenantId] || defaultFazendinhaPremiumExperience(tenantId);
+    return {
+      ...current,
+      premiumInfoEnabled: Boolean(input.premiumInfoEnabled ?? current.premiumInfoEnabled),
+      premiumTitle: String(input.premiumTitle ?? current.premiumTitle).slice(0, 140),
+      premiumDescription: String(input.premiumDescription ?? current.premiumDescription).slice(0, 320),
+      premiumHighlight: String(input.premiumHighlight ?? current.premiumHighlight).slice(0, 240),
+      caixinhaHighlightEnabled: Boolean(input.caixinhaHighlightEnabled ?? current.caixinhaHighlightEnabled),
+      caixinhaTitle: String(input.caixinhaTitle ?? current.caixinhaTitle).slice(0, 120),
+      caixinhaDescription: String(input.caixinhaDescription ?? current.caixinhaDescription).slice(0, 280),
+      caixinhaPrizeValue: String(input.caixinhaPrizeValue ?? current.caixinhaPrizeValue).slice(0, 120),
+      caixinhaIcon: String(input.caixinhaIcon ?? (current.caixinhaIcon || "🎁")).slice(0, 8),
+      extractionEnabled: Boolean(input.extractionEnabled ?? current.extractionEnabled),
+      extractionTime: String(input.extractionTime ?? current.extractionTime).slice(0, 40),
+      extractionText: String(input.extractionText ?? current.extractionText).slice(0, 120),
+      prizeLabel: String(input.prizeLabel ?? current.prizeLabel).slice(0, 80),
+      prizeValue: String(input.prizeValue ?? current.prizeValue).slice(0, 120),
+      ticketPriceLabel: String(input.ticketPriceLabel ?? current.ticketPriceLabel).slice(0, 100),
+      ticketPriceValue: String(input.ticketPriceValue ?? current.ticketPriceValue).slice(0, 80),
+      ctaLabel: String(input.ctaLabel ?? current.ctaLabel).slice(0, 80),
+      ctaSubtitle: String(input.ctaSubtitle ?? current.ctaSubtitle).slice(0, 180)
     };
   }
   function normalizeFazendinhaHomeMedia(tenantId: string, input: Partial<FazendinhaHomeMediaSettings> = {}) {
@@ -1863,22 +1939,25 @@ async function startServer() {
     return fazendinhaCheckoutMediaSettings[tenantId];
   }
   function publicFazendinhaHomeMedia(tenantId: string) {
-    const { enabled, mediaUrl, mediaType, posterUrl, title, description, fitMode, alt, altText } = getFazendinhaHomeMedia(tenantId);
-    return { enabled, mediaUrl, mediaType, posterUrl, title, description, fitMode, alt, altText, position: "home-banner" as const };
+    const { enabled, mediaUrl, mediaType, posterUrl, title, description, fitMode, alt, altText, linkUrl, linkTarget } = getFazendinhaHomeMedia(tenantId);
+    return { enabled, mediaUrl, mediaType, posterUrl, title, description, fitMode, alt, altText, linkUrl, linkTarget, position: "home-banner" as const };
   }
   function publicFazendinhaCheckoutMedia(tenantId: string) {
     const { enabled, mediaUrl, mediaType, posterUrl, title, description, fitMode, alt, altText } = getFazendinhaCheckoutMedia(tenantId);
     return { enabled, mediaUrl, mediaType, posterUrl, title, description, fitMode, alt, altText, position: "checkout" as const };
   }
   function publicFazendinhaMediaSettings(tenantId: string) {
+    fazendinhaPremiumExperienceSettings[tenantId] ||= defaultFazendinhaPremiumExperience(tenantId);
     return {
       homeBanner: publicFazendinhaHomeMedia(tenantId),
-      checkoutMedia: publicFazendinhaCheckoutMedia(tenantId)
+      checkoutMedia: publicFazendinhaCheckoutMedia(tenantId),
+      premiumExperience: fazendinhaPremiumExperienceSettings[tenantId]
     };
   }
   function normalizeFazendinhaMediaSettings(tenantId: string, input: Partial<FazendinhaMediaSettings> = {}) {
     fazendinhaHomeMediaSettings[tenantId] = normalizeFazendinhaHomeMedia(tenantId, input.homeBanner || {});
     fazendinhaCheckoutMediaSettings[tenantId] = normalizeFazendinhaCheckoutMedia(tenantId, input.checkoutMedia || {});
+    fazendinhaPremiumExperienceSettings[tenantId] = normalizeFazendinhaPremiumExperience(tenantId, input.premiumExperience || {});
     return publicFazendinhaMediaSettings(tenantId);
   }
   let fazendinhaGroups: FazendinhaGroup[] = fazendinhaSeed.map(([id, nomeBicho, numeros]) => ({

@@ -7,7 +7,7 @@ import { cn } from "../../lib/utils";
 import { MediaPicker } from "../../components/admin/MediaPicker";
 import { LootboxRulesEditor, normalizeLootboxConfig, RewardExperienceSelector } from "../../components/admin/LootboxRulesEditor";
 import { ResponsiveMediaFrame } from "../../components/ResponsiveMediaFrame";
-import type { FazendinhaMediaSettings, FazendinhaMediaSlotSettings } from "../../types";
+import type { FazendinhaMediaSettings, FazendinhaMediaSlotSettings, FazendinhaPremiumExperienceSettings } from "../../types";
 
 export function AdminFazendinha() {
   const [state, setState] = useState<FazendinhaState | null>(null);
@@ -43,6 +43,8 @@ export function AdminFazendinha() {
       fitMode: "auto",
       alt: "Mídia da Fazendinha",
       altText: "Mídia da Fazendinha",
+      linkUrl: "",
+      linkTarget: "_self",
       position: "home-banner"
     },
     checkoutMedia: {
@@ -54,7 +56,29 @@ export function AdminFazendinha() {
       fitMode: "auto",
       alt: "Mídia do checkout da Fazendinha",
       altText: "Mídia do checkout da Fazendinha",
+      linkUrl: "",
+      linkTarget: "_self",
       position: "checkout"
+    },
+    premiumExperience: {
+      premiumInfoEnabled: true,
+      premiumTitle: "Escolha seus bichinhos da sorte",
+      premiumDescription: "Participe da modalidade especial com grupos rápidos, PIX automático e experiência premium.",
+      premiumHighlight: "Concorra com chances extras, prêmios instantâneos e caixinha premiada.",
+      caixinhaHighlightEnabled: true,
+      caixinhaTitle: "Caixinha Premiada",
+      caixinhaDescription: "Compras confirmadas podem liberar uma caixinha com prêmio surpresa.",
+      caixinhaPrizeValue: "Prêmio instantâneo",
+      caixinhaIcon: "🎁",
+      extractionEnabled: true,
+      extractionTime: "",
+      extractionText: "Próxima extração",
+      prizeLabel: "Prêmio",
+      prizeValue: "",
+      ticketPriceLabel: "Cada bichinho por apenas",
+      ticketPriceValue: "",
+      ctaLabel: "Participar da Fazendinha",
+      ctaSubtitle: "Escolha seus bichinhos e revise a compra antes do PIX."
     }
   };
 
@@ -75,6 +99,25 @@ export function AdminFazendinha() {
         }
       },
       homeMedia: slot === "homeBanner" ? { ...(state.homeMedia || defaultMediaSettings.homeBanner), ...patch, position: "above-fazendinha" as const } : state.homeMedia
+    });
+  };
+
+  const patchPremiumExperience = (patch: Partial<FazendinhaPremiumExperienceSettings>) => {
+    if (!state) return;
+    const currentSettings = state.mediaSettings || {
+      ...defaultMediaSettings,
+      homeBanner: { ...defaultMediaSettings.homeBanner, ...(state.homeMedia || {}) }
+    };
+    setState({
+      ...state,
+      mediaSettings: {
+        ...currentSettings,
+        premiumExperience: {
+          ...defaultMediaSettings.premiumExperience,
+          ...(currentSettings.premiumExperience || {}),
+          ...patch
+        }
+      }
     });
   };
 
@@ -186,6 +229,10 @@ export function AdminFazendinha() {
               mediaLabel="Imagem, GIF ou vídeo do banner da Home"
               value={(state.mediaSettings?.homeBanner || state.homeMedia || defaultMediaSettings.homeBanner) as FazendinhaMediaSlotSettings}
               onChange={patch => patchMediaSettings("homeBanner", patch)}
+            />
+            <PremiumExperienceEditor
+              value={state.mediaSettings?.premiumExperience || defaultMediaSettings.premiumExperience}
+              onChange={patchPremiumExperience}
             />
             <MediaSettingsEditor
               title="Mídia do checkout da Fazendinha"
@@ -327,6 +374,16 @@ function MediaSettingsEditor({
           </label>
         </div>
         <Field label="Texto alternativo/acessibilidade" value={value.altText || value.alt || ""} onChange={next => onChange({ alt: next, altText: next })} />
+        <div className="grid gap-4 md:grid-cols-[1fr_160px]">
+          <Field label="Link clicável opcional" value={value.linkUrl || ""} onChange={next => onChange({ linkUrl: next })} />
+          <label className="space-y-2">
+            <span className="text-xs font-mono uppercase text-slate-500">Abrir link</span>
+            <select value={value.linkTarget || "_self"} onChange={event => onChange({ linkTarget: event.target.value as any })} className="w-full p-3">
+              <option value="_self">Mesma aba</option>
+              <option value="_blank">Nova aba</option>
+            </select>
+          </label>
+        </div>
         {value.mediaUrl && (
           <div className="overflow-hidden rounded-2xl border border-white/10 bg-black">
             <ResponsiveMediaFrame
@@ -346,6 +403,54 @@ function MediaSettingsEditor({
             )}
           </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+function PremiumExperienceEditor({ value, onChange }: { value: FazendinhaPremiumExperienceSettings; onChange: (patch: Partial<FazendinhaPremiumExperienceSettings>) => void }) {
+  return (
+    <section className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.05] p-4">
+      <div className="mb-4">
+        <h3 className="font-display text-lg font-bold text-white">Informações premium da Home</h3>
+        <p className="mt-1 text-xs text-slate-500">Controla textos, caixinha, extração, prêmio, valor da cota e CTA final.</p>
+      </div>
+      <div className="grid gap-4">
+        <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+          <input type="checkbox" checked={value.premiumInfoEnabled} onChange={event => onChange({ premiumInfoEnabled: event.target.checked })} />
+          <span className="text-sm text-white">Ativar bloco premium</span>
+        </label>
+        <Field label="Título da seção" value={value.premiumTitle || ""} onChange={next => onChange({ premiumTitle: next })} />
+        <Field label="Descrição curta" value={value.premiumDescription || ""} onChange={next => onChange({ premiumDescription: next })} />
+        <Field label="Texto de destaque" value={value.premiumHighlight || ""} onChange={next => onChange({ premiumHighlight: next })} />
+        <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+          <input type="checkbox" checked={value.caixinhaHighlightEnabled} onChange={event => onChange({ caixinhaHighlightEnabled: event.target.checked })} />
+          <span className="text-sm text-white">Ativar destaque da caixinha</span>
+        </label>
+        <div className="grid gap-4 md:grid-cols-[96px_1fr]">
+          <Field label="Ícone/emoji" value={value.caixinhaIcon || ""} onChange={next => onChange({ caixinhaIcon: next })} />
+          <Field label="Título da caixinha" value={value.caixinhaTitle || ""} onChange={next => onChange({ caixinhaTitle: next })} />
+        </div>
+        <Field label="Descrição da caixinha" value={value.caixinhaDescription || ""} onChange={next => onChange({ caixinhaDescription: next })} />
+        <Field label="Valor/prêmio da caixinha" value={value.caixinhaPrizeValue || ""} onChange={next => onChange({ caixinhaPrizeValue: next })} />
+        <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+          <input type="checkbox" checked={value.extractionEnabled} onChange={event => onChange({ extractionEnabled: event.target.checked })} />
+          <span className="text-sm text-white">Exibir horário da extração</span>
+        </label>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Texto da extração" value={value.extractionText || ""} onChange={next => onChange({ extractionText: next })} />
+          <Field label="Horário da extração" value={value.extractionTime || ""} onChange={next => onChange({ extractionTime: next })} />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Texto do prêmio" value={value.prizeLabel || ""} onChange={next => onChange({ prizeLabel: next })} />
+          <Field label="Valor do prêmio principal" value={value.prizeValue || ""} onChange={next => onChange({ prizeValue: next })} />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Texto auxiliar do valor" value={value.ticketPriceLabel || ""} onChange={next => onChange({ ticketPriceLabel: next })} />
+          <Field label="Valor da cota por bichinho" value={value.ticketPriceValue || ""} onChange={next => onChange({ ticketPriceValue: next })} />
+        </div>
+        <Field label="Texto do botão participar" value={value.ctaLabel || ""} onChange={next => onChange({ ctaLabel: next })} />
+        <Field label="Subtítulo do CTA" value={value.ctaSubtitle || ""} onChange={next => onChange({ ctaSubtitle: next })} />
       </div>
     </section>
   );

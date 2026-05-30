@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import confetti from "canvas-confetti";
 import { QRCodeSVG } from "qrcode.react";
-import { CheckCircle2, Clover, Copy, Sparkles, TicketCheck, X } from "lucide-react";
+import { CheckCircle2, Clover, Copy, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { useFazendinha, useFazendinhaMediaSettings } from "../hooks/useRaffles";
 import { checkoutService, fazendinhaService } from "../services/api";
@@ -17,6 +17,7 @@ import { PrePaymentReceiptModal, type CheckoutPreview } from "./checkout/PrePaym
 import { CheckoutPrimaryButton } from "./premium/PremiumUI";
 import { FazendinhaAnimalPickerBanner } from "./FazendinhaAnimalPickerBanner";
 import { FazendinhaCheckoutMedia } from "./FazendinhaCheckoutMedia";
+import { FazendinhaCaixinhaHighlight, FazendinhaExtractionBadge, FazendinhaParticipateCTA, FazendinhaPremiumInfo, FazendinhaPrizeInfo } from "./FazendinhaPremiumExperience";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 
@@ -114,6 +115,8 @@ export function FazendinhaSection() {
   const selectedNumbers = selectedGroups.flatMap(group => safeGroupNumbers(group));
   const homeBanner = mediaSettings?.homeBanner || data?.mediaSettings?.homeBanner || data?.homeMedia;
   const checkoutMedia = mediaSettings?.checkoutMedia || data?.mediaSettings?.checkoutMedia;
+  const premiumExperience = mediaSettings?.premiumExperience || data?.mediaSettings?.premiumExperience;
+  const formattedPricePerGroup = formatCurrency(configPricePerGroup);
 
   const toggleGroup = (group?: FazendinhaGroup) => {
     if (!group || group.status !== "available") return;
@@ -297,26 +300,19 @@ export function FazendinhaSection() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,var(--theme-glow),transparent_30%),radial-gradient(circle_at_86%_18%,var(--theme-glow-2),transparent_34%)]" />
       <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-white/18 to-transparent opacity-70" />
 
-      <div className="relative z-10 mb-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--theme-primary)]/25 bg-[var(--theme-primary)]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-[var(--theme-primary)]">
-            <Sparkles className="h-3.5 w-3.5" /> Modalidade especial
-          </span>
-          <h2 className="mt-4 max-w-4xl font-display text-5xl font-black leading-[0.95] text-[var(--theme-text)] md:text-6xl">{configName}</h2>
-          <p className="mt-4 max-w-3xl text-lg leading-relaxed text-[var(--theme-muted)]">{configDescription}</p>
-          <p className="mt-3 text-sm font-semibold text-[var(--theme-primary)]">
-            Toque nos bichinhos, confira sua seleção e participe sem sair da tela principal.
-          </p>
-        </div>
-        <div className="rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5 text-left shadow-[0_18px_60px_rgba(15,23,42,0.10)] lg:min-w-72 lg:text-right">
-          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--theme-muted)]">Prêmio</p>
-          <p className="mt-2 font-display text-3xl font-black text-[var(--theme-text)]">{configMainPrize}</p>
-          <p className="mt-2 text-sm text-[var(--theme-muted)]">R$ {configPricePerGroup.toFixed(2).replace(".", ",")} por bichinho</p>
-        </div>
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-[980px]">
+      <div className="relative z-10 mx-auto max-w-[980px] space-y-5">
         <FazendinhaAnimalPickerBanner {...homeBanner} />
+        <FazendinhaPremiumInfo settings={premiumExperience} />
+        <FazendinhaCaixinhaHighlight settings={premiumExperience} active={Boolean(config.lootboxEnabled)} />
+        <FazendinhaExtractionBadge settings={premiumExperience} drawDate={config.drawDate} />
+        <FazendinhaPrizeInfo settings={premiumExperience} prize={configMainPrize} price={formattedPricePerGroup} />
+        <div className="fazendinha-animal-picker-header rounded-[1.5rem] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--theme-primary)]/25 bg-[var(--theme-primary)]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--theme-primary)]">
+            <Sparkles className="h-3.5 w-3.5" /> Escolha os bichos
+          </span>
+          <h2 className="mt-3 font-display text-3xl font-black leading-tight text-[var(--theme-text)] sm:text-4xl">{configName}</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--theme-muted)] sm:text-base">{configDescription}</p>
+        </div>
         <div className="relative overflow-hidden rounded-[1.75rem] border border-[var(--theme-border)] bg-[var(--theme-bg-soft)] p-2 shadow-[0_30px_90px_rgba(15,23,42,0.18)]">
           <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_20%,var(--theme-glow),transparent_38%)] opacity-70" />
           <div className="relative z-10 grid grid-cols-5 gap-2 rounded-2xl bg-black/10 p-2 sm:gap-3 sm:p-3">
@@ -388,29 +384,15 @@ export function FazendinhaSection() {
             })}
           </div>
         )}
-      </div>
 
-      <div className="sticky bottom-3 z-30 mt-6 rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface-strong)] p-4 shadow-[0_20px_70px_rgba(15,23,42,0.16)] backdrop-blur-2xl">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[var(--theme-muted)]">Cotas escolhidas</p>
-            <p className="mt-1 text-lg font-bold text-[var(--theme-text)]">
-            {selectedGroups.length} grupo(s) • {selectedNumbers.length} número(s) • R$ {selectedTotal.toFixed(2).replace(".", ",")}
-            </p>
-            {selectedGroups.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {selectedGroups.map(group => (
-                  <span key={group.id} className="rounded-full border border-[var(--theme-primary)]/20 bg-[var(--theme-primary)]/10 px-3 py-1 text-xs font-bold text-[var(--theme-primary)]">
-                    {group.nomeBicho}: {formatCurrency(group.preco)}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-          <CheckoutPrimaryButton onClick={() => setCheckoutOpen(true)} disabled={!selectedGroups.length} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl px-8 py-4 text-base font-black disabled:cursor-not-allowed disabled:opacity-40">
-            <TicketCheck className="h-5 w-5" /> Participar
-          </CheckoutPrimaryButton>
-        </div>
+        <FazendinhaParticipateCTA
+          settings={premiumExperience}
+          selectedCount={selectedGroups.length}
+          selectedNumbers={selectedNumbers.length}
+          total={formatCurrency(selectedTotal)}
+          disabled={!selectedGroups.length}
+          onClick={() => setCheckoutOpen(true)}
+        />
       </div>
 
       <AnimatePresence>
