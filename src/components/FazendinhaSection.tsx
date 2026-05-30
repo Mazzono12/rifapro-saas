@@ -22,6 +22,27 @@ import { GeoPrefillService } from "../services/GeoPrefillService";
 
 const boardGroupIds = FAZENDINHA_GROUP_ORDER;
 
+function safeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function safeGroupNumbers(group: Partial<FazendinhaGroup>) {
+  return Array.isArray(group.numeros) ? group.numeros : [];
+}
+
+function normalizeFazendinhaGroup(group: Partial<FazendinhaGroup> | null | undefined): FazendinhaGroup | null {
+  if (!group?.id) return null;
+  return {
+    ...group,
+    id: String(group.id),
+    nomeBicho: String(group.nomeBicho || group.id),
+    numeros: safeGroupNumbers(group),
+    preco: safeNumber(group.preco),
+    status: group.status || "available"
+  } as FazendinhaGroup;
+}
+
 export function FazendinhaSection() {
   const { data } = useFazendinha();
   const queryClient = useQueryClient();
@@ -66,25 +87,37 @@ export function FazendinhaSection() {
     setForm(current => current.city ? current : { ...current, city: detectedCity.city, state: current.state || detectedCity.state });
   }, [detectedCity]);
 
-  const groupsById = useMemo(() => new Map(data?.groups.map(group => [group.id, group]) || []), [data]);
-  const extraGroups = data?.groups.filter(group => !boardGroupIds.includes(group.id)) || [];
-  const selectedTotal = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
-  const addonValue = acceptAddon && addonSuggestion ? addonSuggestion.amount : 0;
+  const groups = useMemo(() => {
+    const rawGroups = Array.isArray(data?.groups) ? data.groups : [];
+    return rawGroups.map(group => normalizeFazendinhaGroup(group)).filter((group): group is FazendinhaGroup => Boolean(group));
+  }, [data?.groups]);
+  const groupsById = useMemo(() => new Map(groups.map(group => [group.id, group])), [groups]);
+  const extraGroups = groups.filter(group => !boardGroupIds.includes(group.id));
+  const selectedTotal = selectedGroups.reduce((sum, group) => sum + safeNumber(group.preco), 0);
+  const safeAddonSuggestion = addonSuggestion?.raffle?.id ? addonSuggestion : null;
+  const addonAmount = safeNumber(safeAddonSuggestion?.amount);
+  const addonValue = acceptAddon && safeAddonSuggestion ? addonAmount : 0;
   const totalValue = selectedTotal + addonValue;
+  const config = data?.config;
+  if (!config?.enabled || config.status !== "active") return null;
+
+  const configName = String(config.name || "Fazendinha");
+  const configDescription = String(config.description || "Escolha seus bichinhos e participe da modalidade especial.");
+  const configMainPrize = String(config.mainPrize || (config as any).prize || "Premio principal");
+  const configPricePerGroup = safeNumber(config.pricePerGroup);
   const fazendinhaMedia = {
-    title: data.config.name || "Fazendinha",
-    subtitle: (data.config as any).prize || "Premio principal",
-    image: data.config.mediaUrl || "",
-    mediaUrl: data.config.mediaUrl || "",
-    mediaType: data.config.mediaType as any
+    title: configName,
+    subtitle: (config as any).prize || configMainPrize,
+    image: config.mediaUrl || "",
+    mediaUrl: config.mediaUrl || "",
+    mediaType: config.mediaType as any
   };
   const hasSavedCustomer = Boolean(customer?.name && customer.phone && customer.cpf);
   const canUseSavedCustomer = hasSavedCustomer && !requireIdentity;
   const isReturningCustomerVerification = hasSavedCustomer && requireIdentity && customerMode === "existing";
   const firstName = (customer?.name || form.name || "").trim().split(/\s+/)[0] || "cliente";
-  const formatCurrency = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-  if (!data?.config?.enabled || data.config.status !== "active") return null;
+  const formatCurrency = (value: number) => safeNumber(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const selectedNumbers = selectedGroups.flatMap(group => safeGroupNumbers(group));
 
   const toggleGroup = (group?: FazendinhaGroup) => {
     if (!group || group.status !== "available") return;
@@ -135,7 +168,7 @@ export function FazendinhaSection() {
         customer: customer && (canUseSavedCustomer || isReturningCustomerVerification)
           ? { ...form, name: customer.name, phone: customer.phone, cpf: customer.cpf }
           : form,
-        addon: acceptAddon && addonSuggestion ? { raffleId: addonSuggestion.raffle.id, tickets: addonSuggestion.tickets } : undefined
+        addon: acceptAddon && safeAddonSuggestion ? { raffleId: safeAddonSuggestion.raffle.id, tickets: safeNumber(safeAddonSuggestion.tickets) } : undefined
       });
       setCheckoutPreview(preview);
       setReceiptOpen(true);
@@ -166,8 +199,9 @@ export function FazendinhaSection() {
         selectedGroups.map(group => group.id),
         checkoutCustomer,
         false,
-        acceptAddon && addonSuggestion ? { raffleId: addonSuggestion.raffle.id, tickets: addonSuggestion.tickets } : undefined
+        acceptAddon && safeAddonSuggestion ? { raffleId: safeAddonSuggestion.raffle.id, tickets: safeNumber(safeAddonSuggestion.tickets) } : undefined
       );
+      if (!result?.purchase || !result.pixPayload) throw new Error("Resposta de PIX incompleta");
       if (result.purchase?.customer) setCustomer(result.purchase.customer);
       setReceiptOpen(false);
       setPendingPix({ purchase: result.purchase, pixPayload: result.pixPayload });
@@ -261,7 +295,7 @@ export function FazendinhaSection() {
         onClose={() => setLootboxReward({ ...lootboxReward, open: false })}
         earnedCount={lootboxReward.count}
         contact={lootboxReward.contact}
-        config={data.config.lootboxConfig}
+        config={config.lootboxConfig}
       />
       <PixPaymentResultModal result={paymentResult} onClose={closePaymentResult} />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,var(--theme-glow),transparent_30%),radial-gradient(circle_at_86%_18%,var(--theme-glow-2),transparent_34%)]" />
@@ -272,16 +306,16 @@ export function FazendinhaSection() {
           <span className="inline-flex items-center gap-2 rounded-full border border-[var(--theme-primary)]/25 bg-[var(--theme-primary)]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-[var(--theme-primary)]">
             <Sparkles className="h-3.5 w-3.5" /> Modalidade especial
           </span>
-          <h2 className="mt-4 max-w-4xl font-display text-5xl font-black leading-[0.95] text-[var(--theme-text)] md:text-6xl">{data.config.name}</h2>
-          <p className="mt-4 max-w-3xl text-lg leading-relaxed text-[var(--theme-muted)]">{data.config.description}</p>
+          <h2 className="mt-4 max-w-4xl font-display text-5xl font-black leading-[0.95] text-[var(--theme-text)] md:text-6xl">{configName}</h2>
+          <p className="mt-4 max-w-3xl text-lg leading-relaxed text-[var(--theme-muted)]">{configDescription}</p>
           <p className="mt-3 text-sm font-semibold text-[var(--theme-primary)]">
             Toque nos bichinhos, confira sua seleção e participe sem sair da tela principal.
           </p>
         </div>
         <div className="rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5 text-left shadow-[0_18px_60px_rgba(15,23,42,0.10)] lg:min-w-72 lg:text-right">
           <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--theme-muted)]">Prêmio</p>
-          <p className="mt-2 font-display text-3xl font-black text-[var(--theme-text)]">{data.config.mainPrize}</p>
-          <p className="mt-2 text-sm text-[var(--theme-muted)]">R$ {data.config.pricePerGroup.toFixed(2).replace(".", ",")} por bichinho</p>
+          <p className="mt-2 font-display text-3xl font-black text-[var(--theme-text)]">{configMainPrize}</p>
+          <p className="mt-2 text-sm text-[var(--theme-muted)]">R$ {configPricePerGroup.toFixed(2).replace(".", ",")} por bichinho</p>
         </div>
       </div>
 
@@ -316,7 +350,7 @@ export function FazendinhaSection() {
                     {group?.nomeBicho || groupId}
                   </span>
                   <span className="mt-1 grid grid-cols-2 gap-1">
-                    {(group?.numeros || []).map(numero => (
+                    {safeGroupNumbers(group || {}).map(numero => (
                       <span key={numero} className="rounded-md bg-black/20 px-1 py-0.5 text-center text-[9px] font-mono text-[var(--theme-text)] sm:text-xs">
                         {numero}
                       </span>
@@ -350,7 +384,7 @@ export function FazendinhaSection() {
                     group.status === "sold" && "border-red-400/70 bg-red-500/20 text-red-100 opacity-80"
                   )}
                 >
-                  {group.nomeBicho} • {group.numeros.join(" ")}
+                  {group.nomeBicho} • {safeGroupNumbers(group).join(" ")}
                   {group.status !== "available" && <span className="ml-2 text-[10px] uppercase">({group.status === "reserved" ? "Reservado" : "Vendido"})</span>}
                 </button>
               );
@@ -364,7 +398,7 @@ export function FazendinhaSection() {
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-[var(--theme-muted)]">Cotas escolhidas</p>
             <p className="mt-1 text-lg font-bold text-[var(--theme-text)]">
-            {selectedGroups.length} grupo(s) • {selectedGroups.flatMap(group => group.numeros).length} número(s) • R$ {selectedTotal.toFixed(2).replace(".", ",")}
+            {selectedGroups.length} grupo(s) • {selectedNumbers.length} número(s) • R$ {selectedTotal.toFixed(2).replace(".", ",")}
             </p>
             {selectedGroups.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -393,7 +427,7 @@ export function FazendinhaSection() {
                 showStatus
                 showPrice
                 statusLabel={pendingPix ? "Aguardando pagamento" : "Checkout seguro"}
-                priceLabel={`${selectedGroups.flatMap(group => group.numeros).length} cotas - ${formatCurrency(totalValue || pendingPix?.purchase.valorPago || 0)}`}
+                priceLabel={`${selectedNumbers.length} cotas - ${formatCurrency(totalValue || pendingPix?.purchase.valorPago || 0)}`}
                 className="mb-5"
               />
               <div className="flex items-start justify-between gap-4">
@@ -406,14 +440,14 @@ export function FazendinhaSection() {
 
               <div className="mt-5 aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black/40">
                 <DynamicMedia
-                  mediaUrl={data.config.mediaUrl || "/fazendinha-animais-premium.png"}
-                  mediaType={data.config.mediaType || "image"}
+                  mediaUrl={config.mediaUrl || "/fazendinha-animais-premium.png"}
+                  mediaType={config.mediaType || "image"}
                   autoPlay={false}
                   muted={true}
                   interactive={true}
                   mediaFit="cover"
                   className="h-full w-full"
-                  fallback={<img src="/fazendinha-animais-premium.png" alt={data.config.name} loading="lazy" decoding="async" className="aspect-video w-full object-cover" />}
+                  fallback={<img src="/fazendinha-animais-premium.png" alt={configName} loading="lazy" decoding="async" className="aspect-video w-full object-cover" />}
                 />
               </div>
 
@@ -490,7 +524,7 @@ export function FazendinhaSection() {
                     <h3 className="mt-1 font-display text-xl font-bold text-white">Fazendinha Premiada</h3>
                   </div>
                   <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-mono text-slate-300">
-                    {selectedGroups.flatMap(group => group.numeros).length} números
+                    {selectedNumbers.length} números
                   </span>
                 </div>
                 <div className="space-y-2 text-sm">
@@ -502,7 +536,7 @@ export function FazendinhaSection() {
                     <span className="text-slate-400">Subtotal Fazendinha</span>
                     <strong className="font-mono text-white">{formatCurrency(selectedTotal)}</strong>
                   </div>
-                  {acceptAddon && addonSuggestion && (
+                  {acceptAddon && safeAddonSuggestion && (
                     <div className="flex justify-between gap-4">
                       <span className="text-slate-400">Oferta combinada</span>
                       <strong className="font-mono text-white">{formatCurrency(addonValue)}</strong>
@@ -526,19 +560,19 @@ export function FazendinhaSection() {
                         <strong className="text-white">{group.nomeBicho}</strong>
                         <span className="text-xs font-semibold text-slate-300">{formatCurrency(group.preco)}</span>
                       </div>
-                      <p className="mt-1 font-mono text-xs text-emerald-200">{group.numeros.join(" ")}</p>
+                      <p className="mt-1 font-mono text-xs text-emerald-200">{safeGroupNumbers(group).join(" ")}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {addonSuggestion && (
+              {safeAddonSuggestion && (
                 <label className="mt-5 block cursor-pointer rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4">
                   <div className="flex items-start gap-3">
                     <input type="checkbox" checked={acceptAddon} onChange={e => setAcceptAddon(e.target.checked)} className="mt-1 h-5 w-5 shrink-0" />
                     <div>
-                      <p className="text-sm font-bold text-white">Adicionar {addonSuggestion.tickets} cotas em {addonSuggestion.raffle.title}</p>
-                      <p className="mt-1 text-xs text-slate-400">Sugestão configurada no admin, somada no mesmo PIX por + R$ {addonSuggestion.amount.toFixed(2).replace(".", ",")}.</p>
+                      <p className="text-sm font-bold text-white">Adicionar {safeNumber(safeAddonSuggestion.tickets)} cotas em {safeAddonSuggestion.raffle.title || "campanha ativa"}</p>
+                      <p className="mt-1 text-xs text-slate-400">Sugestão configurada no admin, somada no mesmo PIX por + R$ {addonAmount.toFixed(2).replace(".", ",")}.</p>
                     </div>
                   </div>
                 </label>
@@ -568,13 +602,13 @@ export function FazendinhaSection() {
                 <div className="space-y-2 border-t border-white/10 pt-3">
                   {selectedGroups.map(group => (
                     <div key={group.id} className="flex items-center justify-between gap-3 text-xs">
-                      <span className="text-slate-400">{group.nomeBicho} • {group.numeros.length} números</span>
+                      <span className="text-slate-400">{group.nomeBicho} • {safeGroupNumbers(group).length} números</span>
                       <span className="font-semibold text-slate-100">{formatCurrency(group.preco)}</span>
                     </div>
                   ))}
-                  {acceptAddon && addonSuggestion && (
+                  {acceptAddon && safeAddonSuggestion && (
                     <div className="flex items-center justify-between gap-3 text-xs">
-                      <span className="text-emerald-100">Adicional: {addonSuggestion.tickets} cotas em {addonSuggestion.raffle.title}</span>
+                      <span className="text-emerald-100">Adicional: {safeNumber(safeAddonSuggestion.tickets)} cotas em {safeAddonSuggestion.raffle.title || "campanha ativa"}</span>
                       <span className="font-semibold text-emerald-50">{formatCurrency(addonValue)}</span>
                     </div>
                   )}
@@ -594,10 +628,10 @@ export function FazendinhaSection() {
       </AnimatePresence>
       <PrePaymentReceiptModal
         open={receiptOpen}
-        campaign={data.config.name || "Fazendinha"}
-        raffle={data.config.name || "Fazendinha"}
+        campaign={configName}
+        raffle={configName}
         raffleData={fazendinhaMedia}
-        selectedQuantity={selectedGroups.flatMap(group => group.numeros).length}
+        selectedQuantity={selectedNumbers.length}
         selectedPackage={`${selectedGroups.length} grupo(s)`}
         calculatedPrice={totalValue}
         customerData={{

@@ -45,6 +45,80 @@ const defaultRanking: RankingPayload = {
   top_winners: []
 };
 
+const defaultScarcity: ScarcityPayload = {
+  enabled: false,
+  totalTickets: 0,
+  soldTickets: 0,
+  remainingTickets: 0,
+  progress: 0,
+  soldLastHour: 0,
+  velocityPerHour: 0,
+  estimatedEndAt: null,
+  lastTicketsAlert: false,
+  viewersOnline: 0
+};
+
+function safeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeActivity(payload: unknown): { enabled: boolean; events: ActivityEvent[] } {
+  const source = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as { enabled?: unknown; events?: unknown } : {};
+  const events = Array.isArray(source.events) ? source.events : [];
+  return {
+    enabled: Boolean(source.enabled),
+    events: events
+      .filter((event): event is Partial<ActivityEvent> => Boolean(event && typeof event === "object"))
+      .map(event => ({
+        id: String(event.id || crypto.randomUUID()),
+        event_type: String(event.event_type || "purchase"),
+        display_name_masked: String(event.display_name_masked || "Cliente"),
+        amount: safeNumber(event.amount),
+        quantity: Math.max(0, safeNumber(event.quantity)),
+        metadata: event.metadata && typeof event.metadata === "object" ? event.metadata : {},
+        created_at: String(event.created_at || new Date().toISOString())
+      }))
+  };
+}
+
+function normalizeRanking(payload: unknown): RankingPayload {
+  const source = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Partial<RankingPayload> : {};
+  const normalizeBuyers = (items: unknown) => (
+    Array.isArray(items)
+      ? items
+        .filter((item): item is { name?: unknown; tickets?: unknown; amount?: unknown } => Boolean(item && typeof item === "object"))
+        .map(item => ({ name: String(item.name || "Cliente"), tickets: safeNumber(item.tickets), amount: safeNumber(item.amount) }))
+      : []
+  );
+  return {
+    enabled: Boolean(source.enabled),
+    top_buyers: normalizeBuyers(source.top_buyers),
+    weekly_buyers: normalizeBuyers(source.weekly_buyers),
+    monthly_buyers: normalizeBuyers(source.monthly_buyers),
+    top_affiliates: Array.isArray(source.top_affiliates) ? source.top_affiliates : [],
+    top_winners: Array.isArray(source.top_winners) ? source.top_winners : []
+  };
+}
+
+function normalizeScarcity(payload: unknown): ScarcityPayload | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const source = payload as Partial<ScarcityPayload>;
+  return {
+    ...defaultScarcity,
+    enabled: Boolean(source.enabled),
+    totalTickets: safeNumber(source.totalTickets),
+    soldTickets: safeNumber(source.soldTickets),
+    remainingTickets: Math.max(0, safeNumber(source.remainingTickets)),
+    progress: Math.min(100, Math.max(0, safeNumber(source.progress))),
+    soldLastHour: Math.max(0, safeNumber(source.soldLastHour)),
+    velocityPerHour: Math.max(0, safeNumber(source.velocityPerHour)),
+    estimatedEndAt: source.estimatedEndAt || null,
+    lastTicketsAlert: Boolean(source.lastTicketsAlert),
+    viewersOnline: Math.max(0, safeNumber(source.viewersOnline))
+  };
+}
+
 function activityMessage(event: ActivityEvent) {
   if (event.event_type === "instant_prize") return `${event.display_name_masked} ganhou ${event.metadata?.prize || "premio"} na raspadinha`;
   if (event.event_type === "mystery_box") return `${event.display_name_masked} recebeu caixinha premiada`;
@@ -53,9 +127,13 @@ function activityMessage(event: ActivityEvent) {
 }
 
 async function safeJson<T>(url: string, fallback: T): Promise<T> {
-  const res = await fetch(url, { headers: { "Accept": "application/json" } });
-  if (!res.ok) return fallback;
-  return res.json();
+  try {
+    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    if (!res.ok) return fallback;
+    return res.json();
+  } catch {
+    return fallback;
+  }
 }
 
 export function PublicConversionWidgets({ raffleId, className }: { raffleId?: string; className?: string }) {
@@ -71,11 +149,14 @@ export function PublicConversionWidgets({ raffleId, className }: { raffleId?: st
       safeJson<RankingPayload>(`/api/public/raffles/${raffleId}/ranking`, defaultRanking),
       safeJson<ScarcityPayload | null>(`/api/public/raffles/${raffleId}/scarcity`, null)
     ]);
-    setActivity(activityPayload.enabled ? activityPayload.events || [] : []);
-    setRanking(rankingPayload);
-    setScarcity(scarcityPayload?.enabled ? scarcityPayload : null);
-    const newest = activityPayload.events?.[0];
-    if (activityPayload.enabled && newest && newest.id !== lastToastId.current) {
+    const normalizedActivity = normalizeActivity(activityPayload);
+    const normalizedRanking = normalizeRanking(rankingPayload);
+    const normalizedScarcity = normalizeScarcity(scarcityPayload);
+    setActivity(normalizedActivity.enabled ? normalizedActivity.events : []);
+    setRanking(normalizedRanking.enabled ? normalizedRanking : defaultRanking);
+    setScarcity(normalizedScarcity?.enabled ? normalizedScarcity : null);
+    const newest = normalizedActivity.events[0];
+    if (normalizedActivity.enabled && newest && newest.id !== lastToastId.current) {
       lastToastId.current = newest.id;
       toast.custom(() => (
         <div className="rounded-2xl border border-emerald-300/25 bg-slate-950/95 px-4 py-3 text-sm text-white shadow-2xl">
@@ -92,7 +173,7 @@ export function PublicConversionWidgets({ raffleId, className }: { raffleId?: st
     return () => window.clearInterval(timer);
   }, [raffleId]);
 
-  const featuredRanking = useMemo(() => ranking.top_buyers.slice(0, 5), [ranking.top_buyers]);
+  const featuredRanking = useMemo(() => (Array.isArray(ranking.top_buyers) ? ranking.top_buyers : []).slice(0, 5), [ranking.top_buyers]);
   if (!scarcity && !activity.length && !featuredRanking.length) return null;
 
   return (

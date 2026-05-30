@@ -4,11 +4,29 @@ import { motion } from 'motion/react';
 import { MediaRenderer } from './MediaRenderer';
 import type { Winner } from '../types';
 
+function normalizeWinners(payload: unknown): Winner[] {
+  if (!Array.isArray(payload)) return [];
+  return payload
+    .filter((winner): winner is Partial<Winner> => Boolean(winner && typeof winner === "object"))
+    .map(winner => ({
+      id: String(winner.id || crypto.randomUUID()),
+      raffleName: String(winner.raffleName || "Campanha"),
+      winnerName: String(winner.winnerName || "Ganhador"),
+      prizeDescription: String(winner.prizeDescription || "Premio publicado"),
+      mediaUrl: String(winner.mediaUrl || ""),
+      mediaType: winner.mediaType || "image",
+      date: winner.date || new Date().toISOString()
+    } as Winner));
+}
+
 export function WinnersGallery() {
   const [winners, setWinners] = useState<Winner[]>([]);
 
   useEffect(() => {
-    fetch('/api/winners').then(res => res.json()).then(setWinners);
+    fetch('/api/winners')
+      .then(res => res.ok ? res.json() : [])
+      .then(payload => setWinners(normalizeWinners(payload)))
+      .catch(() => setWinners([]));
   }, []);
 
   if (winners.length === 0) return null;
@@ -62,7 +80,7 @@ export function WinnersGallery() {
 
                 <div className="flex items-center gap-2 text-slate-500 font-mono text-xs border-t border-white/5 pt-4">
                    <Calendar className="w-4 h-4" />
-                   {new Date(winner.date).toLocaleDateString('pt-BR')}
+                   {Number.isNaN(new Date(winner.date).getTime()) ? "Data a definir" : new Date(winner.date).toLocaleDateString('pt-BR')}
                 </div>
              </div>
            </motion.div>

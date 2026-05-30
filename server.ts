@@ -1335,6 +1335,7 @@ async function startServer() {
     statusPagamento: "reserved" | "paid";
     dataCompra: string;
     customer: CustomerRecord;
+    refCode?: string;
     earnedLootboxes?: number;
     linkedPurchases?: PurchaseRecord[];
   };
@@ -1387,6 +1388,7 @@ async function startServer() {
     status: "reserved" | "paid";
     createdAt: string;
     customer: CustomerRecord;
+    refCode?: string;
     earnedLootboxes?: number;
   };
   type NumberModeWinner = {
@@ -1839,6 +1841,57 @@ async function startServer() {
   let numberModePurchases: NumberModePurchase[] = [];
   let numberModeBets: NumberModeBet[] = [];
   let numberModeWinners: NumberModeWinner[] = [];
+
+  const numberModeIds: NumberModeId[] = ["dezena", "centena", "milhar"];
+
+  function numberModeConfigKey(tenantId: string, mode: NumberModeId) {
+    return `${tenantId}:${mode}`;
+  }
+
+  function cloneNumberModeConfigForTenant(config: NumberModeConfig, tenantId: string): NumberModeConfig {
+    return {
+      ...deepClone(config),
+      tenant_id: tenantId,
+      lootboxConfig: createScopedLootboxConfig(config.lootboxConfig)
+    };
+  }
+
+  function ensureNumberModeConfigsForTenant(tenantId: string) {
+    numberModeIds.forEach(mode => {
+      const key = numberModeConfigKey(tenantId, mode);
+      if (!numberModeConfigs[key]) {
+        const base = numberModeConfigs[mode] || Object.values(numberModeConfigs).find(config => config.id === mode);
+        if (base) numberModeConfigs[key] = cloneNumberModeConfigForTenant(base, tenantId);
+      }
+    });
+  }
+
+  function getNumberModeConfig(tenantId: string, mode: NumberModeId) {
+    ensureNumberModeConfigsForTenant(tenantId);
+    return numberModeConfigs[numberModeConfigKey(tenantId, mode)] || numberModeConfigs[mode];
+  }
+
+  function getNumberModeConfigsForTenant(tenantId: string) {
+    ensureNumberModeConfigsForTenant(tenantId);
+    return numberModeIds
+      .map(mode => getNumberModeConfig(tenantId, mode))
+      .filter((config): config is NumberModeConfig => Boolean(config));
+  }
+
+  function ensureFazendinhaStateForTenant(tenantId: string) {
+    const hasGroups = fazendinhaGroups.some(group => group.tenant_id === tenantId);
+    if (!hasGroups) {
+      fazendinhaGroups.push(...fazendinhaSeed.map(([id, nomeBicho, numeros]) => ({
+        id: `${tenantId}:${id}`,
+        tenant_id: tenantId,
+        nomeBicho,
+        numeros: [...numeros],
+        status: "available" as FazendinhaStatus,
+        preco: fazendinhaConfig.pricePerGroup,
+        imagemUrl: ""
+      })));
+    }
+  }
 
   // === Anti-Fraud System ===
   const allTenantFeatureFlags: TenantFeatureFlag[] = ["crm", "automations", "advanced_affiliates", "wallet", "provably_fair", "reports_pdf", "public_api", "pwa", "custom_theme", "whatsapp_automation", "realtime_social_proof"];
@@ -5454,18 +5507,19 @@ async function startServer() {
   }
 
   function resetFazendinhaRound(tenantId = legacyTenantId) {
-    fazendinhaGroups = fazendinhaSeed.map(([id, nomeBicho, numeros]) => ({
-      id,
+    fazendinhaGroups = fazendinhaGroups.filter(group => group.tenant_id !== tenantId);
+    fazendinhaGroups.push(...fazendinhaSeed.map(([id, nomeBicho, numeros]) => ({
+      id: tenantId === legacyTenantId ? id : `${tenantId}:${id}`,
       tenant_id: tenantId,
       nomeBicho,
       numeros: [...numeros],
-      status: "available",
+      status: "available" as FazendinhaStatus,
       preco: fazendinhaConfig.pricePerGroup,
       imagemUrl: ""
-    }));
-    fazendinhaCompras = [];
-    fazendinhaResultados = [];
-    fazendinhaGanhadores = [];
+    })));
+    fazendinhaCompras = fazendinhaCompras.filter(purchase => purchase.tenant_id !== tenantId);
+    fazendinhaResultados = fazendinhaResultados.filter(result => result.tenant_id !== tenantId);
+    fazendinhaGanhadores = fazendinhaGanhadores.filter(winner => winner.tenant_id !== tenantId);
     fazendinhaConfig.resultNumber = "";
     fazendinhaConfig.resultSource = "";
     fazendinhaConfig.status = "active";
@@ -5516,8 +5570,9 @@ async function startServer() {
     return { result, winner, group, purchase };
   }
 
-  function normalizeModeNumber(mode: NumberModeId, input: unknown) {
-    const config = numberModeConfigs[mode];
+  function normalizeModeNumber(mode: NumberModeId, input: unknown, tenantId = legacyTenantId) {
+    const config = getNumberModeConfig(tenantId, mode);
+    if (!config) return "";
     const digits = String(input ?? "").replace(/\D/g, "");
     if (digits.length > config.digits) return "";
     const value = Number(digits || 0);
@@ -5526,15 +5581,17 @@ async function startServer() {
     return digits.padStart(config.digits, "0");
   }
 
-  function normalizeModeResultNumber(mode: NumberModeId, input: unknown) {
-    const config = numberModeConfigs[mode];
+  function normalizeModeResultNumber(mode: NumberModeId, input: unknown, tenantId = legacyTenantId) {
+    const config = getNumberModeConfig(tenantId, mode);
+    if (!config) return "";
     const digits = String(input ?? "").replace(/\D/g, "");
     if (!digits) return "";
     return digits.slice(-config.digits).padStart(config.digits, "0");
   }
 
   function getModeNumbers(mode: NumberModeId, tenantId = legacyTenantId) {
-    const digits = numberModeConfigs[mode].digits;
+    const config = getNumberModeConfig(tenantId, mode);
+    const digits = config?.digits || 2;
     const max = Math.pow(10, digits);
     const sold = new Set(numberModeBets.filter(bet => bet.tenant_id === tenantId && bet.mode === mode).map(bet => bet.number));
     return Array.from({ length: max }, (_, index) => {
@@ -5888,7 +5945,7 @@ async function startServer() {
   function resolveNumberModesFromOfficialResult(officialResult: string, origemResultado = "Loteria", tenantId = legacyTenantId) {
     const clean = String(officialResult || "").replace(/\D/g, "").padStart(4, "0").slice(-4);
     const winners = (["dezena", "centena", "milhar"] as NumberModeId[]).map(mode => {
-      const config = numberModeConfigs[mode];
+      const config = getNumberModeConfig(tenantId, mode);
       const number = clean.slice(-config.digits);
       config.resultNumber = number;
       config.status = "closed";
@@ -5905,8 +5962,8 @@ async function startServer() {
   }
 
   function resolveSingleNumberModeResult(mode: NumberModeId, resultNumber: string, origemResultado = "Loteria", tenantId = legacyTenantId) {
-    const config = numberModeConfigs[mode];
-    const number = normalizeModeResultNumber(mode, resultNumber);
+    const config = getNumberModeConfig(tenantId, mode);
+    const number = normalizeModeResultNumber(mode, resultNumber, tenantId);
     if (!config || !number) return null;
     config.resultNumber = number;
     config.status = "closed";
@@ -7128,11 +7185,11 @@ async function startServer() {
 
   function updateNumberModePurchaseNumbers(purchase: NumberModePurchase, numbersInput: unknown) {
     if (numbersInput === undefined) return;
-    const config = numberModeConfigs[purchase.mode];
+    const config = getNumberModeConfig(purchase.tenant_id, purchase.mode);
     if (!config) throw new Error("Modalidade da compra nao encontrada");
     const numbers = Array.from(new Set(
       (Array.isArray(numbersInput) ? numbersInput : String(numbersInput || "").split(/[,\s]+/))
-        .map(value => normalizeModeNumber(purchase.mode, value))
+        .map(value => normalizeModeNumber(purchase.mode, value, purchase.tenant_id))
         .filter((value): value is string => Boolean(value))
     ));
     if (!numbers.length) throw new Error("A modalidade precisa manter ao menos uma cota");
@@ -7628,6 +7685,7 @@ async function startServer() {
       if (type === "fazendinha") {
         if (!fazendinhaConfig.enabled || fazendinhaConfig.status !== "active") return res.status(403).json({ error: "A Fazendinha nao esta ativa no momento" });
         if (!tenantPixGateways.pix?.enabled) return res.status(503).json({ error: "Gateway PIX indisponivel" });
+        ensureFazendinhaStateForTenant(tenantId);
         const groupIds = Array.from(new Set((Array.isArray(req.body.groupIds) ? req.body.groupIds : []).map(String).filter(Boolean)));
         const selectedGroups = groupIds.map(groupId => fazendinhaGroups.find(item => item.tenant_id === tenantId && item.id === groupId)).filter((group): group is FazendinhaGroup => Boolean(group));
         if (!selectedGroups.length || selectedGroups.length !== groupIds.length) return res.status(404).json({ error: "Selecione grupos validos da Fazendinha" });
@@ -7659,12 +7717,12 @@ async function startServer() {
 
       if (type === "modalidade") {
         const mode = String(req.body.mode || "") as NumberModeId;
-        const config = numberModeConfigs[mode];
+        const config = getNumberModeConfig(tenantId, mode);
         if (!config || config.tenant_id !== tenantId) return res.status(404).json({ error: "Modalidade nao encontrada" });
         if (!config.enabled || config.status !== "active") return res.status(403).json({ error: "Modalidade indisponivel no momento" });
         if (!tenantPixGateways.pix?.enabled) return res.status(503).json({ error: "Gateway PIX indisponivel" });
         const requestedNumbers: unknown[] = Array.isArray(req.body.numbers) ? req.body.numbers : [];
-        const numbers = Array.from(new Set(requestedNumbers.map(item => normalizeModeNumber(mode, item)).filter((number): number is string => Boolean(number))));
+        const numbers = Array.from(new Set(requestedNumbers.map(item => normalizeModeNumber(mode, item, tenantId)).filter((number): number is string => Boolean(number))));
         if (!numbers.length) return res.status(400).json({ error: "Selecione ao menos um numero valido" });
         const sold = new Set(numberModeBets.filter(bet => bet.tenant_id === tenantId && bet.mode === mode).map(bet => bet.number));
         const duplicate = numbers.find(number => sold.has(number));
@@ -7732,6 +7790,16 @@ async function startServer() {
     if (!raffle) {
         res.status(404).json({ error: "Raffle not found" });
         return;
+    }
+    if (raffle.status !== "active") {
+        res.status(403).json({ error: "Rifa encerrada ou indisponivel" });
+        return;
+    }
+    try {
+      assertRaffleNotDrawLocked(tenantId, id);
+    } catch (error) {
+      res.status(409).json({ error: error instanceof Error ? error.message : "Cotas bloqueadas apos lock do sorteio" });
+      return;
     }
     const pixConfig = getRafflePixConfig(raffle);
     if (!pixConfig.enabled) {
@@ -7953,8 +8021,9 @@ async function startServer() {
 
   app.get("/api/fazendinha", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
+    ensureFazendinhaStateForTenant(tenantId);
     res.json({
-      config: fazendinhaConfig,
+      config: { ...fazendinhaConfig, tenant_id: tenantId },
       groups: fazendinhaGroups.filter(item => item.tenant_id === tenantId),
       purchases: fazendinhaCompras.filter(item => item.tenant_id === tenantId),
       winners: fazendinhaGanhadores.filter(item => item.tenant_id === tenantId).slice(0, 8),
@@ -7997,8 +8066,8 @@ async function startServer() {
         mediaType: fazendinhaConfig.mediaType,
         ranking: fazendinhaCompras.filter(item => item.tenant_id === tenantId).slice(0, 5)
       },
-      numberModes: Object.values(numberModeConfigs)
-        .filter(config => config.tenant_id === tenantId && config.enabled && config.status === "active")
+      numberModes: getNumberModeConfigsForTenant(tenantId)
+        .filter(config => config.enabled && config.status === "active")
         .map(config => ({
           ...config,
           ranking: getModeRanking(config.id, tenantId)
@@ -8009,13 +8078,14 @@ async function startServer() {
   app.get("/api/modalidades/:mode", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const mode = req.params.mode as NumberModeId;
-    if (!numberModeConfigs[mode] || numberModeConfigs[mode].tenant_id !== tenantId) {
+    const config = getNumberModeConfig(tenantId, mode);
+    if (!config || config.tenant_id !== tenantId) {
       res.status(404).json({ error: "Modalidade nao encontrada" });
       return;
     }
     const customerId = String(req.query.customerId || "");
     res.json({
-      config: numberModeConfigs[mode],
+      config,
       numbers: getModeNumbers(mode, tenantId),
       purchases: numberModePurchases.filter(item => item.tenant_id === tenantId && item.mode === mode),
       ranking: getModeRanking(mode, tenantId),
@@ -8033,7 +8103,7 @@ async function startServer() {
       return;
     }
     const mode = req.params.mode as NumberModeId;
-    const config = numberModeConfigs[mode];
+    const config = getNumberModeConfig(tenantId, mode);
     if (!config || config.tenant_id !== tenantId) {
       res.status(404).json({ error: "Modalidade nao encontrada" });
       return;
@@ -8048,7 +8118,7 @@ async function startServer() {
     }
     const requestedNumbers: unknown[] = Array.isArray(req.body.numbers) ? req.body.numbers : [];
     const normalizedNumbers = requestedNumbers
-      .map((item: unknown) => normalizeModeNumber(mode, item))
+      .map((item: unknown) => normalizeModeNumber(mode, item, tenantId))
       .filter((number): number is string => Boolean(number));
     const numbers: string[] = Array.from(new Set<string>(normalizedNumbers));
     if (!numbers.length) {
@@ -8079,7 +8149,8 @@ async function startServer() {
       amount: numbers.length * config.price,
       status: paid ? "paid" : "reserved",
       createdAt: new Date().toISOString(),
-      customer
+      customer,
+      refCode: req.body.refCode
     };
     numberModePurchases.unshift(purchase);
     numbers.forEach(number => {
@@ -8100,6 +8171,18 @@ async function startServer() {
       ? processLootboxDrops(customer.phone, numbers.length, purchase.id, config.lootboxConfig, `mode:${mode}`, mode, tenantId)
       : 0;
     purchase.earnedLootboxes = earnedLootboxes;
+    if (paid) {
+      customer.totalTickets += numbers.length;
+      ensureAffiliateForCustomer(customer);
+      updateCrmAutomationForCustomer(customer);
+      creditAffiliateCommission({
+        tenantId,
+        refCode: purchase.refCode,
+        buyerCustomerId: customer.id,
+        amount: purchase.amount,
+        source: `conversion:${purchase.id}`
+      });
+    }
     res.json(stripSensitiveCustomerFields({ purchase, pixPayload: buildPixPayload(purchase.amount, undefined, purchase.id, tenantId), earnedLootboxes }));
   });
 
@@ -8109,6 +8192,7 @@ async function startServer() {
 
   function createFazendinhaPurchase(req: express.Request, res: express.Response, requestedGroupIds: string[]) {
     const tenantId = resolveRequestTenantId(req);
+    ensureFazendinhaStateForTenant(tenantId);
     try {
       assertTenantOperationalForCheckout(tenants.find(item => item.id === tenantId));
     } catch (error) {
@@ -8160,7 +8244,8 @@ async function startServer() {
       valorPago: amount,
       statusPagamento: paid ? "paid" : "reserved",
       dataCompra: new Date().toISOString(),
-      customer
+      customer,
+      refCode: req.body.refCode
     };
 
     const addonTickets = normalizeTickets(req.body.addon?.tickets) || Math.max(1, Number(fazendinhaConfig.addonSuggestionTickets || 5));
@@ -8198,6 +8283,13 @@ async function startServer() {
       customer.totalTickets += numeros.length;
       ensureAffiliateForCustomer(customer);
       updateCrmAutomationForCustomer(customer);
+      creditAffiliateCommission({
+        tenantId,
+        refCode: purchase.refCode,
+        buyerCustomerId: customer.id,
+        amount,
+        source: `conversion:${purchase.id}`
+      });
     }
     selectedGroups.forEach(group => {
       group.status = paid ? "sold" : "reserved";
@@ -8225,6 +8317,13 @@ async function startServer() {
       ensureAffiliateForCustomer(purchase.customer);
       updateCrmAutomationForCustomer(purchase.customer);
       purchase.linkedPurchases?.forEach(confirmPurchase);
+      creditAffiliateCommission({
+        tenantId: purchase.tenant_id,
+        refCode: purchase.refCode,
+        buyerCustomerId: purchase.customer.id,
+        amount: groups.reduce((sum, group) => sum + Number(group.preco || fazendinhaConfig.pricePerGroup), 0),
+        source: `conversion:${purchase.id}`
+      });
       purchase.earnedLootboxes = fazendinhaConfig.lootboxEnabled
         ? processFazendinhaLootboxDrops(purchase.customer.phone, groups.map(group => group.id), purchase.id, purchase.tenant_id)
         : 0;
@@ -8257,8 +8356,10 @@ async function startServer() {
   });
 
   app.get("/api/admin/fazendinha", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    ensureFazendinhaStateForTenant(tenantId);
     res.json({
-      config: fazendinhaConfig,
+      config: { ...fazendinhaConfig, tenant_id: tenantId },
       groups: scoped(fazendinhaGroups, req),
       purchases: scoped(fazendinhaCompras, req),
       results: scoped(fazendinhaResultados, req),
@@ -8295,8 +8396,9 @@ async function startServer() {
   });
 
   app.get("/api/admin/modalidades", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
     res.json({
-      configs: Object.values(numberModeConfigs).filter(item => adminCanAccessTenant(req, item.tenant_id)),
+      configs: getNumberModeConfigsForTenant(tenantId).filter(item => adminCanAccessTenant(req, item.tenant_id)),
       purchases: scoped(numberModePurchases, req),
       bets: scoped(numberModeBets, req),
       winners: scoped(numberModeWinners, req),
@@ -8311,19 +8413,22 @@ async function startServer() {
 
   app.put("/api/admin/modalidades/:mode/config", (req, res) => {
     const mode = req.params.mode as NumberModeId;
-    if (!numberModeConfigs[mode] || !adminCanAccessTenant(req, numberModeConfigs[mode].tenant_id)) {
+    const tenantId = resolveRequestTenantId(req);
+    const config = getNumberModeConfig(tenantId, mode);
+    if (!config || !adminCanAccessTenant(req, config.tenant_id)) {
       res.status(404).json({ error: "Modalidade nao encontrada" });
       return;
     }
-    numberModeConfigs[mode] = {
-      ...numberModeConfigs[mode],
+    const key = numberModeConfigKey(tenantId, mode);
+    numberModeConfigs[key] = {
+      ...config,
       ...normalizeMediaPayload(req.body),
       id: mode,
-      tenant_id: numberModeConfigs[mode].tenant_id,
-      digits: numberModeConfigs[mode].digits,
-      lootboxConfig: createScopedLootboxConfig(req.body.lootboxConfig || numberModeConfigs[mode].lootboxConfig)
+      tenant_id: config.tenant_id,
+      digits: config.digits,
+      lootboxConfig: createScopedLootboxConfig(req.body.lootboxConfig || config.lootboxConfig)
     };
-    res.json(numberModeConfigs[mode]);
+    res.json(numberModeConfigs[key]);
   });
 
   app.post("/api/admin/modalidades/result", (req, res) => {
@@ -8337,11 +8442,13 @@ async function startServer() {
 
   app.post("/api/admin/modalidades/:mode/result", (req, res) => {
     const mode = req.params.mode as NumberModeId;
-    if (!numberModeConfigs[mode] || !adminCanAccessTenant(req, numberModeConfigs[mode].tenant_id)) {
+    const tenantId = resolveRequestTenantId(req);
+    const config = getNumberModeConfig(tenantId, mode);
+    if (!config || !adminCanAccessTenant(req, config.tenant_id)) {
       res.status(404).json({ error: "Modalidade nao encontrada" });
       return;
     }
-    const result = resolveSingleNumberModeResult(mode, String(req.body.resultNumber || req.body.officialResult || ""), req.body.origemResultado || "Loteria", resolveRequestTenantId(req));
+    const result = resolveSingleNumberModeResult(mode, String(req.body.resultNumber || req.body.officialResult || ""), req.body.origemResultado || "Loteria", tenantId);
     if (!result) {
       res.status(400).json({ error: "Resultado invalido para a modalidade" });
       return;
@@ -8350,8 +8457,10 @@ async function startServer() {
   });
 
   app.post("/api/admin/fazendinha/reset", (req, res) => {
-    resetFazendinhaRound(resolveRequestTenantId(req));
-    res.json({ config: fazendinhaConfig, groups: scoped(fazendinhaGroups, req) });
+    const tenantId = resolveRequestTenantId(req);
+    ensureFazendinhaStateForTenant(tenantId);
+    resetFazendinhaRound(tenantId);
+    res.json({ config: { ...fazendinhaConfig, tenant_id: tenantId }, groups: scoped(fazendinhaGroups, req) });
   });
 
   function createScopedLootboxConfig(config?: Partial<LootboxEconomy>): LootboxEconomy {
@@ -9096,17 +9205,13 @@ async function startServer() {
       }
     }
 
-    const referrer = purchase.refCode ? affiliates[tenantCustomerKey(purchase.tenant_id, purchase.refCode)] : undefined;
-    if (referrer && referrer.customerId !== purchase.customer?.id) {
-      const affiliate = referrer;
-      affiliate.conversions++;
-      affiliate.revenue += purchase.amount;
-      const tenantScopedSettings = getTenantSettings(purchase.tenant_id);
-      const comm = purchase.amount * (tenantScopedSettings.affiliateProgram.commissionRate / 100);
-      affiliate.commissionBalance += comm;
-      affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
-      affiliate.history.push({ amount: comm, type: 'conversion', date: new Date().toISOString() });
-    }
+    creditAffiliateCommission({
+      tenantId: purchase.tenant_id,
+      refCode: purchase.refCode,
+      buyerCustomerId: purchase.customer?.id,
+      amount: purchase.amount,
+      source: `conversion:${purchase.purchaseId}`
+    });
 
     purchase.earnedLootboxes = raffle.lootboxEnabled === false
       ? 0
@@ -9132,6 +9237,20 @@ async function startServer() {
     scheduleAutomation("payment_confirmed_ticket", { tenant_id: purchase.tenant_id, customer_id: purchase.customer?.id, order_id: purchase.purchaseId, purchase, customer: purchase.customer });
     scheduleAutomation("post_purchase_thanks", { tenant_id: purchase.tenant_id, customer_id: purchase.customer?.id, order_id: purchase.purchaseId, purchase, customer: purchase.customer });
     return purchase;
+  }
+
+  function creditAffiliateCommission(input: { tenantId: string; refCode?: string; buyerCustomerId?: string; amount: number; source: string }) {
+    const referrer = input.refCode ? affiliates[tenantCustomerKey(input.tenantId, input.refCode)] : undefined;
+    if (!referrer || referrer.customerId === input.buyerCustomerId) return null;
+    if (referrer.history.some(entry => entry.type === input.source)) return referrer;
+    const tenantScopedSettings = getTenantSettings(input.tenantId);
+    const comm = Number((input.amount * (tenantScopedSettings.affiliateProgram.commissionRate / 100)).toFixed(2));
+    referrer.conversions++;
+    referrer.revenue += input.amount;
+    referrer.commissionBalance += comm;
+    referrer.commission = referrer.commissionBalance + referrer.prizeBalance;
+    referrer.history.push({ amount: comm, type: input.source, date: new Date().toISOString() });
+    return referrer;
   }
 
   function manuallyConfirmPurchasePayment(purchase: PurchaseRecord, req: express.Request, reason: string) {

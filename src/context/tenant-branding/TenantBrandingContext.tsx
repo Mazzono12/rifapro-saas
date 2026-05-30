@@ -44,22 +44,29 @@ const TenantBrandingContext = createContext<{
 
 const cache = new Map<string, { value: PublicTenantBranding; expiresAt: number }>();
 
+function objectOrEmpty<T extends object>(value: unknown): Partial<T> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Partial<T> : {};
+}
+
 function normalizeBranding(value: Partial<PublicTenantBranding> | null | undefined): PublicTenantBranding {
+  const source = objectOrEmpty<PublicTenantBranding>(value);
+  const colors = objectOrEmpty<PublicTenantBranding["colors"]>(source.colors);
   return {
     ...fallbackBranding,
-    ...(value || {}),
+    ...source,
     colors: {
       ...fallbackBranding.colors,
-      ...(value?.colors || {})
+      ...colors
     }
   };
 }
 
 function applyBranding(branding: PublicTenantBranding) {
   const root = document.documentElement;
-  const primary = normalizeReadableColor(branding.colors.primary, fallbackBranding.colors.primary);
-  const secondary = normalizeReadableColor(branding.colors.secondary, fallbackBranding.colors.secondary);
-  const cta = normalizeReadableColor(branding.colors.cta, fallbackBranding.colors.cta);
+  const colors = objectOrEmpty<PublicTenantBranding["colors"]>(branding.colors);
+  const primary = normalizeReadableColor(colors.primary, fallbackBranding.colors.primary);
+  const secondary = normalizeReadableColor(colors.secondary, fallbackBranding.colors.secondary);
+  const cta = normalizeReadableColor(colors.cta, fallbackBranding.colors.cta);
   root.style.setProperty("--tenant-primary", primary);
   root.style.setProperty("--tenant-secondary", secondary);
   root.style.setProperty("--tenant-cta", cta);
@@ -68,7 +75,7 @@ function applyBranding(branding: PublicTenantBranding) {
   root.style.setProperty("--tenant-cta-text", getReadableTextColor(cta));
   root.style.setProperty("--theme-primary", primary);
   root.style.setProperty("--theme-glow", `${primary}55`);
-  root.dataset.tenantTheme = branding.theme_mode;
+  root.dataset.tenantTheme = branding.theme_mode || fallbackBranding.theme_mode;
   let themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (!themeColor) {
     themeColor = document.createElement("meta");

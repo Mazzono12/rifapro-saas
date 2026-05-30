@@ -4,23 +4,29 @@ import { ArrowRight, Hash, Trophy } from "lucide-react";
 import { useModalidades } from "../hooks/useRaffles";
 import { DynamicMedia } from "./DynamicMedia";
 
+function safeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export function ModalidadesSection() {
   const { data } = useModalidades();
-  if (!data) return null;
+  const numberModes = Array.isArray(data?.numberModes) ? data.numberModes : [];
+  if (!numberModes.length) return null;
 
-  const banners = data.numberModes
+  const banners = numberModes
     .filter(mode => mode.enabled && mode.status === "active")
     .map(mode => ({
-      id: mode.id,
-      title: mode.name,
-      description: mode.description,
+      id: String(mode.id || ""),
+      title: String(mode.name || "Modalidade"),
+      description: String(mode.description || "Modalidade ativa com cotas disponiveis."),
       href: `/${mode.id}`,
-      mediaUrl: mode.mediaUrl,
-      mediaType: mode.mediaType,
-      price: mode.price,
-      prize: mode.prize,
+      mediaUrl: mode.mediaUrl || "",
+      mediaType: mode.mediaType || "image",
+      price: safeNumber(mode.price),
+      prize: String(mode.prize || "Premio a definir"),
       drawDate: mode.drawDate,
-      ranking: mode.ranking || []
+      ranking: Array.isArray(mode.ranking) ? mode.ranking : []
     }));
 
   if (!banners.length) return null;

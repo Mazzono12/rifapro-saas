@@ -19,7 +19,8 @@ const LOCKED_THEME_ID: ThemeId = "vimeu_dark";
 function readStoredPalette(raw: string | null): PaletteOverrides | null {
   if (!raw) return null;
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
   } catch {
     localStorage.removeItem(`${THEME_STORAGE_KEY}_palette`);
     return null;
@@ -28,9 +29,10 @@ function readStoredPalette(raw: string | null): PaletteOverrides | null {
 
 function applyThemeVariables(themeId: ThemeId, overrides: PaletteOverrides = {}) {
   const theme = getTheme(themeId);
+  const safeOverrides = overrides && typeof overrides === "object" && !Array.isArray(overrides) ? overrides : {};
   const root = document.documentElement;
   root.dataset.theme = theme.id;
-  Object.entries({ ...theme.variables, ...overrides }).forEach(([key, value]) => {
+  Object.entries({ ...theme.variables, ...safeOverrides }).forEach(([key, value]) => {
     root.style.setProperty(key, value);
   });
 }
@@ -46,7 +48,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     fetch("/api/settings")
       .then(res => res.json())
       .then(settings => {
-        const adminPalette = settings?.theme?.paletteOverrides || {};
+        const rawAdminPalette = settings?.theme?.paletteOverrides;
+        const adminPalette = rawAdminPalette && typeof rawAdminPalette === "object" && !Array.isArray(rawAdminPalette) ? rawAdminPalette : {};
         const nextOverrides = storedOverrides || adminPalette;
         setThemeIdState(LOCKED_THEME_ID);
         setPaletteOverrides(nextOverrides);

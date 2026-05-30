@@ -41,25 +41,38 @@ const triggerLabels: Record<string, string> = {
   failed_payment_retry: "Retry pagamento"
 };
 
+const emptyMetrics = { enabled: 0, scheduled: 0, completed: 0, failed: 0 };
+
+function safeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export function AdminAutomations() {
   const [flows, setFlows] = useState<AutomationFlow[]>([]);
   const [runs, setRuns] = useState<AutomationRun[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
-  const [metrics, setMetrics] = useState({ enabled: 0, scheduled: 0, completed: 0, failed: 0 });
+  const [metrics, setMetrics] = useState(emptyMetrics);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: "", trigger_type: "abandoned_pix_recovery", delay_minutes: 15, template: "abandoned_pix_recovery" });
 
   const load = async () => {
     const response = await fetch("/api/admin/automations");
-    const payload = await response.json();
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       toast.error(payload.error || "Plano atual nao libera automacoes");
       return;
     }
-    setFlows(payload.flows || []);
-    setRuns(payload.runs || []);
-    setTemplates(payload.templates || []);
-    setMetrics(payload.metrics || { enabled: 0, scheduled: 0, completed: 0, failed: 0 });
+    const nextMetrics = payload.metrics && typeof payload.metrics === "object" ? payload.metrics : {};
+    setFlows(Array.isArray(payload.flows) ? payload.flows : []);
+    setRuns(Array.isArray(payload.runs) ? payload.runs : []);
+    setTemplates(Array.isArray(payload.templates) ? payload.templates : []);
+    setMetrics({
+      enabled: safeNumber(nextMetrics.enabled),
+      scheduled: safeNumber(nextMetrics.scheduled),
+      completed: safeNumber(nextMetrics.completed),
+      failed: safeNumber(nextMetrics.failed)
+    });
   };
 
   useEffect(() => {
@@ -72,7 +85,7 @@ export function AdminAutomations() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled: !flow.enabled, reason: "Toggle na Central de Automacoes" })
     });
-    const payload = await response.json();
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok) toast.error(payload.error || "Erro ao alterar automação");
     else {
       toast.success(payload.enabled ? "Automação ativada" : "Automação desativada");
@@ -92,7 +105,7 @@ export function AdminAutomations() {
         reason: "Criacao pela Central de Automacoes"
       })
     });
-    const payload = await response.json();
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok) toast.error(payload.error || "Erro ao criar automação");
     else {
       toast.success("Automação criada");
@@ -103,7 +116,7 @@ export function AdminAutomations() {
 
   const processDue = async () => {
     const response = await fetch("/api/admin/automations/process-due", { method: "POST" });
-    const payload = await response.json();
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok) toast.error(payload.error || "Erro ao processar fila");
     else {
       toast.success(`${payload.processed || 0} execução(ões) processadas`);
@@ -138,7 +151,7 @@ export function AdminAutomations() {
           <div className="mb-5 grid gap-3 rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-4 md:grid-cols-5">
             <input className="admin-input" placeholder="Nome" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} />
             <select className="admin-input" value={form.trigger_type} onChange={event => setForm({ ...form, trigger_type: event.target.value, template: event.target.value })}>
-              {templates.map(template => <option key={template.trigger_type} value={template.trigger_type}>{triggerLabels[template.trigger_type] || template.name}</option>)}
+              {templates.map(template => <option key={template.trigger_type || template.name} value={template.trigger_type || form.trigger_type}>{triggerLabels[template.trigger_type] || template.name || "Automação"}</option>)}
             </select>
             <input className="admin-input" type="number" min={0} value={form.delay_minutes} onChange={event => setForm({ ...form, delay_minutes: Number(event.target.value) })} />
             <input className="admin-input" value={form.template} onChange={event => setForm({ ...form, template: event.target.value })} />
@@ -151,11 +164,11 @@ export function AdminAutomations() {
           rows={flows.map(flow => [
             <div>
               <p className="font-bold text-[var(--admin-text)]">{flow.name}</p>
-              <p className="text-xs text-[var(--admin-muted)]">max {flow.max_runs_per_customer}/cliente · atualizado {new Date(flow.updated_at).toLocaleString("pt-BR")}</p>
+              <p className="text-xs text-[var(--admin-muted)]">max {safeNumber(flow.max_runs_per_customer)}/cliente · atualizado {Number.isNaN(new Date(flow.updated_at).getTime()) ? "-" : new Date(flow.updated_at).toLocaleString("pt-BR")}</p>
             </div>,
             <span>{triggerLabels[flow.trigger_type] || flow.trigger_type}</span>,
-            `${flow.delay_minutes} min`,
-            <span className="inline-flex items-center gap-2 text-sm text-[var(--admin-muted)]"><MessageCircle className="h-4 w-4" /> {flow.actions.map(action => action.type).join(", ")}</span>,
+            `${safeNumber(flow.delay_minutes)} min`,
+            <span className="inline-flex items-center gap-2 text-sm text-[var(--admin-muted)]"><MessageCircle className="h-4 w-4" /> {(Array.isArray(flow.actions) ? flow.actions : []).map(action => action.type).join(", ") || "-"}</span>,
             <span className={flow.enabled ? "text-emerald-300" : "text-slate-400"}>{flow.enabled ? "Ativa" : "Inativa"}</span>,
             <button className="admin-button-secondary" onClick={() => void toggle(flow)}>{flow.enabled ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />} {flow.enabled ? "Desativar" : "Ativar"}</button>
           ])}
@@ -175,7 +188,7 @@ export function AdminAutomations() {
             run.customer_id || "-",
             <span className={run.status === "failed" ? "text-rose-300" : run.status === "completed" ? "text-emerald-300" : "text-amber-200"}>{run.status}</span>,
             run.attempts,
-            new Date(run.scheduled_at).toLocaleString("pt-BR"),
+            Number.isNaN(new Date(run.scheduled_at).getTime()) ? "-" : new Date(run.scheduled_at).toLocaleString("pt-BR"),
             <span className="max-w-xs truncate text-xs text-[var(--admin-muted)]">{run.last_error || "-"}</span>
           ])}
         />

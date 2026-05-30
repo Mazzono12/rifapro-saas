@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import { Zap, Activity, Terminal, ChevronRight, PlayCircle } from "lucide-react";
@@ -10,12 +10,129 @@ import { FazendinhaSection } from "../components/FazendinhaSection";
 import { ModalidadesSection } from "../components/ModalidadesSection";
 import { useRaffles, useGlobalSettings } from "../hooks/useRaffles";
 import { cn } from "../lib/utils";
-import { PremiumEmptyState, PremiumPageLayout, TrustBadges } from "../components/premium/PremiumUI";
+import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout, TrustBadges } from "../components/premium/PremiumUI";
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
+import type { Raffle } from "../types";
+
+const fallbackHomeSettings = {
+  storiesPosition: "bottom",
+  storiesPlacements: undefined as string[] | undefined,
+  mainVideoPlayer: undefined as unknown
+};
 
 export function Home() {
-  const { data: raffles = [], isLoading: loadingRaffles, isError: rafflesError } = useRaffles();
-  const { data: settings = { storiesPosition: 'bottom' }, isLoading: loadingSettings } = useGlobalSettings();
+  const [boundaryKey, setBoundaryKey] = useState(0);
+  return (
+    <PublicHomeErrorBoundary key={boundaryKey} onRetry={() => setBoundaryKey(current => current + 1)}>
+      <HomeContent />
+    </PublicHomeErrorBoundary>
+  );
+}
+
+function logPublicHome(event: "loading" | "raffles_count" | "render_error", detail?: Record<string, unknown>) {
+  if (!import.meta.env.PROD) return;
+  const labels = {
+    loading: "[public-home] loading",
+    raffles_count: "[public-home] raffles_count",
+    render_error: "[public-home] render_error"
+  };
+  const suffix = detail ? ` ${Object.entries(detail).map(([key, value]) => `${key}=${String(value)}`).join(" ")}` : "";
+  const message = `${labels[event]}${suffix}`;
+  if (event === "render_error") console.warn(message);
+  else console.info(message);
+}
+
+class PublicHomeErrorBoundary extends React.Component<
+  { children: ReactNode; onRetry: () => void },
+  { error: Error | null }
+> {
+  declare props: { children: ReactNode; onRetry: () => void };
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error) {
+    logPublicHome("render_error", { reason: error.message || "unknown" });
+  }
+
+  render() {
+    if (this.state.error) {
+      return <PublicHomeFallback mode="error" onRetry={this.props.onRetry} />;
+    }
+    return this.props.children;
+  }
+}
+
+function PublicHomeFallback({ mode, onRetry }: { mode: "error" | "empty"; onRetry?: () => void }) {
+  const isError = mode === "error";
+  return (
+    <PremiumPageLayout className="w-full pb-24">
+      <div className="mx-auto flex min-h-[calc(100svh-8rem)] w-full max-w-4xl items-center px-4 py-16">
+        <div className="w-full rounded-[2rem] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-6 shadow-2xl shadow-black/30 sm:p-10">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-emerald-100">
+            <Zap className="h-4 w-4" />
+            Campanhas
+          </div>
+          {isError ? (
+            <PremiumErrorState
+              title="Não foi possível carregar as campanhas"
+              description="A Home publica encontrou uma instabilidade ao montar as campanhas. Tente novamente em instantes."
+              action={<PremiumButton onClick={onRetry} className="mt-4 px-5">Tentar novamente</PremiumButton>}
+            />
+          ) : (
+            <PremiumEmptyState
+              title="Nenhuma campanha ativa no momento"
+              description="Este tenant ainda nao possui uma campanha ativa publicada. Assim que uma rifa for ativada, ela aparece aqui automaticamente."
+              action={<PremiumButton onClick={onRetry || (() => window.location.reload())} className="mt-4 px-5">Tentar novamente</PremiumButton>}
+            />
+          )}
+        </div>
+      </div>
+    </PremiumPageLayout>
+  );
+}
+
+function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raffle | null {
+  if (!raffle || !raffle.id) return null;
+  const rawRaffle = raffle as Partial<Raffle> & { imageUrl?: string };
+  const price = Number(rawRaffle.price);
+  const totalTickets = Math.max(1, Math.floor(Number(rawRaffle.totalTickets)));
+  const soldTickets = Math.max(0, Math.floor(Number(rawRaffle.soldTickets)));
+  return {
+    ...rawRaffle,
+    id: String(rawRaffle.id),
+    title: String(rawRaffle.title || "Campanha sem titulo"),
+    description: String(rawRaffle.description || "Campanha ativa com cotas disponíveis."),
+    price: Number.isFinite(price) ? price : 0,
+    totalTickets: Number.isFinite(totalTickets) ? totalTickets : 1,
+    soldTickets: Number.isFinite(soldTickets) ? soldTickets : 0,
+    status: rawRaffle.status || "active",
+    image: rawRaffle.image || rawRaffle.imageUrl || "",
+    mediaUrl: rawRaffle.mediaUrl || rawRaffle.image || rawRaffle.imageUrl || "",
+    drawDate: rawRaffle.drawDate || new Date().toISOString()
+  } as Raffle;
+}
+
+function safeProgress(raffle: Raffle) {
+  const total = Math.max(1, Number(raffle.totalTickets || 1));
+  const sold = Math.max(0, Number(raffle.soldTickets || 0));
+  const progress = Number(raffle.progressOverride ?? (sold / total) * 100);
+  return Math.min(100, Math.max(0, Number.isFinite(progress) ? progress : 0));
+}
+
+function HomeContent() {
+  const { data: rawRaffles, isLoading: loadingRaffles, isError: rafflesError, refetch: refetchRaffles } = useRaffles();
+  const { data: rawSettings, isLoading: loadingSettings } = useGlobalSettings();
+  const settings = rawSettings && typeof rawSettings === "object" && !Array.isArray(rawSettings)
+    ? { ...fallbackHomeSettings, ...rawSettings }
+    : fallbackHomeSettings;
+  const raffles = useMemo(() => (
+    Array.isArray(rawRaffles)
+      ? rawRaffles.map(raffle => normalizePublicRaffle(raffle)).filter((raffle): raffle is Raffle => Boolean(raffle))
+      : []
+  ), [rawRaffles]);
   const activeRaffles = raffles.filter(raffle => raffle.status === "active");
   const featuredRaffle = activeRaffles[0];
   const secondaryRaffles = activeRaffles.slice(1);
@@ -68,6 +185,14 @@ export function Home() {
   }, []);
 
   useEffect(() => {
+    if (loading) logPublicHome("loading");
+  }, [loading]);
+
+  useEffect(() => {
+    if (!loading) logPublicHome("raffles_count", { count: activeRaffles.length });
+  }, [activeRaffles.length, loading]);
+
+  useEffect(() => {
     if (!loading) markPageLoaded({ page: "home", raffles: activeRaffles.length });
   }, [activeRaffles.length, loading]);
 
@@ -92,31 +217,17 @@ export function Home() {
     );
   }
 
-  if (rafflesError || !featuredRaffle) {
-    return (
-      <PremiumPageLayout className="w-full pb-24">
-        <div className="mx-auto flex min-h-[calc(100svh-8rem)] w-full max-w-4xl items-center px-4 py-16">
-          <div className="w-full rounded-[2rem] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-6 shadow-2xl shadow-black/30 sm:p-10">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-emerald-100">
-              <Zap className="h-4 w-4" />
-              Campanhas
-            </div>
-            <PremiumEmptyState
-              title="Nenhuma campanha ativa no momento"
-              description={rafflesError
-                ? "Nao foi possivel carregar as campanhas publicas deste tenant agora. Tente novamente em instantes."
-                : "Este tenant ainda nao possui uma campanha ativa publicada. Assim que uma rifa for ativada, ela aparece aqui automaticamente."
-              }
-              action={<Link to="/" className="premium-button mt-4 px-5">Voltar ao início</Link>}
-            />
-          </div>
-        </div>
-      </PremiumPageLayout>
-    );
+  if (rafflesError) {
+    logPublicHome("render_error", { reason: "raffles_api_failed" });
+    return <PublicHomeFallback mode="error" onRetry={() => void refetchRaffles()} />;
+  }
+
+  if (!featuredRaffle) {
+    return <PublicHomeFallback mode="empty" onRetry={() => void refetchRaffles()} />;
   }
 
   const hasStoryPlacement = (placement: string, legacyPosition: string) => {
-    if (Array.isArray(settings.storiesPlacements)) return settings.storiesPlacements.includes(placement);
+    if (Array.isArray(settings.storiesPlacements) && settings.storiesPlacements.length) return settings.storiesPlacements.includes(placement);
     return settings.storiesPosition === legacyPosition;
   };
 
@@ -167,9 +278,7 @@ export function Home() {
     );
   };
 
-  const featuredProgress = featuredRaffle
-    ? (featuredRaffle.progressOverride ?? (featuredRaffle.soldTickets / featuredRaffle.totalTickets * 100))
-    : 0;
+  const featuredProgress = safeProgress(featuredRaffle);
   const heroPlacement = featuredRaffle?.heroContentPlacement || "below";
   const heroEyebrow = featuredRaffle?.heroEyebrow || "Plataforma de rifas premium";
   const heroTitle = featuredRaffle?.heroTitle || "Sorteios com experiência cinematográfica.";
@@ -209,7 +318,7 @@ export function Home() {
           {heroShowStats && (
             <div className={cn("inline-flex items-center gap-4 rounded-full border px-6 py-4 text-xs font-bold backdrop-blur-2xl", heroStatsClass)}>
               <PlayCircle className="h-5 w-5 text-[var(--theme-primary)]" />
-              <span>{(featuredRaffle.price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/cota</span>
+              <span>{featuredRaffle.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/cota</span>
               <span className="h-5 w-px bg-current opacity-20" />
               <span>{featuredProgress.toFixed(1)}% vendido</span>
             </div>
@@ -302,7 +411,7 @@ export function Home() {
 
       <div className="space-y-14">
         {secondaryRaffles.map((raffle, idx) => {
-          const progress = raffle.progressOverride ?? (raffle.soldTickets / raffle.totalTickets) * 100;
+          const progress = safeProgress(raffle);
           return (
             <motion.section
               key={raffle.id}

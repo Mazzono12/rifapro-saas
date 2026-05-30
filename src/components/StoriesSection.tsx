@@ -4,12 +4,30 @@ import { X } from 'lucide-react';
 import { MediaRenderer } from './MediaRenderer';
 import type { Story } from '../types';
 
+function normalizeStories(payload: unknown): Story[] {
+  if (!Array.isArray(payload)) return [];
+  return payload
+    .filter((story): story is Partial<Story> => Boolean(story && typeof story === "object"))
+    .map(story => ({
+      id: String(story.id || crypto.randomUUID()),
+      title: String(story.title || "Story"),
+      mediaUrl: String(story.mediaUrl || ""),
+      mediaType: story.mediaType || "image",
+      duration: Math.max(1, Number.isFinite(Number(story.duration)) ? Number(story.duration) : 5),
+      active: story.active !== false
+    } as Story))
+    .filter(story => story.active);
+}
+
 export function StoriesSection() {
   const [stories, setStories] = useState<Story[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch('/api/stories').then(res => res.json()).then(setStories);
+    fetch('/api/stories')
+      .then(res => res.ok ? res.json() : [])
+      .then(payload => setStories(normalizeStories(payload)))
+      .catch(() => setStories([]));
   }, []);
 
   const openStory = (idx: number) => setActiveStoryIndex(idx);
@@ -54,7 +72,7 @@ export function StoriesSection() {
       </div>
 
       <AnimatePresence>
-        {activeStoryIndex !== null && (
+        {activeStoryIndex !== null && stories[activeStoryIndex] && (
           <StoryViewer 
             story={stories[activeStoryIndex]} 
             onClose={closeStory} 
@@ -69,6 +87,7 @@ export function StoriesSection() {
 
 function StoryViewer({ story, onClose, onNext }: { story: Story, onClose: () => void, onNext: () => void, onPrev: () => void }) {
   const [progress, setProgress] = useState(0);
+  const durationMs = Math.max(1, Number.isFinite(Number(story.duration)) ? Number(story.duration) : 5) * 1000;
 
   useEffect(() => {
     window.dispatchEvent(new Event("rifapro:story-open"));
@@ -77,8 +96,6 @@ function StoryViewer({ story, onClose, onNext }: { story: Story, onClose: () => 
   useEffect(() => {
     let startTime = Date.now();
     let animationFrame: number;
-    let durationMs = story.duration * 1000;
-
     const animate = () => {
       const now = Date.now();
       const elapsed = now - startTime;
@@ -94,7 +111,7 @@ function StoryViewer({ story, onClose, onNext }: { story: Story, onClose: () => 
 
     animationFrame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationFrame);
-  }, [story.id, onNext]);
+  }, [durationMs, story.id, onNext]);
 
   return (
     <motion.div 

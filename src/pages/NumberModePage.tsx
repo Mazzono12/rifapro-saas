@@ -33,6 +33,17 @@ const modeTitles: Record<NumberModeId, string> = {
   milhar: "Milhar"
 };
 
+function safeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function defaultModeDigits(mode: NumberModeId) {
+  if (mode === "centena") return 3;
+  if (mode === "milhar") return 4;
+  return 2;
+}
+
 export function NumberModePage() {
   const params = useParams();
   const requestedMode = (params.mode || "dezena") as NumberModeId;
@@ -74,9 +85,9 @@ export function NumberModePage() {
   }, [detectedCity]);
 
   const visibleNumbers = useMemo(() => {
-    if (!data) return [];
-    return data.numbers
-      .filter(item => !search || item.number.includes(search.replace(/\D/g, "")))
+    const numbers = Array.isArray(data?.numbers) ? data.numbers : [];
+    return numbers
+      .filter(item => item?.number && (!search || String(item.number).includes(search.replace(/\D/g, ""))))
       .slice(0, mode === "milhar" && !search ? 500 : 1000);
   }, [data, search, mode]);
 
@@ -137,7 +148,7 @@ export function NumberModePage() {
       setConfirmedReceipt(null);
       setPendingPix({ purchase: result.purchase, pixPayload: result.pixPayload });
       setCopiedPix(false);
-      toast.success("PIX gerado", { description: `${selected.length} número(s) em ${data?.config.name}` });
+      toast.success("PIX gerado", { description: `${selected.length} número(s) em ${data?.config?.name || modeTitles[mode]}` });
       queryClient.invalidateQueries({ queryKey: ["number-mode", mode] });
       queryClient.invalidateQueries({ queryKey: ["modalidades"] });
     } catch (error) {
@@ -194,7 +205,7 @@ export function NumberModePage() {
 
   const shareConfirmedReceipt = async () => {
     if (!confirmedReceipt) return;
-    const title = data?.config.name || modeTitles[mode];
+    const title = data?.config?.name || modeTitles[mode];
     const text = `Compra confirmada em ${title}. Pedido #${confirmedReceipt.purchase.id}`;
     try {
       if (navigator.share) {
@@ -228,25 +239,31 @@ export function NumberModePage() {
     return <div className="container mx-auto px-4 py-24"><div className="h-96 rounded-3xl skeleton" /></div>;
   }
 
-  const total = selected.length * data.config.price;
-  const receiptNumbers = confirmedReceipt?.numbers.map(number => Number(number)).filter(Number.isFinite) || [];
+  const config = data?.config && typeof data.config === "object" ? data.config as any : {};
+  const configName = String(config.name || modeTitles[mode]);
+  const configPrice = safeNumber(config.price);
+  const configDigits = Math.max(1, Math.floor(safeNumber(config.digits, defaultModeDigits(mode))));
+  const configPrize = String(config.prize || "Premio a definir");
+  const ranking = Array.isArray(data?.ranking) ? data.ranking : [];
+  const total = selected.length * configPrice;
+  const receiptNumbers = Array.isArray(confirmedReceipt?.numbers) ? confirmedReceipt.numbers.map(number => Number(number)).filter(Number.isFinite) : [];
   const modalTitle = confirmedReceipt ? "Bilhete confirmado" : pendingPix ? "Pagamento PIX" : "Confirmar participação";
-  const checkoutTotal = total || pendingPix?.purchase?.valorPago || confirmedReceipt?.purchase?.valorPago || 0;
+  const checkoutTotal = safeNumber(total || pendingPix?.purchase?.valorPago || confirmedReceipt?.purchase?.valorPago);
   const modalityMedia = {
-    title: data.config.name || modeTitles[mode],
-    subtitle: data.config.prize || data.config.description || modeTitles[mode],
-    image: data.config.mediaUrl || "",
-    mediaUrl: data.config.mediaUrl || "",
-    mediaType: data.config.mediaType as any
+    title: configName,
+    subtitle: configPrize || config.description || modeTitles[mode],
+    image: config.mediaUrl || "",
+    mediaUrl: config.mediaUrl || "",
+    mediaType: config.mediaType as any
   };
 
   return (
     <PremiumPageLayout className="pb-28">
       <PremiumHero
         eyebrow="Compra rápida"
-        title={data.config.name || modeTitles[mode]}
-        subtitle={data.config.description || `Escolha seus números na modalidade ${modeTitles[mode]} e pague via PIX automático.`}
-        image={data.config.mediaUrl}
+        title={configName}
+        subtitle={config.description || `Escolha seus números na modalidade ${modeTitles[mode]} e pague via PIX automático.`}
+        image={config.mediaUrl}
         cta={<CheckoutPrimaryButton onClick={() => setCheckoutOpen(true)} disabled={!selected.length} className="px-7 py-4 disabled:opacity-50">Finalizar compra</CheckoutPrimaryButton>}
       >
         <TrustBadges />
@@ -259,15 +276,15 @@ export function NumberModePage() {
 
         <section className="grid gap-5 lg:grid-cols-[1fr_360px]">
           <div className="premium-card p-5">
-            <SectionTitle eyebrow="Escolha individual" title="Selecione seus números" description={`${data.config.digits} dígitos com zeros preservados.`} compact />
+            <SectionTitle eyebrow="Escolha individual" title="Selecione seus números" description={`${configDigits} dígitos com zeros preservados.`} compact />
             <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="relative max-w-md flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input value={search} onChange={event => setSearch(event.target.value)} placeholder={`Buscar ${"0".repeat(data.config.digits)}`} className="w-full p-3 pl-10" />
+                <input value={search} onChange={event => setSearch(event.target.value)} placeholder={`Buscar ${"0".repeat(configDigits)}`} className="w-full p-3 pl-10" />
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Prêmio</p>
-                <p className="font-black text-white">{data.config.prize}</p>
+                <p className="font-black text-white">{configPrize}</p>
               </div>
             </div>
             <div className="mt-5 grid max-h-[680px] grid-cols-5 gap-2 overflow-y-auto pr-1 custom-scrollbar sm:grid-cols-8 md:grid-cols-10 xl:grid-cols-12">
@@ -319,7 +336,7 @@ export function NumberModePage() {
             <div className="premium-card p-5">
               <h2 className="flex items-center gap-2 font-display text-xl font-bold"><Trophy className="h-5 w-5 text-amber-300" /> Top compradores</h2>
               <div className="mt-4 space-y-3">
-                {data.ranking.length === 0 ? <p className="text-sm text-slate-500">Ranking em formação.</p> : data.ranking.map((buyer, index) => (
+                {ranking.length === 0 ? <p className="text-sm text-slate-500">Ranking em formação.</p> : ranking.map((buyer, index) => (
                   <div key={`${buyer.phone}-${index}`} className="flex justify-between rounded-xl border border-white/5 bg-white/[0.03] p-3 text-sm">
                     <span className="text-white">{index + 1}. {buyer.name}</span>
                     <span className="font-mono text-emerald-200">{buyer.tickets}</span>
@@ -344,7 +361,7 @@ export function NumberModePage() {
           {confirmedReceipt ? (
             <>
               <PremiumTicketReceipt
-                title={data.config.name || modeTitles[mode]}
+                title={configName}
                 purchaseId={confirmedReceipt.purchase.id}
                 numbers={receiptNumbers}
                 onShare={shareConfirmedReceipt}
@@ -372,7 +389,7 @@ export function NumberModePage() {
                   <div>
                     <p className="premium-eyebrow text-emerald-100">Resumo da compra</p>
                     <h3 className="mt-2 text-3xl font-black text-white">{selected.length} cota(s)</h3>
-                    <p className="mt-2 text-sm text-slate-300">{data.config.name || modeTitles[mode]}</p>
+                    <p className="mt-2 text-sm text-slate-300">{configName}</p>
                   </div>
                   <div className="rounded-2xl bg-black/25 px-4 py-3 text-right">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Total</p>
@@ -425,7 +442,7 @@ export function NumberModePage() {
 
       <PrePaymentReceiptModal
         open={receiptOpen}
-        campaign={data.config.name || modeTitles[mode]}
+        campaign={configName}
         raffle={modeTitles[mode]}
         raffleData={modalityMedia}
         selectedQuantity={selected.length}
@@ -462,7 +479,7 @@ export function NumberModePage() {
         onClose={() => setLootboxReward(current => ({ ...current, open: false }))}
         earnedCount={lootboxReward.count}
         contact={lootboxReward.contact}
-        config={data.config.lootboxConfig}
+        config={config.lootboxConfig}
       />
     </PremiumPageLayout>
   );

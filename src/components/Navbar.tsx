@@ -18,7 +18,10 @@ export function Navbar() {
   const { customer } = useCustomerStore();
 
   useEffect(() => {
-    fetch("/api/settings").then(res => res.json()).then(setSettings).catch(() => null);
+    fetch("/api/settings")
+      .then(res => res.ok ? res.json() : null)
+      .then(payload => setSettings(payload && typeof payload === "object" && !Array.isArray(payload) ? payload : null))
+      .catch(() => setSettings(null));
   }, []);
 
   useEffect(() => {
@@ -68,7 +71,8 @@ export function Navbar() {
     const loadMessages = async () => {
       const res = await fetch(`/api/customers/${customer.id}/messages`);
       if (!res.ok) return;
-      const messages = await res.json();
+      const payload = await res.json();
+      const messages = Array.isArray(payload) ? payload : [];
       if (!active) return;
       const unread = messages.filter((message: any) => !message.read);
       setUnreadMessages(unread.length);
