@@ -37,7 +37,7 @@ import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock
 import { GamificationPanel } from "../components/GamificationPanel";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 import { CheckoutCampaignMedia } from "../components/checkout/CheckoutCampaignMedia";
-import { CheckoutPrimaryActionButton } from "../components/premium/PremiumUI";
+import { CheckoutModalHeader, CheckoutPrimaryActionButton } from "../components/premium/PremiumUI";
 import { checkoutService } from "../services/api";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 import { useCityDetection } from "../hooks/useCityDetection";
@@ -782,13 +782,11 @@ function CheckoutModal(props: {
       {props.open && (
         <motion.div className="checkout-modal-overlay fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.div initial={{ y: 36, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 36, scale: 0.97 }} className="checkout-screen checkout-modal-shell mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_110px_rgba(16,185,129,0.16)] sm:my-5 sm:rounded-[2rem]">
-            <div className="checkout-modal-header sticky top-0 z-10 border-b border-white/10 bg-[#090b11]/90 p-4 backdrop-blur-xl">
-              <div className="checkout-modal-title-block">
-                <p className="checkout-modal-kicker text-[10px] font-black uppercase tracking-[0.25em] text-[var(--theme-primary)]">{props.step === "review" ? "Confirmar participacao" : props.step === "payment" ? "Pagamento PIX" : "Bilhete premium"}</p>
-                <h2 className="checkout-modal-title text-xl font-black text-white">{props.tickets.toLocaleString("pt-BR")} cotas - {formatCurrency(props.totalValue)}</h2>
-              </div>
-              <button type="button" onClick={props.onClose} className="checkout-modal-close grid min-h-11 place-items-center rounded-full border border-white/10 px-3 py-2 text-sm font-black text-slate-200">Fechar</button>
-            </div>
+            <CheckoutModalHeader
+              eyebrow={props.step === "review" ? "Confirmar participacao" : props.step === "payment" ? "Pagamento PIX" : "Bilhete premium"}
+              title={`${props.tickets.toLocaleString("pt-BR")} cotas - ${formatCurrency(props.totalValue)}`}
+              onClose={props.onClose}
+            />
 
             <div className="px-4 pt-4 sm:px-5 sm:pt-5">
               <CheckoutCampaignMedia

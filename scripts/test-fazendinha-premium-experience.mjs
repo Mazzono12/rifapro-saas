@@ -23,14 +23,16 @@ const pkg = read("package.json");
 includesAll(section, [
   "<FazendinhaAnimalPickerBanner {...homeBanner} />",
   "<FazendinhaCompactPremiumInfo",
-  "fazendinha-animal-picker-header",
+  "fazendinha-animal-picker-title",
+  "Escolha seus bichinhos",
   "boardGroupIds.map",
   "<FazendinhaParticipateCTA",
   "setCheckoutOpen(true)"
 ], "ordem premium da Fazendinha");
 assert(section.indexOf("<FazendinhaAnimalPickerBanner") < section.indexOf("<FazendinhaCompactPremiumInfo"), "banner deve ser o topo da experiencia");
-assert(section.indexOf("<FazendinhaCompactPremiumInfo") < section.indexOf("fazendinha-animal-picker-header"), "chips premium devem vir antes do titulo da escolha");
-assert(section.indexOf("fazendinha-animal-picker-header") < section.indexOf("boardGroupIds.map"), "titulo compacto deve vir antes da grade");
+assert(!section.includes("fazendinha-animal-picker-header"), "card intermediario entre chips e grade deve ser removido");
+assert(section.indexOf("<FazendinhaCompactPremiumInfo") < section.indexOf("fazendinha-animal-picker-title"), "chips premium devem vir antes do titulo da escolha");
+assert(section.indexOf("fazendinha-animal-picker-title") < section.indexOf("boardGroupIds.map"), "titulo compacto deve vir antes da grade");
 assert(section.indexOf("boardGroupIds.map") < section.indexOf("<FazendinhaParticipateCTA"), "CTA deve ficar na ultima parte da selecao");
 assert(section.indexOf("<FazendinhaCheckoutMedia") > section.indexOf("checkout-screen"), "midia do checkout continua independente");
 
@@ -70,8 +72,8 @@ includesAll(admin, [
   "PremiumExperienceEditor",
   "Link clicável opcional",
   "Abrir link",
-  "Informações premium da Home",
-  "Ativar bloco premium",
+  "Chips premium da Home",
+  "Exibir chip Premium",
   "Ativar destaque da caixinha",
   "Horário da extração",
   "Valor do prêmio principal",

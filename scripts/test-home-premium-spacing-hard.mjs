@@ -42,11 +42,13 @@ assert(!navbar.includes("container mx-auto px-4 h-16"), "header publico nao deve
 includesAll(section, [
   "<FazendinhaAnimalPickerBanner {...homeBanner} />",
   "<FazendinhaCompactPremiumInfo",
-  "fazendinha-animal-picker-header",
+  "fazendinha-animal-picker-title",
+  "Escolha seus bichinhos",
   "boardGroupIds.map",
   "<FazendinhaParticipateCTA",
   "space-y-3 sm:space-y-4"
 ], "fazendinha compacta");
+assert(!section.includes("fazendinha-animal-picker-header"), "card intermediario da Fazendinha deve estar removido");
 assert(section.indexOf("<FazendinhaAnimalPickerBanner") < section.indexOf("<FazendinhaCompactPremiumInfo"), "banner deve vir antes dos chips");
 assert(section.indexOf("<FazendinhaCompactPremiumInfo") < section.indexOf("boardGroupIds.map"), "chips devem vir antes dos bichinhos");
 assert(section.indexOf("boardGroupIds.map") < section.indexOf("<FazendinhaParticipateCTA"), "CTA deve ficar depois da grade");
@@ -82,7 +84,7 @@ includesAll(css, [
   ".fazendinha-info-chip-cyan",
   ".fazendinha-info-chip-violet",
   ".fazendinha-info-chip-rose",
-  "flex-basis: calc(50% - .25rem)"
+  "flex: 1 1 calc(50% - .25rem)"
 ], "css premium spacing");
 assert(!/writing-mode:\s*vertical/i.test(css), "mobile nao pode ter texto vertical");
 assert(pkg.includes('"test:home-premium-spacing-hard"'), "package.json deve expor test:home-premium-spacing-hard");

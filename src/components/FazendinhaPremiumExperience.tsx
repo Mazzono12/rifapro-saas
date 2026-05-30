@@ -13,12 +13,12 @@ export function formatFazendinhaExtractionLabel(settings: Partial<FazendinhaPrem
 
 export function FazendinhaCompactPremiumInfo({ settings, prize, price, drawDate, caixinhaActive }: { settings?: Partial<FazendinhaPremiumExperienceSettings>; prize: string; price: string; drawDate?: string; caixinhaActive?: boolean }) {
   const chips = [
-    settings?.premiumInfoEnabled === false ? null : { icon: <Sparkles className="h-3.5 w-3.5" />, label: "Premium", value: settings?.premiumTitle || "Bichinhos da sorte", tone: "emerald" },
-    settings?.caixinhaHighlightEnabled === false ? null : { icon: <Gift className="h-3.5 w-3.5" />, label: "Caixinha", value: caixinhaActive ? (settings?.caixinhaPrizeValue || "Ativa") : "Especial", tone: "amber" },
+    settings?.premiumInfoEnabled === false ? null : { icon: <Sparkles className="h-3.5 w-3.5" />, label: "Premium", value: "", tone: "emerald" },
+    settings?.caixinhaHighlightEnabled === false ? null : { icon: <Gift className="h-3.5 w-3.5" />, label: "Caixinha", value: caixinhaActive ? "Ativa" : "", tone: "amber" },
     settings?.extractionEnabled === false ? null : { icon: <Timer className="h-3.5 w-3.5" />, label: "Extração", value: shortExtractionLabel(settings, drawDate), tone: "cyan" },
-    { icon: <Trophy className="h-3.5 w-3.5" />, label: settings?.prizeLabel || "Prêmio", value: settings?.prizeValue || prize, tone: "violet" },
+    { icon: <Trophy className="h-3.5 w-3.5" />, label: "Prêmio", value: compactMoneyLabel(settings?.prizeValue || prize), tone: "violet" },
     { icon: <TicketCheck className="h-3.5 w-3.5" />, label: "Cota", value: settings?.ticketPriceValue || price, tone: "rose" }
-  ].filter(Boolean) as Array<{ icon: ReactNode; label: string; value: string; tone: string }>;
+  ].filter(Boolean) as Array<{ icon: ReactNode; label: string; value?: string; tone: string }>;
 
   return (
     <section className="fazendinha-info-chips fazendinha-compact-premium-info" data-compact-premium-info="fazendinha">
@@ -27,7 +27,7 @@ export function FazendinhaCompactPremiumInfo({ settings, prize, price, drawDate,
           <span className="fazendinha-info-chip-icon">{chip.icon}</span>
           <span className="fazendinha-info-chip-text">
             <span className="fazendinha-info-chip-label">{chip.label}</span>
-            <strong>{chip.value}</strong>
+            {chip.value && <strong>{chip.value}</strong>}
           </span>
         </div>
       ))}
@@ -43,6 +43,17 @@ function shortExtractionLabel(settings: Partial<FazendinhaPremiumExperienceSetti
   const date = new Date(drawDate);
   if (!Number.isFinite(date.getTime())) return "Em breve";
   return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function compactMoneyLabel(value: string) {
+  const text = String(value || "").trim();
+  const match = text.match(/R\$\s*([\d.]+)(?:,(\d{2}))?/i);
+  if (!match) return text;
+  const numeric = Number(match[1].replace(/\./g, "") + "." + (match[2] || "00"));
+  if (!Number.isFinite(numeric)) return text;
+  if (numeric >= 1000000) return `R$ ${(numeric / 1000000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
+  if (numeric >= 10000) return `R$ ${(numeric / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} mil`;
+  return text;
 }
 
 export function FazendinhaCaixinhaHighlight({ settings, active }: { settings?: Partial<FazendinhaPremiumExperienceSettings>; active?: boolean }) {

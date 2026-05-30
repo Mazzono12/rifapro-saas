@@ -333,18 +333,6 @@ export function AdminRaffles() {
                     </p>
                   </div>
                   <div>
-                    <label className="block text-xs font-mono text-slate-400 mb-1">Media Type</label>
-                    <select className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
-                            value={currentRaffle.mediaType || ''} onChange={e => setCurrentRaffle({...currentRaffle, mediaType: e.target.value as any})}>
-                       <option value="">Nenhum</option>
-                       <option value="image">Imagem (JPEG/GIF)</option>
-                       <option value="video">Vídeo (MP4)</option>
-                       <option value="youtube">YouTube</option>
-                       <option value="vimeo">Vimeo</option>
-                       <option value="bunny">MediaDelivery / Bunny.net</option>
-                    </select>
-                  </div>
-                  <div>
                     <label className="block text-xs font-mono text-slate-400 mb-1">Proporção da landing</label>
                     <select
                       className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"

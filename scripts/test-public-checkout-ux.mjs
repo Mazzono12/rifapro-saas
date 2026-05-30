@@ -26,6 +26,7 @@ const raffleDetails = read("src/pages/RaffleDetails.tsx");
 const dashboard = read("src/pages/Dashboard.tsx");
 const customerStore = read("src/store/useCustomerStore.ts");
 const receipt = read("src/components/checkout/PrePaymentReceiptModal.tsx");
+const premiumUi = read("src/components/premium/PremiumUI.tsx");
 const geoService = read("src/services/GeoPrefillService.ts");
 const useCityDetection = read("src/hooks/useCityDetection.ts");
 const api = read("src/services/api.ts");
@@ -63,8 +64,9 @@ assert(api.includes('fetch(`/api/checkout/orders/${orderId}/status`)'), "Status 
 assert(server.includes('app.get("/api/checkout/orders/:orderId/status"'), "Backend deve expor endpoint seguro de status");
 assert(server.includes("Confirmacao manual pelo cliente nao e permitida"), "Confirmacao manual deve continuar bloqueada");
 
-assert(receipt.includes("TenantLogo"), "Recibo pre-pagamento deve usar logo do tenant");
-assert(receipt.includes("TenantHeaderName"), "Recibo pre-pagamento deve usar nome do tenant");
+assert(receipt.includes("CheckoutModalHeader"), "Recibo pre-pagamento deve usar header compartilhado do checkout");
+assert(premiumUi.includes("TenantLogo"), "Header compartilhado do checkout deve usar logo do tenant");
+assert(premiumUi.includes("TenantHeaderName"), "Header compartilhado do checkout deve usar nome do tenant");
 assert(receipt.includes('label="Cidade"'), "Recibo deve mostrar cidade antes do PIX");
 assert(receipt.includes("Recibo pre-pagamento"), "Recibo deve ter hierarquia profissional de pre-pagamento");
 

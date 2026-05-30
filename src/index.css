@@ -3297,12 +3297,11 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
 
 .fazendinha-info-chip {
   display: flex;
-  flex: 1 1 9.75rem;
-  min-width: min(100%, 8.75rem);
+  flex: 1 1 10.75rem;
+  min-width: min(100%, 9.75rem);
   max-width: 100%;
   align-items: center;
   gap: .55rem;
-  overflow: hidden;
   border-radius: .95rem;
   border: 1px solid rgba(255, 255, 255, 0.13);
   background: rgba(255, 255, 255, 0.055);
@@ -3329,9 +3328,6 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
 }
 
 .fazendinha-info-chip-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: .58rem;
   font-weight: 900;
   letter-spacing: .14em;
@@ -3340,12 +3336,10 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
 }
 
 .fazendinha-info-chip strong {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
+  display: block;
   font-size: .9rem;
   line-height: 1.12;
+  overflow-wrap: anywhere;
 }
 
 .fazendinha-info-chip-emerald {
@@ -3470,8 +3464,8 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   }
 
   .fazendinha-info-chip {
-    flex-basis: calc(50% - .25rem);
-    min-width: 0;
+    flex: 1 1 calc(50% - .25rem);
+    min-width: min(100%, 9.5rem);
     border-radius: .85rem;
     padding: .55rem .58rem;
   }

@@ -5,6 +5,8 @@ import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "../../lib/utils";
 import { ResponsiveMediaFrame } from "../ResponsiveMediaFrame";
+import { TenantHeaderName } from "../branding/TenantHeaderName";
+import { TenantLogo } from "../branding/TenantLogo";
 
 export function PremiumPageLayout({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -363,15 +365,30 @@ export function PremiumCheckoutModal({ open, title, children, onClose }: { open:
   return (
     <div className="checkout-modal-overlay fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3">
       <motion.section initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="checkout-screen checkout-modal-shell mx-auto my-3 w-full max-w-2xl overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_100px_rgba(52,211,153,0.16)] sm:my-5 sm:rounded-[2rem]">
-        <header className="checkout-modal-header sticky top-0 z-10 border-b border-white/10 bg-[#090b11]/90 p-4 backdrop-blur-xl">
-          <div className="checkout-modal-title-block">
-            <h2 className="checkout-modal-title text-xl font-black">{title}</h2>
-          </div>
-          <button type="button" onClick={onClose} className="checkout-modal-close grid min-h-11 place-items-center rounded-full border border-white/10 px-3 py-2 text-sm font-black text-slate-200">Fechar</button>
-        </header>
+        <CheckoutModalHeader title={title} eyebrow="Checkout seguro" onClose={onClose} />
         {children}
       </motion.section>
     </div>
+  );
+}
+
+export function CheckoutModalHeader({ title, eyebrow = "Checkout seguro", onClose }: { title: string; eyebrow?: string; onClose: () => void }) {
+  return (
+    <header className="checkout-modal-header premium-site-header sticky top-0 z-10 border-b border-white/10 bg-[#090b11]/92 px-3 py-3 backdrop-blur-xl sm:px-4">
+      <div className="checkout-modal-title-block flex min-w-0 items-center gap-2.5 sm:gap-3">
+        <TenantLogo className="h-9 w-9 shrink-0 sm:h-10 sm:w-10" eager />
+        <div className="min-w-0">
+          <p className="checkout-modal-kicker text-[9px] font-black uppercase tracking-[0.18em] text-[var(--theme-primary)] sm:text-[10px]">
+            {eyebrow}
+          </p>
+          <h2 className="checkout-modal-title text-lg font-black leading-tight text-white sm:text-xl">{title}</h2>
+          <p className="text-xs font-semibold leading-tight text-slate-400">
+            <TenantHeaderName />
+          </p>
+        </div>
+      </div>
+      <button type="button" onClick={onClose} className="checkout-modal-close grid min-h-11 shrink-0 place-items-center rounded-full border border-white/10 px-3 py-2 text-sm font-black text-slate-200">Fechar</button>
+    </header>
   );
 }
 

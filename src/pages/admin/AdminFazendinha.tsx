@@ -60,11 +60,11 @@ export function AdminFazendinha() {
       linkTarget: "_self",
       position: "checkout"
     },
-    premiumExperience: {
+      premiumExperience: {
       premiumInfoEnabled: true,
-      premiumTitle: "Escolha seus bichinhos da sorte",
-      premiumDescription: "Participe da modalidade especial com grupos rápidos, PIX automático e experiência premium.",
-      premiumHighlight: "Concorra com chances extras, prêmios instantâneos e caixinha premiada.",
+      premiumTitle: "Premium",
+      premiumDescription: "",
+      premiumHighlight: "",
       caixinhaHighlightEnabled: true,
       caixinhaTitle: "Caixinha Premiada",
       caixinhaDescription: "Compras confirmadas podem liberar uma caixinha com prêmio surpresa.",
@@ -185,16 +185,6 @@ export function AdminFazendinha() {
                 onChange={(mediaUrl, mediaType) => setState({ ...state, config: { ...state.config, mediaUrl, mediaType: mediaType as any } })}
               />
             </div>
-            <label className="space-y-2">
-              <span className="text-xs font-mono uppercase text-slate-500">Tipo da mídia</span>
-              <select value={state.config.mediaType || "image"} onChange={e => setState({ ...state, config: { ...state.config, mediaType: e.target.value as any } })} className="w-full p-3">
-                <option value="image">Imagem / GIF</option>
-                <option value="video">MP4</option>
-                <option value="youtube">YouTube</option>
-                <option value="vimeo">Vimeo</option>
-                <option value="bunny">MediaDelivery / Bunny.net</option>
-              </select>
-            </label>
             <Field label="Sugestão de cotas adicionais" type="number" value={String(state.config.addonSuggestionTickets || 5)} onChange={value => setState({ ...state, config: { ...state.config, addonSuggestionTickets: Number(value) } })} />
             <label className="space-y-2 md:col-span-2">
               <span className="text-xs font-mono uppercase text-slate-500">Descrição</span>
@@ -354,17 +344,6 @@ function MediaSettingsEditor({
         <Field label="Poster/thumbnail do vídeo" value={value.posterUrl || ""} onChange={next => onChange({ posterUrl: next })} />
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-2">
-            <span className="text-xs font-mono uppercase text-slate-500">Tipo da mídia</span>
-            <select value={value.mediaType || "image"} onChange={event => onChange({ mediaType: event.target.value as any })} className="w-full p-3">
-              <option value="image">Imagem</option>
-              <option value="gif">GIF animado</option>
-              <option value="video">MP4</option>
-              <option value="youtube">YouTube</option>
-              <option value="vimeo">Vimeo</option>
-              <option value="bunny">MediaDelivery / Bunny.net</option>
-            </select>
-          </label>
-          <label className="space-y-2">
             <span className="text-xs font-mono uppercase text-slate-500">Modo de exibição</span>
             <select value={value.fitMode || "auto"} onChange={event => onChange({ fitMode: event.target.value as any })} className="w-full p-3">
               <option value="auto">Automático</option>
@@ -412,17 +391,14 @@ function PremiumExperienceEditor({ value, onChange }: { value: FazendinhaPremium
   return (
     <section className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.05] p-4">
       <div className="mb-4">
-        <h3 className="font-display text-lg font-bold text-white">Informações premium da Home</h3>
-        <p className="mt-1 text-xs text-slate-500">Controla textos, caixinha, extração, prêmio, valor da cota e CTA final.</p>
+        <h3 className="font-display text-lg font-bold text-white">Chips premium da Home</h3>
+        <p className="mt-1 text-xs text-slate-500">Controla chips compactos, caixinha, extração, prêmio, valor da cota e CTA final.</p>
       </div>
       <div className="grid gap-4">
         <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
           <input type="checkbox" checked={value.premiumInfoEnabled} onChange={event => onChange({ premiumInfoEnabled: event.target.checked })} />
-          <span className="text-sm text-white">Ativar bloco premium</span>
+          <span className="text-sm text-white">Exibir chip Premium</span>
         </label>
-        <Field label="Título da seção" value={value.premiumTitle || ""} onChange={next => onChange({ premiumTitle: next })} />
-        <Field label="Descrição curta" value={value.premiumDescription || ""} onChange={next => onChange({ premiumDescription: next })} />
-        <Field label="Texto de destaque" value={value.premiumHighlight || ""} onChange={next => onChange({ premiumHighlight: next })} />
         <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
           <input type="checkbox" checked={value.caixinhaHighlightEnabled} onChange={event => onChange({ caixinhaHighlightEnabled: event.target.checked })} />
           <span className="text-sm text-white">Ativar destaque da caixinha</span>

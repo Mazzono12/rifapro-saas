@@ -87,17 +87,6 @@ export function AdminWinners() {
                       onChange={(mediaUrl, mediaType) => setCurrent({ ...current, mediaUrl, mediaType: mediaType as any })}
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-mono text-slate-400 mb-1">Media Type</label>
-                    <select className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-emerald-500/50" 
-                            value={current.mediaType || 'image'} onChange={e => setCurrent({...current, mediaType: e.target.value as any})}>
-                       <option value="image">Imagem (JPEG/GIF)</option>
-                       <option value="video">Vídeo (MP4)</option>
-                       <option value="youtube">YouTube</option>
-                       <option value="vimeo">Vimeo</option>
-                       <option value="bunny">MediaDelivery / Bunny.net</option>
-                    </select>
-                  </div>
                </div>
                
                <div className="flex justify-end pt-4">

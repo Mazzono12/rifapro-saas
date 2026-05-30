@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import confetti from "canvas-confetti";
 import { QRCodeSVG } from "qrcode.react";
-import { CheckCircle2, Clover, Copy, Sparkles, X } from "lucide-react";
+import { CheckCircle2, Clover, Copy, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useFazendinha, useFazendinhaMediaSettings } from "../hooks/useRaffles";
 import { checkoutService, fazendinhaService } from "../services/api";
@@ -14,7 +14,7 @@ import type { FazendinhaGroup, FazendinhaPurchase, Raffle } from "../types";
 import { PostPurchaseLootboxModal } from "./PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "./PixPaymentResultModal";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "./checkout/PrePaymentReceiptModal";
-import { CheckoutPrimaryButton } from "./premium/PremiumUI";
+import { CheckoutModalHeader, CheckoutPrimaryButton } from "./premium/PremiumUI";
 import { FazendinhaAnimalPickerBanner } from "./FazendinhaAnimalPickerBanner";
 import { FazendinhaCheckoutMedia } from "./FazendinhaCheckoutMedia";
 import { FazendinhaCompactPremiumInfo, FazendinhaParticipateCTA } from "./FazendinhaPremiumExperience";
@@ -104,7 +104,6 @@ export function FazendinhaSection() {
   if (!config?.enabled || config.status !== "active") return null;
 
   const configName = String(config.name || "Fazendinha");
-  const configDescription = String(config.description || "Escolha seus bichinhos e participe da modalidade especial.");
   const configMainPrize = String(config.mainPrize || (config as any).prize || "Premio principal");
   const configPricePerGroup = safeNumber(config.pricePerGroup);
   const hasSavedCustomer = Boolean(customer?.name && customer.phone && customer.cpf);
@@ -303,13 +302,9 @@ export function FazendinhaSection() {
       <div className="relative z-10 mx-auto max-w-[980px] space-y-3 sm:space-y-4">
         <FazendinhaAnimalPickerBanner {...homeBanner} />
         <FazendinhaCompactPremiumInfo settings={premiumExperience} prize={configMainPrize} price={formattedPricePerGroup} drawDate={config.drawDate} caixinhaActive={Boolean(config.lootboxEnabled)} />
-        <div className="fazendinha-animal-picker-header rounded-[1.15rem] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-3 sm:p-4">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--theme-primary)]/25 bg-[var(--theme-primary)]/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--theme-primary)]">
-            <Sparkles className="h-3.5 w-3.5" /> Escolha os bichos
-          </span>
-          <h2 className="mt-2 font-display text-2xl font-black leading-tight text-[var(--theme-text)] sm:text-3xl">{configName}</h2>
-          <p className="mt-1 line-clamp-2 text-sm leading-5 text-[var(--theme-muted)]">{configDescription}</p>
-        </div>
+        <h2 className="fazendinha-animal-picker-title flex items-center justify-center gap-2 px-1 text-center font-display text-2xl font-black leading-tight text-[var(--theme-text)] sm:text-3xl">
+          <Sparkles className="h-5 w-5 text-[var(--theme-primary)]" /> Escolha seus bichinhos
+        </h2>
         <div className="relative overflow-hidden rounded-[1.75rem] border border-[var(--theme-border)] bg-[var(--theme-bg-soft)] p-2 shadow-[0_30px_90px_rgba(15,23,42,0.18)]">
           <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_20%,var(--theme-glow),transparent_38%)] opacity-70" />
           <div className="relative z-10 grid grid-cols-5 gap-2 rounded-2xl bg-black/10 p-2 sm:gap-3 sm:p-3">
@@ -396,14 +391,9 @@ export function FazendinhaSection() {
         {checkoutOpen && (
           <motion.div className="fixed inset-0 z-[70] overflow-hidden bg-black/70 backdrop-blur-xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 10, opacity: 0 }} className="h-dvh overflow-y-auto overscroll-contain px-2 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-4 md:pt-[calc(env(safe-area-inset-top)+2.5rem)]">
-            <div className="checkout-screen glass-card mx-auto w-full max-w-2xl p-4 sm:p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-mono uppercase tracking-widest text-slate-500">Participar da Fazendinha</p>
-                  <h2 className="font-display text-3xl font-black text-white">{selectedGroups.length} grupo(s)</h2>
-                </div>
-                <button onClick={() => setCheckoutOpen(false)} className="rounded-full border border-white/10 p-2 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
-              </div>
+            <div className="checkout-screen checkout-modal-shell glass-card mx-auto w-full max-w-2xl overflow-hidden p-0">
+              <CheckoutModalHeader title={`${selectedGroups.length} grupo(s)`} eyebrow="Participar da Fazendinha" onClose={() => setCheckoutOpen(false)} />
+              <div className="p-4 sm:p-5">
               <FazendinhaCheckoutMedia {...checkoutMedia} className="mt-5" />
 
               {canUseSavedCustomer ? (
@@ -576,6 +566,7 @@ export function FazendinhaSection() {
               <CheckoutPrimaryButton onClick={pendingPix ? checkPixPayment : openPrePaymentReceipt} disabled={buying} className="sticky bottom-0 z-20 mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-black shadow-[0_-18px_45px_rgba(0,0,0,0.38)] disabled:opacity-50">
                 <CheckCircle2 className="h-5 w-5" /> {buying ? "Processando..." : pendingPix ? "Confirmar PIX" : "Revisar compra"}
               </CheckoutPrimaryButton>
+              </div>
             </div>
             </motion.div>
           </motion.div>

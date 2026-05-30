@@ -80,17 +80,6 @@ export function AdminStories() {
                       onChange={(mediaUrl, mediaType) => setCurrentStory({ ...currentStory, mediaUrl, mediaType })}
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-mono text-slate-400 mb-1">Media Type</label>
-                    <select className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-neon-purple/50" 
-                            value={currentStory.mediaType || 'image'} onChange={e => setCurrentStory({...currentStory, mediaType: e.target.value})}>
-                       <option value="image">Imagem (JPEG/GIF)</option>
-                       <option value="video">Vídeo (MP4)</option>
-                       <option value="youtube">YouTube</option>
-                       <option value="vimeo">Vimeo</option>
-                       <option value="bunny">MediaDelivery / Bunny.net</option>
-                    </select>
-                  </div>
                </div>
                <div className="flex justify-end pt-4">
                  <button type="submit" className="bg-neon-purple text-white px-6 py-3 rounded-lg font-bold font-mono tracking-wider flex items-center gap-2 hover:bg-white hover:text-black transition-colors">
