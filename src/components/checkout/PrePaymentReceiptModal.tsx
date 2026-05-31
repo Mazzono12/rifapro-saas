@@ -1,6 +1,6 @@
 import type React from "react";
 import { CreditCard, Gift, ShieldCheck, UserRound } from "lucide-react";
-import { CheckoutContentArea, CheckoutModalHeader, CheckoutPrimaryButton } from "../premium/PremiumUI";
+import { CheckoutModalShell, CheckoutPrimaryButton } from "../premium/PremiumUI";
 import { CheckoutCampaignMedia } from "./CheckoutCampaignMedia";
 import { FazendinhaCheckoutMedia } from "../FazendinhaCheckoutMedia";
 import { cn } from "../../lib/utils";
@@ -107,11 +107,16 @@ export function PrePaymentReceiptModal({
   );
 
   return (
-    <div className="checkout-receipt-overlay fixed inset-0 z-[90] max-h-[100dvh] overflow-y-auto bg-black/72 p-2 backdrop-blur-xl sm:p-3">
-      <section className="checkout-receipt-shell mx-auto my-3 flex w-full flex-col overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#070a0f] text-white shadow-[0_30px_120px_rgba(0,0,0,0.5)] sm:my-4 sm:rounded-[1.75rem]" data-media-aware={hasCheckoutMedia ? "with-media" : "compact-no-media"}>
-        <CheckoutModalHeader title="Confirme seus dados" eyebrow="Recibo pre-pagamento" onClose={onClose} compact={!hasCheckoutMedia} />
-
-        <CheckoutContentArea className={cn("checkout-receipt-body space-y-4 p-3 sm:p-5", !hasCheckoutMedia && "pt-3 sm:pt-4")}>
+    <CheckoutModalShell
+      open={open}
+      variant="receipt"
+      title="Confirme seus dados"
+      eyebrow="Recibo pre-pagamento"
+      onClose={onClose}
+      compact={!hasCheckoutMedia}
+      mediaAware={hasCheckoutMedia ? "with-media" : "compact-no-media"}
+      contentClassName={cn("checkout-receipt-body space-y-4 p-3 sm:p-5", !hasCheckoutMedia && "pt-3 sm:pt-4")}
+    >
           {fazendinhaCheckoutMedia?.enabled ? (
             <FazendinhaCheckoutMedia {...fazendinhaCheckoutMedia} />
           ) : !hideMedia && (
@@ -157,9 +162,7 @@ export function PrePaymentReceiptModal({
             <ShieldCheck className="h-4 w-4 text-emerald-500" />
             O pedido e o PIX so serao gerados apos esta confirmacao.
           </p>
-        </CheckoutContentArea>
-      </section>
-    </div>
+    </CheckoutModalShell>
   );
 }
 

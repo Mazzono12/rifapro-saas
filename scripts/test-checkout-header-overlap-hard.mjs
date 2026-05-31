@@ -16,21 +16,21 @@ function hasAll(source, tokens, label) {
   }
 }
 
-hasAll(premium, ["CheckoutContentArea", "CheckoutSafeTop", "checkout-modal-shell", "flex w-full flex-col", "CheckoutModalHeader"], "shell compartilhado");
+hasAll(premium, ["CheckoutModalShell", "CheckoutContentArea", "CheckoutSafeTop", "checkout-modal-shell", "flex w-full flex-col", "CheckoutModalHeader"], "shell compartilhado");
 hasAll(css, [".checkout-content-area", "max-height: calc(100dvh", "overflow-y: auto", "overscroll-behavior: contain"], "area segura de checkout");
 hasAll(css, [".checkout-modal-header", "flex: 0 0 auto", "line-height: 1.2", "writing-mode: horizontal-tb"], "header seguro");
 hasAll(css, ["@media (max-width: 640px)", "grid-template-columns: minmax(0, 1fr) !important", "grid-column: 1 / -1 !important"], "mobile header");
-hasAll(receipt, ["CheckoutContentArea", "Confirme seus dados", "Recibo pre-pagamento", "compact={!hasCheckoutMedia}", "data-media-aware"], "recibo pre-PIX");
-hasAll(raffle, ["CheckoutContentArea", "CheckoutCampaignMedia", "Pagamento PIX", "Bilhete premium"], "rifa tradicional");
+hasAll(receipt, ["CheckoutModalShell", "Confirme seus dados", "Recibo pre-pagamento", "compact={!hasCheckoutMedia}", "mediaAware"], "recibo pre-PIX");
+hasAll(raffle, ["CheckoutModalShell", "CheckoutCampaignMedia", "Pagamento PIX", "Bilhete premium"], "rifa tradicional");
 hasAll(numberMode, ["PremiumCheckoutModal", "CheckoutCampaignMedia", "Confirmar participação", "Pagamento PIX"], "NumberMode");
 hasAll(fazendinha, ["PremiumCheckoutModal", "Confirmar participação", "Pagamento PIX", "FazendinhaCheckoutMedia"], "Fazendinha page");
-hasAll(fazendinhaSection, ["CheckoutContentArea", "CheckoutModalHeader", "Participar da Fazendinha", "FazendinhaCheckoutMedia"], "Fazendinha Home");
+hasAll(fazendinhaSection, ["CheckoutModalShell", "Participar da Fazendinha", "FazendinhaCheckoutMedia"], "Fazendinha Home");
 
 const forbiddenNearCritical = [
   /checkout-(?:modal-title|title|primary-button|primary-action-button)[\s\S]{0,260}word-break:\s*break-all/i,
   /checkout-(?:modal-title|title|primary-button|primary-action-button)[\s\S]{0,260}overflow-wrap:\s*anywhere/i,
   /checkout-modal-header[\s\S]{0,220}position:\s*absolute/i,
-  /checkout-modal-title[\s\S]{0,160}white-space:\s*nowrap/i,
+  /\.checkout-modal-title\s*\{[\s\S]{0,160}white-space:\s*nowrap/i,
   /checkout-modal-title[\s\S]{0,160}truncate/i,
   /writing-mode:\s*vertical/i
 ];

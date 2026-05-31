@@ -114,8 +114,8 @@ assertIncludes(brandingPreview, [
   "Contraste ajustado automaticamente"
 ], "preview de branding com aviso de contraste");
 
-assertIncludes(receipt, ["Recibo pre-pagamento", "CheckoutModalHeader", "label=\"Cidade\""], "recibo pre-PIX legivel e com branding");
-assertIncludes(premiumUi, ["TenantLogo", "TenantHeaderName", "CheckoutModalHeader"], "header compartilhado do checkout com branding");
+assertIncludes(receipt, ["Recibo pre-pagamento", "CheckoutModalShell", "label=\"Cidade\""], "recibo pre-PIX legivel e com branding");
+assertIncludes(premiumUi, ["TenantLogo", "TenantHeaderName", "CheckoutModalHeader", "CheckoutModalShell"], "header compartilhado do checkout com branding");
 assertIncludes(raffle, ["Confirmar PIX", "premium-button", "Field label=\"Cidade\"", "Field label=\"WhatsApp\""], "checkout publico legivel");
 assertIncludes(authShell, ["text-white", "Acesso seguro"], "autenticacao legivel em tema premium");
 assertIncludes(adminDashboard, ["admin-input", "admin-card"], "dashboard admin usa controles legiveis");

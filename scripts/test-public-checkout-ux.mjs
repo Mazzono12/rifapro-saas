@@ -64,7 +64,7 @@ assert(api.includes('fetch(`/api/checkout/orders/${orderId}/status`)'), "Status 
 assert(server.includes('app.get("/api/checkout/orders/:orderId/status"'), "Backend deve expor endpoint seguro de status");
 assert(server.includes("Confirmacao manual pelo cliente nao e permitida"), "Confirmacao manual deve continuar bloqueada");
 
-assert(receipt.includes("CheckoutModalHeader"), "Recibo pre-pagamento deve usar header compartilhado do checkout");
+assert(receipt.includes("CheckoutModalShell"), "Recibo pre-pagamento deve usar shell/header compartilhado do checkout");
 assert(premiumUi.includes("TenantLogo"), "Header compartilhado do checkout deve usar logo do tenant");
 assert(premiumUi.includes("TenantHeaderName"), "Header compartilhado do checkout deve usar nome do tenant");
 assert(receipt.includes('label="Cidade"'), "Recibo deve mostrar cidade antes do PIX");

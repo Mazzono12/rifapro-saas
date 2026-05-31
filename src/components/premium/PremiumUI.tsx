@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
-import { AlertTriangle, CheckCircle2, Clock3, Inbox, QrCode, ShieldCheck, Ticket, Trophy } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, Inbox, QrCode, ShieldCheck, Ticket, Trophy, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "../../lib/utils";
@@ -11,16 +11,16 @@ import { CheckoutPageContainer } from "../layout/PremiumContainers";
 
 let checkoutOverlayCount = 0;
 
-function useCheckoutOverlayMode() {
+function useCheckoutOverlayMode(active = true) {
   React.useEffect(() => {
-    if (typeof document === "undefined") return;
+    if (!active || typeof document === "undefined") return;
     checkoutOverlayCount += 1;
     document.body.dataset.checkoutOpen = "true";
     return () => {
       checkoutOverlayCount = Math.max(0, checkoutOverlayCount - 1);
       if (checkoutOverlayCount === 0) delete document.body.dataset.checkoutOpen;
     };
-  }, []);
+  }, [active]);
 }
 
 export function PremiumPageLayout({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -375,15 +375,64 @@ export function FloatingCTA({ label, meta, onClick, hidden = false }: { label: s
   );
 }
 
-export function PremiumCheckoutModal({ open, title, children, onClose }: { open: boolean; title: string; children: React.ReactNode; onClose: () => void }) {
+type CheckoutModalShellProps = {
+  open: boolean;
+  title: string;
+  eyebrow?: string;
+  children: React.ReactNode;
+  onClose: () => void;
+  compact?: boolean;
+  variant?: "modal" | "receipt";
+  shellClassName?: string;
+  contentClassName?: string;
+  mediaAware?: "with-media" | "compact-no-media" | "standard-media";
+};
+
+export function CheckoutModalShell({
+  open,
+  title,
+  eyebrow,
+  children,
+  onClose,
+  compact = false,
+  variant = "modal",
+  shellClassName = "",
+  contentClassName = "",
+  mediaAware
+}: CheckoutModalShellProps) {
+  useCheckoutOverlayMode(open);
   if (!open) return null;
+  const isReceipt = variant === "receipt";
   return (
-    <div className="checkout-modal-overlay fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3">
-      <motion.section initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="checkout-screen checkout-modal-shell mx-auto my-3 flex w-full flex-col overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_100px_rgba(52,211,153,0.16)] sm:my-5 sm:rounded-[2rem]">
-        <CheckoutModalHeader title={title} eyebrow="Checkout seguro" onClose={onClose} compact />
-        <CheckoutContentArea>{children}</CheckoutContentArea>
+    <div className={cn(
+      isReceipt
+        ? "checkout-receipt-overlay fixed inset-0 z-[130] overflow-y-auto bg-[#020407] p-2 backdrop-blur-xl sm:p-3"
+        : "checkout-modal-overlay fixed inset-0 z-[120] overflow-y-auto bg-[#020407] p-2 backdrop-blur-2xl sm:p-3"
+    )}>
+      <motion.section
+        initial={{ y: 28, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 28, opacity: 0 }}
+        className={cn(
+          isReceipt
+            ? "checkout-screen checkout-receipt-shell mx-auto my-3 flex w-full flex-col overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#070a0f] text-white shadow-[0_30px_120px_rgba(0,0,0,0.5)] sm:my-4 sm:rounded-[1.75rem]"
+            : "checkout-screen checkout-modal-shell mx-auto my-3 flex w-full flex-col overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_100px_rgba(52,211,153,0.16)] sm:my-5 sm:rounded-[2rem]",
+          shellClassName
+        )}
+        data-media-aware={mediaAware || (compact ? "compact-no-media" : "standard-media")}
+      >
+        <CheckoutModalHeader title={title} eyebrow={eyebrow || (isReceipt ? "Recibo pre-pagamento" : "Checkout seguro")} onClose={onClose} compact={compact} />
+        <CheckoutContentArea className={contentClassName}>{children}</CheckoutContentArea>
       </motion.section>
     </div>
+  );
+}
+
+export function PremiumCheckoutModal({ open, title, children, onClose }: { open: boolean; title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <CheckoutModalShell open={open} title={title} onClose={onClose} compact>
+      {children}
+    </CheckoutModalShell>
   );
 }
 
@@ -396,23 +445,24 @@ export function CheckoutContentArea({ children, className = "" }: { children: Re
 }
 
 export function CheckoutModalHeader({ title, eyebrow = "Checkout seguro", onClose, compact = false }: { title: string; eyebrow?: string; onClose: () => void; compact?: boolean }) {
-  useCheckoutOverlayMode();
   return (
-    <header className={cn("checkout-modal-header premium-site-header sticky top-0 z-10 shrink-0 border-b border-white/10 bg-[#090b11]/92 backdrop-blur-xl", compact ? "px-3 py-2" : "px-3 py-3 sm:px-4")} data-media-aware={compact ? "compact-no-media" : "standard-media"}>
+    <header className={cn("checkout-modal-header sticky top-0 z-10 shrink-0 border-b border-white/10 bg-[#090b11]/96 backdrop-blur-xl", compact ? "px-3 py-2" : "px-3 py-3 sm:px-4")} data-media-aware={compact ? "compact-no-media" : "standard-media"}>
       <CheckoutPageContainer className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-0">
-      <div className="checkout-modal-title-block flex min-w-0 items-center gap-2.5 sm:gap-3">
-        <TenantLogo className={cn("shrink-0", compact ? "h-8 w-8" : "h-9 w-9 sm:h-10 sm:w-10")} eager />
-        <div className="min-w-0">
-          <p className={cn("checkout-modal-kicker font-black uppercase tracking-[0.18em] text-[var(--theme-primary)]", compact ? "text-[8px]" : "text-[9px] sm:text-[10px]")}>
-            {eyebrow}
-          </p>
-          <h2 className={cn("checkout-modal-title font-black leading-tight text-white", compact ? "text-base sm:text-lg" : "text-lg sm:text-xl")}>{title}</h2>
-          <p className={cn("font-semibold leading-tight text-slate-400", compact ? "text-[11px]" : "text-xs")}>
-            <TenantHeaderName />
-          </p>
+        <div className="checkout-modal-title-block flex min-w-0 items-center gap-2.5 sm:gap-3">
+          <TenantLogo className={cn("checkout-modal-logo shrink-0", compact ? "h-8 w-8" : "h-9 w-9 sm:h-10 sm:w-10")} eager />
+          <div className="min-w-0">
+            <p className={cn("checkout-modal-kicker font-black uppercase tracking-[0.14em] text-[var(--theme-primary)]", compact ? "text-[8px]" : "text-[9px] sm:text-[10px]")}>
+              {eyebrow}
+            </p>
+            <h2 className={cn("checkout-modal-title font-black leading-tight text-white", compact ? "text-base sm:text-lg" : "text-lg sm:text-xl")}>{title}</h2>
+            <p className={cn("checkout-modal-tenant font-semibold leading-tight text-slate-400", compact ? "text-[11px]" : "text-xs")}>
+              <TenantHeaderName />
+            </p>
+          </div>
         </div>
-      </div>
-      <button type="button" onClick={onClose} className="checkout-modal-close grid min-h-11 shrink-0 place-items-center rounded-full border border-white/10 px-3 py-2 text-sm font-black text-slate-200">Fechar</button>
+        <button type="button" onClick={onClose} className="checkout-modal-close grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.045] p-0 text-slate-200" aria-label="Fechar checkout">
+          <X className="h-5 w-5" />
+        </button>
       </CheckoutPageContainer>
     </header>
   );

@@ -53,16 +53,17 @@ includesAll(chipCss, [
 ], "css dos chips sem corte");
 
 includesAll(premiumUi, [
+  "CheckoutModalShell",
   "CheckoutModalHeader",
   "TenantLogo",
   "TenantHeaderName",
-  "premium-site-header",
   "checkout-modal-title-block",
   "checkout-modal-close"
 ], "header compartilhado do checkout");
-includesAll(preReceipt, ["CheckoutModalHeader", "Recibo pre-pagamento", "Confirme seus dados"], "recibo usa header compartilhado");
-includesAll(raffleDetails, ["CheckoutModalHeader", "Pagamento PIX", "Bilhete premium"], "checkout/PIX/bilhete usam header compartilhado");
-includesAll(section, ["CheckoutModalHeader", "Participar da Fazendinha"], "checkout da Fazendinha usa header compartilhado");
+assert(!premiumUi.includes("checkout-modal-header premium-site-header"), "header de checkout nao deve herdar premium-site-header publico");
+includesAll(preReceipt, ["CheckoutModalShell", "Recibo pre-pagamento", "Confirme seus dados"], "recibo usa shell compartilhado");
+includesAll(raffleDetails, ["CheckoutModalShell", "Pagamento PIX", "Bilhete premium"], "checkout/PIX/bilhete usam shell compartilhado");
+includesAll(section, ["CheckoutModalShell", "Participar da Fazendinha"], "checkout da Fazendinha usa shell compartilhado");
 
 for (const [name, source] of [
   ["AdminFazendinha", adminFazendinha],

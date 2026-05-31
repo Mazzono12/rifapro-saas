@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
 import { QRCodeSVG } from "qrcode.react";
 import { CheckCircle2, Clover, Copy, Sparkles } from "lucide-react";
@@ -14,7 +14,7 @@ import type { FazendinhaGroup, FazendinhaPurchase, Raffle } from "../types";
 import { PostPurchaseLootboxModal } from "./PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "./PixPaymentResultModal";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "./checkout/PrePaymentReceiptModal";
-import { CheckoutContentArea, CheckoutModalHeader, CheckoutPrimaryButton } from "./premium/PremiumUI";
+import { CheckoutModalShell, CheckoutPrimaryButton } from "./premium/PremiumUI";
 import { FazendinhaAnimalPickerBanner } from "./FazendinhaAnimalPickerBanner";
 import { FazendinhaCheckoutMedia } from "./FazendinhaCheckoutMedia";
 import { FazendinhaCompactPremiumInfo, FazendinhaParticipateCTA } from "./FazendinhaPremiumExperience";
@@ -390,11 +390,15 @@ export function FazendinhaSection() {
 
       <AnimatePresence>
         {checkoutOpen && (
-          <motion.div className="fixed inset-0 z-[70] overflow-hidden bg-black/70 backdrop-blur-xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 10, opacity: 0 }} className="h-dvh overflow-y-auto overscroll-contain px-2 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-4 md:pt-[calc(env(safe-area-inset-top)+2.5rem)]">
-            <div className="checkout-screen checkout-modal-shell glass-card mx-auto flex w-full flex-col overflow-hidden p-0">
-              <CheckoutModalHeader title={`${selectedGroups.length} grupo(s)`} eyebrow="Participar da Fazendinha" onClose={() => setCheckoutOpen(false)} compact={!checkoutMedia?.enabled || !checkoutMedia?.mediaUrl} />
-              <CheckoutContentArea className="p-4 sm:p-5">
+          <CheckoutModalShell
+            open={checkoutOpen}
+            title={`${selectedGroups.length} grupo(s)`}
+            eyebrow="Participar da Fazendinha"
+            onClose={() => setCheckoutOpen(false)}
+            compact={!checkoutMedia?.enabled || !checkoutMedia?.mediaUrl}
+            shellClassName="glass-card p-0"
+            contentClassName="p-4 sm:p-5"
+          >
               <FazendinhaCheckoutMedia {...checkoutMedia} className="mt-5" />
 
               {canUseSavedCustomer ? (
@@ -570,10 +574,7 @@ export function FazendinhaSection() {
               <CheckoutPrimaryButton onClick={pendingPix ? checkPixPayment : openPrePaymentReceipt} disabled={buying} className="sticky bottom-0 z-20 mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-black shadow-[0_-18px_45px_rgba(0,0,0,0.38)] disabled:opacity-50">
                 <CheckCircle2 className="h-5 w-5" /> {buying ? "Processando..." : pendingPix ? "Confirmar PIX" : "Revisar compra"}
               </CheckoutPrimaryButton>
-              </CheckoutContentArea>
-            </div>
-            </motion.div>
-          </motion.div>
+          </CheckoutModalShell>
         )}
       </AnimatePresence>
       <PrePaymentReceiptModal

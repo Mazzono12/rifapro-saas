@@ -67,6 +67,7 @@ export function NumberModePage() {
   const [lootboxReward, setLootboxReward] = useState({ open: false, count: 0, contact: "" });
   const firstName = (customer?.name || form.name || "").trim().split(/\s+/)[0] || "cliente";
   const { detectedCity } = useCityDetection();
+  const pixCountdown = usePixCountdown(pendingPix?.purchase?.pixExpiresAt || pendingPix?.purchase?.reservedUntil);
 
   useEffect(() => {
     if (customer) setForm(current => ({
@@ -250,7 +251,6 @@ export function NumberModePage() {
   const receiptNumbers = Array.isArray(confirmedReceipt?.numbers) ? confirmedReceipt.numbers.map(number => Number(number)).filter(Number.isFinite) : [];
   const modalTitle = confirmedReceipt ? "Bilhete confirmado" : pendingPix ? "Pagamento PIX" : "Confirmar participação";
   const checkoutTotal = safeNumber(total || pendingPix?.purchase?.valorPago || confirmedReceipt?.purchase?.valorPago);
-  const pixCountdown = usePixCountdown(pendingPix?.purchase?.pixExpiresAt || pendingPix?.purchase?.reservedUntil);
   const modalityMedia = {
     title: configName,
     subtitle: configPrize || config.description || modeTitles[mode],

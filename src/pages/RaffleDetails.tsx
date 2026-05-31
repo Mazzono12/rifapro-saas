@@ -37,7 +37,7 @@ import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock
 import { GamificationPanel } from "../components/GamificationPanel";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 import { CheckoutCampaignMedia } from "../components/checkout/CheckoutCampaignMedia";
-import { CheckoutContentArea, CheckoutModalHeader, CheckoutPrimaryActionButton } from "../components/premium/PremiumUI";
+import { CheckoutModalShell, CheckoutPrimaryActionButton } from "../components/premium/PremiumUI";
 import { checkoutService } from "../services/api";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 import { useCityDetection } from "../hooks/useCityDetection";
@@ -785,16 +785,13 @@ function CheckoutModal(props: {
   return (
     <AnimatePresence>
       {props.open && (
-        <motion.div className="checkout-modal-overlay fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <motion.div initial={{ y: 36, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 36, scale: 0.97 }} className="checkout-screen checkout-modal-shell mx-auto my-3 flex w-full flex-col overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_110px_rgba(16,185,129,0.16)] sm:my-5 sm:rounded-[2rem]">
-            <CheckoutModalHeader
-              eyebrow={props.step === "review" ? "Confirmar participacao" : props.step === "payment" ? "Pagamento PIX" : "Bilhete premium"}
-              title={`${props.tickets.toLocaleString("pt-BR")} cotas - ${formatCurrency(props.totalValue)}`}
-              onClose={props.onClose}
-              compact={props.step !== "review"}
-            />
-
-            <CheckoutContentArea>
+        <CheckoutModalShell
+          open={props.open}
+          title={`${props.tickets.toLocaleString("pt-BR")} cotas - ${formatCurrency(props.totalValue)}`}
+          eyebrow={props.step === "review" ? "Confirmar participacao" : props.step === "payment" ? "Pagamento PIX" : "Bilhete premium"}
+          onClose={props.onClose}
+          compact={props.step !== "review"}
+        >
               <div className="px-4 pt-4 sm:px-5 sm:pt-5">
                 <CheckoutCampaignMedia
                   raffle={props.raffle}
@@ -810,9 +807,7 @@ function CheckoutModal(props: {
               {props.step === "review" && <CheckoutReview {...props} />}
               {props.step === "payment" && <PaymentPix {...props} />}
               {props.step === "ticket" && <PremiumTicket {...props} />}
-            </CheckoutContentArea>
-          </motion.div>
-        </motion.div>
+        </CheckoutModalShell>
       )}
     </AnimatePresence>
   );
@@ -989,7 +984,7 @@ function FloatingActions({ settings }: { settings?: any }) {
   const groupUrl = settings?.socialLinks?.group || "";
   const whatsappUrl = settings?.socialLinks?.whatsapp || "";
   return (
-    <div className="fixed bottom-24 right-3 z-40 flex flex-col items-end gap-2 lg:bottom-5">
+    <div className="checkout-blocking-floating-actions fixed bottom-24 right-3 z-40 flex flex-col items-end gap-2 lg:bottom-5">
       {groupUrl && <a href={groupUrl} target="_blank" rel="noreferrer" className="mobile-hidden-action premium-button h-11 w-[132px] items-center justify-center gap-2 rounded-full px-4 text-sm font-black sm:inline-flex"><Users className="h-4 w-4" /> Grupo</a>}
       <a href="#contato" className="mobile-hidden-action premium-button h-11 w-[132px] items-center justify-center gap-2 rounded-full px-4 text-sm font-black sm:inline-flex"><Headphones className="h-4 w-4" /> Contato</a>
       <Link to="/minhas-cotas" className="mobile-hidden-action premium-button h-11 w-[132px] items-center justify-center gap-2 rounded-full px-4 text-sm font-black sm:inline-flex"><Ticket className="h-4 w-4" /> Meus Jogos</Link>

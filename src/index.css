@@ -115,9 +115,19 @@
 }
 
 body[data-checkout-open="true"] .public-floating-actions {
+  display: none !important;
   pointer-events: none;
-  opacity: .34;
-  transform: translateX(calc(100% - 1.25rem));
+  opacity: 0;
+}
+
+body[data-checkout-open="true"] .checkout-blocking-floating-actions {
+  display: none !important;
+  pointer-events: none;
+}
+
+body[data-checkout-open="true"] nav.premium-site-header {
+  pointer-events: none;
+  transform: translateY(-110%) !important;
 }
 
 .app-shell-content,
@@ -435,6 +445,7 @@ body[data-checkout-open="true"] .public-floating-actions {
 
 .checkout-modal-overlay,
 .checkout-receipt-overlay {
+  background-color: #020407 !important;
   padding-top: max(0.75rem, env(safe-area-inset-top));
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
   overscroll-behavior: contain;
@@ -470,7 +481,7 @@ body[data-checkout-open="true"] .public-floating-actions {
 
 .checkout-receipt-header,
 .checkout-modal-header {
-  min-height: var(--app-header-height);
+  min-height: auto;
   scroll-margin-top: calc(var(--app-header-height) + env(safe-area-inset-top));
   position: sticky;
   top: 0;
@@ -490,7 +501,7 @@ body[data-checkout-open="true"] .public-floating-actions {
 .checkout-modal-title-block {
   min-width: 0;
   max-width: 100%;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .checkout-title,
@@ -507,6 +518,13 @@ body[data-checkout-open="true"] .public-floating-actions {
 .checkout-title {
   line-height: 1.2;
   min-height: 1.2em;
+}
+
+.checkout-modal-tenant {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .checkout-content-area,
@@ -730,13 +748,7 @@ body[data-checkout-open="true"] .public-floating-actions {
 }
 
 @media (max-width: 420px) {
-  .checkout-modal-header {
-    grid-template-columns: 1fr;
-  }
-
   .checkout-modal-close {
-    width: 100%;
-    margin-top: .35rem;
     border-radius: .875rem;
   }
 }
@@ -3138,8 +3150,8 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
 
   .checkout-title,
   .checkout-modal-header h2 {
-    font-size: clamp(1.15rem, 6vw, 1.5rem) !important;
-    line-height: 1.08 !important;
+    font-size: clamp(1.05rem, 4.6vw, 1.25rem) !important;
+    line-height: 1.16 !important;
   }
 
   .checkout-receipt-body,
@@ -3297,7 +3309,6 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  .checkout-modal-title-block,
   .checkout-modal-kicker,
   .checkout-modal-title {
     display: block !important;
@@ -3311,11 +3322,28 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
     text-orientation: mixed !important;
   }
 
+  .checkout-modal-title-block {
+    display: flex !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    align-items: center !important;
+  }
+
+  .checkout-modal-logo {
+    width: 2rem !important;
+    height: 2rem !important;
+  }
+
   .checkout-modal-close {
-    grid-column: 1 / -1 !important;
-    justify-self: stretch !important;
-    width: 100% !important;
-    margin-top: .5rem !important;
+    grid-column: auto !important;
+    justify-self: end !important;
+    width: 2.5rem !important;
+    min-width: 2.5rem !important;
+    max-width: 2.5rem !important;
+    height: 2.5rem !important;
+    min-height: 2.5rem !important;
+    margin-top: 0 !important;
     position: static !important;
   }
 
