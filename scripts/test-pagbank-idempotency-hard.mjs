@@ -11,11 +11,13 @@ for (const needle of [
   "input.gateway === \"pagbank\"",
   "pagbankOrder?.id",
   "pagbankOrder?.reference_id",
+  "pagbankEndToEnd",
   "return `${input.tenant_id}:${input.gateway}:event:${String(explicitEventId)}`",
   "paymentQueue.find(job => job.tenant_id === input.tenant_id && job.idempotencyKey === idempotencyKey)",
   "Webhook PagBank duplicado ignorado por tenant/order/reference/status",
   "existingEvent?.processed",
   "payment?.status !== \"paid\"",
+  "PagBank pago sem payment interno tenant-scoped; baixa bloqueada",
   "isPaidPagbankEvent",
   "updatePaymentRecordStatus"
 ]) assert.ok(server.includes(needle), `idempotencia PagBank incompleta: ${needle}`);

@@ -5966,13 +5966,16 @@ async function startServer() {
     return config ? { config, provider: new PagbankProvider(config) } : null;
   }
 
-  function buildTenantPublicUrl(tenantId: string, pathName: string) {
+  function buildTenantPublicUrl(tenantId: string, pathName: string, forceHttps = false) {
     const explicit = String(process.env.PUBLIC_BASE_URL || process.env.APP_URL || "").replace(/\/+$/, "");
-    if (explicit) return `${explicit}${pathName.startsWith("/") ? pathName : `/${pathName}`}`;
+    if (explicit) {
+      const baseUrl = forceHttps ? explicit.replace(/^http:\/\//i, "https://") : explicit;
+      return `${baseUrl}${pathName.startsWith("/") ? pathName : `/${pathName}`}`;
+    }
     const tenant = tenants.find(item => item.id === tenantId);
     const verifiedDomain = tenantDomains.find(domain => domain.tenant_id === tenantId && domain.status === "verified" && domain.is_primary);
     const host = verifiedDomain?.domain || tenant?.dominio_customizado || tenant?.dominio || `${tenant?.slug || "rifapro"}.meudominio.com`;
-    const protocol = host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
+    const protocol = forceHttps ? "https" : host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
     return `${protocol}://${host}${pathName.startsWith("/") ? pathName : `/${pathName}`}`;
   }
 
@@ -6129,7 +6132,7 @@ async function startServer() {
       itemName: input.description || "Compra de cotas",
       amountInCents: toCents(input.amount),
       expirationDate: pixExpiresAt,
-      notificationUrl: buildTenantPublicUrl(input.tenantId, "/api/webhooks/pagbank")
+      notificationUrl: buildTenantPublicUrl(input.tenantId, "/api/webhooks/pagbank", true)
     });
     const pagbankOrderId = String(payment.id || "");
     const qrCode = pagbank.provider.parsePixQrCode(payment as Record<string, any>);
@@ -10292,10 +10295,17 @@ async function startServer() {
     const pagbankOrder = input.payload?.order && typeof input.payload.order === "object" && !Array.isArray(input.payload.order)
       ? input.payload.order as Record<string, unknown>
       : input.payload || {};
+    const pagbankCharges = Array.isArray((pagbankOrder as Record<string, any>)?.charges) ? (pagbankOrder as Record<string, any>).charges : [];
+    const pagbankEndToEnd = String(
+      (pagbankOrder as Record<string, any>)?.end_to_end ||
+      pagbankCharges[0]?.payment_response?.raw_data?.end_to_end_id ||
+      pagbankCharges[0]?.payment_response?.reference ||
+      "no-e2e"
+    );
     const explicitEventId = input.payload?.eventId || input.payload?.id || nestedDataId ||
       (input.gateway === "asaas" ? `${input.payload?.event || input.eventStatus}:${asaasPayment?.id || asaasPayment?.externalReference || input.purchaseId || "unknown"}` : "") ||
       (input.gateway === "pay2m" ? `${pay2mMessage?.reference_code || input.purchaseId || "unknown"}:${pay2mMessage?.status || input.eventStatus || "unknown"}:${pay2mMessage?.end_to_end || "no-e2e"}` : "") ||
-      (input.gateway === "pagbank" ? `${pagbankOrder?.id || "no-order"}:${pagbankOrder?.reference_id || input.purchaseId || "unknown"}:${input.eventStatus || pagbankOrder?.status || "unknown"}` : "");
+      (input.gateway === "pagbank" ? `${pagbankOrder?.id || "no-order"}:${pagbankOrder?.reference_id || input.purchaseId || "unknown"}:${input.eventStatus || pagbankOrder?.status || "unknown"}:${pagbankEndToEnd}` : "");
     if (explicitEventId) return `${input.tenant_id}:${input.gateway}:event:${String(explicitEventId)}`;
     return `${input.tenant_id}:${input.gateway}:purchase:${input.purchaseId || "unknown"}:${input.eventStatus || "unknown"}`;
   }
@@ -10774,6 +10784,17 @@ async function startServer() {
       item.provider === "pagbank" &&
       (item.provider_payment_id === parsed.orderId || item.provider_reference === parsed.referenceId || item.order_id === parsed.referenceId)
     );
+    if (parsed.shouldRelease && !payment) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: parsed.referenceId, status: "invalid", message: "PagBank pago sem payment interno tenant-scoped; baixa bloqueada", statusCode: 200, eventStatus: parsed.status });
+      const event = webhookEvents.find(item => item.id === eventKey);
+      if (event) {
+        event.processed = true;
+        event.processed_at = new Date().toISOString();
+        event.error_message = "Payment interno nao encontrado para provider_payment_id/reference_id do tenant";
+      }
+      res.status(200).json({ success: false, ignored: true, reason: "payment_not_found" });
+      return;
+    }
     const terminalStatus = ["EXPIRED", "CANCELED", "CANCELLED", "DECLINED"];
     if (terminalStatus.includes(parsed.status) && payment?.status !== "paid") {
       updatePaymentRecordStatus(tenantId, gateway, payment.order_id, parsed.status.toLowerCase(), { webhook: payload });
@@ -10796,7 +10817,7 @@ async function startServer() {
       res.json({ success: true, status: parsed.status });
       return;
     }
-    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: parsed.referenceId || payment?.order_id || undefined, eventStatus: parsed.status, payload });
+    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || undefined, eventStatus: parsed.status, payload });
     await processPaymentJob(queueJob);
     const event = webhookEvents.find(item => item.id === eventKey);
     if (event) {
@@ -10814,6 +10835,7 @@ async function startServer() {
     const reference = String(req.body.orderId || req.body.order_id || req.body.referenceId || req.body.reference_id || "").trim();
     if (!reference) return res.status(400).json({ error: "order_id/reference_id obrigatorio" });
     const payment = payments.find(item => item.tenant_id === tenantId && item.provider === "pagbank" && (item.provider_payment_id === reference || item.provider_reference === reference || item.order_id === reference));
+    if (!payment) return res.status(404).json({ error: "Pagamento PagBank nao encontrado para este tenant" });
     const pagbank = getPagbankProvider(tenantId);
     if (!pagbank) return res.status(503).json({ error: "PagBank nao configurado para este tenant" });
     try {

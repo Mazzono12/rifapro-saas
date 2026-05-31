@@ -36,7 +36,7 @@ for (const snippet of [
   "provider: \"pagbank\"",
   "provider_payment_id: pagbankOrderId",
   "provider_reference: orderId",
-  "buildTenantPublicUrl(input.tenantId, \"/api/webhooks/pagbank\")",
+  "buildTenantPublicUrl(input.tenantId, \"/api/webhooks/pagbank\", true)",
   "recordPaymentWebhookLog({ tenant_id: input.tenantId"
 ]) has(attachBlock, snippet, "Criacao PagBank deve preservar tenant");
 
@@ -52,11 +52,12 @@ for (const snippet of [
   "reference_id: parsed.referenceId",
   "item.tenant_id === tenantId",
   "item.provider === \"pagbank\"",
+  "PagBank pago sem payment interno tenant-scoped; baixa bloqueada",
   "purchases.find(item => item.tenant_id === tenantId && item.purchaseId === payment.order_id)",
   "numberModePurchases.find(item => item.tenant_id === tenantId && item.id === payment.order_id)",
   "fazendinhaCompras.find(item => item.tenant_id === tenantId && item.id === payment.order_id)",
   "raffles.find(item => item.tenant_id === tenantId && item.id === purchase.raffleId)",
-  "enqueuePaymentJob({ tenant_id: tenantId, gateway",
+  "enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id",
   "updatePaymentRecordStatus(tenantId, gateway, payment.order_id",
   "recordPaymentWebhookLog({ tenant_id: tenantId"
 ]) has(webhookBlock, snippet, "Webhook PagBank deve isolar por tenant");
@@ -76,6 +77,7 @@ for (const snippet of [
   "input.gateway === \"pagbank\"",
   "pagbankOrder?.id",
   "pagbankOrder?.reference_id",
+  "pagbankEndToEnd",
   "return `${input.tenant_id}:${input.gateway}:event:${String(explicitEventId)}`",
   "paymentQueue.find(job => job.tenant_id === input.tenant_id && job.idempotencyKey === idempotencyKey)"
 ]) has(queueBlock, snippet, "Idempotencia PagBank deve incluir tenant/provider/order/reference/status");

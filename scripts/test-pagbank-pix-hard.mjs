@@ -37,7 +37,8 @@ for (const needle of [
   "pixGateway: \"pagbank\"",
   "pixWebhookUrl: \"/api/webhooks/pagbank\"",
   "toCents(input.amount)",
-  "buildTenantPublicUrl(input.tenantId, \"/api/webhooks/pagbank\")"
+  "buildTenantPublicUrl(input.tenantId, \"/api/webhooks/pagbank\", true)",
+  "replace(/^http:\\/\\//i, \"https://\")"
 ]) assert.ok(server.includes(needle), `server sem fluxo Pix PagBank: ${needle}`);
 
 for (const needle of [
