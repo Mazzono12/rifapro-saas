@@ -54,6 +54,7 @@ import { sendMockWhatsAppMessage } from "./src/server/whatsapp/providers/mockWha
 import { sendMetaCloudWhatsAppMessage } from "./src/server/whatsapp/providers/metaCloudWhatsAppProvider";
 import { AsaasProvider } from "./src/server/payments/AsaasProvider";
 import { Pay2mProvider } from "./src/server/payments/Pay2mProvider";
+import { PagbankProvider } from "./src/server/payments/PagbankProvider";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -946,6 +947,8 @@ async function startServer() {
     status?: string;
     external_reference?: string;
     reference_code?: string;
+    provider_payment_id?: string;
+    reference_id?: string;
     end_to_end?: string;
     payload: Record<string, unknown>;
     processed: boolean;
@@ -1145,6 +1148,7 @@ async function startServer() {
     asaas_payment_id?: string;
     provider_payment_id?: string;
     provider_reference?: string;
+    qr_code_url?: string;
     billing_type: "PIX" | string;
     status: string;
     qr_code_base64?: string;
@@ -5939,6 +5943,43 @@ async function startServer() {
     return config ? { config, provider: new Pay2mProvider(config) } : null;
   }
 
+  function getPagbankGatewayConfig(tenantId: string) {
+    const config = getDefaultPaymentGatewayConfig(tenantId);
+    const provider = normalizePaymentProvider(config.provider);
+    if (provider !== "pagbank" || !config.enabled) return null;
+    const credentials = config.credentials || {};
+    const configJson = config.config_json || {};
+    const token = String(credentials.token || credentials.apiKey || credentials.api_token || config.pix_key || "");
+    if (!token || isMaskedGatewaySecret(token)) return null;
+    return {
+      environment: config.environment === "production" ? "production" as const : "sandbox" as const,
+      token,
+      webhookToken: String(config.webhook_secret || credentials.webhookToken || ""),
+      expirationMinutes: Math.max(1, Math.min(1440, Number(configJson.expirationMinutes || credentials.expirationMinutes || 15))),
+      releaseStatus: String(configJson.releaseStatus || credentials.releaseStatus || "PAID").toUpperCase(),
+      baseUrl: String(configJson.baseUrl || credentials.baseUrl || "")
+    };
+  }
+
+  function getPagbankProvider(tenantId: string) {
+    const config = getPagbankGatewayConfig(tenantId);
+    return config ? { config, provider: new PagbankProvider(config) } : null;
+  }
+
+  function buildTenantPublicUrl(tenantId: string, pathName: string) {
+    const explicit = String(process.env.PUBLIC_BASE_URL || process.env.APP_URL || "").replace(/\/+$/, "");
+    if (explicit) return `${explicit}${pathName.startsWith("/") ? pathName : `/${pathName}`}`;
+    const tenant = tenants.find(item => item.id === tenantId);
+    const verifiedDomain = tenantDomains.find(domain => domain.tenant_id === tenantId && domain.status === "verified" && domain.is_primary);
+    const host = verifiedDomain?.domain || tenant?.dominio_customizado || tenant?.dominio || `${tenant?.slug || "rifapro"}.meudominio.com`;
+    const protocol = host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
+    return `${protocol}://${host}${pathName.startsWith("/") ? pathName : `/${pathName}`}`;
+  }
+
+  function toCents(value: number) {
+    return Math.max(1, Math.round(Number(value || 0) * 100));
+  }
+
   function upsertPaymentRecord(record: PaymentRecord) {
     const current = payments.find(item => item.tenant_id === record.tenant_id && item.order_id === record.order_id && item.provider === record.provider);
     if (current) Object.assign(current, record, { id: current.id, created_at: current.created_at, updated_at: new Date().toISOString() });
@@ -6073,8 +6114,60 @@ async function startServer() {
     return payment;
   }
 
+  async function attachPagbankPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
+    const pagbank = getPagbankProvider(input.tenantId);
+    if (!pagbank || input.amount <= 0) return null;
+    const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
+    const pixExpiresAt = input.pixExpiresAt || new Date(Date.now() + pagbank.config.expirationMinutes * 60_000).toISOString();
+    const payment = await pagbank.provider.createPixPayment({
+      referenceId: orderId,
+      itemReferenceId: orderId,
+      customerName: input.customer.name,
+      customerEmail: `${String(input.customer.id || orderId).toLowerCase().replace(/[^a-z0-9._-]/g, "") || "cliente"}@rifapro.local`,
+      customerTaxId: input.customer.cpf,
+      customerPhone: input.customer.phone,
+      itemName: input.description || "Compra de cotas",
+      amountInCents: toCents(input.amount),
+      expirationDate: pixExpiresAt,
+      notificationUrl: buildTenantPublicUrl(input.tenantId, "/api/webhooks/pagbank")
+    });
+    const pagbankOrderId = String(payment.id || "");
+    const qrCode = pagbank.provider.parsePixQrCode(payment as Record<string, any>);
+    const pixPayload = qrCode.text;
+    if (!pagbankOrderId || !pixPayload) throw new Error("PagBank nao retornou id/text do QR Code PIX");
+    Object.assign(input.purchase, {
+      pixPayload,
+      pixGateway: "pagbank",
+      pixWebhookUrl: "/api/webhooks/pagbank",
+      externalReference: orderId,
+      externalPaymentId: pagbankOrderId,
+      pixQrCodeBase64: qrCode.imageUrl,
+      pixExpiresAt: qrCode.expirationDate || pixExpiresAt
+    });
+    upsertPaymentRecord({
+      id: createPublicId("PAY_"),
+      tenant_id: input.tenantId,
+      order_id: orderId,
+      provider: "pagbank",
+      provider_payment_id: pagbankOrderId,
+      provider_reference: orderId,
+      billing_type: "PIX",
+      status: pagbank.provider.parseOrderStatus(payment as Record<string, any>),
+      qr_code_base64: qrCode.imageUrl,
+      qr_code_url: qrCode.imageUrl,
+      pix_payload: pixPayload,
+      pix_copy_paste: pixPayload,
+      expiration_date: qrCode.expirationDate || pixExpiresAt,
+      raw_response: { payment },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    recordPaymentWebhookLog({ tenant_id: input.tenantId, gateway: "pagbank", purchaseId: orderId, status: "received", message: "Pedido Pix PagBank criado e QR Code gerado", statusCode: 201, eventStatus: "ORDER_CREATED" });
+    return payment;
+  }
+
   async function attachActiveGatewayPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
-    return (await attachAsaasPixToOrder(input)) || (await attachPay2mPixToOrder(input));
+    return (await attachAsaasPixToOrder(input)) || (await attachPay2mPixToOrder(input)) || (await attachPagbankPixToOrder(input));
   }
 
   function normalizeFazendinhaNumber(input: unknown) {
@@ -8897,7 +8990,7 @@ async function startServer() {
       return;
     }
 
-    const gatewayRequiresWebhook = Boolean(getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId));
+    const gatewayRequiresWebhook = Boolean(getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId));
     const paid = req.body.statusPagamento === "paid" || (!gatewayRequiresWebhook && req.body.simulatePayment !== false);
     const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
     const purchase: NumberModePurchase = {
@@ -9008,7 +9101,7 @@ async function startServer() {
       return null;
     }
 
-    const gatewayRequiresWebhook = Boolean(getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId));
+    const gatewayRequiresWebhook = Boolean(getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId));
     const paid = req.body.statusPagamento === "paid" || (!gatewayRequiresWebhook && req.body.simulatePayment !== false);
     const numeros = selectedGroups.flatMap(group => group.numeros);
     const amount = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
@@ -10196,9 +10289,13 @@ async function startServer() {
     const pay2mMessage = input.payload?.message && typeof input.payload.message === "object" && !Array.isArray(input.payload.message)
       ? input.payload.message as Record<string, unknown>
       : null;
+    const pagbankOrder = input.payload?.order && typeof input.payload.order === "object" && !Array.isArray(input.payload.order)
+      ? input.payload.order as Record<string, unknown>
+      : input.payload || {};
     const explicitEventId = input.payload?.eventId || input.payload?.id || nestedDataId ||
       (input.gateway === "asaas" ? `${input.payload?.event || input.eventStatus}:${asaasPayment?.id || asaasPayment?.externalReference || input.purchaseId || "unknown"}` : "") ||
-      (input.gateway === "pay2m" ? `${pay2mMessage?.reference_code || input.purchaseId || "unknown"}:${pay2mMessage?.status || input.eventStatus || "unknown"}:${pay2mMessage?.end_to_end || "no-e2e"}` : "");
+      (input.gateway === "pay2m" ? `${pay2mMessage?.reference_code || input.purchaseId || "unknown"}:${pay2mMessage?.status || input.eventStatus || "unknown"}:${pay2mMessage?.end_to_end || "no-e2e"}` : "") ||
+      (input.gateway === "pagbank" ? `${pagbankOrder?.id || "no-order"}:${pagbankOrder?.reference_id || input.purchaseId || "unknown"}:${input.eventStatus || pagbankOrder?.status || "unknown"}` : "");
     if (explicitEventId) return `${input.tenant_id}:${input.gateway}:event:${String(explicitEventId)}`;
     return `${input.tenant_id}:${input.gateway}:purchase:${input.purchaseId || "unknown"}:${input.eventStatus || "unknown"}`;
   }
@@ -10248,6 +10345,7 @@ async function startServer() {
     if (gateway === "mercadopago") return payload.external_reference || payload.purchaseId;
     if (gateway === "asaas") return payload.payment?.externalReference || payload.purchaseId;
     if (gateway === "pay2m") return payload.message?.external_reference || payload.external_reference || payload.purchaseId;
+    if (gateway === "pagbank") return payload.order?.reference_id || payload.reference_id || payload.referenceId || payload.purchaseId;
     return payload.purchaseId || payload.external_reference || payload.reference;
   }
 
@@ -10256,6 +10354,7 @@ async function startServer() {
       payload.status ||
       payload.payment?.status ||
       payload.message?.status ||
+      payload.order?.status ||
       payload.data?.status ||
       payload.event ||
       payload.action ||
@@ -10278,6 +10377,10 @@ async function startServer() {
     return String(rawStatus || "").toLowerCase() === "paid";
   }
 
+  function isPaidPagbankEvent(rawStatus: string) {
+    return ["PAID", "AUTHORIZED", "AVAILABLE", "COMPLETED"].includes(String(rawStatus || "").toUpperCase());
+  }
+
   async function processPaymentJob(job: PaymentQueueJob) {
     if (!["pending", "failed"].includes(job.status)) return job;
     if (job.status === "failed" && job.attempts >= job.maxAttempts) return job;
@@ -10289,7 +10392,9 @@ async function startServer() {
       ? isPaidAsaasEvent(job.tenant_id, rawStatus)
       : job.gateway === "pay2m"
         ? isPaidPay2mEvent(rawStatus)
-        : isPaidPaymentEvent(rawStatus);
+        : job.gateway === "pagbank"
+          ? isPaidPagbankEvent(rawStatus)
+          : isPaidPaymentEvent(rawStatus);
     const purchaseId = job.purchaseId || extractPaymentReference(job.gateway, job.payload as Record<string, any>);
     job.purchaseId = purchaseId || job.purchaseId;
 
@@ -10620,6 +10725,114 @@ async function startServer() {
     } catch (error) {
       recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "pay2m", purchaseId: payment?.order_id, status: "failed", message: error instanceof Error ? error.message : "Falha ao reconciliar Pay2M", statusCode: 502, eventStatus: "RECONCILE_FAILED" });
       res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao reconciliar Pay2M" });
+    }
+  });
+
+  app.post("/api/webhooks/pagbank", async (req, res) => {
+    const gateway = "pagbank";
+    const tenant = getRequestTenant(req);
+    const tenantId = tenant?.id || "unknown";
+    const pagbankConfig = tenant ? getPagbankGatewayConfig(tenant.id) : null;
+    const webhookSecret = pagbankConfig?.webhookToken || "";
+    const providedSecret = String(req.headers["x-webhook-secret"] || req.headers["pagbank-access-token"] || req.headers["authorization"] || req.query.secret || "").replace(/^Bearer\s+/i, "");
+    if (webhookSecret) {
+      const providedBuffer = Buffer.from(providedSecret);
+      const expectedBuffer = Buffer.from(webhookSecret);
+      if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "invalid", message: "PagBank webhook token invalid", statusCode: 401 });
+        res.status(200).json({ success: false, ignored: true });
+        return;
+      }
+    }
+    const payload = (req.body || {}) as Record<string, unknown>;
+    const parsed = new PagbankProvider({ token: "webhook", environment: "sandbox" }).handleWebhook(payload as Record<string, any>);
+    const eventKey = buildPaymentIdempotencyKey({ tenant_id: tenantId, gateway, purchaseId: parsed.referenceId || undefined, eventStatus: parsed.status, payload });
+    const existingEvent = webhookEvents.find(item => item.tenant_id === tenantId && String(item.provider) === "pagbank" && item.id === eventKey);
+    if (existingEvent?.processed) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: parsed.referenceId, status: "duplicate", message: "Webhook PagBank duplicado ignorado por tenant/order/reference/status", statusCode: 200, eventStatus: parsed.status });
+      res.json({ success: true, duplicate: true, eventId: eventKey });
+      return;
+    }
+    webhookEvents.unshift({
+      id: eventKey,
+      tenant_id: tenantId,
+      provider: "pagbank" as IntegrationProviderId,
+      event_type: String(payload.event || payload.event_type || "ORDER_UPDATED"),
+      status: parsed.status,
+      external_reference: parsed.referenceId,
+      reference_id: parsed.referenceId,
+      provider_payment_id: parsed.orderId,
+      end_to_end: parsed.endToEnd,
+      payload,
+      processed: false,
+      processed_at: "",
+      error_message: "",
+      created_at: new Date().toISOString()
+    });
+    const payment = payments.find(item =>
+      item.tenant_id === tenantId &&
+      item.provider === "pagbank" &&
+      (item.provider_payment_id === parsed.orderId || item.provider_reference === parsed.referenceId || item.order_id === parsed.referenceId)
+    );
+    const terminalStatus = ["EXPIRED", "CANCELED", "CANCELLED", "DECLINED"];
+    if (terminalStatus.includes(parsed.status) && payment?.status !== "paid") {
+      updatePaymentRecordStatus(tenantId, gateway, payment.order_id, parsed.status.toLowerCase(), { webhook: payload });
+      const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === payment.order_id);
+      const modePurchase = numberModePurchases.find(item => item.tenant_id === tenantId && item.id === payment.order_id);
+      const farmPurchase = fazendinhaCompras.find(item => item.tenant_id === tenantId && item.id === payment.order_id);
+      if (purchase?.status === "pending") {
+        const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === purchase.raffleId);
+        if (raffle && purchase.numeros.length) releaseReservedNumbers(raffle, purchase.numeros);
+        purchase.status = "cancelled";
+      }
+      if (modePurchase?.status === "reserved") modePurchase.status = "cancelled";
+      if (farmPurchase?.statusPagamento === "reserved") farmPurchase.statusPagamento = "cancelled";
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment.order_id, status: "ignored", message: `PagBank ${parsed.status}`, statusCode: 200, eventStatus: parsed.status });
+      const event = webhookEvents.find(item => item.id === eventKey);
+      if (event) {
+        event.processed = true;
+        event.processed_at = new Date().toISOString();
+      }
+      res.json({ success: true, status: parsed.status });
+      return;
+    }
+    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: parsed.referenceId || payment?.order_id || undefined, eventStatus: parsed.status, payload });
+    await processPaymentJob(queueJob);
+    const event = webhookEvents.find(item => item.id === eventKey);
+    if (event) {
+      event.processed = queueJob.status === "paid" || queueJob.status === "cancelled";
+      event.processed_at = new Date().toISOString();
+      event.error_message = queueJob.lastError || "";
+    }
+    if (queueJob.status === "paid") return res.json({ success: true, duplicate: Boolean(queueJob.duplicateReceipt || queueJob.result?.duplicate), jobId: queueJob.id });
+    if (queueJob.status === "cancelled") return res.json({ success: true, ignored: true, jobId: queueJob.id });
+    res.status(200).json({ success: false, queued: true, error: queueJob.lastError || "Webhook queued for retry", jobId: queueJob.id });
+  });
+
+  app.post("/api/admin/payments/pagbank/reconcile", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const reference = String(req.body.orderId || req.body.order_id || req.body.referenceId || req.body.reference_id || "").trim();
+    if (!reference) return res.status(400).json({ error: "order_id/reference_id obrigatorio" });
+    const payment = payments.find(item => item.tenant_id === tenantId && item.provider === "pagbank" && (item.provider_payment_id === reference || item.provider_reference === reference || item.order_id === reference));
+    const pagbank = getPagbankProvider(tenantId);
+    if (!pagbank) return res.status(503).json({ error: "PagBank nao configurado para este tenant" });
+    try {
+      const remote = await pagbank.provider.getPayment(payment?.provider_payment_id || reference);
+      const status = pagbank.provider.parseOrderStatus(remote as Record<string, any>);
+      const orderId = String(remote.reference_id || payment?.order_id || "");
+      if (isPaidPagbankEvent(status) && orderId) {
+        const payload = { order: remote };
+        const job = enqueuePaymentJob({ tenant_id: tenantId, gateway: "pagbank", purchaseId: orderId, eventStatus: status, payload, forceRetry: true });
+        await processPaymentJob(job);
+        return res.json({ ok: job.status === "paid", status, payment: updatePaymentRecordStatus(tenantId, "pagbank", orderId, "paid", { reconcile: remote }), job });
+      }
+      if (payment && ["EXPIRED", "CANCELED", "CANCELLED", "DECLINED"].includes(status) && payment.status !== "paid") {
+        updatePaymentRecordStatus(tenantId, "pagbank", payment.order_id, status.toLowerCase(), { reconcile: remote });
+      }
+      res.json({ ok: true, status, payment, remote });
+    } catch (error) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "pagbank", purchaseId: payment?.order_id, status: "failed", message: error instanceof Error ? error.message : "Falha ao reconciliar PagBank", statusCode: 502, eventStatus: "RECONCILE_FAILED" });
+      res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao reconciliar PagBank" });
     }
   });
 
@@ -12383,7 +12596,7 @@ async function startServer() {
     },
     active: 'mercadopago',
     mercadopago: { accessToken: '', publicKey: '', webhookUrl: '', webhookSecret: '' },
-    pagbank: { token: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
+    pagbank: { token: '', apiKey: '', webhookUrl: '/api/webhooks/pagbank', webhookSecret: '', environment: 'sandbox', expirationMinutes: '15', releaseStatus: 'PAID' },
     asaas: { apiKey: '', webhookUrl: '', webhookSecret: '' },
     infinitypay: { token: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
     pay2m: { clientId: '', clientSecret: '', webhookUrl: '/api/webhooks/pay2m', webhookSecret: '', environment: 'production', expirationTime: '1800', splitLink: '', releaseStatus: 'paid' },
@@ -12551,7 +12764,7 @@ async function startServer() {
       ...tenantPixGateways.pix,
       enabled: defaultConfig.enabled,
       sandbox: defaultConfig.environment !== "production",
-      webhookUrl: provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`,
+      webhookUrl: provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : provider === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`,
       webhookSecret: defaultConfig.webhook_secret || tenantPixGateways.pix?.webhookSecret || "",
       apiKey: defaultConfig.pix_key || tenantPixGateways.pix?.apiKey || ""
     };
@@ -12560,7 +12773,7 @@ async function startServer() {
       ...Object.fromEntries(Object.entries(defaultConfig.credentials || {}).map(([key, value]) => [key, String(value || "")])),
       ...Object.fromEntries(Object.entries(defaultConfig.config_json || {}).map(([key, value]) => [key, String(value || "")])),
       webhookSecret: defaultConfig.webhook_secret || "",
-      webhookUrl: provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`
+      webhookUrl: provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : provider === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`
     };
     if (tenantId === legacyTenantId) gateways = tenantPixGateways;
   }
@@ -12865,7 +13078,7 @@ async function startServer() {
     const gatewayConfig = (tenantPixGateways[gateway] || {}) as Record<string, string>;
     const credentialFields: Record<PixGatewayId, string[]> = {
       mercadopago: ["accessToken", "publicKey"],
-      pagbank: ["token", "apiKey"],
+      pagbank: ["token"],
       asaas: ["apiKey"],
       infinitypay: ["token", "apiKey"],
       pay2m: ["clientId", "clientSecret"],
@@ -12880,7 +13093,7 @@ async function startServer() {
     const fields = credentialFields[gateway] || [];
     const presentCredentials = fields.filter(field => Boolean(gatewayConfig[field]));
     const webhookUrl = gatewayConfig.webhookUrl || String(pixConfig.webhookUrl || "") || `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`;
-    const recommendedWebhookPath = gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : `/api/webhooks/payment/${gateway}`;
+    const recommendedWebhookPath = gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `/api/webhooks/payment/${gateway}`;
     const issues = [
       ...(!pixConfig.enabled ? ["PIX global está desabilitado"] : []),
       ...(presentCredentials.length === 0 && !pixConfig.apiKey ? ["Nenhuma credencial/API key configurada para este gateway"] : []),
@@ -12900,6 +13113,14 @@ async function startServer() {
         recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "pay2m", status: "received", message: "Conexao Pay2M testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
       } catch (error) {
         issues.push(error instanceof Error ? error.message : "Falha ao testar conexao Pay2M");
+      }
+    }
+    if (gateway === "pagbank" && issues.length === 0) {
+      try {
+        await getPagbankProvider(tenantId)?.provider.testConnection();
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "pagbank", status: "received", message: "Conexao PagBank testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
+      } catch (error) {
+        issues.push(error instanceof Error ? error.message : "Falha ao testar conexao PagBank");
       }
     }
     res.json({
@@ -12960,8 +13181,8 @@ async function startServer() {
     updatedGateways.active = normalizePaymentProvider(req.body.active || req.body.pix?.gateway || updatedGateways.active);
     updatedGateways.pix = {
       ...updatedGateways.pix,
-      sandbox: updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.active === "pay2m" ? updatedGateways.pay2m?.environment !== "production" : updatedGateways.pix?.sandbox,
-      webhookUrl: updatedGateways.active === "asaas" ? "/api/webhooks/asaas" : updatedGateways.active === "pay2m" ? "/api/webhooks/pay2m" : `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
+      sandbox: updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.active === "pay2m" ? updatedGateways.pay2m?.environment !== "production" : updatedGateways.active === "pagbank" ? updatedGateways.pagbank?.environment !== "production" : updatedGateways.pix?.sandbox,
+      webhookUrl: updatedGateways.active === "asaas" ? "/api/webhooks/asaas" : updatedGateways.active === "pay2m" ? "/api/webhooks/pay2m" : updatedGateways.active === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
     };
     tenantGateways[tenantId] = updatedGateways;
     if (tenantId === legacyTenantId) gateways = updatedGateways;

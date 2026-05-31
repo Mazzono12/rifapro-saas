@@ -14,7 +14,16 @@ const defaultGateways = {
   },
   active: "sandbox",
   mercadopago: { accessToken: "", publicKey: "", webhookUrl: "", webhookSecret: "" },
-  pagbank: { token: "", apiKey: "", webhookUrl: "", webhookSecret: "" },
+  pagbank: {
+    enabled: false,
+    environment: "sandbox",
+    token: "",
+    apiKey: "",
+    webhookUrl: "/api/webhooks/pagbank",
+    webhookSecret: "",
+    expirationMinutes: "15",
+    releaseStatus: "PAID"
+  },
   asaas: {
     enabled: false,
     environment: "sandbox",
@@ -92,12 +101,25 @@ function normalizeGateways(input: any) {
     splitLink: pay2mConfig.config_json?.splitLink || pay2mConfig.credentials?.splitLink || "",
     releaseStatus: pay2mConfig.config_json?.releaseStatus || pay2mConfig.credentials?.releaseStatus || "paid"
   } : {};
+  const pagbankConfig = Array.isArray(input?.configs)
+    ? input.configs.find((config: any) => config.provider === "pagbank")
+    : null;
+  const pagbankFromConfig = pagbankConfig ? {
+    enabled: Boolean(pagbankConfig.enabled),
+    environment: pagbankConfig.environment || "sandbox",
+    token: pagbankConfig.credentials?.token || pagbankConfig.credentials?.apiKey || "",
+    apiKey: pagbankConfig.credentials?.token || pagbankConfig.credentials?.apiKey || "",
+    webhookUrl: "/api/webhooks/pagbank",
+    webhookSecret: pagbankConfig.webhook_secret || "",
+    expirationMinutes: String(pagbankConfig.config_json?.expirationMinutes || pagbankConfig.credentials?.expirationMinutes || "15"),
+    releaseStatus: pagbankConfig.config_json?.releaseStatus || pagbankConfig.credentials?.releaseStatus || "PAID"
+  } : {};
   return {
     ...defaultGateways,
     ...(input || {}),
     pix: { ...defaultGateways.pix, ...(input?.pix || {}) },
     mercadopago: { ...defaultGateways.mercadopago, ...(input?.mercadopago || {}) },
-    pagbank: { ...defaultGateways.pagbank, ...(input?.pagbank || {}) },
+    pagbank: { ...defaultGateways.pagbank, ...(input?.pagbank || {}), ...pagbankFromConfig },
     asaas: { ...defaultGateways.asaas, ...(input?.asaas || {}), ...asaasFromConfig },
     infinitypay: { ...defaultGateways.infinitypay, ...(input?.infinitypay || {}) },
     pay2m: { ...defaultGateways.pay2m, ...(input?.pay2m || {}), ...pay2mFromConfig },
@@ -137,19 +159,23 @@ export function AdminPaymentGateways() {
         provider: normalized.active,
         display_name: gatewayLabels[normalized.active] || normalized.active,
         enabled: Boolean(normalized.pix?.enabled),
-        environment: normalized.active === "asaas" ? normalized.asaas.environment : normalized.active === "pay2m" ? normalized.pay2m.environment : (normalized.pix?.sandbox ? "sandbox" : "production"),
+        environment: normalized.active === "asaas" ? normalized.asaas.environment : normalized.active === "pay2m" ? normalized.pay2m.environment : normalized.active === "pagbank" ? normalized.pagbank.environment : (normalized.pix?.sandbox ? "sandbox" : "production"),
         credentials: normalized.active === "asaas"
           ? { apiKey: normalized.asaas.apiKey, userAgent: normalized.asaas.userAgent, paymentMode: normalized.asaas.paymentMode, orderExpirationMinutes: normalized.asaas.orderExpirationMinutes, releaseMode: normalized.asaas.releaseMode }
           : normalized.active === "pay2m"
             ? { clientId: normalized.pay2m.clientId, clientSecret: normalized.pay2m.clientSecret, expirationTime: normalized.pay2m.expirationTime, splitLink: normalized.pay2m.splitLink, releaseStatus: normalized.pay2m.releaseStatus }
+          : normalized.active === "pagbank"
+            ? { token: normalized.pagbank.token || normalized.pagbank.apiKey, expirationMinutes: normalized.pagbank.expirationMinutes, releaseStatus: normalized.pagbank.releaseStatus }
           : normalized[normalized.active],
-        webhook_secret: normalized.active === "asaas" ? normalized.asaas.webhookSecret : normalized.active === "pay2m" ? normalized.pay2m.webhookSecret : normalized.pix?.webhookSecret,
-        pix_key: normalized.active === "asaas" || normalized.active === "pay2m" ? "" : normalized.pix?.apiKey,
+        webhook_secret: normalized.active === "asaas" ? normalized.asaas.webhookSecret : normalized.active === "pay2m" ? normalized.pay2m.webhookSecret : normalized.active === "pagbank" ? normalized.pagbank.webhookSecret : normalized.pix?.webhookSecret,
+        pix_key: normalized.active === "asaas" || normalized.active === "pay2m" || normalized.active === "pagbank" ? "" : normalized.pix?.apiKey,
         is_default: true,
         config_json: normalized.active === "asaas"
           ? { userAgent: normalized.asaas.userAgent, releaseMode: normalized.asaas.releaseMode, paymentMode: normalized.asaas.paymentMode, orderExpirationMinutes: Number(normalized.asaas.orderExpirationMinutes || 15) }
           : normalized.active === "pay2m"
             ? { expirationTime: Math.min(3600, Number(normalized.pay2m.expirationTime || 1800)), splitLink: normalized.pay2m.splitLink, releaseStatus: normalized.pay2m.releaseStatus }
+          : normalized.active === "pagbank"
+            ? { expirationMinutes: Math.max(1, Number(normalized.pagbank.expirationMinutes || 15)), releaseStatus: normalized.pagbank.releaseStatus }
           : {}
       }];
       await fetch("/api/admin/gateways", {
@@ -181,8 +207,8 @@ export function AdminPaymentGateways() {
       active: gateway,
       pix: {
         ...normalized.pix,
-        sandbox: gateway === "asaas" ? normalized.asaas.environment !== "production" : gateway === "pay2m" ? normalized.pay2m.environment !== "production" : normalized.pix.sandbox,
-        webhookUrl: gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`
+        sandbox: gateway === "asaas" ? normalized.asaas.environment !== "production" : gateway === "pay2m" ? normalized.pay2m.environment !== "production" : gateway === "pagbank" ? normalized.pagbank.environment !== "production" : normalized.pix.sandbox,
+        webhookUrl: gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`
       }
     });
   };
@@ -321,15 +347,47 @@ export function AdminPaymentGateways() {
 
                 {/* PagBank */}
                 <div className={`p-6 rounded-2xl border transition-colors ${gateways.active === 'pagbank' ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/5 bg-white/[0.02]'}`}>
-                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-                        {gateways.active === 'pagbank' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
-                        PagBank
-                    </h3>
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <h3 className="text-lg font-medium text-white flex items-center gap-2">
+                            {gateways.active === 'pagbank' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
+                            PagBank Pix real
+                        </h3>
+                        <button type="button" onClick={() => setActiveGateway("pagbank")} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-mono uppercase text-slate-300 hover:border-emerald-400/40 hover:text-emerald-200">
+                          Usar
+                        </button>
+                    </div>
                     <div className="space-y-4">
-                        <GatewayInput label="Token" type="password" value={gateways.pagbank?.token || ''} onChange={value => updateGateway('pagbank', 'token', value)} />
-                        <GatewayInput label="API Key" type="password" value={gateways.pagbank?.apiKey || ''} onChange={value => updateGateway('pagbank', 'apiKey', value)} />
-                        <GatewayInput label="Webhook URL" value={gateways.pagbank?.webhookUrl || ''} onChange={value => updateGateway('pagbank', 'webhookUrl', value)} />
-                        <GatewayInput label="Webhook Secret" type="password" value={gateways.pagbank?.webhookSecret || ''} onChange={value => updateGateway('pagbank', 'webhookSecret', value)} />
+                        <label className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-slate-200">
+                          Ativar PagBank Pix
+                          <input type="checkbox" checked={gateways.active === "pagbank" && Boolean(gateways.pix?.enabled)} onChange={e => {
+                            const normalized = normalizeGateways(gateways);
+                            setGateways({
+                              ...normalized,
+                              active: "pagbank",
+                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.pagbank.environment !== "production", webhookUrl: "/api/webhooks/pagbank" }
+                            });
+                          }} />
+                        </label>
+                        <div>
+                          <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
+                          <select value={gateways.pagbank?.environment || "sandbox"} onChange={e => updateGateway("pagbank", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
+                            <option value="sandbox">Sandbox</option>
+                            <option value="production">Produção</option>
+                          </select>
+                        </div>
+                        <GatewayInput label="Bearer token/API token" type="password" value={gateways.pagbank?.token || gateways.pagbank?.apiKey || ''} onChange={value => {
+                          const normalized = normalizeGateways(gateways);
+                          setGateways({ ...normalized, pagbank: { ...normalized.pagbank, token: value, apiKey: value } });
+                        }} />
+                        <GatewayInput label="Webhook token opcional" type="password" value={gateways.pagbank?.webhookSecret || ''} onChange={value => updateGateway('pagbank', 'webhookSecret', value)} />
+                        <GatewayInput label="Webhook URL" value={gateways.pagbank?.webhookUrl || '/api/webhooks/pagbank'} onChange={value => updateGateway('pagbank', 'webhookUrl', value)} />
+                        <GatewayInput label="Tempo de expiração padrão (minutos)" value={gateways.pagbank?.expirationMinutes || '15'} onChange={value => updateGateway('pagbank', 'expirationMinutes', value)} />
+                        <div>
+                          <label className="block text-xs font-mono text-slate-400 mb-1">Liberar pedido quando</label>
+                          <select value={gateways.pagbank?.releaseStatus || "PAID"} onChange={e => updateGateway("pagbank", "releaseStatus", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
+                            <option value="PAID">status pago</option>
+                          </select>
+                        </div>
                     </div>
                     <GatewayTest gateway="pagbank" result={testResults.pagbank} testing={testingGateway === "pagbank"} onTest={testGateway} />
                 </div>
