@@ -56,7 +56,7 @@ const defaultGateways = {
     splitLink: "",
     releaseStatus: "paid"
   },
-  cora: { clientId: "", clientSecret: "", apiKey: "", webhookUrl: "", webhookSecret: "" },
+  cora: { enabled: false, environment: "sandbox", clientId: "", clientSecret: "", certificate: "", privateKey: "", apiKey: "", webhookUrl: "/api/webhooks/cora", webhookSecret: "", expirationMinutes: "15" },
   primepag: { clientId: "", clientSecret: "", apiKey: "", webhookUrl: "", webhookSecret: "" },
   paggue: { clientId: "", clientSecret: "", apiKey: "", webhookUrl: "", webhookSecret: "" },
   cashpay: { clientId: "", clientSecret: "", apiKey: "", webhookUrl: "", webhookSecret: "" },
@@ -136,6 +136,20 @@ function normalizeGateways(input: any) {
     expirationMinutes: String(pagbankConfig.config_json?.expirationMinutes || pagbankConfig.credentials?.expirationMinutes || "15"),
     releaseStatus: pagbankConfig.config_json?.releaseStatus || pagbankConfig.credentials?.releaseStatus || "PAID"
   } : {};
+  const coraConfig = Array.isArray(input?.configs)
+    ? input.configs.find((config: any) => config.provider === "cora")
+    : null;
+  const coraFromConfig = coraConfig ? {
+    enabled: Boolean(coraConfig.enabled),
+    environment: coraConfig.environment || "sandbox",
+    clientId: coraConfig.credentials?.clientId || coraConfig.credentials?.client_id || "",
+    clientSecret: coraConfig.credentials?.clientSecret || coraConfig.credentials?.client_secret || "",
+    certificate: coraConfig.credentials?.certificate || coraConfig.credentials?.certificado || "",
+    privateKey: coraConfig.credentials?.privateKey || coraConfig.credentials?.private_key || "",
+    webhookUrl: "/api/webhooks/cora",
+    webhookSecret: coraConfig.webhook_secret || "",
+    expirationMinutes: String(coraConfig.config_json?.expirationMinutes || coraConfig.credentials?.expirationMinutes || "15")
+  } : {};
   return {
     ...defaultGateways,
     ...(input || {}),
@@ -145,7 +159,7 @@ function normalizeGateways(input: any) {
     asaas: { ...defaultGateways.asaas, ...(input?.asaas || {}), ...asaasFromConfig },
     infinitypay: { ...defaultGateways.infinitypay, ...(input?.infinitypay || {}) },
     pay2m: { ...defaultGateways.pay2m, ...(input?.pay2m || {}), ...pay2mFromConfig },
-    cora: { ...defaultGateways.cora, ...(input?.cora || {}) },
+    cora: { ...defaultGateways.cora, ...(input?.cora || {}), ...coraFromConfig },
     primepag: { ...defaultGateways.primepag, ...(input?.primepag || {}) },
     paggue: { ...defaultGateways.paggue, ...(input?.paggue || {}) },
     cashpay: { ...defaultGateways.cashpay, ...(input?.cashpay || {}) },
@@ -181,9 +195,11 @@ export function AdminPaymentGateways() {
         provider: normalized.active,
         display_name: gatewayLabels[normalized.active] || normalized.active,
         enabled: Boolean(normalized.pix?.enabled),
-        environment: normalized.active === "mercadopago" ? normalized.mercadopago.environment : normalized.active === "asaas" ? normalized.asaas.environment : normalized.active === "pay2m" ? normalized.pay2m.environment : normalized.active === "pagbank" ? normalized.pagbank.environment : (normalized.pix?.sandbox ? "sandbox" : "production"),
+        environment: normalized.active === "cora" ? normalized.cora.environment : normalized.active === "mercadopago" ? normalized.mercadopago.environment : normalized.active === "asaas" ? normalized.asaas.environment : normalized.active === "pay2m" ? normalized.pay2m.environment : normalized.active === "pagbank" ? normalized.pagbank.environment : (normalized.pix?.sandbox ? "sandbox" : "production"),
         credentials: normalized.active === "mercadopago"
           ? { accessToken: normalized.mercadopago.accessToken, publicKey: normalized.mercadopago.publicKey, expirationMinutes: normalized.mercadopago.expirationMinutes, releaseStatus: normalized.mercadopago.releaseStatus }
+          : normalized.active === "cora"
+            ? { clientId: normalized.cora.clientId, clientSecret: normalized.cora.clientSecret, certificate: normalized.cora.certificate, privateKey: normalized.cora.privateKey, expirationMinutes: normalized.cora.expirationMinutes }
           : normalized.active === "asaas"
           ? { apiKey: normalized.asaas.apiKey, userAgent: normalized.asaas.userAgent, paymentMode: normalized.asaas.paymentMode, orderExpirationMinutes: normalized.asaas.orderExpirationMinutes, releaseMode: normalized.asaas.releaseMode }
           : normalized.active === "pay2m"
@@ -191,11 +207,13 @@ export function AdminPaymentGateways() {
           : normalized.active === "pagbank"
             ? { token: normalized.pagbank.token || normalized.pagbank.apiKey, expirationMinutes: normalized.pagbank.expirationMinutes, releaseStatus: normalized.pagbank.releaseStatus }
           : normalized[normalized.active],
-        webhook_secret: normalized.active === "mercadopago" ? normalized.mercadopago.webhookSecret : normalized.active === "asaas" ? normalized.asaas.webhookSecret : normalized.active === "pay2m" ? normalized.pay2m.webhookSecret : normalized.active === "pagbank" ? normalized.pagbank.webhookSecret : normalized.pix?.webhookSecret,
-        pix_key: normalized.active === "mercadopago" || normalized.active === "asaas" || normalized.active === "pay2m" || normalized.active === "pagbank" ? "" : normalized.pix?.apiKey,
+        webhook_secret: normalized.active === "cora" ? normalized.cora.webhookSecret : normalized.active === "mercadopago" ? normalized.mercadopago.webhookSecret : normalized.active === "asaas" ? normalized.asaas.webhookSecret : normalized.active === "pay2m" ? normalized.pay2m.webhookSecret : normalized.active === "pagbank" ? normalized.pagbank.webhookSecret : normalized.pix?.webhookSecret,
+        pix_key: normalized.active === "cora" || normalized.active === "mercadopago" || normalized.active === "asaas" || normalized.active === "pay2m" || normalized.active === "pagbank" ? "" : normalized.pix?.apiKey,
         is_default: true,
         config_json: normalized.active === "mercadopago"
           ? { expirationMinutes: Math.max(1, Number(normalized.mercadopago.expirationMinutes || 15)), releaseStatus: normalized.mercadopago.releaseStatus }
+          : normalized.active === "cora"
+            ? { expirationMinutes: Math.max(1, Number(normalized.cora.expirationMinutes || 15)) }
           : normalized.active === "asaas"
           ? { userAgent: normalized.asaas.userAgent, releaseMode: normalized.asaas.releaseMode, paymentMode: normalized.asaas.paymentMode, orderExpirationMinutes: Number(normalized.asaas.orderExpirationMinutes || 15) }
           : normalized.active === "pay2m"
@@ -233,8 +251,8 @@ export function AdminPaymentGateways() {
       active: gateway,
       pix: {
         ...normalized.pix,
-        sandbox: gateway === "mercadopago" ? normalized.mercadopago.environment !== "production" : gateway === "asaas" ? normalized.asaas.environment !== "production" : gateway === "pay2m" ? normalized.pay2m.environment !== "production" : gateway === "pagbank" ? normalized.pagbank.environment !== "production" : normalized.pix.sandbox,
-        webhookUrl: gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`
+        sandbox: gateway === "cora" ? normalized.cora.environment !== "production" : gateway === "mercadopago" ? normalized.mercadopago.environment !== "production" : gateway === "asaas" ? normalized.asaas.environment !== "production" : gateway === "pay2m" ? normalized.pay2m.environment !== "production" : gateway === "pagbank" ? normalized.pagbank.environment !== "production" : normalized.pix.sandbox,
+        webhookUrl: gateway === "cora" ? "/api/webhooks/cora" : gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`
       }
     });
   };
@@ -563,34 +581,46 @@ export function AdminPaymentGateways() {
                     <GatewayTest gateway="pay2m" result={testResults.pay2m} testing={testingGateway === "pay2m"} onTest={testGateway} />
                 </div>
 
-                 {/* Cora */}
-                 <div className={`p-6 rounded-2xl border transition-colors ${gateways.active === 'cora' ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/5 bg-white/[0.02]'}`}>
-                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-                        {gateways.active === 'cora' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
-                        Cora
-                    </h3>
+                {/* Cora */}
+                <div className={`p-6 rounded-2xl border transition-colors ${gateways.active === 'cora' ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/5 bg-white/[0.02]'}`}>
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <h3 className="text-lg font-medium text-white flex items-center gap-2">
+                            {gateways.active === 'cora' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
+                            Banco Cora Pix real
+                        </h3>
+                        <button type="button" onClick={() => setActiveGateway("cora")} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-mono uppercase text-slate-300 hover:border-emerald-400/40 hover:text-emerald-200">
+                          Usar
+                        </button>
+                    </div>
                     <div className="space-y-4">
+                        <label className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-slate-200">
+                          Ativar Cora Pix
+                          <input type="checkbox" checked={gateways.active === "cora" && Boolean(gateways.pix?.enabled)} onChange={e => {
+                            const normalized = normalizeGateways(gateways);
+                            setGateways({
+                              ...normalized,
+                              active: "cora",
+                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.cora.environment !== "production", webhookUrl: "/api/webhooks/cora" }
+                            });
+                          }} />
+                        </label>
+                        <p className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-xs text-amber-100">
+                          Banco Cora pode exigir CoraPro/Integração Direta com certificado e chave.
+                        </p>
                         <div>
-                            <label className="block text-xs font-mono text-slate-400 mb-1">Client ID</label>
-                            <input 
-                                type="text" 
-                                value={gateways.cora?.clientId || ''} 
-                                onChange={e => updateGateway('cora', 'clientId', e.target.value)}
-                                className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none"
-                            />
+                          <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
+                          <select value={gateways.cora?.environment || "sandbox"} onChange={e => updateGateway("cora", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
+                            <option value="sandbox">Sandbox</option>
+                            <option value="production">Produção</option>
+                          </select>
                         </div>
-                        <div>
-                            <label className="block text-xs font-mono text-slate-400 mb-1">Client Secret</label>
-                            <input 
-                                type="password" 
-                                value={gateways.cora?.clientSecret || ''} 
-                                onChange={e => updateGateway('cora', 'clientSecret', e.target.value)}
-                                className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none"
-                            />
-                        </div>
-                        <GatewayInput label="API Key" type="password" value={gateways.cora?.apiKey || ''} onChange={value => updateGateway('cora', 'apiKey', value)} />
-                        <GatewayInput label="Webhook URL" value={gateways.cora?.webhookUrl || ''} onChange={value => updateGateway('cora', 'webhookUrl', value)} />
-                        <GatewayInput label="Webhook Secret" type="password" value={gateways.cora?.webhookSecret || ''} onChange={value => updateGateway('cora', 'webhookSecret', value)} />
+                        <GatewayInput label="client_id" value={gateways.cora?.clientId || ''} onChange={value => updateGateway('cora', 'clientId', value)} />
+                        <GatewayInput label="client_secret" type="password" value={gateways.cora?.clientSecret || ''} onChange={value => updateGateway('cora', 'clientSecret', value)} />
+                        <GatewayInput label="Certificado PEM" type="password" value={gateways.cora?.certificate || ''} onChange={value => updateGateway('cora', 'certificate', value)} />
+                        <GatewayInput label="Chave privada PEM" type="password" value={gateways.cora?.privateKey || ''} onChange={value => updateGateway('cora', 'privateKey', value)} />
+                        <GatewayInput label="Webhook token opcional" type="password" value={gateways.cora?.webhookSecret || ''} onChange={value => updateGateway('cora', 'webhookSecret', value)} />
+                        <GatewayInput label="Webhook URL" value={gateways.cora?.webhookUrl || '/api/webhooks/cora'} onChange={value => updateGateway('cora', 'webhookUrl', value)} />
+                        <GatewayInput label="Tempo de expiração PIX (min)" value={gateways.cora?.expirationMinutes || '15'} onChange={value => updateGateway('cora', 'expirationMinutes', value)} />
                     </div>
                     <GatewayTest gateway="cora" result={testResults.cora} testing={testingGateway === "cora"} onTest={testGateway} />
                 </div>

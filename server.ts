@@ -56,6 +56,7 @@ import { AsaasProvider } from "./src/server/payments/AsaasProvider";
 import { Pay2mProvider } from "./src/server/payments/Pay2mProvider";
 import { PagbankProvider } from "./src/server/payments/PagbankProvider";
 import { MercadoPagoProvider } from "./src/server/payments/MercadoPagoProvider";
+import { CoraProvider } from "./src/server/payments/CoraProvider";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1151,6 +1152,7 @@ async function startServer() {
     provider_reference?: string;
     qr_code_url?: string;
     ticket_url?: string;
+    txid?: string;
     billing_type: "PIX" | string;
     status: string;
     qr_code_base64?: string;
@@ -5968,6 +5970,35 @@ async function startServer() {
     return config ? { config, provider: new Pay2mProvider(config) } : null;
   }
 
+  function getCoraGatewayConfig(tenantId: string) {
+    const config = getDefaultPaymentGatewayConfig(tenantId);
+    const provider = normalizePaymentProvider(config.provider);
+    if (provider !== "cora" || !config.enabled) return null;
+    const credentials = config.credentials || {};
+    const configJson = config.config_json || {};
+    const clientId = String(credentials.clientId || credentials.client_id || "");
+    const clientSecret = String(credentials.clientSecret || credentials.client_secret || "");
+    const certificate = String(credentials.certificate || credentials.certificado || "");
+    const privateKey = String(credentials.privateKey || credentials.private_key || credentials.chavePrivada || "");
+    if (!clientId || !certificate || !privateKey || isMaskedGatewaySecret(clientId) || isMaskedGatewaySecret(certificate) || isMaskedGatewaySecret(privateKey)) return null;
+    return {
+      environment: config.environment === "production" ? "production" as const : "sandbox" as const,
+      clientId,
+      clientSecret,
+      certificate,
+      privateKey,
+      webhookToken: String(config.webhook_secret || credentials.webhookToken || ""),
+      expirationMinutes: Math.max(1, Math.min(1440, Number(configJson.expirationMinutes || credentials.expirationMinutes || 15))),
+      baseUrl: String(configJson.baseUrl || credentials.baseUrl || ""),
+      tokenUrl: String(configJson.tokenUrl || credentials.tokenUrl || "")
+    };
+  }
+
+  function getCoraProvider(tenantId: string) {
+    const config = getCoraGatewayConfig(tenantId);
+    return config ? { config, provider: new CoraProvider(config) } : null;
+  }
+
   function getPagbankGatewayConfig(tenantId: string) {
     const config = getDefaultPaymentGatewayConfig(tenantId);
     const provider = normalizePaymentProvider(config.provider);
@@ -6192,6 +6223,57 @@ async function startServer() {
     return payment;
   }
 
+  async function attachCoraPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
+    const cora = getCoraProvider(input.tenantId);
+    if (!cora || input.amount <= 0) return null;
+    const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
+    const pixExpiresAt = input.pixExpiresAt || new Date(Date.now() + cora.config.expirationMinutes * 60_000).toISOString();
+    const payment = await cora.provider.createPixPayment({
+      amount: Number(input.amount.toFixed(2)),
+      customerName: input.customer.name,
+      customerEmail: `${String(input.customer.id || orderId).toLowerCase().replace(/[^a-z0-9._-]/g, "") || "cliente"}@rifapro.local`,
+      customerDocument: input.customer.cpf,
+      externalReference: orderId,
+      description: input.description || "Compra de cotas",
+      dueDate: pixExpiresAt.slice(0, 10),
+      notificationUrl: buildTenantPublicUrl(input.tenantId, "/api/webhooks/cora", true),
+      idempotencyKey: randomUUID()
+    });
+    const qrCode = cora.provider.getPixQrCode(payment as Record<string, any>);
+    const providerPaymentId = String(qrCode.id || (payment as Record<string, any>).id || orderId);
+    const txid = String(qrCode.txid || providerPaymentId);
+    if (!providerPaymentId || !qrCode.emv) throw new Error("Cora nao retornou id/emv do QR Code PIX");
+    Object.assign(input.purchase, {
+      pixPayload: qrCode.emv,
+      pixGateway: "cora",
+      pixWebhookUrl: "/api/webhooks/cora",
+      externalReference: orderId,
+      externalPaymentId: providerPaymentId,
+      pixQrCodeBase64: qrCode.base64,
+      pixExpiresAt
+    });
+    upsertPaymentRecord({
+      id: createPublicId("PAY_"),
+      tenant_id: input.tenantId,
+      order_id: orderId,
+      provider: "cora",
+      provider_payment_id: providerPaymentId,
+      provider_reference: orderId,
+      txid,
+      billing_type: "PIX",
+      status: cora.provider.parsePaymentStatus(payment as Record<string, any>) || "pending",
+      qr_code_base64: qrCode.base64,
+      pix_payload: qrCode.emv,
+      pix_copy_paste: qrCode.emv,
+      expiration_date: pixExpiresAt,
+      raw_response: { payment: { ...payment, qr_code_base64: qrCode.base64 ? "[base64]" : "" } },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    recordPaymentWebhookLog({ tenant_id: input.tenantId, gateway: "cora", purchaseId: orderId, status: "received", message: "QR Code Pix Cora criado", statusCode: 201, eventStatus: "PAYMENT_CREATED" });
+    return payment;
+  }
+
   async function attachPagbankPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
     const pagbank = getPagbankProvider(input.tenantId);
     if (!pagbank || input.amount <= 0) return null;
@@ -6245,7 +6327,7 @@ async function startServer() {
   }
 
   async function attachActiveGatewayPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
-    return (await attachMercadoPagoPixToOrder(input)) || (await attachAsaasPixToOrder(input)) || (await attachPay2mPixToOrder(input)) || (await attachPagbankPixToOrder(input));
+    return (await attachMercadoPagoPixToOrder(input)) || (await attachAsaasPixToOrder(input)) || (await attachPay2mPixToOrder(input)) || (await attachPagbankPixToOrder(input)) || (await attachCoraPixToOrder(input));
   }
 
   function normalizeFazendinhaNumber(input: unknown) {
@@ -9068,7 +9150,7 @@ async function startServer() {
       return;
     }
 
-    const gatewayRequiresWebhook = Boolean(getMercadoPagoGatewayConfig(tenantId) || getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId));
+    const gatewayRequiresWebhook = Boolean(getMercadoPagoGatewayConfig(tenantId) || getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId) || getCoraGatewayConfig(tenantId));
     const paid = req.body.statusPagamento === "paid" || (!gatewayRequiresWebhook && req.body.simulatePayment !== false);
     const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
     const purchase: NumberModePurchase = {
@@ -9179,7 +9261,7 @@ async function startServer() {
       return null;
     }
 
-    const gatewayRequiresWebhook = Boolean(getMercadoPagoGatewayConfig(tenantId) || getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId));
+    const gatewayRequiresWebhook = Boolean(getMercadoPagoGatewayConfig(tenantId) || getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId) || getCoraGatewayConfig(tenantId));
     const paid = req.body.statusPagamento === "paid" || (!gatewayRequiresWebhook && req.body.simulatePayment !== false);
     const numeros = selectedGroups.flatMap(group => group.numeros);
     const amount = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
@@ -10367,6 +10449,11 @@ async function startServer() {
     const mercadoPagoPayment = input.payload?.payment && typeof input.payload.payment === "object" && !Array.isArray(input.payload.payment)
       ? input.payload.payment as Record<string, unknown>
       : input.payload || {};
+    const coraInvoice = input.payload?.invoice && typeof input.payload.invoice === "object" && !Array.isArray(input.payload.invoice)
+      ? input.payload.invoice as Record<string, unknown>
+      : input.payload?.payment && typeof input.payload.payment === "object" && !Array.isArray(input.payload.payment)
+        ? input.payload.payment as Record<string, unknown>
+        : input.payload || {};
     const pay2mMessage = input.payload?.message && typeof input.payload.message === "object" && !Array.isArray(input.payload.message)
       ? input.payload.message as Record<string, unknown>
       : null;
@@ -10384,10 +10471,15 @@ async function startServer() {
     const asaasStatus = String(input.payload?.event || input.eventStatus || asaasPayment?.status || "unknown");
     const mercadoPagoPaymentId = String((mercadoPagoPayment as Record<string, unknown>)?.id || input.payload?.paymentId || input.purchaseId || "no-payment");
     const mercadoPagoStatus = String((mercadoPagoPayment as Record<string, unknown>)?.status || input.eventStatus || input.payload?.status || "unknown");
+    const coraPaymentId = String((coraInvoice as Record<string, unknown>)?.id || (coraInvoice as Record<string, unknown>)?.invoice_id || input.payload?.providerPaymentId || input.purchaseId || "no-payment");
+    const coraStatus = String((coraInvoice as Record<string, unknown>)?.status || input.eventStatus || input.payload?.status || "unknown");
+    const coraEndToEnd = String((coraInvoice as Record<string, unknown>)?.end_to_end || input.payload?.end_to_end || "no-e2e");
     const explicitEventId = input.gateway === "asaas"
       ? `${asaasPaymentId}:${asaasStatus}`
       : input.gateway === "mercadopago"
         ? `${mercadoPagoPaymentId}:${mercadoPagoStatus}`
+        : input.gateway === "cora"
+          ? `${coraPaymentId}:${coraStatus}:${coraEndToEnd}`
       : input.payload?.eventId || input.payload?.id || nestedDataId ||
       (input.gateway === "pay2m" ? `${pay2mMessage?.reference_code || input.purchaseId || "unknown"}:${pay2mMessage?.status || input.eventStatus || "unknown"}:${pay2mMessage?.end_to_end || "no-e2e"}` : "") ||
       (input.gateway === "pagbank" ? `${pagbankOrder?.id || "no-order"}:${pagbankOrder?.reference_id || input.purchaseId || "unknown"}:${input.eventStatus || pagbankOrder?.status || "unknown"}:${pagbankEndToEnd}` : "");
@@ -10472,6 +10564,10 @@ async function startServer() {
     return String(rawStatus || "").toLowerCase() === "approved";
   }
 
+  function isPaidCoraEvent(rawStatus: string) {
+    return ["paid", "confirmed", "received", "settled"].includes(String(rawStatus || "").toLowerCase());
+  }
+
   function isPaidPay2mEvent(rawStatus: string) {
     return String(rawStatus || "").toLowerCase() === "paid";
   }
@@ -10491,6 +10587,8 @@ async function startServer() {
       ? isPaidAsaasEvent(job.tenant_id, rawStatus)
       : job.gateway === "mercadopago"
         ? isPaidMercadoPagoEvent(rawStatus)
+        : job.gateway === "cora"
+          ? isPaidCoraEvent(rawStatus)
       : job.gateway === "pay2m"
         ? isPaidPay2mEvent(rawStatus)
         : job.gateway === "pagbank"
@@ -10904,6 +11002,133 @@ async function startServer() {
     } catch (error) {
       recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "mercadopago", purchaseId: payment.order_id, status: "failed", message: error instanceof Error ? error.message : "Falha ao reconciliar Mercado Pago", statusCode: 502, eventStatus: "RECONCILE_FAILED" });
       res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao reconciliar Mercado Pago" });
+    }
+  });
+
+  app.post("/api/webhooks/cora", async (req, res) => {
+    const gateway = "cora";
+    const tenant = getRequestTenant(req);
+    const tenantId = tenant?.id || "unknown";
+    const coraConfig = tenant ? getCoraGatewayConfig(tenant.id) : null;
+    const webhookSecret = coraConfig?.webhookToken || "";
+    const providedSecret = String(req.headers["x-webhook-secret"] || req.headers["cora-access-token"] || req.headers["authorization"] || req.query.secret || "").replace(/^Bearer\s+/i, "");
+    if (webhookSecret) {
+      const providedBuffer = Buffer.from(providedSecret);
+      const expectedBuffer = Buffer.from(webhookSecret);
+      if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "invalid", message: "Cora webhook token invalid", statusCode: 401 });
+        res.status(200).json({ success: false, ignored: true });
+        return;
+      }
+    }
+    const payload = (req.body || {}) as Record<string, unknown>;
+    const provider = tenant ? getCoraProvider(tenant.id) : null;
+    if (!provider) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "ignored", message: "Cora nao configurado para este tenant", statusCode: 200 });
+      res.status(200).json({ success: true, ignored: true });
+      return;
+    }
+    const parsed = provider.provider.handleWebhook(payload as Record<string, any>);
+    if (!parsed.providerPaymentId && !parsed.txid) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "ignored", message: "Webhook Cora sem invoice id/txid", statusCode: 200, eventStatus: parsed.status });
+      res.status(200).json({ success: true, ignored: true });
+      return;
+    }
+    let remote: Record<string, any> | null = null;
+    try {
+      remote = parsed.providerPaymentId ? await provider.provider.getPayment(parsed.providerPaymentId) : null;
+    } catch {
+      remote = null;
+    }
+    const effective = remote || payload;
+    const status = remote ? provider.provider.parsePaymentStatus(remote) : parsed.status;
+    const eventKey = buildPaymentIdempotencyKey({ tenant_id: tenantId, gateway, purchaseId: parsed.providerPaymentId || parsed.txid || undefined, eventStatus: status, payload: { ...payload, invoice: effective, end_to_end: parsed.endToEnd } });
+    const existingEvent = webhookEvents.find(item => item.tenant_id === tenantId && String(item.provider) === "cora" && item.id === eventKey);
+    if (existingEvent?.processed) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: parsed.externalReference, status: "duplicate", message: "Webhook Cora duplicado ignorado por payment/status/txid/end_to_end", statusCode: 200, eventStatus: status });
+      res.json({ success: true, duplicate: true, eventId: eventKey });
+      return;
+    }
+    webhookEvents.unshift({
+      id: eventKey,
+      tenant_id: tenantId,
+      provider: "cora" as IntegrationProviderId,
+      event_type: String((payload as Record<string, any>).event_type || "invoice.updated"),
+      status,
+      external_reference: parsed.externalReference,
+      provider_payment_id: parsed.providerPaymentId,
+      reference_id: parsed.txid,
+      end_to_end: parsed.endToEnd,
+      payload: { webhook: payload, invoice: effective },
+      processed: false,
+      processed_at: "",
+      error_message: "",
+      created_at: new Date().toISOString()
+    });
+    const payment = payments.find(item =>
+      item.tenant_id === tenantId &&
+      item.provider === "cora" &&
+      (item.provider_payment_id === parsed.providerPaymentId || item.txid === parsed.txid)
+    );
+    if (isPaidCoraEvent(status) && !payment) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: parsed.externalReference, status: "invalid", message: "Cora pago sem payment interno tenant-scoped; baixa bloqueada", statusCode: 200, eventStatus: status });
+      const event = webhookEvents.find(item => item.id === eventKey);
+      if (event) {
+        event.processed = true;
+        event.processed_at = new Date().toISOString();
+        event.error_message = "Payment interno nao encontrado para provider_payment_id/txid do tenant";
+      }
+      res.status(200).json({ success: false, ignored: true, reason: "payment_not_found" });
+      return;
+    }
+    if (["expired", "cancelled", "canceled", "voided"].includes(String(status || "").toLowerCase()) && payment?.status !== "paid") {
+      updatePaymentRecordStatus(tenantId, gateway, payment?.order_id || parsed.providerPaymentId || parsed.txid, status, { webhook: payload, invoice: effective });
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || parsed.externalReference, status: "ignored", message: `Cora ${status}`, statusCode: 200, eventStatus: status });
+      const event = webhookEvents.find(item => item.id === eventKey);
+      if (event) {
+        event.processed = true;
+        event.processed_at = new Date().toISOString();
+      }
+      res.json({ success: true, status });
+      return;
+    }
+    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || undefined, eventStatus: status, payload: { ...payload, invoice: effective } });
+    await processPaymentJob(queueJob);
+    const event = webhookEvents.find(item => item.id === eventKey);
+    if (event) {
+      event.processed = queueJob.status === "paid" || queueJob.status === "cancelled";
+      event.processed_at = new Date().toISOString();
+      event.error_message = queueJob.lastError || "";
+    }
+    if (queueJob.status === "paid") return res.json({ success: true, duplicate: Boolean(queueJob.duplicateReceipt || queueJob.result?.duplicate), jobId: queueJob.id });
+    if (queueJob.status === "cancelled") return res.json({ success: true, ignored: true, jobId: queueJob.id });
+    res.status(200).json({ success: false, queued: true, error: queueJob.lastError || "Webhook queued for retry", jobId: queueJob.id });
+  });
+
+  app.post("/api/admin/payments/cora/reconcile", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const reference = String(req.body.provider_payment_id || req.body.paymentId || req.body.txid || "").trim();
+    if (!reference) return res.status(400).json({ error: "provider_payment_id/txid obrigatorio" });
+    const payment = payments.find(item => item.tenant_id === tenantId && item.provider === "cora" && (item.provider_payment_id === reference || item.txid === reference || item.provider_reference === reference));
+    if (!payment) return res.status(404).json({ error: "Pagamento Cora nao encontrado para este tenant" });
+    const cora = getCoraProvider(tenantId);
+    if (!cora) return res.status(503).json({ error: "Cora nao configurado para este tenant" });
+    try {
+      const remote = await cora.provider.getPayment(payment.provider_payment_id || reference);
+      const status = cora.provider.parsePaymentStatus(remote);
+      if (isPaidCoraEvent(status)) {
+        const payload = { invoice: remote };
+        const job = enqueuePaymentJob({ tenant_id: tenantId, gateway: "cora", purchaseId: payment.order_id, eventStatus: status, payload, forceRetry: true });
+        await processPaymentJob(job);
+        return res.json({ ok: job.status === "paid", status, payment: updatePaymentRecordStatus(tenantId, "cora", payment.order_id, "paid", { reconcile: remote }), job });
+      }
+      if (["expired", "cancelled", "canceled", "voided"].includes(status) && payment.status !== "paid") {
+        updatePaymentRecordStatus(tenantId, "cora", payment.order_id, status, { reconcile: remote });
+      }
+      res.json({ ok: true, status, payment, remote });
+    } catch (error) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "cora", purchaseId: payment.order_id, status: "failed", message: error instanceof Error ? error.message : "Falha ao reconciliar Cora", statusCode: 502, eventStatus: "RECONCILE_FAILED" });
+      res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao reconciliar Cora" });
     }
   });
 
@@ -13384,7 +13609,7 @@ async function startServer() {
       asaas: ["apiKey"],
       infinitypay: ["token", "apiKey"],
       pay2m: ["clientId", "clientSecret"],
-      cora: ["clientId", "clientSecret", "apiKey"],
+      cora: ["clientId", "clientSecret", "certificate", "privateKey", "apiKey"],
       primepag: ["clientId", "clientSecret", "apiKey"],
       paggue: ["clientId", "clientSecret", "apiKey"],
       cashpay: ["clientId", "clientSecret", "apiKey"],
@@ -13395,7 +13620,7 @@ async function startServer() {
     const fields = credentialFields[gateway] || [];
     const presentCredentials = fields.filter(field => Boolean(gatewayConfig[field]));
     const webhookUrl = gatewayConfig.webhookUrl || String(pixConfig.webhookUrl || "") || `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`;
-    const recommendedWebhookPath = gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `/api/webhooks/payment/${gateway}`;
+    const recommendedWebhookPath = gateway === "cora" ? "/api/webhooks/cora" : gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `/api/webhooks/payment/${gateway}`;
     const issues = [
       ...(!pixConfig.enabled ? ["PIX global está desabilitado"] : []),
       ...(presentCredentials.length === 0 && !pixConfig.apiKey ? ["Nenhuma credencial/API key configurada para este gateway"] : []),
@@ -13431,6 +13656,14 @@ async function startServer() {
         recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "mercadopago", status: "received", message: "Conexao Mercado Pago testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
       } catch (error) {
         issues.push(error instanceof Error ? error.message : "Falha ao testar conexao Mercado Pago");
+      }
+    }
+    if (gateway === "cora" && issues.length === 0) {
+      try {
+        await getCoraProvider(tenantId)?.provider.testConnection();
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "cora", status: "received", message: "Conexao Cora testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
+      } catch (error) {
+        issues.push(error instanceof Error ? error.message : "Falha ao testar conexao Cora");
       }
     }
     res.json({
@@ -13491,8 +13724,8 @@ async function startServer() {
     updatedGateways.active = normalizePaymentProvider(req.body.active || req.body.pix?.gateway || updatedGateways.active);
     updatedGateways.pix = {
       ...updatedGateways.pix,
-      sandbox: updatedGateways.active === "mercadopago" ? updatedGateways.mercadopago?.environment !== "production" : updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.active === "pay2m" ? updatedGateways.pay2m?.environment !== "production" : updatedGateways.active === "pagbank" ? updatedGateways.pagbank?.environment !== "production" : updatedGateways.pix?.sandbox,
-      webhookUrl: updatedGateways.active === "mercadopago" ? "/api/webhooks/mercadopago" : updatedGateways.active === "asaas" ? "/api/webhooks/asaas" : updatedGateways.active === "pay2m" ? "/api/webhooks/pay2m" : updatedGateways.active === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
+      sandbox: updatedGateways.active === "cora" ? updatedGateways.cora?.environment !== "production" : updatedGateways.active === "mercadopago" ? updatedGateways.mercadopago?.environment !== "production" : updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.active === "pay2m" ? updatedGateways.pay2m?.environment !== "production" : updatedGateways.active === "pagbank" ? updatedGateways.pagbank?.environment !== "production" : updatedGateways.pix?.sandbox,
+      webhookUrl: updatedGateways.active === "cora" ? "/api/webhooks/cora" : updatedGateways.active === "mercadopago" ? "/api/webhooks/mercadopago" : updatedGateways.active === "asaas" ? "/api/webhooks/asaas" : updatedGateways.active === "pay2m" ? "/api/webhooks/pay2m" : updatedGateways.active === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
     };
     tenantGateways[tenantId] = updatedGateways;
     if (tenantId === legacyTenantId) gateways = updatedGateways;
