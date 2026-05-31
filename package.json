@@ -70,6 +70,7 @@
     "test:pay2m-webhook-hard": "node scripts/test-pay2m-webhook-hard.mjs",
     "test:pay2m-idempotency-hard": "node scripts/test-pay2m-idempotency-hard.mjs",
     "test:pay2m-checkout-hard": "node scripts/test-pay2m-checkout-hard.mjs",
+    "test:pay2m-multitenant-isolation-hard": "node scripts/test-pay2m-multitenant-isolation-hard.mjs",
     "test:payment-gateways-hard": "node scripts/test-payment-gateways-hard.mjs",
     "test:production-readiness": "node scripts/test-hard-suite.mjs production-readiness",
     "test:superadmin-finance": "node scripts/test-superadmin-finance.mjs",
