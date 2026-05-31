@@ -53,6 +53,7 @@ import {
 import { sendMockWhatsAppMessage } from "./src/server/whatsapp/providers/mockWhatsAppProvider";
 import { sendMetaCloudWhatsAppMessage } from "./src/server/whatsapp/providers/metaCloudWhatsAppProvider";
 import { AsaasProvider } from "./src/server/payments/AsaasProvider";
+import { Pay2mProvider } from "./src/server/payments/Pay2mProvider";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -942,6 +943,10 @@ async function startServer() {
     tenant_id: string;
     provider: IntegrationProviderId;
     event_type: string;
+    status?: string;
+    external_reference?: string;
+    reference_code?: string;
+    end_to_end?: string;
     payload: Record<string, unknown>;
     processed: boolean;
     processed_at: string;
@@ -1138,10 +1143,15 @@ async function startServer() {
     order_id: string;
     provider: PixGatewayId | string;
     asaas_payment_id?: string;
+    provider_payment_id?: string;
+    provider_reference?: string;
     billing_type: "PIX" | string;
     status: string;
     qr_code_base64?: string;
     pix_payload?: string;
+    pix_copy_paste?: string;
+    end_to_end?: string;
+    paid_at?: string;
     expiration_date?: string;
     raw_response: Record<string, unknown>;
     created_at: string;
@@ -5903,6 +5913,32 @@ async function startServer() {
     return config ? { config, provider: new AsaasProvider(config) } : null;
   }
 
+  function getPay2mGatewayConfig(tenantId: string) {
+    const config = getDefaultPaymentGatewayConfig(tenantId);
+    const provider = normalizePaymentProvider(config.provider);
+    if (provider !== "pay2m" || !config.enabled) return null;
+    const credentials = config.credentials || {};
+    const configJson = config.config_json || {};
+    const clientId = String(credentials.clientId || credentials.client_id || "");
+    const clientSecret = String(credentials.clientSecret || credentials.client_secret || credentials.apiKey || "");
+    if (!clientId || !clientSecret || isMaskedGatewaySecret(clientId) || isMaskedGatewaySecret(clientSecret)) return null;
+    return {
+      environment: config.environment === "sandbox" ? "sandbox" as const : "production" as const,
+      clientId,
+      clientSecret,
+      webhookToken: String(config.webhook_secret || credentials.webhookToken || ""),
+      expirationTime: Math.max(1, Math.min(3600, Number(configJson.expirationTime || credentials.expirationTime || 1800))),
+      splitLink: String(configJson.splitLink || credentials.splitLink || ""),
+      releaseStatus: String(configJson.releaseStatus || credentials.releaseStatus || "paid"),
+      baseUrl: String(configJson.baseUrl || credentials.baseUrl || "https://portal.pay2m.com.br")
+    };
+  }
+
+  function getPay2mProvider(tenantId: string) {
+    const config = getPay2mGatewayConfig(tenantId);
+    return config ? { config, provider: new Pay2mProvider(config) } : null;
+  }
+
   function upsertPaymentRecord(record: PaymentRecord) {
     const current = payments.find(item => item.tenant_id === record.tenant_id && item.order_id === record.order_id && item.provider === record.provider);
     if (current) Object.assign(current, record, { id: current.id, created_at: current.created_at, updated_at: new Date().toISOString() });
@@ -5912,11 +5948,19 @@ async function startServer() {
   }
 
   function updatePaymentRecordStatus(tenantId: string, provider: string, orderId: string, status: string, rawResponse: Record<string, unknown> = {}) {
-    const payment = payments.find(item => item.tenant_id === tenantId && item.provider === provider && item.order_id === orderId);
+    const payment = payments.find(item =>
+      item.tenant_id === tenantId &&
+      item.provider === provider &&
+      (item.order_id === orderId || item.provider_payment_id === orderId || item.provider_reference === orderId || item.asaas_payment_id === orderId)
+    );
     if (payment) {
       payment.status = status;
       payment.raw_response = { ...(payment.raw_response || {}), ...rawResponse };
       payment.updated_at = new Date().toISOString();
+      if (status === "paid" && !payment.paid_at) payment.paid_at = new Date().toISOString();
+      const payload = rawResponse.webhook && typeof rawResponse.webhook === "object" ? rawResponse.webhook as Record<string, any> : {};
+      const message = payload.message && typeof payload.message === "object" ? payload.message : {};
+      if (message.end_to_end) payment.end_to_end = String(message.end_to_end);
     }
     return payment;
   }
@@ -5968,10 +6012,13 @@ async function startServer() {
       order_id: orderId,
       provider: "asaas",
       asaas_payment_id: asaasPaymentId,
+      provider_payment_id: asaasPaymentId,
+      provider_reference: asaasPaymentId,
       billing_type: "PIX",
       status: String(payment.status || "PENDING"),
       qr_code_base64: qrCode.encodedImage || "",
       pix_payload: pixPayload,
+      pix_copy_paste: pixPayload,
       expiration_date: pixExpiresAt,
       raw_response: { payment, qrCode: { ...qrCode, encodedImage: qrCode.encodedImage ? "[base64]" : "" } },
       created_at: new Date().toISOString(),
@@ -5979,6 +6026,55 @@ async function startServer() {
     });
     recordPaymentWebhookLog({ tenant_id: input.tenantId, gateway: "asaas", purchaseId: orderId, status: "received", message: "Cobranca Pix Asaas criada e QR Code gerado", statusCode: 201, eventStatus: "PAYMENT_CREATED" });
     return { payment, qrCode };
+  }
+
+  async function attachPay2mPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
+    const pay2m = getPay2mProvider(input.tenantId);
+    if (!pay2m || input.amount <= 0) return null;
+    const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
+    const payment = await pay2m.provider.createPixPayment({
+      value: Number(input.amount.toFixed(2)),
+      generatorName: input.customer.name,
+      generatorDocument: input.customer.cpf,
+      externalReference: orderId,
+      expirationTime: pay2m.config.expirationTime,
+      payerMessage: input.description,
+      splitLink: pay2m.config.splitLink || undefined
+    });
+    const referenceCode = String(payment.reference_code || "");
+    const pixPayload = String(payment.content || "");
+    if (!referenceCode || !pixPayload) throw new Error("Pay2M nao retornou reference_code/content");
+    const pixExpiresAt = input.pixExpiresAt || new Date(Date.now() + pay2m.config.expirationTime * 1000).toISOString();
+    Object.assign(input.purchase, {
+      pixPayload,
+      pixGateway: "pay2m",
+      pixWebhookUrl: "/api/webhooks/pay2m",
+      externalReference: orderId,
+      externalPaymentId: referenceCode,
+      pixExpiresAt
+    });
+    upsertPaymentRecord({
+      id: createPublicId("PAY_"),
+      tenant_id: input.tenantId,
+      order_id: orderId,
+      provider: "pay2m",
+      provider_payment_id: referenceCode,
+      provider_reference: referenceCode,
+      billing_type: "PIX",
+      status: "awaiting_payment",
+      pix_payload: pixPayload,
+      pix_copy_paste: pixPayload,
+      expiration_date: pixExpiresAt,
+      raw_response: { payment },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    recordPaymentWebhookLog({ tenant_id: input.tenantId, gateway: "pay2m", purchaseId: orderId, status: "received", message: "Cobranca Pix Pay2M criada", statusCode: 201, eventStatus: "awaiting_payment" });
+    return payment;
+  }
+
+  async function attachActiveGatewayPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
+    return (await attachAsaasPixToOrder(input)) || (await attachPay2mPixToOrder(input));
   }
 
   function normalizeFazendinhaNumber(input: unknown) {
@@ -8523,7 +8619,7 @@ async function startServer() {
     }
 
     try {
-      await attachAsaasPixToOrder({
+      await attachActiveGatewayPixToOrder({
         tenantId,
         purchase,
         customer,
@@ -8801,8 +8897,8 @@ async function startServer() {
       return;
     }
 
-    const asaasEnabled = Boolean(getAsaasGatewayConfig(tenantId));
-    const paid = req.body.statusPagamento === "paid" || (!asaasEnabled && req.body.simulatePayment !== false);
+    const gatewayRequiresWebhook = Boolean(getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId));
+    const paid = req.body.statusPagamento === "paid" || (!gatewayRequiresWebhook && req.body.simulatePayment !== false);
     const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
     const purchase: NumberModePurchase = {
       id: createPublicId("MO_"),
@@ -8818,7 +8914,7 @@ async function startServer() {
       refCode: req.body.refCode
     };
     try {
-      await attachAsaasPixToOrder({
+      await attachActiveGatewayPixToOrder({
         tenantId,
         purchase,
         customer,
@@ -8912,8 +9008,8 @@ async function startServer() {
       return null;
     }
 
-    const asaasEnabled = Boolean(getAsaasGatewayConfig(tenantId));
-    const paid = req.body.statusPagamento === "paid" || (!asaasEnabled && req.body.simulatePayment !== false);
+    const gatewayRequiresWebhook = Boolean(getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId));
+    const paid = req.body.statusPagamento === "paid" || (!gatewayRequiresWebhook && req.body.simulatePayment !== false);
     const numeros = selectedGroups.flatMap(group => group.numeros);
     const amount = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
     const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
@@ -8965,7 +9061,7 @@ async function startServer() {
     }
 
     try {
-      await attachAsaasPixToOrder({
+      await attachActiveGatewayPixToOrder({
         tenantId,
         purchase,
         customer,
@@ -10097,7 +10193,12 @@ async function startServer() {
     const asaasPayment = input.payload?.payment && typeof input.payload.payment === "object" && !Array.isArray(input.payload.payment)
       ? input.payload.payment as Record<string, unknown>
       : null;
-    const explicitEventId = input.payload?.eventId || input.payload?.id || nestedDataId || (input.gateway === "asaas" ? `${input.payload?.event || input.eventStatus}:${asaasPayment?.id || asaasPayment?.externalReference || input.purchaseId || "unknown"}` : "");
+    const pay2mMessage = input.payload?.message && typeof input.payload.message === "object" && !Array.isArray(input.payload.message)
+      ? input.payload.message as Record<string, unknown>
+      : null;
+    const explicitEventId = input.payload?.eventId || input.payload?.id || nestedDataId ||
+      (input.gateway === "asaas" ? `${input.payload?.event || input.eventStatus}:${asaasPayment?.id || asaasPayment?.externalReference || input.purchaseId || "unknown"}` : "") ||
+      (input.gateway === "pay2m" ? `${pay2mMessage?.reference_code || input.purchaseId || "unknown"}:${pay2mMessage?.status || input.eventStatus || "unknown"}:${pay2mMessage?.end_to_end || "no-e2e"}` : "");
     if (explicitEventId) return `${input.tenant_id}:${input.gateway}:event:${String(explicitEventId)}`;
     return `${input.tenant_id}:${input.gateway}:purchase:${input.purchaseId || "unknown"}:${input.eventStatus || "unknown"}`;
   }
@@ -10146,6 +10247,7 @@ async function startServer() {
   function extractPaymentReference(gateway: string, payload: Record<string, any>) {
     if (gateway === "mercadopago") return payload.external_reference || payload.purchaseId;
     if (gateway === "asaas") return payload.payment?.externalReference || payload.purchaseId;
+    if (gateway === "pay2m") return payload.message?.external_reference || payload.external_reference || payload.purchaseId;
     return payload.purchaseId || payload.external_reference || payload.reference;
   }
 
@@ -10153,6 +10255,7 @@ async function startServer() {
     return String(
       payload.status ||
       payload.payment?.status ||
+      payload.message?.status ||
       payload.data?.status ||
       payload.event ||
       payload.action ||
@@ -10171,6 +10274,10 @@ async function startServer() {
     return normalized.includes("PAYMENT_RECEIVED") || normalized === "RECEIVED";
   }
 
+  function isPaidPay2mEvent(rawStatus: string) {
+    return String(rawStatus || "").toLowerCase() === "paid";
+  }
+
   async function processPaymentJob(job: PaymentQueueJob) {
     if (!["pending", "failed"].includes(job.status)) return job;
     if (job.status === "failed" && job.attempts >= job.maxAttempts) return job;
@@ -10178,7 +10285,11 @@ async function startServer() {
 
     markPaymentJob(job, "processing");
     const rawStatus = job.eventStatus || extractPaymentStatus(job.payload as Record<string, any>);
-    const isPaidEvent = job.gateway === "asaas" ? isPaidAsaasEvent(job.tenant_id, rawStatus) : isPaidPaymentEvent(rawStatus);
+    const isPaidEvent = job.gateway === "asaas"
+      ? isPaidAsaasEvent(job.tenant_id, rawStatus)
+      : job.gateway === "pay2m"
+        ? isPaidPay2mEvent(rawStatus)
+        : isPaidPaymentEvent(rawStatus);
     const purchaseId = job.purchaseId || extractPaymentReference(job.gateway, job.payload as Record<string, any>);
     job.purchaseId = purchaseId || job.purchaseId;
 
@@ -10399,6 +10510,117 @@ async function startServer() {
     if (queueJob.status === "paid") return res.json({ success: true, duplicate: Boolean(queueJob.duplicateReceipt || queueJob.result?.duplicate), jobId: queueJob.id });
     if (queueJob.status === "cancelled") return res.status(202).json({ success: true, message: "Evento Asaas recebido sem baixa", jobId: queueJob.id });
     res.status(queueJob.lastError === "Purchase not found for tenant" ? 404 : 503).json({ error: queueJob.lastError || "Webhook queued for retry", jobId: queueJob.id });
+  });
+
+  app.post("/api/webhooks/pay2m", async (req, res) => {
+    const gateway = "pay2m";
+    const tenant = getRequestTenant(req);
+    const tenantId = tenant?.id || "unknown";
+    const pay2mConfig = tenant ? getPay2mGatewayConfig(tenant.id) : null;
+    const webhookSecret = pay2mConfig?.webhookToken || "";
+    const providedSecret = String(req.headers["x-webhook-secret"] || req.headers["pay2m-access-token"] || req.headers["authorization"] || req.query.secret || "").replace(/^Bearer\s+/i, "");
+    if (webhookSecret) {
+      const providedBuffer = Buffer.from(providedSecret);
+      const expectedBuffer = Buffer.from(webhookSecret);
+      if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "invalid", message: "Pay2M webhook token invalid", statusCode: 401 });
+        res.status(200).json({ success: false, ignored: true });
+        return;
+      }
+    }
+    const payload = (req.body || {}) as Record<string, unknown>;
+    const parsed = new Pay2mProvider({ clientId: "webhook", clientSecret: "webhook", environment: "production" }).handleWebhook(payload as Record<string, any>);
+    if (parsed.notificationType !== "PIX:QRCODE") {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "ignored", message: "Pay2M notification_type invalido", statusCode: 200, eventStatus: parsed.notificationType });
+      res.status(200).json({ success: true, ignored: true });
+      return;
+    }
+    const eventKey = buildPaymentIdempotencyKey({ tenant_id: tenantId, gateway, purchaseId: parsed.externalReference || undefined, eventStatus: parsed.status, payload });
+    const existingEvent = webhookEvents.find(item => item.tenant_id === tenantId && String(item.provider) === "pay2m" && item.id === eventKey);
+    if (existingEvent?.processed) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: parsed.externalReference, status: "duplicate", message: "Webhook Pay2M duplicado ignorado por reference/status/end_to_end", statusCode: 200, eventStatus: parsed.status });
+      res.json({ success: true, duplicate: true, eventId: eventKey });
+      return;
+    }
+    webhookEvents.unshift({
+      id: eventKey,
+      tenant_id: tenantId,
+      provider: "pay2m" as IntegrationProviderId,
+      event_type: parsed.notificationType,
+      status: parsed.status,
+      external_reference: parsed.externalReference,
+      reference_code: parsed.referenceCode,
+      end_to_end: parsed.endToEnd,
+      payload,
+      processed: false,
+      processed_at: "",
+      error_message: "",
+      created_at: new Date().toISOString()
+    });
+    const payment = payments.find(item =>
+      item.tenant_id === tenantId &&
+      item.provider === "pay2m" &&
+      (item.provider_payment_id === parsed.referenceCode || item.provider_reference === parsed.referenceCode || item.order_id === parsed.externalReference)
+    );
+    if (["expired", "canceled"].includes(parsed.status) && payment?.status !== "paid") {
+      updatePaymentRecordStatus(tenantId, gateway, payment.order_id, parsed.status, { webhook: payload });
+      const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === payment.order_id);
+      const modePurchase = numberModePurchases.find(item => item.tenant_id === tenantId && item.id === payment.order_id);
+      const farmPurchase = fazendinhaCompras.find(item => item.tenant_id === tenantId && item.id === payment.order_id);
+      if (purchase?.status === "pending") {
+        const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === purchase.raffleId);
+        if (raffle && purchase.numeros.length) releaseReservedNumbers(raffle, purchase.numeros);
+        purchase.status = "cancelled";
+      }
+      if (modePurchase?.status === "reserved") modePurchase.status = "cancelled";
+      if (farmPurchase?.statusPagamento === "reserved") farmPurchase.statusPagamento = "cancelled";
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment.order_id, status: "ignored", message: `Pay2M ${parsed.status}`, statusCode: 200, eventStatus: parsed.status });
+      const event = webhookEvents.find(item => item.id === eventKey);
+      if (event) {
+        event.processed = true;
+        event.processed_at = new Date().toISOString();
+      }
+      res.json({ success: true, status: parsed.status });
+      return;
+    }
+    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: parsed.externalReference || payment?.order_id || undefined, eventStatus: parsed.status, payload });
+    await processPaymentJob(queueJob);
+    const event = webhookEvents.find(item => item.id === eventKey);
+    if (event) {
+      event.processed = queueJob.status === "paid" || queueJob.status === "cancelled";
+      event.processed_at = new Date().toISOString();
+      event.error_message = queueJob.lastError || "";
+    }
+    if (queueJob.status === "paid") return res.json({ success: true, duplicate: Boolean(queueJob.duplicateReceipt || queueJob.result?.duplicate), jobId: queueJob.id });
+    if (queueJob.status === "cancelled") return res.json({ success: true, ignored: true, jobId: queueJob.id });
+    res.status(200).json({ success: false, queued: true, error: queueJob.lastError || "Webhook queued for retry", jobId: queueJob.id });
+  });
+
+  app.post("/api/admin/payments/pay2m/reconcile", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const referenceCode = String(req.body.referenceCode || req.body.reference_code || "").trim();
+    const payment = payments.find(item => item.tenant_id === tenantId && item.provider === "pay2m" && (item.provider_payment_id === referenceCode || item.provider_reference === referenceCode));
+    if (!referenceCode) return res.status(400).json({ error: "reference_code obrigatorio" });
+    const pay2m = getPay2mProvider(tenantId);
+    if (!pay2m) return res.status(503).json({ error: "Pay2M nao configurado para este tenant" });
+    try {
+      const remote = await pay2m.provider.getPayment(referenceCode);
+      const status = String(remote.status || "").toLowerCase();
+      const orderId = String(remote.external_reference || payment?.order_id || "");
+      if (status === "paid" && orderId) {
+        const payload = { notification_type: "PIX:QRCODE", message: { ...remote, reference_code: referenceCode, external_reference: orderId } };
+        const job = enqueuePaymentJob({ tenant_id: tenantId, gateway: "pay2m", purchaseId: orderId, eventStatus: status, payload, forceRetry: true });
+        await processPaymentJob(job);
+        return res.json({ ok: job.status === "paid", status, payment: updatePaymentRecordStatus(tenantId, "pay2m", orderId, "paid", { reconcile: remote }), job });
+      }
+      if (payment && ["expired", "canceled"].includes(status) && payment.status !== "paid") {
+        updatePaymentRecordStatus(tenantId, "pay2m", payment.order_id, status, { reconcile: remote });
+      }
+      res.json({ ok: true, status, payment, remote });
+    } catch (error) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "pay2m", purchaseId: payment?.order_id, status: "failed", message: error instanceof Error ? error.message : "Falha ao reconciliar Pay2M", statusCode: 502, eventStatus: "RECONCILE_FAILED" });
+      res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao reconciliar Pay2M" });
+    }
   });
 
   // Universal Webhook for Payment Gateways (MercadoPago, Asaas, PagBank, etc)
@@ -12164,7 +12386,7 @@ async function startServer() {
     pagbank: { token: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
     asaas: { apiKey: '', webhookUrl: '', webhookSecret: '' },
     infinitypay: { token: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
-    pay2m: { token: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
+    pay2m: { clientId: '', clientSecret: '', webhookUrl: '/api/webhooks/pay2m', webhookSecret: '', environment: 'production', expirationTime: '1800', splitLink: '', releaseStatus: 'paid' },
     cora: { clientId: '', clientSecret: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
     primepag: { clientId: '', clientSecret: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
     paggue: { clientId: '', clientSecret: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
@@ -12329,7 +12551,7 @@ async function startServer() {
       ...tenantPixGateways.pix,
       enabled: defaultConfig.enabled,
       sandbox: defaultConfig.environment !== "production",
-      webhookUrl: provider === "asaas" ? "/api/webhooks/asaas" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`,
+      webhookUrl: provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`,
       webhookSecret: defaultConfig.webhook_secret || tenantPixGateways.pix?.webhookSecret || "",
       apiKey: defaultConfig.pix_key || tenantPixGateways.pix?.apiKey || ""
     };
@@ -12338,7 +12560,7 @@ async function startServer() {
       ...Object.fromEntries(Object.entries(defaultConfig.credentials || {}).map(([key, value]) => [key, String(value || "")])),
       ...Object.fromEntries(Object.entries(defaultConfig.config_json || {}).map(([key, value]) => [key, String(value || "")])),
       webhookSecret: defaultConfig.webhook_secret || "",
-      webhookUrl: provider === "asaas" ? "/api/webhooks/asaas" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`
+      webhookUrl: provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`
     };
     if (tenantId === legacyTenantId) gateways = tenantPixGateways;
   }
@@ -12646,7 +12868,7 @@ async function startServer() {
       pagbank: ["token", "apiKey"],
       asaas: ["apiKey"],
       infinitypay: ["token", "apiKey"],
-      pay2m: ["token", "apiKey"],
+      pay2m: ["clientId", "clientSecret"],
       cora: ["clientId", "clientSecret", "apiKey"],
       primepag: ["clientId", "clientSecret", "apiKey"],
       paggue: ["clientId", "clientSecret", "apiKey"],
@@ -12658,10 +12880,11 @@ async function startServer() {
     const fields = credentialFields[gateway] || [];
     const presentCredentials = fields.filter(field => Boolean(gatewayConfig[field]));
     const webhookUrl = gatewayConfig.webhookUrl || String(pixConfig.webhookUrl || "") || `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`;
+    const recommendedWebhookPath = gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : `/api/webhooks/payment/${gateway}`;
     const issues = [
       ...(!pixConfig.enabled ? ["PIX global está desabilitado"] : []),
       ...(presentCredentials.length === 0 && !pixConfig.apiKey ? ["Nenhuma credencial/API key configurada para este gateway"] : []),
-      ...(!webhookUrl.includes(`/api/webhooks/payment/${gateway}`) ? [`Webhook recomendado deve apontar para /api/webhooks/payment/${gateway}`] : []),
+      ...(!webhookUrl.includes(recommendedWebhookPath) ? [`Webhook recomendado deve apontar para ${recommendedWebhookPath}`] : []),
     ];
     if (gateway === "asaas" && issues.length === 0) {
       try {
@@ -12669,6 +12892,14 @@ async function startServer() {
         recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "asaas", status: "received", message: "Conexao Asaas testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
       } catch (error) {
         issues.push(error instanceof Error ? error.message : "Falha ao testar conexao Asaas");
+      }
+    }
+    if (gateway === "pay2m" && issues.length === 0) {
+      try {
+        await getPay2mProvider(tenantId)?.provider.testConnection();
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "pay2m", status: "received", message: "Conexao Pay2M testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
+      } catch (error) {
+        issues.push(error instanceof Error ? error.message : "Falha ao testar conexao Pay2M");
       }
     }
     res.json({
@@ -12729,8 +12960,8 @@ async function startServer() {
     updatedGateways.active = normalizePaymentProvider(req.body.active || req.body.pix?.gateway || updatedGateways.active);
     updatedGateways.pix = {
       ...updatedGateways.pix,
-      sandbox: updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.pix?.sandbox,
-      webhookUrl: updatedGateways.active === "asaas" ? "/api/webhooks/asaas" : `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
+      sandbox: updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.active === "pay2m" ? updatedGateways.pay2m?.environment !== "production" : updatedGateways.pix?.sandbox,
+      webhookUrl: updatedGateways.active === "asaas" ? "/api/webhooks/asaas" : updatedGateways.active === "pay2m" ? "/api/webhooks/pay2m" : `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
     };
     tenantGateways[tenantId] = updatedGateways;
     if (tenantId === legacyTenantId) gateways = updatedGateways;

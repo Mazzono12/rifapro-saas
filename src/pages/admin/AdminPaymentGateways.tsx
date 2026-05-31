@@ -27,7 +27,17 @@ const defaultGateways = {
     orderExpirationMinutes: "15"
   },
   infinitypay: { token: "", apiKey: "", webhookUrl: "", webhookSecret: "" },
-  pay2m: { token: "", apiKey: "", webhookUrl: "", webhookSecret: "" },
+  pay2m: {
+    enabled: false,
+    environment: "production",
+    clientId: "",
+    clientSecret: "",
+    webhookUrl: "/api/webhooks/pay2m",
+    webhookSecret: "",
+    expirationTime: "1800",
+    splitLink: "",
+    releaseStatus: "paid"
+  },
   cora: { clientId: "", clientSecret: "", apiKey: "", webhookUrl: "", webhookSecret: "" },
   primepag: { clientId: "", clientSecret: "", apiKey: "", webhookUrl: "", webhookSecret: "" },
   paggue: { clientId: "", clientSecret: "", apiKey: "", webhookUrl: "", webhookSecret: "" },
@@ -68,6 +78,20 @@ function normalizeGateways(input: any) {
     paymentMode: asaasConfig.config_json?.paymentMode || asaasConfig.credentials?.paymentMode || "pix_direct",
     orderExpirationMinutes: String(asaasConfig.config_json?.orderExpirationMinutes || asaasConfig.credentials?.orderExpirationMinutes || "15")
   } : {};
+  const pay2mConfig = Array.isArray(input?.configs)
+    ? input.configs.find((config: any) => config.provider === "pay2m")
+    : null;
+  const pay2mFromConfig = pay2mConfig ? {
+    enabled: Boolean(pay2mConfig.enabled),
+    environment: pay2mConfig.environment || "production",
+    clientId: pay2mConfig.credentials?.clientId || pay2mConfig.credentials?.client_id || "",
+    clientSecret: pay2mConfig.credentials?.clientSecret || pay2mConfig.credentials?.client_secret || pay2mConfig.credentials?.apiKey || "",
+    webhookUrl: "/api/webhooks/pay2m",
+    webhookSecret: pay2mConfig.webhook_secret || "",
+    expirationTime: String(pay2mConfig.config_json?.expirationTime || pay2mConfig.credentials?.expirationTime || "1800"),
+    splitLink: pay2mConfig.config_json?.splitLink || pay2mConfig.credentials?.splitLink || "",
+    releaseStatus: pay2mConfig.config_json?.releaseStatus || pay2mConfig.credentials?.releaseStatus || "paid"
+  } : {};
   return {
     ...defaultGateways,
     ...(input || {}),
@@ -76,7 +100,7 @@ function normalizeGateways(input: any) {
     pagbank: { ...defaultGateways.pagbank, ...(input?.pagbank || {}) },
     asaas: { ...defaultGateways.asaas, ...(input?.asaas || {}), ...asaasFromConfig },
     infinitypay: { ...defaultGateways.infinitypay, ...(input?.infinitypay || {}) },
-    pay2m: { ...defaultGateways.pay2m, ...(input?.pay2m || {}) },
+    pay2m: { ...defaultGateways.pay2m, ...(input?.pay2m || {}), ...pay2mFromConfig },
     cora: { ...defaultGateways.cora, ...(input?.cora || {}) },
     primepag: { ...defaultGateways.primepag, ...(input?.primepag || {}) },
     paggue: { ...defaultGateways.paggue, ...(input?.paggue || {}) },
@@ -113,15 +137,19 @@ export function AdminPaymentGateways() {
         provider: normalized.active,
         display_name: gatewayLabels[normalized.active] || normalized.active,
         enabled: Boolean(normalized.pix?.enabled),
-        environment: normalized.active === "asaas" ? normalized.asaas.environment : (normalized.pix?.sandbox ? "sandbox" : "production"),
+        environment: normalized.active === "asaas" ? normalized.asaas.environment : normalized.active === "pay2m" ? normalized.pay2m.environment : (normalized.pix?.sandbox ? "sandbox" : "production"),
         credentials: normalized.active === "asaas"
           ? { apiKey: normalized.asaas.apiKey, userAgent: normalized.asaas.userAgent, paymentMode: normalized.asaas.paymentMode, orderExpirationMinutes: normalized.asaas.orderExpirationMinutes, releaseMode: normalized.asaas.releaseMode }
+          : normalized.active === "pay2m"
+            ? { clientId: normalized.pay2m.clientId, clientSecret: normalized.pay2m.clientSecret, expirationTime: normalized.pay2m.expirationTime, splitLink: normalized.pay2m.splitLink, releaseStatus: normalized.pay2m.releaseStatus }
           : normalized[normalized.active],
-        webhook_secret: normalized.active === "asaas" ? normalized.asaas.webhookSecret : normalized.pix?.webhookSecret,
-        pix_key: normalized.active === "asaas" ? "" : normalized.pix?.apiKey,
+        webhook_secret: normalized.active === "asaas" ? normalized.asaas.webhookSecret : normalized.active === "pay2m" ? normalized.pay2m.webhookSecret : normalized.pix?.webhookSecret,
+        pix_key: normalized.active === "asaas" || normalized.active === "pay2m" ? "" : normalized.pix?.apiKey,
         is_default: true,
         config_json: normalized.active === "asaas"
           ? { userAgent: normalized.asaas.userAgent, releaseMode: normalized.asaas.releaseMode, paymentMode: normalized.asaas.paymentMode, orderExpirationMinutes: Number(normalized.asaas.orderExpirationMinutes || 15) }
+          : normalized.active === "pay2m"
+            ? { expirationTime: Math.min(3600, Number(normalized.pay2m.expirationTime || 1800)), splitLink: normalized.pay2m.splitLink, releaseStatus: normalized.pay2m.releaseStatus }
           : {}
       }];
       await fetch("/api/admin/gateways", {
@@ -153,8 +181,8 @@ export function AdminPaymentGateways() {
       active: gateway,
       pix: {
         ...normalized.pix,
-        sandbox: gateway === "asaas" ? normalized.asaas.environment !== "production" : normalized.pix.sandbox,
-        webhookUrl: gateway === "asaas" ? "/api/webhooks/asaas" : `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`
+        sandbox: gateway === "asaas" ? normalized.asaas.environment !== "production" : gateway === "pay2m" ? normalized.pay2m.environment !== "production" : normalized.pix.sandbox,
+        webhookUrl: gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`
       }
     });
   };
@@ -377,15 +405,46 @@ export function AdminPaymentGateways() {
 
                 {/* Pay2M */}
                 <div className={`p-6 rounded-2xl border transition-colors ${gateways.active === 'pay2m' ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/5 bg-white/[0.02]'}`}>
-                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-                        {gateways.active === 'pay2m' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
-                        Pay2M
-                    </h3>
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <h3 className="text-lg font-medium text-white flex items-center gap-2">
+                            {gateways.active === 'pay2m' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
+                            Pay2M Pix real
+                        </h3>
+                        <button type="button" onClick={() => setActiveGateway("pay2m")} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-mono uppercase text-slate-300 hover:border-emerald-400/40 hover:text-emerald-200">
+                          Usar
+                        </button>
+                    </div>
                     <div className="space-y-4">
-                        <GatewayInput label="Token" type="password" value={gateways.pay2m?.token || ''} onChange={value => updateGateway('pay2m', 'token', value)} />
-                        <GatewayInput label="API Key" type="password" value={gateways.pay2m?.apiKey || ''} onChange={value => updateGateway('pay2m', 'apiKey', value)} />
-                        <GatewayInput label="Webhook URL" value={gateways.pay2m?.webhookUrl || ''} onChange={value => updateGateway('pay2m', 'webhookUrl', value)} />
-                        <GatewayInput label="Webhook Secret" type="password" value={gateways.pay2m?.webhookSecret || ''} onChange={value => updateGateway('pay2m', 'webhookSecret', value)} />
+                        <label className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-slate-200">
+                          Ativar Pay2M Pix
+                          <input type="checkbox" checked={gateways.active === "pay2m" && Boolean(gateways.pix?.enabled)} onChange={e => {
+                            const normalized = normalizeGateways(gateways);
+                            setGateways({
+                              ...normalized,
+                              active: "pay2m",
+                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.pay2m.environment !== "production", webhookUrl: "/api/webhooks/pay2m" }
+                            });
+                          }} />
+                        </label>
+                        <div>
+                          <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
+                          <select value={gateways.pay2m?.environment || "production"} onChange={e => updateGateway("pay2m", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
+                            <option value="sandbox">Sandbox</option>
+                            <option value="production">Produção</option>
+                          </select>
+                        </div>
+                        <GatewayInput label="CLIENT_ID" value={gateways.pay2m?.clientId || ''} onChange={value => updateGateway('pay2m', 'clientId', value)} />
+                        <GatewayInput label="CLIENT_SECRET" type="password" value={gateways.pay2m?.clientSecret || ''} onChange={value => updateGateway('pay2m', 'clientSecret', value)} />
+                        <GatewayInput label="Webhook token opcional" type="password" value={gateways.pay2m?.webhookSecret || ''} onChange={value => updateGateway('pay2m', 'webhookSecret', value)} />
+                        <GatewayInput label="Webhook URL" value={gateways.pay2m?.webhookUrl || '/api/webhooks/pay2m'} onChange={value => updateGateway('pay2m', 'webhookUrl', value)} />
+                        <GatewayInput label="Expiration time (segundos, max 3600)" value={gateways.pay2m?.expirationTime || '1800'} onChange={value => updateGateway('pay2m', 'expirationTime', value)} />
+                        <GatewayInput label="Split link opcional" value={gateways.pay2m?.splitLink || ''} onChange={value => updateGateway('pay2m', 'splitLink', value)} />
+                        <div>
+                          <label className="block text-xs font-mono text-slate-400 mb-1">Liberar pedido quando</label>
+                          <select value={gateways.pay2m?.releaseStatus || "paid"} onChange={e => updateGateway("pay2m", "releaseStatus", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
+                            <option value="paid">status = paid</option>
+                          </select>
+                        </div>
                     </div>
                     <GatewayTest gateway="pay2m" result={testResults.pay2m} testing={testingGateway === "pay2m"} onTest={testGateway} />
                 </div>
