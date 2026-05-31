@@ -13,20 +13,24 @@ const migration40 = read("supabase/migrations/40_pay2m_pix_gateway.sql");
 const migration41 = read("supabase/migrations/41_pagbank_pix_gateway.sql");
 const migrationMp = read("supabase/migrations/42_mercadopago_pix_gateway.sql");
 const migrationCora = read("supabase/migrations/43_cora_pix_gateway.sql");
+const migrationPrimepag = read("supabase/migrations/44_primepag_pix_gateway.sql");
 const docs = read("docs/pay2m-pix-integration.md");
 const pagbankDocs = read("docs/pagbank-pix-integration.md");
 const mercadoPagoDocs = read("docs/mercadopago-pix-integration.md");
 const coraDocs = read("docs/cora-pix-integration.md");
+const primepagDocs = read("docs/primepag-pix-integration.md");
 
 for (const needle of [
   "Mercado Pago Pix real",
   "Pay2M Pix real",
   "PagBank Pix real",
   "Banco Cora Pix real",
+  "PrimePag Pix real",
   "Ativar Mercado Pago Pix",
   "Ativar Pay2M Pix",
   "Ativar PagBank Pix",
   "Ativar Cora Pix",
+  "Ativar PrimePag Pix",
   "Ambiente",
   "CLIENT_ID",
   "CLIENT_SECRET",
@@ -34,6 +38,8 @@ for (const needle of [
   "Certificado PEM",
   "Chave privada PEM",
   "Banco Cora pode exigir CoraPro/Integração Direta com certificado e chave",
+  "Webhook authorization token",
+  "PrimePag gera PIX interno com copia e cola",
   "Webhook token opcional",
   "Expiração PIX (minutos)",
   "Expiration time (segundos, max 3600)",
@@ -56,10 +62,12 @@ for (const needle of [
   "pagbank: [\"token\"]",
   "mercadopago: [\"accessToken\", \"publicKey\"]",
   "cora: [\"clientId\", \"clientSecret\", \"certificate\", \"privateKey\", \"apiKey\"]",
+  "primepag: [\"clientId\", \"clientSecret\", \"accessToken\", \"apiKey\"]",
   "Conexao Pay2M testada com sucesso",
   "Conexao PagBank testada com sucesso",
   "Conexao Mercado Pago testada com sucesso",
   "Conexao Cora testada com sucesso",
+  "Conexao PrimePag testada com sucesso",
   "Webhook recomendado deve apontar para ${recommendedWebhookPath}"
 ]) {
   assert.ok(server.includes(needle), `backend gateways sem seguranca/teste Pay2M: ${needle}`);
@@ -74,9 +82,12 @@ assert.ok(migrationMp.includes("provider in ('asaas', 'pay2m', 'pagbank', 'merca
 assert.ok(migrationMp.includes("webhook_events_mercadopago_idempotency_idx"), "webhook_events deve ter idempotencia Mercado Pago.");
 assert.ok(migrationCora.includes("provider in ('asaas', 'pay2m', 'pagbank', 'mercadopago', 'cora')"), "payment_gateways/payments deve aceitar cora.");
 assert.ok(migrationCora.includes("webhook_events_cora_idempotency_idx"), "webhook_events deve ter idempotencia Cora.");
+assert.ok(migrationPrimepag.includes("provider in ('asaas', 'pay2m', 'pagbank', 'mercadopago', 'cora', 'primepag')"), "payment_gateways/payments deve aceitar primepag.");
+assert.ok(migrationPrimepag.includes("webhook_events_primepag_idempotency_idx"), "webhook_events deve ter idempotencia PrimePag.");
 assert.ok(docs.includes("https://SEU_DOMINIO.com/api/webhooks/pay2m"), "docs devem publicar URL webhook Pay2M.");
 assert.ok(pagbankDocs.includes("https://SEU_DOMINIO.com/api/webhooks/pagbank"), "docs devem publicar URL webhook PagBank.");
 assert.ok(mercadoPagoDocs.includes("https://SEU_DOMINIO.com/api/webhooks/mercadopago"), "docs devem publicar URL webhook Mercado Pago.");
 assert.ok(coraDocs.includes("https://SEU_DOMINIO.com/api/webhooks/cora"), "docs devem publicar URL webhook Cora.");
+assert.ok(primepagDocs.includes("https://SEU_DOMINIO.com/api/webhooks/primepag"), "docs devem publicar URL webhook PrimePag.");
 
-console.log("PASS: admin e banco suportam Mercado Pago/Pay2M/PagBank/Cora plug and play com credenciais cifradas e docs.");
+console.log("PASS: admin e banco suportam Mercado Pago/Pay2M/PagBank/Cora/PrimePag plug and play com credenciais cifradas e docs.");

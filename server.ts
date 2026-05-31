@@ -57,6 +57,7 @@ import { Pay2mProvider } from "./src/server/payments/Pay2mProvider";
 import { PagbankProvider } from "./src/server/payments/PagbankProvider";
 import { MercadoPagoProvider } from "./src/server/payments/MercadoPagoProvider";
 import { CoraProvider } from "./src/server/payments/CoraProvider";
+import { PrimepagProvider } from "./src/server/payments/PrimepagProvider";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -5999,6 +6000,34 @@ async function startServer() {
     return config ? { config, provider: new CoraProvider(config) } : null;
   }
 
+  function getPrimepagGatewayConfig(tenantId: string) {
+    const config = getDefaultPaymentGatewayConfig(tenantId);
+    const provider = normalizePaymentProvider(config.provider);
+    if (provider !== "primepag" || !config.enabled) return null;
+    const credentials = config.credentials || {};
+    const configJson = config.config_json || {};
+    const clientId = String(credentials.clientId || credentials.client_id || "");
+    const clientSecret = String(credentials.clientSecret || credentials.client_secret || "");
+    const accessToken = String(credentials.accessToken || credentials.access_token || credentials.apiKey || credentials.api_token || config.pix_key || "");
+    const hasStaticToken = Boolean(accessToken && !isMaskedGatewaySecret(accessToken));
+    const hasOauthCredentials = Boolean(clientId && clientSecret && !isMaskedGatewaySecret(clientId) && !isMaskedGatewaySecret(clientSecret));
+    if (!hasStaticToken && !hasOauthCredentials) return null;
+    return {
+      environment: config.environment === "production" ? "production" as const : config.environment === "sandbox" ? "sandbox" as const : "staging" as const,
+      clientId,
+      clientSecret,
+      accessToken,
+      webhookToken: String(config.webhook_secret || credentials.webhookToken || ""),
+      expirationTime: Math.max(1, Math.min(86400, Number(configJson.expirationTime || credentials.expirationTime || 1800))),
+      baseUrl: String(configJson.baseUrl || credentials.baseUrl || "")
+    };
+  }
+
+  function getPrimepagProvider(tenantId: string) {
+    const config = getPrimepagGatewayConfig(tenantId);
+    return config ? { config, provider: new PrimepagProvider(config) } : null;
+  }
+
   function getPagbankGatewayConfig(tenantId: string) {
     const config = getDefaultPaymentGatewayConfig(tenantId);
     const provider = normalizePaymentProvider(config.provider);
@@ -6223,6 +6252,52 @@ async function startServer() {
     return payment;
   }
 
+  async function attachPrimepagPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
+    const primepag = getPrimepagProvider(input.tenantId);
+    if (!primepag || input.amount <= 0) return null;
+    const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
+    const pixExpiresAt = input.pixExpiresAt || new Date(Date.now() + primepag.config.expirationTime * 1000).toISOString();
+    const payment = await primepag.provider.createPixPayment({
+      amount: Number(input.amount.toFixed(2)),
+      generatorName: input.customer.name,
+      generatorDocument: input.customer.cpf,
+      externalReference: orderId,
+      expirationTime: primepag.config.expirationTime
+    });
+    const qrcode = primepag.provider.getQrCode(payment as Record<string, any>);
+    const referenceCode = qrcode.referenceCode;
+    const pixPayload = qrcode.content;
+    if (!referenceCode || !pixPayload) throw new Error("PrimePag nao retornou reference_code/content do QR Code PIX");
+    Object.assign(input.purchase, {
+      pixPayload,
+      pixGateway: "primepag",
+      pixWebhookUrl: "/api/webhooks/primepag",
+      externalReference: orderId,
+      externalPaymentId: referenceCode,
+      pixQrCodeBase64: qrcode.imageBase64,
+      pixExpiresAt
+    });
+    upsertPaymentRecord({
+      id: createPublicId("PAY_"),
+      tenant_id: input.tenantId,
+      order_id: orderId,
+      provider: "primepag",
+      provider_payment_id: referenceCode,
+      provider_reference: qrcode.externalReference || orderId,
+      billing_type: "PIX",
+      status: primepag.provider.parseQrCodeStatus(payment as Record<string, any>) || "pending",
+      qr_code_base64: qrcode.imageBase64,
+      pix_payload: pixPayload,
+      pix_copy_paste: pixPayload,
+      expiration_date: pixExpiresAt,
+      raw_response: { payment },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    recordPaymentWebhookLog({ tenant_id: input.tenantId, gateway: "primepag", purchaseId: orderId, status: "received", message: "QRCode Pix PrimePag criado", statusCode: 201, eventStatus: "pending" });
+    return payment;
+  }
+
   async function attachCoraPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
     const cora = getCoraProvider(input.tenantId);
     if (!cora || input.amount <= 0) return null;
@@ -6327,7 +6402,7 @@ async function startServer() {
   }
 
   async function attachActiveGatewayPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
-    return (await attachMercadoPagoPixToOrder(input)) || (await attachAsaasPixToOrder(input)) || (await attachPay2mPixToOrder(input)) || (await attachPagbankPixToOrder(input)) || (await attachCoraPixToOrder(input));
+    return (await attachMercadoPagoPixToOrder(input)) || (await attachAsaasPixToOrder(input)) || (await attachPay2mPixToOrder(input)) || (await attachPrimepagPixToOrder(input)) || (await attachPagbankPixToOrder(input)) || (await attachCoraPixToOrder(input));
   }
 
   function normalizeFazendinhaNumber(input: unknown) {
@@ -9150,7 +9225,7 @@ async function startServer() {
       return;
     }
 
-    const gatewayRequiresWebhook = Boolean(getMercadoPagoGatewayConfig(tenantId) || getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId) || getCoraGatewayConfig(tenantId));
+    const gatewayRequiresWebhook = Boolean(getMercadoPagoGatewayConfig(tenantId) || getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPrimepagGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId) || getCoraGatewayConfig(tenantId));
     const paid = req.body.statusPagamento === "paid" || (!gatewayRequiresWebhook && req.body.simulatePayment !== false);
     const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
     const purchase: NumberModePurchase = {
@@ -9261,7 +9336,7 @@ async function startServer() {
       return null;
     }
 
-    const gatewayRequiresWebhook = Boolean(getMercadoPagoGatewayConfig(tenantId) || getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId) || getCoraGatewayConfig(tenantId));
+    const gatewayRequiresWebhook = Boolean(getMercadoPagoGatewayConfig(tenantId) || getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPrimepagGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId) || getCoraGatewayConfig(tenantId));
     const paid = req.body.statusPagamento === "paid" || (!gatewayRequiresWebhook && req.body.simulatePayment !== false);
     const numeros = selectedGroups.flatMap(group => group.numeros);
     const amount = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
@@ -10457,6 +10532,11 @@ async function startServer() {
     const pay2mMessage = input.payload?.message && typeof input.payload.message === "object" && !Array.isArray(input.payload.message)
       ? input.payload.message as Record<string, unknown>
       : null;
+    const primepagMessage = input.payload?.message && typeof input.payload.message === "object" && !Array.isArray(input.payload.message)
+      ? input.payload.message as Record<string, unknown>
+      : input.payload?.qrcode && typeof input.payload.qrcode === "object" && !Array.isArray(input.payload.qrcode)
+        ? input.payload.qrcode as Record<string, unknown>
+        : input.payload || {};
     const pagbankOrder = input.payload?.order && typeof input.payload.order === "object" && !Array.isArray(input.payload.order)
       ? input.payload.order as Record<string, unknown>
       : input.payload || {};
@@ -10474,12 +10554,17 @@ async function startServer() {
     const coraPaymentId = String((coraInvoice as Record<string, unknown>)?.id || (coraInvoice as Record<string, unknown>)?.invoice_id || input.payload?.providerPaymentId || input.purchaseId || "no-payment");
     const coraStatus = String((coraInvoice as Record<string, unknown>)?.status || input.eventStatus || input.payload?.status || "unknown");
     const coraEndToEnd = String((coraInvoice as Record<string, unknown>)?.end_to_end || input.payload?.end_to_end || "no-e2e");
+    const primepagReferenceCode = String((primepagMessage as Record<string, unknown>)?.reference_code || input.payload?.reference_code || input.purchaseId || "no-reference");
+    const primepagStatus = String((primepagMessage as Record<string, unknown>)?.status || input.eventStatus || input.payload?.status || "unknown");
+    const primepagEndToEnd = String((primepagMessage as Record<string, unknown>)?.end_to_end || input.payload?.end_to_end || "no-e2e");
     const explicitEventId = input.gateway === "asaas"
       ? `${asaasPaymentId}:${asaasStatus}`
       : input.gateway === "mercadopago"
         ? `${mercadoPagoPaymentId}:${mercadoPagoStatus}`
         : input.gateway === "cora"
           ? `${coraPaymentId}:${coraStatus}:${coraEndToEnd}`
+        : input.gateway === "primepag"
+          ? `${primepagReferenceCode}:${primepagStatus}:${primepagEndToEnd}`
       : input.payload?.eventId || input.payload?.id || nestedDataId ||
       (input.gateway === "pay2m" ? `${pay2mMessage?.reference_code || input.purchaseId || "unknown"}:${pay2mMessage?.status || input.eventStatus || "unknown"}:${pay2mMessage?.end_to_end || "no-e2e"}` : "") ||
       (input.gateway === "pagbank" ? `${pagbankOrder?.id || "no-order"}:${pagbankOrder?.reference_id || input.purchaseId || "unknown"}:${input.eventStatus || pagbankOrder?.status || "unknown"}:${pagbankEndToEnd}` : "");
@@ -10568,6 +10653,10 @@ async function startServer() {
     return ["paid", "confirmed", "received", "settled"].includes(String(rawStatus || "").toLowerCase());
   }
 
+  function isPaidPrimepagEvent(rawStatus: string) {
+    return ["paid", "pago", "completed", "confirmed", "settled"].includes(String(rawStatus || "").toLowerCase());
+  }
+
   function isPaidPay2mEvent(rawStatus: string) {
     return String(rawStatus || "").toLowerCase() === "paid";
   }
@@ -10589,6 +10678,8 @@ async function startServer() {
         ? isPaidMercadoPagoEvent(rawStatus)
         : job.gateway === "cora"
           ? isPaidCoraEvent(rawStatus)
+        : job.gateway === "primepag"
+          ? isPaidPrimepagEvent(rawStatus)
       : job.gateway === "pay2m"
         ? isPaidPay2mEvent(rawStatus)
         : job.gateway === "pagbank"
@@ -11129,6 +11220,132 @@ async function startServer() {
     } catch (error) {
       recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "cora", purchaseId: payment.order_id, status: "failed", message: error instanceof Error ? error.message : "Falha ao reconciliar Cora", statusCode: 502, eventStatus: "RECONCILE_FAILED" });
       res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao reconciliar Cora" });
+    }
+  });
+
+  app.post("/api/webhooks/primepag", async (req, res) => {
+    const gateway = "primepag";
+    const tenant = getRequestTenant(req);
+    const tenantId = tenant?.id || "unknown";
+    const primepagConfig = tenant ? getPrimepagGatewayConfig(tenant.id) : null;
+    const webhookSecret = primepagConfig?.webhookToken || "";
+    const providedSecret = String(req.headers["authorization"] || req.headers["x-webhook-secret"] || req.headers["primepag-authorization"] || req.query.secret || "").replace(/^Bearer\s+/i, "");
+    if (webhookSecret) {
+      const providedBuffer = Buffer.from(providedSecret);
+      const expectedBuffer = Buffer.from(webhookSecret);
+      if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "invalid", message: "PrimePag webhook authorization invalid", statusCode: 401 });
+        res.status(200).json({ success: false, ignored: true });
+        return;
+      }
+    }
+    const payload = (req.body || {}) as Record<string, unknown>;
+    const provider = tenant ? getPrimepagProvider(tenant.id) : null;
+    if (!provider) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "ignored", message: "PrimePag nao configurado para este tenant", statusCode: 200 });
+      res.status(200).json({ success: true, ignored: true });
+      return;
+    }
+    const parsed = provider.provider.handleWebhook(payload as Record<string, any>);
+    if (!parsed.referenceCode) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "ignored", message: "Webhook PrimePag sem reference_code", statusCode: 200, eventStatus: parsed.status });
+      res.status(200).json({ success: true, ignored: true });
+      return;
+    }
+    let remote: Record<string, any> | null = null;
+    try {
+      remote = await provider.provider.getPayment(parsed.referenceCode);
+    } catch {
+      remote = null;
+    }
+    const effective = remote || payload;
+    const status = remote ? provider.provider.parseQrCodeStatus(remote) || parsed.status : parsed.status;
+    const eventKey = buildPaymentIdempotencyKey({ tenant_id: tenantId, gateway, purchaseId: parsed.referenceCode, eventStatus: status, payload: { ...payload, message: { reference_code: parsed.referenceCode, status, end_to_end: parsed.endToEnd } } });
+    const existingEvent = webhookEvents.find(item => item.tenant_id === tenantId && String(item.provider) === "primepag" && item.id === eventKey);
+    if (existingEvent?.processed) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: parsed.referenceCode, status: "duplicate", message: "Webhook PrimePag duplicado ignorado por reference_code/status/end_to_end", statusCode: 200, eventStatus: status });
+      res.json({ success: true, duplicate: true, eventId: eventKey });
+      return;
+    }
+    webhookEvents.unshift({
+      id: eventKey,
+      tenant_id: tenantId,
+      provider: "primepag" as IntegrationProviderId,
+      event_type: parsed.notificationType || "pix_qrcode",
+      status,
+      external_reference: parsed.externalReference,
+      provider_payment_id: parsed.referenceCode,
+      reference_id: parsed.referenceCode,
+      end_to_end: parsed.endToEnd,
+      payload: { webhook: payload, qrcode: effective },
+      processed: false,
+      processed_at: "",
+      error_message: "",
+      created_at: new Date().toISOString()
+    });
+    const payment = payments.find(item =>
+      item.tenant_id === tenantId &&
+      item.provider === "primepag" &&
+      item.provider_payment_id === parsed.referenceCode
+    );
+    if (isPaidPrimepagEvent(status) && !payment) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: parsed.externalReference, status: "invalid", message: "PrimePag pago sem payment interno tenant-scoped; baixa bloqueada", statusCode: 200, eventStatus: status });
+      const event = webhookEvents.find(item => item.id === eventKey);
+      if (event) {
+        event.processed = true;
+        event.processed_at = new Date().toISOString();
+        event.error_message = "Payment interno nao encontrado para reference_code do tenant";
+      }
+      res.status(200).json({ success: false, ignored: true, reason: "payment_not_found" });
+      return;
+    }
+    if (["expired", "expirado", "cancelled", "canceled", "cancelado"].includes(String(status || "").toLowerCase()) && payment?.status !== "paid") {
+      updatePaymentRecordStatus(tenantId, gateway, payment?.order_id || parsed.referenceCode, status, { webhook: payload, qrcode: effective });
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || parsed.externalReference, status: "ignored", message: `PrimePag ${status}`, statusCode: 200, eventStatus: status });
+      const event = webhookEvents.find(item => item.id === eventKey);
+      if (event) {
+        event.processed = true;
+        event.processed_at = new Date().toISOString();
+      }
+      res.json({ success: true, status });
+      return;
+    }
+    const job = isPaidPrimepagEvent(status) && payment
+      ? enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: payment.order_id, eventStatus: status, payload: { ...payload, message: { reference_code: parsed.referenceCode, status, end_to_end: parsed.endToEnd } } })
+      : null;
+    const event = webhookEvents.find(item => item.id === eventKey);
+    if (event) {
+      event.processed = true;
+      event.processed_at = new Date().toISOString();
+    }
+    recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || parsed.externalReference, status: job?.status === "paid" ? "confirmed" : "received", message: `PrimePag ${status || "webhook"}`, statusCode: 200, eventStatus: status });
+    res.json({ success: true, eventId: eventKey, queued: Boolean(job), status: job?.status || status });
+  });
+
+  app.post("/api/admin/payments/primepag/reconcile", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const referenceCode = String(req.body.reference_code || req.body.referenceCode || req.body.provider_payment_id || "").trim();
+    if (!referenceCode) return res.status(400).json({ error: "reference_code obrigatorio" });
+    const payment = payments.find(item => item.tenant_id === tenantId && item.provider === "primepag" && item.provider_payment_id === referenceCode);
+    if (!payment) return res.status(404).json({ error: "Pagamento PrimePag nao encontrado para este tenant" });
+    const primepag = getPrimepagProvider(tenantId);
+    if (!primepag) return res.status(503).json({ error: "PrimePag nao configurado para este tenant" });
+    try {
+      const remote = await primepag.provider.getPayment(referenceCode);
+      const status = primepag.provider.parseQrCodeStatus(remote);
+      if (isPaidPrimepagEvent(status)) {
+        const payload = { message: { ...remote, reference_code: referenceCode, status } };
+        const job = enqueuePaymentJob({ tenant_id: tenantId, gateway: "primepag", purchaseId: payment.order_id, eventStatus: status, payload, forceRetry: true });
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "primepag", purchaseId: payment.order_id, status: job.status === "paid" ? "confirmed" : "received", message: "Reconciliacao PrimePag executada", statusCode: 200, eventStatus: status });
+        return res.json({ ok: job.status === "paid", status, payment: updatePaymentRecordStatus(tenantId, "primepag", payment.order_id, "paid", { reconcile: remote }), job });
+      }
+      if (status) {
+        updatePaymentRecordStatus(tenantId, "primepag", payment.order_id, status, { reconcile: remote });
+      }
+      return res.json({ ok: false, status: status || "unknown", payment });
+    } catch (error) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "primepag", purchaseId: payment.order_id, status: "failed", message: error instanceof Error ? error.message : "Falha ao reconciliar PrimePag", statusCode: 502, eventStatus: "RECONCILE_FAILED" });
+      return res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao reconciliar PrimePag" });
     }
   });
 
@@ -13610,7 +13827,7 @@ async function startServer() {
       infinitypay: ["token", "apiKey"],
       pay2m: ["clientId", "clientSecret"],
       cora: ["clientId", "clientSecret", "certificate", "privateKey", "apiKey"],
-      primepag: ["clientId", "clientSecret", "apiKey"],
+      primepag: ["clientId", "clientSecret", "accessToken", "apiKey"],
       paggue: ["clientId", "clientSecret", "apiKey"],
       cashpay: ["clientId", "clientSecret", "apiKey"],
       fakeprocessor: ["apiKey"],
@@ -13620,7 +13837,7 @@ async function startServer() {
     const fields = credentialFields[gateway] || [];
     const presentCredentials = fields.filter(field => Boolean(gatewayConfig[field]));
     const webhookUrl = gatewayConfig.webhookUrl || String(pixConfig.webhookUrl || "") || `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`;
-    const recommendedWebhookPath = gateway === "cora" ? "/api/webhooks/cora" : gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `/api/webhooks/payment/${gateway}`;
+    const recommendedWebhookPath = gateway === "primepag" ? "/api/webhooks/primepag" : gateway === "cora" ? "/api/webhooks/cora" : gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `/api/webhooks/payment/${gateway}`;
     const issues = [
       ...(!pixConfig.enabled ? ["PIX global está desabilitado"] : []),
       ...(presentCredentials.length === 0 && !pixConfig.apiKey ? ["Nenhuma credencial/API key configurada para este gateway"] : []),
@@ -13640,6 +13857,14 @@ async function startServer() {
         recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "pay2m", status: "received", message: "Conexao Pay2M testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
       } catch (error) {
         issues.push(error instanceof Error ? error.message : "Falha ao testar conexao Pay2M");
+      }
+    }
+    if (gateway === "primepag" && issues.length === 0) {
+      try {
+        await getPrimepagProvider(tenantId)?.provider.testConnection();
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "primepag", status: "received", message: "Conexao PrimePag testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
+      } catch (error) {
+        issues.push(error instanceof Error ? error.message : "Falha ao testar conexao PrimePag");
       }
     }
     if (gateway === "pagbank" && issues.length === 0) {
@@ -13724,8 +13949,8 @@ async function startServer() {
     updatedGateways.active = normalizePaymentProvider(req.body.active || req.body.pix?.gateway || updatedGateways.active);
     updatedGateways.pix = {
       ...updatedGateways.pix,
-      sandbox: updatedGateways.active === "cora" ? updatedGateways.cora?.environment !== "production" : updatedGateways.active === "mercadopago" ? updatedGateways.mercadopago?.environment !== "production" : updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.active === "pay2m" ? updatedGateways.pay2m?.environment !== "production" : updatedGateways.active === "pagbank" ? updatedGateways.pagbank?.environment !== "production" : updatedGateways.pix?.sandbox,
-      webhookUrl: updatedGateways.active === "cora" ? "/api/webhooks/cora" : updatedGateways.active === "mercadopago" ? "/api/webhooks/mercadopago" : updatedGateways.active === "asaas" ? "/api/webhooks/asaas" : updatedGateways.active === "pay2m" ? "/api/webhooks/pay2m" : updatedGateways.active === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
+      sandbox: updatedGateways.active === "primepag" ? updatedGateways.primepag?.environment !== "production" : updatedGateways.active === "cora" ? updatedGateways.cora?.environment !== "production" : updatedGateways.active === "mercadopago" ? updatedGateways.mercadopago?.environment !== "production" : updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.active === "pay2m" ? updatedGateways.pay2m?.environment !== "production" : updatedGateways.active === "pagbank" ? updatedGateways.pagbank?.environment !== "production" : updatedGateways.pix?.sandbox,
+      webhookUrl: updatedGateways.active === "primepag" ? "/api/webhooks/primepag" : updatedGateways.active === "cora" ? "/api/webhooks/cora" : updatedGateways.active === "mercadopago" ? "/api/webhooks/mercadopago" : updatedGateways.active === "asaas" ? "/api/webhooks/asaas" : updatedGateways.active === "pay2m" ? "/api/webhooks/pay2m" : updatedGateways.active === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
     };
     tenantGateways[tenantId] = updatedGateways;
     if (tenantId === legacyTenantId) gateways = updatedGateways;
