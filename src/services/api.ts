@@ -83,6 +83,8 @@ export const checkoutService = {
       paid: boolean;
       expired: boolean;
       pixPayload?: string;
+      pixExpiresAt?: string;
+      reservedUntil?: string;
       purchase?: any;
       ticketUrl?: string;
       message: string;

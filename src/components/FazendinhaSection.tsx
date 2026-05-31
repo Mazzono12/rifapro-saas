@@ -116,6 +116,7 @@ export function FazendinhaSection() {
   const checkoutMedia = mediaSettings?.checkoutMedia || data?.mediaSettings?.checkoutMedia;
   const premiumExperience = mediaSettings?.premiumExperience || data?.mediaSettings?.premiumExperience;
   const formattedPricePerGroup = formatCurrency(configPricePerGroup);
+  const pixCountdown = usePixCountdown(pendingPix?.purchase?.pixExpiresAt || pendingPix?.purchase?.reservedUntil);
 
   const toggleGroup = (group?: FazendinhaGroup) => {
     if (!group || group.status !== "available") return;
@@ -527,6 +528,9 @@ export function FazendinhaSection() {
                 <div className="mt-5 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4 text-center">
                   <p className="text-xs font-mono uppercase tracking-widest text-emerald-200">PIX gerado</p>
                   <p className="mt-1 text-sm text-slate-300">Escaneie o QR Code ou copie o código PIX.</p>
+                  <p className="mx-auto mt-3 w-fit rounded-2xl border border-emerald-300/20 bg-black/20 px-4 py-2 font-mono text-sm font-black text-emerald-100">
+                    Expira em {pixCountdown}
+                  </p>
                   <div className="mx-auto mt-4 w-full max-w-[min(17rem,calc(100vw-3rem))] rounded-2xl bg-white p-3 shadow-[0_0_35px_rgba(16,185,129,0.22)] sm:w-fit sm:max-w-none sm:p-4">
                     <QRCodeSVG value={pendingPix.pixPayload} className="h-auto w-full sm:h-[210px] sm:w-[210px]" bgColor="#ffffff" fgColor="#0f172a" level="M" />
                   </div>
@@ -605,4 +609,17 @@ export function FazendinhaSection() {
 
 async function captureGeoLocation() {
   return GeoPrefillService.captureCoordinates();
+}
+
+function usePixCountdown(expiresAt?: string) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+  const target = expiresAt ? new Date(expiresAt).getTime() : now + 5 * 60 * 1000;
+  const diff = Math.max(0, (Number.isFinite(target) ? target : now) - now);
+  const minutes = Math.floor(diff / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }

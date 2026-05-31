@@ -1242,6 +1242,7 @@ async function startServer() {
     status: "pending" | "paid" | "cancelled";
     numeros: number[];
     reservedUntil?: string;
+    pixExpiresAt?: string;
     pixPayload: string;
     pixGateway?: PixGatewayId | string;
     pixWebhookUrl?: string;
@@ -1345,8 +1346,10 @@ async function startServer() {
     nomeBichos?: string[];
     numeros: string[];
     valorPago: number;
-    statusPagamento: "reserved" | "paid";
+    statusPagamento: "reserved" | "paid" | "cancelled";
     dataCompra: string;
+    reservedUntil?: string;
+    pixExpiresAt?: string;
     customer: CustomerRecord;
     refCode?: string;
     earnedLootboxes?: number;
@@ -1389,8 +1392,10 @@ async function startServer() {
     number: string;
     purchaseId: string;
     customerId: string;
-    status: "reserved" | "paid";
+    status: "reserved" | "paid" | "cancelled";
     createdAt: string;
+    reservedUntil?: string;
+    pixExpiresAt?: string;
   };
   type NumberModePurchase = {
     id: string;
@@ -1398,8 +1403,10 @@ async function startServer() {
     mode: NumberModeId;
     numbers: string[];
     amount: number;
-    status: "reserved" | "paid";
+    status: "reserved" | "paid" | "cancelled";
     createdAt: string;
+    reservedUntil?: string;
+    pixExpiresAt?: string;
     customer: CustomerRecord;
     refCode?: string;
     earnedLootboxes?: number;
@@ -5943,7 +5950,8 @@ async function startServer() {
     const config = getNumberModeConfig(tenantId, mode);
     const digits = config?.digits || 2;
     const max = Math.pow(10, digits);
-    const sold = new Set(numberModeBets.filter(bet => bet.tenant_id === tenantId && bet.mode === mode).map(bet => bet.number));
+    expireNumberModeReservations(tenantId, mode);
+    const sold = new Set(numberModeBets.filter(bet => bet.tenant_id === tenantId && bet.mode === mode && ["reserved", "paid"].includes(bet.status)).map(bet => bet.number));
     return Array.from({ length: max }, (_, index) => {
       const number = String(index).padStart(digits, "0");
       return {
@@ -6327,7 +6335,17 @@ async function startServer() {
     return { mode, result: { mode, number, origemResultado, createdAt }, winner };
   }
 
-  const RESERVATION_TTL_MS = Number(process.env.PURCHASE_RESERVATION_TTL_MS || 15 * 60 * 1000);
+  const TRADITIONAL_RAFFLE_RESERVATION_TTL_MS = Number(process.env.PURCHASE_RESERVATION_TTL_MS || 15 * 60 * 1000);
+  const FAST_MODALITY_RESERVATION_TTL_MS = Number(process.env.FAST_MODALITY_RESERVATION_TTL_MS || 5 * 60 * 1000);
+  const RESERVATION_TTL_MS = TRADITIONAL_RAFFLE_RESERVATION_TTL_MS;
+
+  function reservationExpiresAt(ttlMs: number) {
+    return new Date(Date.now() + ttlMs).toISOString();
+  }
+
+  function isPastReservationExpiry(value?: string) {
+    return Boolean(value) && new Date(value || "").getTime() <= Date.now();
+  }
 
   function releaseReservedNumbers(raffle: typeof raffles[number], numbers: number[]) {
     numbers.forEach(number => raffle.soldNumbers.delete(number));
@@ -6356,6 +6374,69 @@ async function startServer() {
           { status: "cancelled", label: "Reserva expirada automaticamente", date: new Date().toISOString() }
         ];
       });
+  }
+
+  function expireNumberModeReservations(tenantId?: string, mode?: NumberModeId) {
+    numberModePurchases
+      .filter(purchase =>
+        purchase.status === "reserved" &&
+        isPastReservationExpiry(purchase.reservedUntil || purchase.pixExpiresAt) &&
+        (!tenantId || purchase.tenant_id === tenantId) &&
+        (!mode || purchase.mode === mode)
+      )
+      .forEach(purchase => {
+        purchase.status = "cancelled";
+        numberModeBets = numberModeBets.filter(bet => !(bet.tenant_id === purchase.tenant_id && bet.purchaseId === purchase.id));
+        auditLogs.unshift({
+          id: createPublicId("AUD_"),
+          tenant_id: purchase.tenant_id,
+          action: "NUMBER_MODE_RESERVATION_EXPIRED",
+          method: "SYSTEM",
+          path: "/workers/reservations",
+          status: 200,
+          actor: "reservation-worker",
+          ip: "system",
+          createdAt: new Date().toISOString(),
+          detail: `${purchase.mode}:${purchase.id}`
+        });
+      });
+  }
+
+  function expireFazendinhaReservations(tenantId?: string) {
+    fazendinhaCompras
+      .filter(purchase =>
+        purchase.statusPagamento === "reserved" &&
+        isPastReservationExpiry(purchase.reservedUntil || purchase.pixExpiresAt) &&
+        (!tenantId || purchase.tenant_id === tenantId)
+      )
+      .forEach(purchase => {
+        purchase.statusPagamento = "cancelled";
+        fazendinhaGroups
+          .filter(group => group.tenant_id === purchase.tenant_id && group.compraId === purchase.id && group.status === "reserved")
+          .forEach(group => {
+            group.status = "available";
+            delete group.compradorId;
+            delete group.compraId;
+          });
+        auditLogs.unshift({
+          id: createPublicId("AUD_"),
+          tenant_id: purchase.tenant_id,
+          action: "FAZENDINHA_RESERVATION_EXPIRED",
+          method: "SYSTEM",
+          path: "/workers/reservations",
+          status: 200,
+          actor: "reservation-worker",
+          ip: "system",
+          createdAt: new Date().toISOString(),
+          detail: purchase.id
+        });
+      });
+  }
+
+  function expireAllReservations(tenantId?: string) {
+    expirePendingReservations(tenantId);
+    expireNumberModeReservations(tenantId);
+    expireFazendinhaReservations(tenantId);
   }
 
   function assignAvailableNumbers(raffle: typeof raffles[number], quantity: number) {
@@ -8247,7 +8328,7 @@ async function startServer() {
       res.status(409).json({ error: error instanceof Error ? error.message : "Nao foi possivel reservar cotas disponiveis" });
       return;
     }
-    const reservedUntil = new Date(Date.now() + RESERVATION_TTL_MS).toISOString();
+    const reservedUntil = reservationExpiresAt(TRADITIONAL_RAFFLE_RESERVATION_TTL_MS);
     
     const ownAffiliate = ensureAffiliateForCustomer(customer);
     const walletBalance = (ownAffiliate.commissionBalance || 0) + (ownAffiliate.prizeBalance || 0);
@@ -8266,6 +8347,7 @@ async function startServer() {
       status: balancePayment >= amount ? "paid" as const : "pending" as const,
       numeros: reservedNumbers,
       reservedUntil,
+      pixExpiresAt: reservedUntil,
       pixPayload: buildPixPayload(payableAmount, raffle, purchaseId),
       pixGateway: pixConfig.gateway,
       pixWebhookUrl: pixConfig.webhookUrl,
@@ -8302,6 +8384,7 @@ async function startServer() {
         status: purchase.status,
         numeros: addonReservedNumbers,
         reservedUntil,
+        pixExpiresAt: reservedUntil,
         pixPayload: purchase.pixPayload,
         pixGateway: pixConfig.gateway,
         pixWebhookUrl: pixConfig.webhookUrl,
@@ -8408,6 +8491,7 @@ async function startServer() {
   app.get("/api/fazendinha", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     ensureFazendinhaStateForTenant(tenantId);
+    expireFazendinhaReservations(tenantId);
     res.json({
       config: { ...fazendinhaConfig, tenant_id: tenantId },
       homeMedia: publicFazendinhaHomeMedia(tenantId),
@@ -8506,6 +8590,7 @@ async function startServer() {
       return;
     }
     const customerId = String(req.query.customerId || "");
+    expireNumberModeReservations(tenantId, mode);
     res.json({
       config,
       numbers: getModeNumbers(mode, tenantId),
@@ -8547,7 +8632,8 @@ async function startServer() {
       res.status(400).json({ error: "Selecione ao menos um numero valido" });
       return;
     }
-    const sold = new Set(numberModeBets.filter(bet => bet.tenant_id === tenantId && bet.mode === mode).map(bet => bet.number));
+    expireNumberModeReservations(tenantId, mode);
+    const sold = new Set(numberModeBets.filter(bet => bet.tenant_id === tenantId && bet.mode === mode && ["reserved", "paid"].includes(bet.status)).map(bet => bet.number));
     const duplicate = numbers.find(number => sold.has(number));
     if (duplicate) {
       res.status(409).json({ error: `Numero ${duplicate} ja foi reservado ou vendido` });
@@ -8563,6 +8649,7 @@ async function startServer() {
     }
 
     const paid = req.body.statusPagamento === "paid" || req.body.simulatePayment !== false;
+    const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
     const purchase: NumberModePurchase = {
       id: createPublicId("MO_"),
       tenant_id: tenantId,
@@ -8571,6 +8658,8 @@ async function startServer() {
       amount: numbers.length * config.price,
       status: paid ? "paid" : "reserved",
       createdAt: new Date().toISOString(),
+      reservedUntil: fastExpiresAt,
+      pixExpiresAt: fastExpiresAt,
       customer,
       refCode: req.body.refCode
     };
@@ -8584,7 +8673,9 @@ async function startServer() {
         purchaseId: purchase.id,
         customerId: customer.id,
         status: purchase.status,
-        createdAt: purchase.createdAt
+        createdAt: purchase.createdAt,
+        reservedUntil: purchase.reservedUntil,
+        pixExpiresAt: purchase.pixExpiresAt
       });
     });
 
@@ -8605,7 +8696,8 @@ async function startServer() {
         source: `conversion:${purchase.id}`
       });
     }
-    res.json(stripSensitiveCustomerFields({ purchase, pixPayload: buildPixPayload(purchase.amount, undefined, purchase.id, tenantId), earnedLootboxes }));
+    const pixPayload = buildPixPayload(purchase.amount, undefined, purchase.id, tenantId);
+    res.json(stripSensitiveCustomerFields({ purchase, pixPayload, pixExpiresAt: purchase.pixExpiresAt, reservedUntil: purchase.reservedUntil, earnedLootboxes }));
   });
 
   app.post("/api/modalidades/purchases/:purchaseId/confirm-payment", (req, res) => {
@@ -8630,6 +8722,7 @@ async function startServer() {
       return null;
     }
     const groupIds = Array.from(new Set(requestedGroupIds.filter(Boolean)));
+    expireFazendinhaReservations(tenantId);
     const selectedGroups = groupIds
       .map(groupId => fazendinhaGroups.find(item => item.tenant_id === tenantId && item.id === groupId))
       .filter((group): group is FazendinhaGroup => Boolean(group));
@@ -8654,6 +8747,7 @@ async function startServer() {
     const paid = req.body.statusPagamento === "paid" || req.body.simulatePayment !== false;
     const numeros = selectedGroups.flatMap(group => group.numeros);
     const amount = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
+    const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
     const purchase: FazendinhaPurchase = {
       id: createPublicId("FZ_"),
       tenant_id: tenantId,
@@ -8666,6 +8760,8 @@ async function startServer() {
       valorPago: amount,
       statusPagamento: paid ? "paid" : "reserved",
       dataCompra: new Date().toISOString(),
+      reservedUntil: fastExpiresAt,
+      pixExpiresAt: fastExpiresAt,
       customer,
       refCode: req.body.refCode
     };
@@ -8687,6 +8783,8 @@ async function startServer() {
         refCode: req.body.refCode,
         status: paid ? "paid" : "pending",
         numeros: [],
+        reservedUntil: fastExpiresAt,
+        pixExpiresAt: fastExpiresAt,
         pixPayload: "",
         createdAt: purchase.dataCompra,
         customer
@@ -8723,10 +8821,12 @@ async function startServer() {
     purchase.linkedPurchases?.forEach(linked => {
       linked.pixPayload = pixPayload;
     });
-    return { purchase, groups: selectedGroups, pixPayload, earnedLootboxes };
+    return { purchase, groups: selectedGroups, pixPayload, pixExpiresAt: purchase.pixExpiresAt, reservedUntil: purchase.reservedUntil, earnedLootboxes };
   }
 
   function confirmFazendinhaPurchase(purchase: FazendinhaPurchase) {
+    expireFazendinhaReservations(purchase.tenant_id);
+    if (purchase.statusPagamento === "cancelled") throw new Error("Fazendinha reservation expired");
     const groups = fazendinhaGroups.filter(group => group.tenant_id === purchase.tenant_id && (purchase.grupoIds?.includes(group.id) || group.compraId === purchase.id));
     if (purchase.statusPagamento !== "paid") {
       purchase.statusPagamento = "paid";
@@ -8758,6 +8858,33 @@ async function startServer() {
       pixPayload,
       earnedLootboxes: purchase.earnedLootboxes || 0
     };
+  }
+
+  function confirmNumberModePurchase(purchase: NumberModePurchase) {
+    expireNumberModeReservations(purchase.tenant_id, purchase.mode);
+    if (purchase.status === "cancelled") throw new Error("Number mode reservation expired");
+    if (purchase.status === "paid") return purchase;
+    const bets = numberModeBets.filter(bet => bet.tenant_id === purchase.tenant_id && bet.purchaseId === purchase.id);
+    if (bets.length < purchase.numbers.length) throw new Error("Number mode reservation expired");
+    purchase.status = "paid";
+    bets.forEach(bet => {
+      bet.status = "paid";
+    });
+    purchase.customer.totalTickets += purchase.numbers.length;
+    ensureAffiliateForCustomer(purchase.customer);
+    updateCrmAutomationForCustomer(purchase.customer);
+    creditAffiliateCommission({
+      tenantId: purchase.tenant_id,
+      refCode: purchase.refCode,
+      buyerCustomerId: purchase.customer.id,
+      amount: purchase.amount,
+      source: `conversion:${purchase.id}`
+    });
+    const config = getNumberModeConfig(purchase.tenant_id, purchase.mode);
+    purchase.earnedLootboxes = config?.lootboxEnabled
+      ? processLootboxDrops(purchase.customer.phone, purchase.numbers.length, purchase.id, config.lootboxConfig, `mode:${purchase.mode}`, purchase.mode, purchase.tenant_id)
+      : 0;
+    return purchase;
   }
 
   app.post("/api/fazendinha/buy", (req, res) => {
@@ -9266,6 +9393,16 @@ async function startServer() {
     const customer = run.customer_id
       ? Object.values(customersByPhone).find(item => item.tenant_id === run.tenant_id && item.id === run.customer_id)
       : purchase?.customer;
+    if (flow.trigger_type === "abandoned_pix_recovery") {
+      expirePendingReservations(run.tenant_id, purchase?.raffleId);
+      const expired = !purchase || purchase.status !== "pending" || isPastReservationExpiry(purchase.reservedUntil || purchase.pixExpiresAt);
+      if (expired) {
+        run.status = "skipped";
+        run.last_error = "PIX expirado ou pedido nao pendente";
+        run.executed_at = new Date().toISOString();
+        return run;
+      }
+    }
     run.status = "running";
     run.attempts += 1;
     try {
@@ -9886,6 +10023,44 @@ async function startServer() {
 
     const purchase = purchases.find(p => p.tenant_id === job.tenant_id && p.purchaseId === purchaseId);
     if (!purchase) {
+      const modePurchase = numberModePurchases.find(item => item.tenant_id === job.tenant_id && item.id === purchaseId);
+      if (modePurchase) {
+        if (modePurchase.status === "paid") {
+          markPaymentJob(job, "paid", "Webhook duplicado idempotente");
+          job.result = { duplicate: true, purchaseId };
+          recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "duplicate", message: "Webhook ignored because number mode purchase is already paid", statusCode: 200, eventStatus: rawStatus });
+          return job;
+        }
+        try {
+          confirmNumberModePurchase(modePurchase);
+          markPaymentJob(job, "paid");
+          job.result = { success: true, purchaseId, type: "modalidade", earnedLootboxes: modePurchase.earnedLootboxes };
+          recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "confirmed", message: "Pagamento de modalidade liquidado", statusCode: 200, eventStatus: rawStatus });
+        } catch {
+          markPaymentJob(job, job.attempts + 1 >= job.maxAttempts ? "failed" : "pending", "Falha na alocacao");
+          recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "failed", message: "Reserva de modalidade expirada", statusCode: 409, eventStatus: rawStatus });
+        }
+        return job;
+      }
+      const farmPurchase = fazendinhaCompras.find(item => item.tenant_id === job.tenant_id && item.id === purchaseId);
+      if (farmPurchase) {
+        if (farmPurchase.statusPagamento === "paid") {
+          markPaymentJob(job, "paid", "Webhook duplicado idempotente");
+          job.result = { duplicate: true, purchaseId };
+          recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "duplicate", message: "Webhook ignored because Fazendinha purchase is already paid", statusCode: 200, eventStatus: rawStatus });
+          return job;
+        }
+        try {
+          confirmFazendinhaPurchase(farmPurchase);
+          markPaymentJob(job, "paid");
+          job.result = { success: true, purchaseId, type: "fazendinha", earnedLootboxes: farmPurchase.earnedLootboxes };
+          recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "confirmed", message: "Pagamento da Fazendinha liquidado", statusCode: 200, eventStatus: rawStatus });
+        } catch {
+          markPaymentJob(job, job.attempts + 1 >= job.maxAttempts ? "failed" : "pending", "Falha na alocacao");
+          recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "failed", message: "Reserva da Fazendinha expirada", statusCode: 409, eventStatus: rawStatus });
+        }
+        return job;
+      }
       markPaymentJob(job, job.attempts + 1 >= job.maxAttempts ? "failed" : "pending", "Purchase not found for tenant");
       recordPaymentWebhookLog({
         tenant_id: job.tenant_id,
@@ -10084,9 +10259,10 @@ async function startServer() {
   app.get("/api/checkout/orders/:orderId/status", (req, res) => {
     const orderId = String(req.params.orderId || "");
     const tenantId = resolveRequestTenantId(req);
+    expireAllReservations(tenantId);
     const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === orderId);
     if (purchase) {
-      const expired = purchase.status === "pending" && Boolean(purchase.reservedUntil) && new Date(purchase.reservedUntil || "").getTime() <= Date.now();
+      const expired = (purchase.status === "pending" && isPastReservationExpiry(purchase.reservedUntil || purchase.pixExpiresAt)) || (purchase.status === "cancelled" && /expirada/i.test(String(purchase.rejectedReason || "")));
       const status = expired ? "expired" : purchase.status;
       res.json(stripSensitiveCustomerFields({
         orderId,
@@ -10096,6 +10272,8 @@ async function startServer() {
         paid: purchase.status === "paid",
         expired,
         pixPayload: purchase.status === "pending" && !expired ? purchase.pixPayload : "",
+        pixExpiresAt: purchase.pixExpiresAt || purchase.reservedUntil,
+        reservedUntil: purchase.reservedUntil,
         purchase,
         ticketUrl: purchase.status === "paid" ? buildPublicTicketUrl(purchase) : "",
         message: purchase.status === "paid" ? "Pagamento confirmado" : expired ? "PIX expirado" : purchase.status === "cancelled" ? "Pedido cancelado" : "Aguardando pagamento"
@@ -10104,29 +10282,39 @@ async function startServer() {
     }
     const modePurchase = numberModePurchases.find(item => item.tenant_id === tenantId && item.id === orderId);
     if (modePurchase) {
+      const expired = modePurchase.status === "cancelled" || (modePurchase.status === "reserved" && isPastReservationExpiry(modePurchase.reservedUntil || modePurchase.pixExpiresAt));
+      const status = expired ? "expired" : modePurchase.status;
       res.json(stripSensitiveCustomerFields({
         orderId,
         type: "modalidade",
-        status: modePurchase.status,
-        paymentStatus: modePurchase.status === "paid" ? "paid" : "pending",
+        status,
+        paymentStatus: modePurchase.status === "paid" ? "paid" : expired ? "expired" : "pending",
         paid: modePurchase.status === "paid",
-        expired: false,
+        expired,
+        pixPayload: modePurchase.status === "reserved" && !expired ? buildPixPayload(modePurchase.amount, undefined, modePurchase.id, tenantId) : "",
+        pixExpiresAt: modePurchase.pixExpiresAt || modePurchase.reservedUntil,
+        reservedUntil: modePurchase.reservedUntil,
         purchase: modePurchase,
-        message: modePurchase.status === "paid" ? "Pagamento confirmado" : "Aguardando pagamento"
+        message: modePurchase.status === "paid" ? "Pagamento confirmado" : expired ? "PIX expirado" : "Aguardando pagamento"
       }));
       return;
     }
     const farmPurchase = fazendinhaCompras.find(item => item.tenant_id === tenantId && item.id === orderId);
     if (farmPurchase) {
+      const expired = farmPurchase.statusPagamento === "cancelled" || (farmPurchase.statusPagamento === "reserved" && isPastReservationExpiry(farmPurchase.reservedUntil || farmPurchase.pixExpiresAt));
+      const status = farmPurchase.statusPagamento === "paid" ? "paid" : expired ? "expired" : "reserved";
       res.json(stripSensitiveCustomerFields({
         orderId,
         type: "fazendinha",
-        status: farmPurchase.statusPagamento === "paid" ? "paid" : "reserved",
-        paymentStatus: farmPurchase.statusPagamento === "paid" ? "paid" : "pending",
+        status,
+        paymentStatus: farmPurchase.statusPagamento === "paid" ? "paid" : expired ? "expired" : "pending",
         paid: farmPurchase.statusPagamento === "paid",
-        expired: false,
+        expired,
+        pixPayload: farmPurchase.statusPagamento === "reserved" && !expired ? buildPixPayload(farmPurchase.valorPago, undefined, farmPurchase.id, tenantId) : "",
+        pixExpiresAt: farmPurchase.pixExpiresAt || farmPurchase.reservedUntil,
+        reservedUntil: farmPurchase.reservedUntil,
         purchase: farmPurchase,
-        message: farmPurchase.statusPagamento === "paid" ? "Pagamento confirmado" : "Aguardando pagamento"
+        message: farmPurchase.statusPagamento === "paid" ? "Pagamento confirmado" : expired ? "PIX expirado" : "Aguardando pagamento"
       }));
       return;
     }
@@ -10260,7 +10448,8 @@ async function startServer() {
 
   app.post("/api/admin/promotions/process-abandoned-pix", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
-    const pendingPurchases = purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.status === "pending");
+    expirePendingReservations(tenantId);
+    const pendingPurchases = purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.status === "pending" && !isPastReservationExpiry(purchase.reservedUntil || purchase.pixExpiresAt));
     const queued: WhatsAppMessageQueueRecord[] = [];
     pendingPurchases.forEach(purchase => {
       const messages = buildAbandonedPixRecoveryMessages({
@@ -13058,6 +13247,12 @@ async function startServer() {
   const paymentWorkerIntervalMs = isProductionRuntime ? 15_000 : 8_000;
   const paymentWorkerInterval = setInterval(() => void processPaymentQueue(), paymentWorkerIntervalMs);
   paymentWorkerInterval.unref?.();
+  const reservationWorkerInterval = setInterval(() => {
+    expireAllReservations();
+    schedulePersistentStateSave("reservation-expiration-worker");
+  }, 30_000);
+  reservationWorkerInterval.unref?.();
+  expireAllReservations();
   void processPaymentQueue();
 
   app.listen(PORT, "0.0.0.0", () => {

@@ -100,6 +100,7 @@ export function Fazendinha() {
   const firstName = (customer?.name || form.name || "").trim().split(/\s+/)[0] || "cliente";
   const formatCurrency = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const checkoutMedia = mediaSettings?.checkoutMedia || data?.mediaSettings?.checkoutMedia;
+  const pixCountdown = usePixCountdown(pendingPix?.purchase?.pixExpiresAt || pendingPix?.purchase?.reservedUntil);
 
   const toggleGroup = (group: FazendinhaGroup) => {
     if (group.status !== "available") return;
@@ -441,6 +442,9 @@ export function Fazendinha() {
                 <p className="premium-eyebrow text-emerald-100">PIX gerado</p>
                 <h3 className="mt-2 text-2xl font-black text-white">{formatCurrency(totalValue || pendingPix.purchase.valorPago)}</h3>
                 <p className="mt-2 text-sm text-slate-300">Use o código abaixo e confirme o pagamento para liberar seu bilhete premium.</p>
+                <p className="mt-3 rounded-2xl border border-emerald-300/20 bg-black/20 px-4 py-2 font-mono text-sm font-black text-emerald-100">
+                  Expira em {pixCountdown}
+                </p>
               </div>
               <PixPaymentCard payload={pendingPix.pixPayload} copied={copiedPix} onCopy={copyPixPayload} />
               <CheckoutPrimaryButton onClick={checkPixPayment} disabled={buying} className="min-h-14 w-full disabled:opacity-50">
@@ -589,4 +593,17 @@ export function Fazendinha() {
 
 async function captureGeoLocation() {
   return GeoPrefillService.captureCoordinates();
+}
+
+function usePixCountdown(expiresAt?: string) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+  const target = expiresAt ? new Date(expiresAt).getTime() : now + 5 * 60 * 1000;
+  const diff = Math.max(0, (Number.isFinite(target) ? target : now) - now);
+  const minutes = Math.floor(diff / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }

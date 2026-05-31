@@ -883,8 +883,8 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
 
 function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
   const expiresAt = useMemo(() => {
-    return props.purchase?.expiresAt || props.purchase?.expires_at || props.purchase?.pixExpiresAt || new Date(Date.now() + 15 * 60 * 1000).toISOString();
-  }, [props.purchase?.expiresAt, props.purchase?.expires_at, props.purchase?.pixExpiresAt, props.purchase?.purchaseId]);
+    return props.purchase?.expiresAt || props.purchase?.expires_at || props.purchase?.pixExpiresAt || props.purchase?.reservedUntil || new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  }, [props.purchase?.expiresAt, props.purchase?.expires_at, props.purchase?.pixExpiresAt, props.purchase?.reservedUntil, props.purchase?.purchaseId]);
   const expiresIn = useCountdown(expiresAt);
   const gateway = props.purchase?.pixGateway || props.purchase?.gateway || props.purchase?.paymentGateway || "PIX";
   return (

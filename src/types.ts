@@ -441,8 +441,10 @@ export interface FazendinhaPurchase {
   nomeBichos?: string[];
   numeros: string[];
   valorPago: number;
-  statusPagamento: 'reserved' | 'paid';
+  statusPagamento: 'reserved' | 'paid' | 'cancelled';
   dataCompra: string;
+  reservedUntil?: string;
+  pixExpiresAt?: string;
   customer: Customer;
   earnedLootboxes?: number;
   linkedPurchases?: Purchase[];
@@ -494,8 +496,10 @@ export interface NumberModePurchase {
   mode: NumberModeId;
   numbers: string[];
   amount: number;
-  status: 'reserved' | 'paid';
+  status: 'reserved' | 'paid' | 'cancelled';
   createdAt: string;
+  reservedUntil?: string;
+  pixExpiresAt?: string;
   customer: Customer;
   earnedLootboxes?: number;
 }
