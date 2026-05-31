@@ -379,18 +379,26 @@ export function PremiumCheckoutModal({ open, title, children, onClose }: { open:
   if (!open) return null;
   return (
     <div className="checkout-modal-overlay fixed inset-0 z-[80] overflow-y-auto bg-black/75 p-2 backdrop-blur-2xl sm:p-3">
-      <motion.section initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="checkout-screen checkout-modal-shell mx-auto my-3 w-full overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_100px_rgba(52,211,153,0.16)] sm:my-5 sm:rounded-[2rem]">
+      <motion.section initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="checkout-screen checkout-modal-shell mx-auto my-3 flex w-full flex-col overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#090b11] shadow-[0_0_100px_rgba(52,211,153,0.16)] sm:my-5 sm:rounded-[2rem]">
         <CheckoutModalHeader title={title} eyebrow="Checkout seguro" onClose={onClose} compact />
-        {children}
+        <CheckoutContentArea>{children}</CheckoutContentArea>
       </motion.section>
     </div>
   );
 }
 
+export function CheckoutSafeTop({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
+  return <div className={cn("checkout-safe-top w-full min-w-0", className)}>{children}</div>;
+}
+
+export function CheckoutContentArea({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn("checkout-content-area min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain", className)}>{children}</div>;
+}
+
 export function CheckoutModalHeader({ title, eyebrow = "Checkout seguro", onClose, compact = false }: { title: string; eyebrow?: string; onClose: () => void; compact?: boolean }) {
   useCheckoutOverlayMode();
   return (
-    <header className={cn("checkout-modal-header premium-site-header sticky top-0 z-10 border-b border-white/10 bg-[#090b11]/92 backdrop-blur-xl", compact ? "px-3 py-2" : "px-3 py-3 sm:px-4")} data-media-aware={compact ? "compact-no-media" : "standard-media"}>
+    <header className={cn("checkout-modal-header premium-site-header sticky top-0 z-10 shrink-0 border-b border-white/10 bg-[#090b11]/92 backdrop-blur-xl", compact ? "px-3 py-2" : "px-3 py-3 sm:px-4")} data-media-aware={compact ? "compact-no-media" : "standard-media"}>
       <CheckoutPageContainer className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-0">
       <div className="checkout-modal-title-block flex min-w-0 items-center gap-2.5 sm:gap-3">
         <TenantLogo className={cn("shrink-0", compact ? "h-8 w-8" : "h-9 w-9 sm:h-10 sm:w-10")} eager />

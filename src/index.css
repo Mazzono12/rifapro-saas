@@ -441,6 +441,7 @@ body[data-checkout-open="true"] .public-floating-actions {
   display: block;
   width: 100vw;
   min-width: 0;
+  min-height: 100dvh;
 }
 
 .checkout-modal-shell,
@@ -457,6 +458,7 @@ body[data-checkout-open="true"] .public-floating-actions {
 .checkout-receipt-shell {
   inline-size: min(100%, var(--checkout-content-max-width));
   max-inline-size: calc(100vw - 1rem - env(safe-area-inset-left) - env(safe-area-inset-right));
+  max-height: calc(100dvh - max(1.5rem, env(safe-area-inset-top)) - max(1.5rem, env(safe-area-inset-bottom)));
   margin-inline: auto;
 }
 
@@ -470,6 +472,9 @@ body[data-checkout-open="true"] .public-floating-actions {
 .checkout-modal-header {
   min-height: var(--app-header-height);
   scroll-margin-top: calc(var(--app-header-height) + env(safe-area-inset-top));
+  position: sticky;
+  top: 0;
+  flex: 0 0 auto;
 }
 
 .checkout-modal-header {
@@ -485,6 +490,7 @@ body[data-checkout-open="true"] .public-floating-actions {
 .checkout-modal-title-block {
   min-width: 0;
   max-width: 100%;
+  align-items: flex-start;
 }
 
 .checkout-title,
@@ -493,6 +499,28 @@ body[data-checkout-open="true"] .public-floating-actions {
   overflow-wrap: normal;
   word-break: normal;
   writing-mode: horizontal-tb;
+  white-space: normal;
+  max-width: 100%;
+}
+
+.checkout-modal-title,
+.checkout-title {
+  line-height: 1.2;
+  min-height: 1.2em;
+}
+
+.checkout-content-area,
+.checkout-safe-top {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.checkout-content-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-top: 0;
 }
 
 .checkout-receipt-body,
@@ -580,6 +608,24 @@ body[data-checkout-open="true"] .public-floating-actions {
   line-break: auto;
   writing-mode: horizontal-tb;
   text-orientation: mixed;
+}
+
+.checkout-modal-overlay h1,
+.checkout-modal-overlay h2,
+.checkout-modal-overlay h3,
+.checkout-receipt-overlay h1,
+.checkout-receipt-overlay h2,
+.checkout-receipt-overlay h3,
+.checkout-screen h1,
+.checkout-screen h2,
+.checkout-screen h3 {
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.2;
+  writing-mode: horizontal-tb !important;
 }
 
 .checkout-modal-close {
@@ -3066,12 +3112,17 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   .checkout-receipt-overlay {
     padding-top: calc(var(--mobile-edge-gutter) + env(safe-area-inset-top)) !important;
     padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+    display: flex !important;
+    align-items: flex-start !important;
   }
 
   .checkout-modal-shell,
   .checkout-receipt-shell {
+    display: flex !important;
+    flex-direction: column !important;
     width: min(100%, 440px) !important;
     max-width: calc(100vw - (var(--mobile-edge-gutter) * 2) - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+    max-height: calc(100dvh - (var(--mobile-edge-gutter) * 2) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
     min-width: 0 !important;
     margin-top: 0 !important;
     margin-bottom: 0 !important;
@@ -3081,6 +3132,8 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   .checkout-modal-header,
   .checkout-receipt-header {
     padding: .875rem !important;
+    flex: 0 0 auto !important;
+    min-height: auto !important;
   }
 
   .checkout-title,
@@ -3090,10 +3143,17 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   }
 
   .checkout-receipt-body,
+  .checkout-content-area,
   .checkout-form,
   .checkout-screen > .space-y-5,
   .checkout-screen .space-y-5 {
     padding: .875rem !important;
+  }
+
+  .checkout-content-area {
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
   }
 
   .checkout-card,

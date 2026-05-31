@@ -54,6 +54,7 @@
     "test:premium-final-review": "node scripts/test-premium-final-review.mjs",
     "test:premium-global-audit-hard": "node scripts/test-premium-global-audit-hard.mjs",
     "test:global-width-alignment-hard": "node scripts/test-global-width-alignment-hard.mjs",
+    "test:checkout-header-overlap-hard": "node scripts/test-checkout-header-overlap-hard.mjs",
     "test:promotion-engine-hard": "node scripts/test-promotion-engine-hard.mjs",
     "test:double-tickets-hard": "node scripts/test-double-tickets-hard.mjs",
     "test:buy-and-win-hard": "node scripts/test-buy-and-win-hard.mjs",
