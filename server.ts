@@ -52,6 +52,7 @@ import {
 } from "./src/server/promotions/promotionEngine";
 import { sendMockWhatsAppMessage } from "./src/server/whatsapp/providers/mockWhatsAppProvider";
 import { sendMetaCloudWhatsAppMessage } from "./src/server/whatsapp/providers/metaCloudWhatsAppProvider";
+import { AsaasProvider } from "./src/server/payments/AsaasProvider";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1070,6 +1071,7 @@ async function startServer() {
     longitude?: number;
     blocked?: boolean;
     blockedReason?: string;
+    gatewayCustomerIds?: Record<string, string>;
   };
   type CrmContactStatus = "lead" | "comprador" | "vip" | "inativo" | "bloqueado";
   type CrmPipelineStage = "novo lead" | "interessado" | "comprou" | "recorrente" | "vip" | "inativo" | "perdido";
@@ -1126,6 +1128,22 @@ async function startServer() {
     pix_key?: string;
     priority: number;
     is_default: boolean;
+    config_json?: Record<string, unknown>;
+    created_at: string;
+    updated_at: string;
+  };
+  type PaymentRecord = {
+    id: string;
+    tenant_id: string;
+    order_id: string;
+    provider: PixGatewayId | string;
+    asaas_payment_id?: string;
+    billing_type: "PIX" | string;
+    status: string;
+    qr_code_base64?: string;
+    pix_payload?: string;
+    expiration_date?: string;
+    raw_response: Record<string, unknown>;
     created_at: string;
     updated_at: string;
   };
@@ -1246,6 +1264,9 @@ async function startServer() {
     pixPayload: string;
     pixGateway?: PixGatewayId | string;
     pixWebhookUrl?: string;
+    externalReference?: string;
+    externalPaymentId?: string;
+    pixQrCodeBase64?: string;
     createdAt: string;
     customer?: CustomerRecord;
     linkedPurchases?: PurchaseRecord[];
@@ -1576,6 +1597,7 @@ async function startServer() {
   let supportTickets: SupportTicket[] = [];
   let auditLogs: AuditLog[] = [];
   let paymentWebhookLogs: PaymentWebhookLog[] = [];
+  let payments: PaymentRecord[] = [];
   let auditEventLedger: AuditEventLedgerRecord[] = [];
   let ticketAdjustments: TicketAdjustmentRecord[] = [];
   let walletLedger: WalletLedgerRecord[] = [];
@@ -5857,6 +5879,108 @@ async function startServer() {
     return `${payloadWithoutCrc}${crc16(payloadWithoutCrc)}`;
   }
 
+  function getAsaasGatewayConfig(tenantId: string) {
+    const config = getDefaultPaymentGatewayConfig(tenantId);
+    const provider = normalizePaymentProvider(config.provider);
+    if (provider !== "asaas" || !config.enabled) return null;
+    const credentials = config.credentials || {};
+    const configJson = config.config_json || {};
+    const apiKey = String(credentials.apiKey || config.pix_key || "");
+    if (!apiKey || isMaskedGatewaySecret(apiKey)) return null;
+    return {
+      environment: config.environment === "production" ? "production" as const : "sandbox" as const,
+      apiKey,
+      webhookToken: String(config.webhook_secret || ""),
+      userAgent: String(configJson.userAgent || credentials.userAgent || "RifaPro SaaS"),
+      releaseMode: String(configJson.releaseMode || credentials.releaseMode || "PAYMENT_RECEIVED") === "PAYMENT_CONFIRMED" ? "PAYMENT_CONFIRMED" as const : "PAYMENT_RECEIVED" as const,
+      paymentMode: String(configJson.paymentMode || credentials.paymentMode || "pix_direct"),
+      orderExpirationMinutes: Math.max(1, Number(configJson.orderExpirationMinutes || credentials.orderExpirationMinutes || 15))
+    };
+  }
+
+  function getAsaasProvider(tenantId: string) {
+    const config = getAsaasGatewayConfig(tenantId);
+    return config ? { config, provider: new AsaasProvider(config) } : null;
+  }
+
+  function upsertPaymentRecord(record: PaymentRecord) {
+    const current = payments.find(item => item.tenant_id === record.tenant_id && item.order_id === record.order_id && item.provider === record.provider);
+    if (current) Object.assign(current, record, { id: current.id, created_at: current.created_at, updated_at: new Date().toISOString() });
+    else payments.unshift(record);
+    payments = payments.slice(0, 1000);
+    return current || record;
+  }
+
+  function updatePaymentRecordStatus(tenantId: string, provider: string, orderId: string, status: string, rawResponse: Record<string, unknown> = {}) {
+    const payment = payments.find(item => item.tenant_id === tenantId && item.provider === provider && item.order_id === orderId);
+    if (payment) {
+      payment.status = status;
+      payment.raw_response = { ...(payment.raw_response || {}), ...rawResponse };
+      payment.updated_at = new Date().toISOString();
+    }
+    return payment;
+  }
+
+  async function attachAsaasPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
+    const asaas = getAsaasProvider(input.tenantId);
+    if (!asaas || input.amount <= 0) return null;
+    const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
+    const customerGatewayKey = `${input.tenantId}:asaas:${asaas.config.environment}`;
+    input.customer.gatewayCustomerIds ||= {};
+    let asaasCustomerId = input.customer.gatewayCustomerIds[customerGatewayKey];
+    if (!asaasCustomerId) {
+      const createdCustomer = await asaas.provider.createCustomer({
+        name: input.customer.name,
+        cpfCnpj: input.customer.cpf,
+        mobilePhone: input.customer.phone,
+        externalReference: input.customer.id
+      });
+      asaasCustomerId = String(createdCustomer.id || "");
+      if (!asaasCustomerId) throw new Error("Asaas nao retornou ID do cliente");
+      input.customer.gatewayCustomerIds[customerGatewayKey] = asaasCustomerId;
+      recordPaymentWebhookLog({ tenant_id: input.tenantId, gateway: "asaas", purchaseId: orderId, status: "received", message: "Cliente Asaas criado/reutilizado", statusCode: 201, eventStatus: "CUSTOMER_CREATED" });
+    }
+    const dueDate = new Date(input.pixExpiresAt || Date.now() + asaas.config.orderExpirationMinutes * 60_000).toISOString().slice(0, 10);
+    const payment = await asaas.provider.createPixPayment({
+      customerId: asaasCustomerId,
+      value: Number(input.amount.toFixed(2)),
+      dueDate,
+      externalReference: orderId,
+      description: input.description
+    });
+    const asaasPaymentId = String(payment.id || "");
+    if (!asaasPaymentId) throw new Error("Asaas nao retornou ID da cobranca");
+    const qrCode = await asaas.provider.getPixQrCode(asaasPaymentId);
+    const pixPayload = qrCode.payload || "ASAAS_PIX_PAYLOAD_PENDING";
+    const pixExpiresAt = input.pixExpiresAt || qrCode.expirationDate || new Date(Date.now() + asaas.config.orderExpirationMinutes * 60_000).toISOString();
+    Object.assign(input.purchase, {
+      pixPayload,
+      pixGateway: "asaas",
+      pixWebhookUrl: "/api/webhooks/asaas",
+      externalReference: orderId,
+      externalPaymentId: asaasPaymentId,
+      pixQrCodeBase64: qrCode.encodedImage || "",
+      pixExpiresAt
+    });
+    upsertPaymentRecord({
+      id: createPublicId("PAY_"),
+      tenant_id: input.tenantId,
+      order_id: orderId,
+      provider: "asaas",
+      asaas_payment_id: asaasPaymentId,
+      billing_type: "PIX",
+      status: String(payment.status || "PENDING"),
+      qr_code_base64: qrCode.encodedImage || "",
+      pix_payload: pixPayload,
+      expiration_date: pixExpiresAt,
+      raw_response: { payment, qrCode: { ...qrCode, encodedImage: qrCode.encodedImage ? "[base64]" : "" } },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    recordPaymentWebhookLog({ tenant_id: input.tenantId, gateway: "asaas", purchaseId: orderId, status: "received", message: "Cobranca Pix Asaas criada e QR Code gerado", statusCode: 201, eventStatus: "PAYMENT_CREATED" });
+    return { payment, qrCode };
+  }
+
   function normalizeFazendinhaNumber(input: unknown) {
     const digits = String(input ?? "").replace(/\D/g, "").slice(-2);
     if (!digits) return "";
@@ -8198,7 +8322,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/raffles/:id/buy", (req, res) => {
+  app.post("/api/raffles/:id/buy", async (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     try {
       assertTenantOperationalForCheckout(tenants.find(item => item.id === tenantId));
@@ -8396,6 +8520,35 @@ async function startServer() {
     if (balancePayment > 0) {
       debitAffiliateWallet(ownAffiliate, balancePayment);
       ownAffiliate.history.push({ amount: -balancePayment, type: "balance_purchase", date: new Date().toISOString() });
+    }
+
+    try {
+      await attachAsaasPixToOrder({
+        tenantId,
+        purchase,
+        customer,
+        amount: payableAmount,
+        description: `Pedido ${purchase.purchaseId} - ${raffle.title}`,
+        pixExpiresAt: reservedUntil
+      });
+      if (purchase.linkedPurchases?.length) {
+        purchase.linkedPurchases.forEach(linked => {
+          linked.pixPayload = purchase.pixPayload;
+          linked.pixGateway = purchase.pixGateway;
+          linked.pixWebhookUrl = purchase.pixWebhookUrl;
+          linked.externalReference = purchase.externalReference;
+          linked.externalPaymentId = purchase.externalPaymentId;
+          linked.pixQrCodeBase64 = purchase.pixQrCodeBase64;
+          linked.pixExpiresAt = purchase.pixExpiresAt;
+        });
+      }
+    } catch (error) {
+      releaseReservedNumbers(raffle, reservedNumbers);
+      if (addonRaffle && addonReservedNumbers.length) releaseReservedNumbers(addonRaffle, addonReservedNumbers);
+      purchase.status = "cancelled";
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "asaas", purchaseId, status: "failed", message: error instanceof Error ? error.message : "Falha ao criar PIX Asaas", statusCode: 502, eventStatus: "PAYMENT_CREATE_FAILED" });
+      res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao criar PIX Asaas" });
+      return;
     }
     
     purchases.push(purchase);
@@ -8601,7 +8754,7 @@ async function startServer() {
     });
   });
 
-  app.post("/api/modalidades/:mode/buy", (req, res) => {
+  app.post("/api/modalidades/:mode/buy", async (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     try {
       assertTenantOperationalForCheckout(tenants.find(item => item.id === tenantId));
@@ -8648,7 +8801,8 @@ async function startServer() {
       return;
     }
 
-    const paid = req.body.statusPagamento === "paid" || req.body.simulatePayment !== false;
+    const asaasEnabled = Boolean(getAsaasGatewayConfig(tenantId));
+    const paid = req.body.statusPagamento === "paid" || (!asaasEnabled && req.body.simulatePayment !== false);
     const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
     const purchase: NumberModePurchase = {
       id: createPublicId("MO_"),
@@ -8663,6 +8817,20 @@ async function startServer() {
       customer,
       refCode: req.body.refCode
     };
+    try {
+      await attachAsaasPixToOrder({
+        tenantId,
+        purchase,
+        customer,
+        amount: purchase.amount,
+        description: `Pedido ${purchase.id} - ${config.name}`,
+        pixExpiresAt: fastExpiresAt
+      });
+    } catch (error) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "asaas", purchaseId: purchase.id, status: "failed", message: error instanceof Error ? error.message : "Falha ao criar PIX Asaas", statusCode: 502, eventStatus: "PAYMENT_CREATE_FAILED" });
+      res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao criar PIX Asaas" });
+      return;
+    }
     numberModePurchases.unshift(purchase);
     numbers.forEach(number => {
       numberModeBets.push({
@@ -8696,7 +8864,7 @@ async function startServer() {
         source: `conversion:${purchase.id}`
       });
     }
-    const pixPayload = buildPixPayload(purchase.amount, undefined, purchase.id, tenantId);
+    const pixPayload = (purchase as NumberModePurchase & { pixPayload?: string }).pixPayload || buildPixPayload(purchase.amount, undefined, purchase.id, tenantId);
     res.json(stripSensitiveCustomerFields({ purchase, pixPayload, pixExpiresAt: purchase.pixExpiresAt, reservedUntil: purchase.reservedUntil, earnedLootboxes }));
   });
 
@@ -8704,7 +8872,7 @@ async function startServer() {
     res.status(403).json({ error: "Confirmacao manual pelo cliente nao e permitida. Use Verificar pagamento e aguarde o webhook do gateway." });
   });
 
-  function createFazendinhaPurchase(req: express.Request, res: express.Response, requestedGroupIds: string[]) {
+  async function createFazendinhaPurchase(req: express.Request, res: express.Response, requestedGroupIds: string[]) {
     const tenantId = resolveRequestTenantId(req);
     ensureFazendinhaStateForTenant(tenantId);
     try {
@@ -8717,7 +8885,7 @@ async function startServer() {
       res.status(403).json({ error: "A Fazendinha nao esta ativa no momento" });
       return null;
     }
-    if (!gateways.pix?.enabled) {
+    if (!getTenantGateways(tenantId).pix?.enabled) {
       res.status(503).json({ error: "PIX temporariamente desabilitado pelo admin" });
       return null;
     }
@@ -8744,7 +8912,8 @@ async function startServer() {
       return null;
     }
 
-    const paid = req.body.statusPagamento === "paid" || req.body.simulatePayment !== false;
+    const asaasEnabled = Boolean(getAsaasGatewayConfig(tenantId));
+    const paid = req.body.statusPagamento === "paid" || (!asaasEnabled && req.body.simulatePayment !== false);
     const numeros = selectedGroups.flatMap(group => group.numeros);
     const amount = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
     const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
@@ -8795,6 +8964,33 @@ async function startServer() {
       purchase.valorPago += linked.amount;
     }
 
+    try {
+      await attachAsaasPixToOrder({
+        tenantId,
+        purchase,
+        customer,
+        amount: purchase.valorPago,
+        description: `Pedido ${purchase.id} - Fazendinha`,
+        pixExpiresAt: fastExpiresAt
+      });
+      purchase.linkedPurchases?.forEach(linked => {
+        linked.pixPayload = (purchase as FazendinhaPurchase & { pixPayload?: string }).pixPayload || "";
+        linked.pixGateway = "asaas";
+        linked.pixWebhookUrl = "/api/webhooks/asaas";
+        linked.externalReference = purchase.id;
+        linked.externalPaymentId = (purchase as FazendinhaPurchase & { externalPaymentId?: string }).externalPaymentId;
+        linked.pixQrCodeBase64 = (purchase as FazendinhaPurchase & { pixQrCodeBase64?: string }).pixQrCodeBase64;
+        linked.pixExpiresAt = purchase.pixExpiresAt;
+      });
+    } catch (error) {
+      if (purchase.linkedPurchases?.length) {
+        purchases = purchases.filter(item => !purchase.linkedPurchases?.some(linked => linked.purchaseId === item.purchaseId));
+      }
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "asaas", purchaseId: purchase.id, status: "failed", message: error instanceof Error ? error.message : "Falha ao criar PIX Asaas", statusCode: 502, eventStatus: "PAYMENT_CREATE_FAILED" });
+      res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao criar PIX Asaas" });
+      return null;
+    }
+
     const earnedLootboxes = paid && fazendinhaConfig.lootboxEnabled
       ? processFazendinhaLootboxDrops(customer.phone, selectedGroups.map(group => group.id), purchase.id, tenantId)
       : 0;
@@ -8817,7 +9013,7 @@ async function startServer() {
       group.compraId = purchase.id;
     });
     fazendinhaCompras.unshift(purchase);
-    const pixPayload = buildPixPayload(purchase.valorPago, undefined, purchase.id, tenantId);
+    const pixPayload = (purchase as FazendinhaPurchase & { pixPayload?: string }).pixPayload || buildPixPayload(purchase.valorPago, undefined, purchase.id, tenantId);
     purchase.linkedPurchases?.forEach(linked => {
       linked.pixPayload = pixPayload;
     });
@@ -8887,15 +9083,15 @@ async function startServer() {
     return purchase;
   }
 
-  app.post("/api/fazendinha/buy", (req, res) => {
+  app.post("/api/fazendinha/buy", async (req, res) => {
     const groupIds = Array.isArray(req.body.groupIds) ? req.body.groupIds.map(String) : [];
-    const result = createFazendinhaPurchase(req, res, groupIds);
+    const result = await createFazendinhaPurchase(req, res, groupIds);
     if (!result) return;
     res.json(stripSensitiveCustomerFields(result));
   });
 
-  app.post("/api/fazendinha/groups/:groupId/buy", (req, res) => {
-    const result = createFazendinhaPurchase(req, res, [req.params.groupId]);
+  app.post("/api/fazendinha/groups/:groupId/buy", async (req, res) => {
+    const result = await createFazendinhaPurchase(req, res, [req.params.groupId]);
     if (!result) return;
     res.json(stripSensitiveCustomerFields({ ...result, group: result.groups[0] }));
   });
@@ -9898,7 +10094,10 @@ async function startServer() {
     const nestedDataId = nestedData && typeof nestedData === "object" && !Array.isArray(nestedData)
       ? (nestedData as Record<string, unknown>).id
       : "";
-    const explicitEventId = input.payload?.eventId || input.payload?.id || nestedDataId;
+    const asaasPayment = input.payload?.payment && typeof input.payload.payment === "object" && !Array.isArray(input.payload.payment)
+      ? input.payload.payment as Record<string, unknown>
+      : null;
+    const explicitEventId = input.payload?.eventId || input.payload?.id || nestedDataId || (input.gateway === "asaas" ? `${input.payload?.event || input.eventStatus}:${asaasPayment?.id || asaasPayment?.externalReference || input.purchaseId || "unknown"}` : "");
     if (explicitEventId) return `${input.tenant_id}:${input.gateway}:event:${String(explicitEventId)}`;
     return `${input.tenant_id}:${input.gateway}:purchase:${input.purchaseId || "unknown"}:${input.eventStatus || "unknown"}`;
   }
@@ -9965,6 +10164,13 @@ async function startServer() {
     return ["paid", "approved", "confirmed", "received", "payment.updated", "payment.paid"].some(status => rawStatus.includes(status));
   }
 
+  function isPaidAsaasEvent(tenantId: string, rawStatus: string) {
+    const normalized = rawStatus.toUpperCase();
+    const releaseMode = getAsaasGatewayConfig(tenantId)?.releaseMode || "PAYMENT_RECEIVED";
+    if (releaseMode === "PAYMENT_CONFIRMED") return normalized.includes("PAYMENT_CONFIRMED") || normalized === "CONFIRMED";
+    return normalized.includes("PAYMENT_RECEIVED") || normalized === "RECEIVED";
+  }
+
   async function processPaymentJob(job: PaymentQueueJob) {
     if (!["pending", "failed"].includes(job.status)) return job;
     if (job.status === "failed" && job.attempts >= job.maxAttempts) return job;
@@ -9972,7 +10178,7 @@ async function startServer() {
 
     markPaymentJob(job, "processing");
     const rawStatus = job.eventStatus || extractPaymentStatus(job.payload as Record<string, any>);
-    const isPaidEvent = isPaidPaymentEvent(rawStatus);
+    const isPaidEvent = job.gateway === "asaas" ? isPaidAsaasEvent(job.tenant_id, rawStatus) : isPaidPaymentEvent(rawStatus);
     const purchaseId = job.purchaseId || extractPaymentReference(job.gateway, job.payload as Record<string, any>);
     job.purchaseId = purchaseId || job.purchaseId;
 
@@ -10033,6 +10239,7 @@ async function startServer() {
         }
         try {
           confirmNumberModePurchase(modePurchase);
+          updatePaymentRecordStatus(job.tenant_id, job.gateway, purchaseId, "paid", { webhook: job.payload as Record<string, unknown> });
           markPaymentJob(job, "paid");
           job.result = { success: true, purchaseId, type: "modalidade", earnedLootboxes: modePurchase.earnedLootboxes };
           recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "confirmed", message: "Pagamento de modalidade liquidado", statusCode: 200, eventStatus: rawStatus });
@@ -10052,6 +10259,7 @@ async function startServer() {
         }
         try {
           confirmFazendinhaPurchase(farmPurchase);
+          updatePaymentRecordStatus(job.tenant_id, job.gateway, purchaseId, "paid", { webhook: job.payload as Record<string, unknown> });
           markPaymentJob(job, "paid");
           job.result = { success: true, purchaseId, type: "fazendinha", earnedLootboxes: farmPurchase.earnedLootboxes };
           recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "confirmed", message: "Pagamento da Fazendinha liquidado", statusCode: 200, eventStatus: rawStatus });
@@ -10092,6 +10300,7 @@ async function startServer() {
     try {
       confirmPurchase(purchase);
       purchase.linkedPurchases?.forEach(confirmPurchase);
+      updatePaymentRecordStatus(job.tenant_id, job.gateway, purchaseId, "paid", { webhook: job.payload as Record<string, unknown> });
       markPaymentJob(job, "paid");
       job.result = { success: true, purchaseId, earnedLootboxes: purchase.earnedLootboxes };
       recordPaymentWebhookLog({
@@ -10138,6 +10347,60 @@ async function startServer() {
     }
   }
 
+  app.post("/api/webhooks/asaas", async (req, res) => {
+    const gateway = "asaas";
+    const tenant = getRequestTenant(req);
+    const tenantId = tenant?.id || "unknown";
+    const asaasConfig = tenant ? getAsaasGatewayConfig(tenant.id) : null;
+    const webhookSecret = asaasConfig?.webhookToken || "";
+    const providedSecret = String(req.headers["asaas-access-token"] || "");
+    if (webhookSecret) {
+      const providedBuffer = Buffer.from(providedSecret);
+      const expectedBuffer = Buffer.from(webhookSecret);
+      if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "invalid", message: "Asaas webhook token invalid", statusCode: 401 });
+        res.status(401).json({ error: "Asaas webhook token invalid" });
+        return;
+      }
+    } else if (process.env.NODE_ENV === "production") {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "invalid", message: "Webhook token Asaas obrigatorio em producao", statusCode: 401 });
+      res.status(401).json({ error: "Webhook token Asaas obrigatorio em producao" });
+      return;
+    }
+    const payload = (req.body || {}) as Record<string, unknown>;
+    const rawStatus = extractPaymentStatus(payload as Record<string, any>);
+    const purchaseIdToConfirm = extractPaymentReference(gateway, payload as Record<string, any>);
+    const eventKey = buildPaymentIdempotencyKey({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, eventStatus: rawStatus, payload });
+    const existingEvent = webhookEvents.find(item => item.tenant_id === tenantId && String(item.provider) === "asaas" && item.id === eventKey);
+    if (existingEvent?.processed) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, status: "duplicate", message: "Webhook Asaas duplicado ignorado por event.id", statusCode: 200, eventStatus: rawStatus });
+      res.json({ success: true, duplicate: true, eventId: eventKey });
+      return;
+    }
+    webhookEvents.unshift({
+      id: eventKey,
+      tenant_id: tenantId,
+      provider: "asaas" as IntegrationProviderId,
+      event_type: String((payload as Record<string, any>).event || rawStatus || "PAYMENT_UPDATED"),
+      payload,
+      processed: false,
+      processed_at: "",
+      error_message: "",
+      created_at: new Date().toISOString()
+    });
+    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, eventStatus: rawStatus, payload });
+    await processPaymentJob(queueJob);
+    const event = webhookEvents.find(item => item.id === queueJob.idempotencyKey);
+    if (event) {
+      event.processed = queueJob.status === "paid" || queueJob.status === "cancelled";
+      event.processed_at = new Date().toISOString();
+      event.error_message = queueJob.lastError || "";
+    }
+    if (queueJob.status === "paid") return res.json({ success: true, duplicate: Boolean(queueJob.duplicateReceipt || queueJob.result?.duplicate), jobId: queueJob.id });
+    if (queueJob.status === "cancelled") return res.status(202).json({ success: true, message: "Evento Asaas recebido sem baixa", jobId: queueJob.id });
+    res.status(queueJob.lastError === "Purchase not found for tenant" ? 404 : 503).json({ error: queueJob.lastError || "Webhook queued for retry", jobId: queueJob.id });
+  });
+
   // Universal Webhook for Payment Gateways (MercadoPago, Asaas, PagBank, etc)
   app.post("/api/webhooks/payment/:gateway", async (req, res) => {
     const gateway = normalizePaymentProvider(req.params.gateway);
@@ -10145,8 +10408,9 @@ async function startServer() {
     const tenantId = tenant?.id || "unknown";
     const tenantPixGateways = tenant ? getTenantGateways(tenant.id) : gateways;
     const gatewayConfig = (tenantPixGateways[gateway] || {}) as Record<string, string>;
-    const webhookSecret = tenantPixGateways.pix?.webhookSecret || gatewayConfig.webhookSecret || "";
-    const providedSecret = String(req.headers["x-webhook-secret"] || req.headers["x-signature"] || req.query.secret || "");
+    const asaasConfig = gateway === "asaas" && tenant ? getAsaasGatewayConfig(tenant.id) : null;
+    const webhookSecret = gateway === "asaas" ? (asaasConfig?.webhookToken || tenantPixGateways.pix?.webhookSecret || gatewayConfig.webhookSecret || "") : (tenantPixGateways.pix?.webhookSecret || gatewayConfig.webhookSecret || "");
+    const providedSecret = String(req.headers["asaas-access-token"] || req.headers["x-webhook-secret"] || req.headers["x-signature"] || req.query.secret || "");
     if (webhookSecret) {
       const providedBuffer = Buffer.from(providedSecret);
       const expectedBuffer = Buffer.from(webhookSecret);
@@ -10291,7 +10555,7 @@ async function startServer() {
         paymentStatus: modePurchase.status === "paid" ? "paid" : expired ? "expired" : "pending",
         paid: modePurchase.status === "paid",
         expired,
-        pixPayload: modePurchase.status === "reserved" && !expired ? buildPixPayload(modePurchase.amount, undefined, modePurchase.id, tenantId) : "",
+        pixPayload: modePurchase.status === "reserved" && !expired ? ((modePurchase as NumberModePurchase & { pixPayload?: string }).pixPayload || buildPixPayload(modePurchase.amount, undefined, modePurchase.id, tenantId)) : "",
         pixExpiresAt: modePurchase.pixExpiresAt || modePurchase.reservedUntil,
         reservedUntil: modePurchase.reservedUntil,
         purchase: modePurchase,
@@ -10310,7 +10574,7 @@ async function startServer() {
         paymentStatus: farmPurchase.statusPagamento === "paid" ? "paid" : expired ? "expired" : "pending",
         paid: farmPurchase.statusPagamento === "paid",
         expired,
-        pixPayload: farmPurchase.statusPagamento === "reserved" && !expired ? buildPixPayload(farmPurchase.valorPago, undefined, farmPurchase.id, tenantId) : "",
+        pixPayload: farmPurchase.statusPagamento === "reserved" && !expired ? ((farmPurchase as FazendinhaPurchase & { pixPayload?: string }).pixPayload || buildPixPayload(farmPurchase.valorPago, undefined, farmPurchase.id, tenantId)) : "",
         pixExpiresAt: farmPurchase.pixExpiresAt || farmPurchase.reservedUntil,
         reservedUntil: farmPurchase.reservedUntil,
         purchase: farmPurchase,
@@ -11998,6 +12262,12 @@ async function startServer() {
       pix_key: encryptGatewaySecret(tenantPixGateways.pix?.pixKey || gatewayConfig.pixKey || tenantPixGateways.pix?.apiKey || gatewayConfig.apiKey || ""),
       priority: 0,
       is_default: true,
+      config_json: {
+        userAgent: gatewayConfig.userAgent || "RifaPro SaaS",
+        releaseMode: gatewayConfig.releaseMode || "PAYMENT_RECEIVED",
+        paymentMode: gatewayConfig.paymentMode || "pix_direct",
+        orderExpirationMinutes: Number(gatewayConfig.orderExpirationMinutes || 15)
+      },
       created_at: now,
       updated_at: now
     };
@@ -12029,6 +12299,7 @@ async function startServer() {
       pix_key: isMaskedGatewaySecret(raw.pix_key) ? (current?.pix_key || "") : encryptGatewaySecret(raw.pix_key || ""),
       priority: Number(raw.priority || 0),
       is_default: Boolean(raw.is_default || fallbackDefault),
+      config_json: { ...(current?.config_json || {}), ...(raw.config_json || {}) },
       created_at: raw.created_at || now,
       updated_at: now
     };
@@ -12058,15 +12329,16 @@ async function startServer() {
       ...tenantPixGateways.pix,
       enabled: defaultConfig.enabled,
       sandbox: defaultConfig.environment !== "production",
-      webhookUrl: `http://127.0.0.1:3000/api/webhooks/payment/${provider}`,
+      webhookUrl: provider === "asaas" ? "/api/webhooks/asaas" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`,
       webhookSecret: defaultConfig.webhook_secret || tenantPixGateways.pix?.webhookSecret || "",
       apiKey: defaultConfig.pix_key || tenantPixGateways.pix?.apiKey || ""
     };
     (tenantPixGateways as unknown as Record<string, Record<string, string>>)[provider] = {
       ...(tenantPixGateways[provider] || {}),
       ...Object.fromEntries(Object.entries(defaultConfig.credentials || {}).map(([key, value]) => [key, String(value || "")])),
+      ...Object.fromEntries(Object.entries(defaultConfig.config_json || {}).map(([key, value]) => [key, String(value || "")])),
       webhookSecret: defaultConfig.webhook_secret || "",
-      webhookUrl: `http://127.0.0.1:3000/api/webhooks/payment/${provider}`
+      webhookUrl: provider === "asaas" ? "/api/webhooks/asaas" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`
     };
     if (tenantId === legacyTenantId) gateways = tenantPixGateways;
   }
@@ -12135,6 +12407,7 @@ async function startServer() {
       fraudSignals,
       fraudScoreEvents,
       fraudCases,
+      payments,
       paymentWebhookLogs,
       n8nEventLogs,
       integrations,
@@ -12211,6 +12484,7 @@ async function startServer() {
       case "fraudSignals": fraudSignals = Array.isArray(value) ? value : []; break;
       case "fraudScoreEvents": fraudScoreEvents = Array.isArray(value) ? value : []; break;
       case "fraudCases": fraudCases = Array.isArray(value) ? value : []; break;
+      case "payments": payments = Array.isArray(value) ? value : []; break;
       case "paymentWebhookLogs": paymentWebhookLogs = Array.isArray(value) ? value : []; break;
       case "n8nEventLogs": n8nEventLogs = Array.isArray(value) ? value : []; break;
       case "integrations": integrations = Array.isArray(value) ? value : []; break;
@@ -12361,7 +12635,7 @@ async function startServer() {
       environment: defaultConfig.environment
     });
   });
-  app.post("/api/admin/gateways/test", (req, res) => {
+  app.post("/api/admin/gateways/test", async (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const tenantPixGateways = getTenantGateways(tenantId);
     const gateway = normalizePaymentProvider(req.body.gateway || getDefaultPaymentGatewayConfig(tenantId).provider || tenantPixGateways.active || "mercadopago");
@@ -12389,6 +12663,14 @@ async function startServer() {
       ...(presentCredentials.length === 0 && !pixConfig.apiKey ? ["Nenhuma credencial/API key configurada para este gateway"] : []),
       ...(!webhookUrl.includes(`/api/webhooks/payment/${gateway}`) ? [`Webhook recomendado deve apontar para /api/webhooks/payment/${gateway}`] : []),
     ];
+    if (gateway === "asaas" && issues.length === 0) {
+      try {
+        await getAsaasProvider(tenantId)?.provider.testConnection();
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "asaas", status: "received", message: "Conexao Asaas testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
+      } catch (error) {
+        issues.push(error instanceof Error ? error.message : "Falha ao testar conexao Asaas");
+      }
+    }
     res.json({
       gateway,
       ok: issues.length === 0,
@@ -12447,7 +12729,8 @@ async function startServer() {
     updatedGateways.active = normalizePaymentProvider(req.body.active || req.body.pix?.gateway || updatedGateways.active);
     updatedGateways.pix = {
       ...updatedGateways.pix,
-      webhookUrl: `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
+      sandbox: updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.pix?.sandbox,
+      webhookUrl: updatedGateways.active === "asaas" ? "/api/webhooks/asaas" : `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
     };
     tenantGateways[tenantId] = updatedGateways;
     if (tenantId === legacyTenantId) gateways = updatedGateways;
