@@ -4,6 +4,7 @@ export type AsaasProviderConfig = {
   apiKey: string;
   environment: AsaasEnvironment;
   userAgent: string;
+  timeoutMs?: number;
 };
 
 export type AsaasCustomerPayload = {
@@ -40,32 +41,54 @@ export class AsaasProvider {
   readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly userAgent: string;
+  private readonly timeoutMs: number;
 
   constructor(config: AsaasProviderConfig) {
     this.apiKey = config.apiKey;
     this.userAgent = config.userAgent || "RifaPro SaaS";
+    this.timeoutMs = Math.max(1000, Number(config.timeoutMs || 15000));
     this.baseUrl = ASAAS_BASE_URLS[config.environment] || ASAAS_BASE_URLS.sandbox;
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (!this.apiKey) throw new Error("API Key Asaas nao configurada");
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      ...init,
-      headers: {
-        "accept": "application/json",
-        "content-type": "application/json",
-        "access_token": this.apiKey,
-        "user-agent": this.userAgent,
-        ...(init.headers || {})
+    const headers = {
+      "accept": "application/json",
+      "content-type": "application/json",
+      "access_token": this.apiKey,
+      "user-agent": this.userAgent,
+      ...(init.headers || {})
+    };
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+      try {
+        const response = await fetch(`${this.baseUrl}${path}`, {
+          ...init,
+          headers,
+          signal: init.signal || controller.signal
+        });
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : {};
+        if (!response.ok) {
+          const message = data?.errors?.[0]?.description || data?.message || `Asaas respondeu HTTP ${response.status}`;
+          if (response.status >= 500 && attempt === 0) {
+            lastError = new Error(message);
+            continue;
+          }
+          throw new Error(message);
+        }
+        return data as T;
+      } catch (error) {
+        lastError = error;
+        if (attempt > 0) break;
+        if (error instanceof Error && !["AbortError", "TypeError"].includes(error.name)) break;
+      } finally {
+        clearTimeout(timer);
       }
-    });
-    const text = await response.text();
-    const data = text ? JSON.parse(text) : {};
-    if (!response.ok) {
-      const message = data?.errors?.[0]?.description || data?.message || `Asaas respondeu HTTP ${response.status}`;
-      throw new Error(message);
     }
-    return data as T;
+    throw lastError instanceof Error ? lastError : new Error("Falha ao chamar Asaas");
   }
 
   async createCustomer(payload: AsaasCustomerPayload) {

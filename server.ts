@@ -10302,8 +10302,11 @@ async function startServer() {
       pagbankCharges[0]?.payment_response?.reference ||
       "no-e2e"
     );
-    const explicitEventId = input.payload?.eventId || input.payload?.id || nestedDataId ||
-      (input.gateway === "asaas" ? `${input.payload?.event || input.eventStatus}:${asaasPayment?.id || asaasPayment?.externalReference || input.purchaseId || "unknown"}` : "") ||
+    const asaasPaymentId = String(asaasPayment?.id || input.payload?.paymentId || "no-payment");
+    const asaasStatus = String(input.payload?.event || input.eventStatus || asaasPayment?.status || "unknown");
+    const explicitEventId = input.gateway === "asaas"
+      ? `${asaasPaymentId}:${asaasStatus}`
+      : input.payload?.eventId || input.payload?.id || nestedDataId ||
       (input.gateway === "pay2m" ? `${pay2mMessage?.reference_code || input.purchaseId || "unknown"}:${pay2mMessage?.status || input.eventStatus || "unknown"}:${pay2mMessage?.end_to_end || "no-e2e"}` : "") ||
       (input.gateway === "pagbank" ? `${pagbankOrder?.id || "no-order"}:${pagbankOrder?.reference_id || input.purchaseId || "unknown"}:${input.eventStatus || pagbankOrder?.status || "unknown"}:${pagbankEndToEnd}` : "");
     if (explicitEventId) return `${input.tenant_id}:${input.gateway}:event:${String(explicitEventId)}`;
@@ -10594,8 +10597,13 @@ async function startServer() {
       return;
     }
     const payload = (req.body || {}) as Record<string, unknown>;
-    const rawStatus = extractPaymentStatus(payload as Record<string, any>);
-    const purchaseIdToConfirm = extractPaymentReference(gateway, payload as Record<string, any>);
+    const parsed = new AsaasProvider({ apiKey: "webhook", environment: "sandbox", userAgent: "RifaPro Webhook" }).handleWebhook(payload as Record<string, any>, asaasConfig?.releaseMode || "PAYMENT_RECEIVED");
+    const rawStatus = parsed.eventType || parsed.status || extractPaymentStatus(payload as Record<string, any>);
+    const paymentPayload = payload.payment && typeof payload.payment === "object" && !Array.isArray(payload.payment)
+      ? payload.payment as Record<string, unknown>
+      : {};
+    const asaasPaymentId = String(parsed.paymentId || paymentPayload.id || "");
+    const purchaseIdToConfirm = parsed.externalReference || extractPaymentReference(gateway, payload as Record<string, any>);
     const eventKey = buildPaymentIdempotencyKey({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, eventStatus: rawStatus, payload });
     const existingEvent = webhookEvents.find(item => item.tenant_id === tenantId && String(item.provider) === "asaas" && item.id === eventKey);
     if (existingEvent?.processed) {
@@ -10608,13 +10616,44 @@ async function startServer() {
       tenant_id: tenantId,
       provider: "asaas" as IntegrationProviderId,
       event_type: String((payload as Record<string, any>).event || rawStatus || "PAYMENT_UPDATED"),
+      status: rawStatus,
+      external_reference: purchaseIdToConfirm,
+      provider_payment_id: asaasPaymentId,
       payload,
       processed: false,
       processed_at: "",
       error_message: "",
       created_at: new Date().toISOString()
     });
-    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, eventStatus: rawStatus, payload });
+    const payment = payments.find(item =>
+      item.tenant_id === tenantId &&
+      item.provider === "asaas" &&
+      (item.provider_payment_id === asaasPaymentId || item.asaas_payment_id === asaasPaymentId)
+    );
+    if (parsed.shouldRelease && !payment) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, status: "invalid", message: "Asaas pago sem payment interno tenant-scoped; baixa bloqueada", statusCode: 200, eventStatus: rawStatus });
+      const event = webhookEvents.find(item => item.id === eventKey);
+      if (event) {
+        event.processed = true;
+        event.processed_at = new Date().toISOString();
+        event.error_message = "Payment interno nao encontrado para provider_payment_id do tenant";
+      }
+      res.status(200).json({ success: false, ignored: true, reason: "payment_not_found" });
+      return;
+    }
+    const terminalStatus = ["PAYMENT_OVERDUE", "PAYMENT_DELETED", "PAYMENT_REFUNDED", "OVERDUE", "DELETED", "REFUNDED"];
+    if (terminalStatus.some(status => String(rawStatus || "").toUpperCase().includes(status)) && payment?.status !== "paid") {
+      updatePaymentRecordStatus(tenantId, gateway, payment?.order_id || asaasPaymentId, String(rawStatus).toLowerCase(), { webhook: payload });
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || purchaseIdToConfirm, status: "ignored", message: `Asaas ${rawStatus}`, statusCode: 200, eventStatus: rawStatus });
+      const event = webhookEvents.find(item => item.id === eventKey);
+      if (event) {
+        event.processed = true;
+        event.processed_at = new Date().toISOString();
+      }
+      res.json({ success: true, status: rawStatus });
+      return;
+    }
+    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || undefined, eventStatus: rawStatus, payload });
     await processPaymentJob(queueJob);
     const event = webhookEvents.find(item => item.id === queueJob.idempotencyKey);
     if (event) {
@@ -10625,6 +10664,33 @@ async function startServer() {
     if (queueJob.status === "paid") return res.json({ success: true, duplicate: Boolean(queueJob.duplicateReceipt || queueJob.result?.duplicate), jobId: queueJob.id });
     if (queueJob.status === "cancelled") return res.status(202).json({ success: true, message: "Evento Asaas recebido sem baixa", jobId: queueJob.id });
     res.status(queueJob.lastError === "Purchase not found for tenant" ? 404 : 503).json({ error: queueJob.lastError || "Webhook queued for retry", jobId: queueJob.id });
+  });
+
+  app.post("/api/admin/payments/asaas/reconcile", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const reference = String(req.body.paymentId || req.body.payment_id || req.body.orderId || req.body.order_id || "").trim();
+    if (!reference) return res.status(400).json({ error: "payment_id/order_id obrigatorio" });
+    const payment = payments.find(item => item.tenant_id === tenantId && item.provider === "asaas" && (item.provider_payment_id === reference || item.asaas_payment_id === reference || item.order_id === reference));
+    if (!payment) return res.status(404).json({ error: "Pagamento Asaas nao encontrado para este tenant" });
+    const asaas = getAsaasProvider(tenantId);
+    if (!asaas) return res.status(503).json({ error: "Asaas nao configurado para este tenant" });
+    try {
+      const remote = await asaas.provider.getPayment(payment.provider_payment_id || payment.asaas_payment_id || reference);
+      const status = String(remote.status || "").toUpperCase();
+      if (isPaidAsaasEvent(tenantId, status)) {
+        const payload = { event: `PAYMENT_${status}`, payment: { ...remote, id: payment.provider_payment_id || payment.asaas_payment_id, externalReference: payment.order_id } };
+        const job = enqueuePaymentJob({ tenant_id: tenantId, gateway: "asaas", purchaseId: payment.order_id, eventStatus: status, payload, forceRetry: true });
+        await processPaymentJob(job);
+        return res.json({ ok: job.status === "paid", status, payment: updatePaymentRecordStatus(tenantId, "asaas", payment.order_id, "paid", { reconcile: remote }), job });
+      }
+      if (["OVERDUE", "DELETED", "REFUNDED"].includes(status) && payment.status !== "paid") {
+        updatePaymentRecordStatus(tenantId, "asaas", payment.order_id, status.toLowerCase(), { reconcile: remote });
+      }
+      res.json({ ok: true, status, payment, remote });
+    } catch (error) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "asaas", purchaseId: payment.order_id, status: "failed", message: error instanceof Error ? error.message : "Falha ao reconciliar Asaas", statusCode: 502, eventStatus: "RECONCILE_FAILED" });
+      res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao reconciliar Asaas" });
+    }
   });
 
   app.post("/api/webhooks/pay2m", async (req, res) => {

@@ -98,6 +98,8 @@
     ,"test:whatsapp-queue-hard": "node scripts/test-whatsapp-queue-hard.mjs"
     ,"test:pix-confirmation-safety": "node scripts/test-pix-confirmation-safety.mjs"
     ,"test:asaas-pix-hard": "node scripts/test-asaas-pix-hard.mjs"
+    ,"test:asaas-multitenant-isolation-hard": "node scripts/test-asaas-multitenant-isolation-hard.mjs"
+    ,"test:asaas-production-readiness-hard": "node scripts/test-asaas-production-readiness-hard.mjs"
     ,"test:tenant-branding": "node scripts/test-tenant-branding.mjs"
     ,"test:branding-assets": "node scripts/test-branding-assets.mjs"
     ,"test:audit-ledger": "node scripts/test-compliance-audit-modules.mjs audit-ledger"
