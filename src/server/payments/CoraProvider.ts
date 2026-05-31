@@ -249,6 +249,23 @@ export class CoraProvider {
     return this.request<Record<string, any>>(`/v2/invoices/${encodeURIComponent(providerPaymentId)}`);
   }
 
+  async reconcile(providerPaymentId: string) {
+    return this.getPayment(providerPaymentId);
+  }
+
+  normalizePixPaymentResult(invoice: Record<string, any>) {
+    const qrCode = this.getPixQrCode(invoice);
+    return {
+      provider: "cora",
+      provider_payment_id: qrCode.id,
+      provider_reference: String(invoice.code || invoice.external_reference || qrCode.id || ""),
+      pix_copy_paste: qrCode.emv,
+      qr_code_base64: qrCode.base64,
+      status: this.parsePaymentStatus(invoice) || "pending",
+      expiration: String(invoice.due_date || invoice.payment_terms?.due_date || "")
+    };
+  }
+
   async testConnection() {
     return this.getAccessToken();
   }

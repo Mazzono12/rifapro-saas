@@ -149,6 +149,23 @@ export class MercadoPagoProvider {
     return this.request<Record<string, any>>(`/v1/payments/${encodeURIComponent(paymentId)}`);
   }
 
+  async reconcile(paymentId: string) {
+    return this.getPayment(paymentId);
+  }
+
+  normalizePixPaymentResult(payment: Record<string, any>, expiration = "") {
+    const qrCode = this.parsePixQrCode(payment);
+    return {
+      provider: "mercadopago",
+      provider_payment_id: String(payment.id || ""),
+      provider_reference: String(payment.external_reference || ""),
+      pix_copy_paste: qrCode.qrCode,
+      qr_code_base64: qrCode.qrCodeBase64,
+      status: this.parsePaymentStatus(payment) || "pending",
+      expiration: String(payment.date_of_expiration || expiration || "")
+    };
+  }
+
   async testConnection() {
     return this.request<Record<string, any>>("/users/me");
   }

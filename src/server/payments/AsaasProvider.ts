@@ -127,6 +127,22 @@ export class AsaasProvider {
     return this.request<Record<string, unknown>>(`/payments/${encodeURIComponent(paymentId)}`);
   }
 
+  async reconcile(paymentId: string) {
+    return this.getPayment(paymentId);
+  }
+
+  normalizePixPaymentResult(payment: Record<string, any>, qrCode: { encodedImage?: string; payload?: string; expirationDate?: string } = {}) {
+    return {
+      provider: "asaas",
+      provider_payment_id: String(payment.id || ""),
+      provider_reference: String(payment.externalReference || payment.id || ""),
+      pix_copy_paste: String(qrCode.payload || payment.pix_copy_paste || ""),
+      qr_code_base64: String(qrCode.encodedImage || payment.qr_code_base64 || ""),
+      status: String(payment.status || "PENDING"),
+      expiration: String(qrCode.expirationDate || payment.dueDate || "")
+    };
+  }
+
   async testConnection() {
     return this.request<Record<string, unknown>>("/myAccount");
   }

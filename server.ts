@@ -799,6 +799,38 @@ async function startServer() {
     statusCode: number;
     eventStatus?: string;
   };
+  type PaymentLog = {
+    tenant_id: string;
+    id: string;
+    provider: string;
+    order_id?: string;
+    provider_payment_id?: string;
+    action: "payment_created" | "payment_updated" | "webhook_received" | "webhook_confirmed" | "reconcile" | "gateway_test";
+    status: string;
+    message: string;
+    createdAt: string;
+  };
+  type WebhookLog = {
+    tenant_id: string;
+    id: string;
+    provider: string;
+    event_id?: string;
+    status: string;
+    httpStatus: number;
+    latencyMs: number;
+    message: string;
+    createdAt: string;
+  };
+  type GatewayHealth = {
+    tenant_id: string;
+    provider: string;
+    status: "healthy" | "degraded" | "down" | "unknown";
+    lastStatusCode: number;
+    lastEventAt: string;
+    successCount: number;
+    failureCount: number;
+    lastMessage: string;
+  };
   type PaymentQueueJob = {
     id: string;
     tenant_id: string;
@@ -1616,6 +1648,9 @@ async function startServer() {
   let supportTickets: SupportTicket[] = [];
   let auditLogs: AuditLog[] = [];
   let paymentWebhookLogs: PaymentWebhookLog[] = [];
+  let paymentLogs: PaymentLog[] = [];
+  let webhookLogs: WebhookLog[] = [];
+  let gatewayHealth: GatewayHealth[] = [];
   let payments: PaymentRecord[] = [];
   let auditEventLedger: AuditEventLedgerRecord[] = [];
   let ticketAdjustments: TicketAdjustmentRecord[] = [];
@@ -6068,11 +6103,57 @@ async function startServer() {
     return Math.max(1, Math.round(Number(value || 0) * 100));
   }
 
+  function recordPaymentLog(log: Omit<PaymentLog, "id" | "createdAt">) {
+    const entry: PaymentLog = {
+      id: createPublicId("PLOG_"),
+      createdAt: new Date().toISOString(),
+      ...log
+    };
+    paymentLogs.unshift(entry);
+    paymentLogs = paymentLogs.slice(0, 1000);
+    return entry;
+  }
+
+  function updateGatewayHealth(input: { tenant_id: string; provider: string; ok: boolean; statusCode: number; message: string }) {
+    const current = gatewayHealth.find(item => item.tenant_id === input.tenant_id && item.provider === input.provider);
+    const nextStatus: GatewayHealth["status"] = input.ok ? "healthy" : input.statusCode >= 500 ? "down" : "degraded";
+    if (current) {
+      current.status = nextStatus;
+      current.lastStatusCode = input.statusCode;
+      current.lastEventAt = new Date().toISOString();
+      current.lastMessage = input.message;
+      if (input.ok) current.successCount += 1;
+      else current.failureCount += 1;
+      return current;
+    }
+    const entry: GatewayHealth = {
+      tenant_id: input.tenant_id,
+      provider: input.provider,
+      status: nextStatus,
+      lastStatusCode: input.statusCode,
+      lastEventAt: new Date().toISOString(),
+      successCount: input.ok ? 1 : 0,
+      failureCount: input.ok ? 0 : 1,
+      lastMessage: input.message
+    };
+    gatewayHealth.unshift(entry);
+    return entry;
+  }
+
   function upsertPaymentRecord(record: PaymentRecord) {
     const current = payments.find(item => item.tenant_id === record.tenant_id && item.order_id === record.order_id && item.provider === record.provider);
     if (current) Object.assign(current, record, { id: current.id, created_at: current.created_at, updated_at: new Date().toISOString() });
     else payments.unshift(record);
     payments = payments.slice(0, 1000);
+    recordPaymentLog({
+      tenant_id: record.tenant_id,
+      provider: String(record.provider),
+      order_id: record.order_id,
+      provider_payment_id: record.provider_payment_id,
+      action: "payment_created",
+      status: record.status,
+      message: "Payment record normalizado criado/atualizado"
+    });
     return current || record;
   }
 
@@ -6090,6 +6171,15 @@ async function startServer() {
       const payload = rawResponse.webhook && typeof rawResponse.webhook === "object" ? rawResponse.webhook as Record<string, any> : {};
       const message = payload.message && typeof payload.message === "object" ? payload.message : {};
       if (message.end_to_end) payment.end_to_end = String(message.end_to_end);
+      recordPaymentLog({
+        tenant_id: tenantId,
+        provider,
+        order_id: payment.order_id,
+        provider_payment_id: payment.provider_payment_id,
+        action: rawResponse.reconcile ? "reconcile" : "payment_updated",
+        status,
+        message: "Payment record atualizado"
+      });
     }
     return payment;
   }
@@ -10504,6 +10594,33 @@ async function startServer() {
     };
     paymentWebhookLogs.unshift(entry);
     paymentWebhookLogs = paymentWebhookLogs.slice(0, 500);
+    webhookLogs.unshift({
+      tenant_id: entry.tenant_id,
+      id: createPublicId("WHLOG_"),
+      provider: entry.gateway,
+      event_id: entry.purchaseId,
+      status: entry.status,
+      httpStatus: entry.statusCode,
+      latencyMs: 0,
+      message: entry.message,
+      createdAt: entry.createdAt
+    });
+    webhookLogs = webhookLogs.slice(0, 1000);
+    recordPaymentLog({
+      tenant_id: entry.tenant_id,
+      provider: entry.gateway,
+      order_id: entry.purchaseId,
+      action: entry.eventStatus === "CONNECTION_TEST" ? "gateway_test" : entry.status === "confirmed" ? "webhook_confirmed" : "webhook_received",
+      status: entry.status,
+      message: entry.message
+    });
+    updateGatewayHealth({
+      tenant_id: entry.tenant_id,
+      provider: entry.gateway,
+      ok: !["failed", "invalid"].includes(entry.status),
+      statusCode: entry.statusCode,
+      message: entry.message
+    });
     if (entry.status === "failed" || entry.status === "invalid") {
       const recentFailures = paymentWebhookLogs.filter(item => item.tenant_id === entry.tenant_id && item.gateway === entry.gateway && ["failed", "invalid"].includes(item.status) && new Date(item.createdAt).getTime() >= Date.now() - 60 * 60 * 1000).length;
       if (recentFailures >= 3) {
@@ -11397,8 +11514,19 @@ async function startServer() {
     const payment = payments.find(item =>
       item.tenant_id === tenantId &&
       item.provider === "pay2m" &&
-      (item.provider_payment_id === parsed.referenceCode || item.provider_reference === parsed.referenceCode || item.order_id === parsed.externalReference)
+      (item.provider_payment_id === parsed.referenceCode || item.provider_reference === parsed.referenceCode)
     );
+    if (isPaidPay2mEvent(parsed.status) && !payment) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: parsed.externalReference, status: "invalid", message: "Pay2M pago sem payment interno tenant-scoped; baixa bloqueada", statusCode: 200, eventStatus: parsed.status });
+      const event = webhookEvents.find(item => item.id === eventKey);
+      if (event) {
+        event.processed = true;
+        event.processed_at = new Date().toISOString();
+        event.error_message = "Payment interno nao encontrado para reference_code do tenant";
+      }
+      res.status(200).json({ success: false, ignored: true, reason: "payment_not_found" });
+      return;
+    }
     if (["expired", "canceled"].includes(parsed.status) && payment?.status !== "paid") {
       updatePaymentRecordStatus(tenantId, gateway, payment.order_id, parsed.status, { webhook: payload });
       const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === payment.order_id);
@@ -11420,7 +11548,14 @@ async function startServer() {
       res.json({ success: true, status: parsed.status });
       return;
     }
-    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: parsed.externalReference || payment?.order_id || undefined, eventStatus: parsed.status, payload });
+    const queueJob = payment
+      ? enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: payment.order_id, eventStatus: parsed.status, payload })
+      : null;
+    if (!queueJob) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: parsed.externalReference, status: "ignored", message: "Pay2M webhook sem payment tenant-scoped", statusCode: 200, eventStatus: parsed.status });
+      res.status(200).json({ success: true, ignored: true });
+      return;
+    }
     await processPaymentJob(queueJob);
     const event = webhookEvents.find(item => item.id === eventKey);
     if (event) {
@@ -11443,7 +11578,7 @@ async function startServer() {
     try {
       const remote = await pay2m.provider.getPayment(referenceCode);
       const status = String(remote.status || "").toLowerCase();
-      const orderId = String(remote.external_reference || payment?.order_id || "");
+      const orderId = String(payment?.order_id || "");
       if (status === "paid" && orderId) {
         const payload = { notification_type: "PIX:QRCODE", message: { ...remote, reference_code: referenceCode, external_reference: orderId } };
         const job = enqueuePaymentJob({ tenant_id: tenantId, gateway: "pay2m", purchaseId: orderId, eventStatus: status, payload, forceRetry: true });
@@ -12359,6 +12494,18 @@ async function startServer() {
 
   app.get("/api/admin/payments/webhooks", (req, res) => {
     res.json(scoped(paymentWebhookLogs, req));
+  });
+
+  app.get("/api/admin/payments/logs", (req, res) => {
+    res.json(scoped(paymentLogs, req));
+  });
+
+  app.get("/api/admin/payments/webhook-logs", (req, res) => {
+    res.json(scoped(webhookLogs, req));
+  });
+
+  app.get("/api/admin/payments/gateway-health", (req, res) => {
+    res.json(scoped(gatewayHealth, req));
   });
 
   app.get("/api/admin/payments/queue", (req, res) => {
@@ -13484,12 +13631,35 @@ async function startServer() {
     };
   }
 
+  function enforcePaymentGatewayPolicy(tenantId: string) {
+    const configs = paymentGatewayConfigs[tenantId] || [];
+    const enabled = configs
+      .filter(config => config.enabled)
+      .sort((a, b) => Number(a.priority || 0) - Number(b.priority || 0));
+    configs.forEach(config => {
+      config.is_default = false;
+      config.config_json = { ...(config.config_json || {}) };
+      delete config.config_json.gatewayPolicyError;
+    });
+    if (!enabled.length) return configs;
+    enabled.forEach((config, index) => {
+      config.priority = Number.isFinite(Number(config.priority)) ? Number(config.priority) : index * 100;
+      if (index > 0 && config.priority <= enabled[index - 1].priority) config.priority = enabled[index - 1].priority + 100;
+      config.config_json = {
+        ...(config.config_json || {}),
+        gatewayRole: index === 0 ? "primary" : "fallback",
+        fallbackPriority: config.priority
+      };
+    });
+    enabled[0].is_default = true;
+    return configs;
+  }
+
   function getPaymentGatewayConfigs(tenantId: string) {
     if (!paymentGatewayConfigs[tenantId]?.length) {
       paymentGatewayConfigs[tenantId] = [configFromLegacyGateway(tenantId)];
     }
-    const hasDefault = paymentGatewayConfigs[tenantId].some(config => config.is_default && config.enabled);
-    if (!hasDefault && paymentGatewayConfigs[tenantId][0]) paymentGatewayConfigs[tenantId][0].is_default = true;
+    enforcePaymentGatewayPolicy(tenantId);
     return paymentGatewayConfigs[tenantId];
   }
 
@@ -13508,7 +13678,7 @@ async function startServer() {
       ...tenantPixGateways.pix,
       enabled: defaultConfig.enabled,
       sandbox: defaultConfig.environment !== "production",
-      webhookUrl: provider === "mercadopago" ? "/api/webhooks/mercadopago" : provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : provider === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`,
+      webhookUrl: provider === "primepag" ? "/api/webhooks/primepag" : provider === "cora" ? "/api/webhooks/cora" : provider === "mercadopago" ? "/api/webhooks/mercadopago" : provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : provider === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`,
       webhookSecret: defaultConfig.webhook_secret || tenantPixGateways.pix?.webhookSecret || "",
       apiKey: defaultConfig.pix_key || tenantPixGateways.pix?.apiKey || ""
     };
@@ -13588,6 +13758,9 @@ async function startServer() {
       fraudCases,
       payments,
       paymentWebhookLogs,
+      paymentLogs,
+      webhookLogs,
+      gatewayHealth,
       n8nEventLogs,
       integrations,
       integrationLogs,
@@ -13665,6 +13838,9 @@ async function startServer() {
       case "fraudCases": fraudCases = Array.isArray(value) ? value : []; break;
       case "payments": payments = Array.isArray(value) ? value : []; break;
       case "paymentWebhookLogs": paymentWebhookLogs = Array.isArray(value) ? value : []; break;
+      case "paymentLogs": paymentLogs = Array.isArray(value) ? value : []; break;
+      case "webhookLogs": webhookLogs = Array.isArray(value) ? value : []; break;
+      case "gatewayHealth": gatewayHealth = Array.isArray(value) ? value : []; break;
       case "n8nEventLogs": n8nEventLogs = Array.isArray(value) ? value : []; break;
       case "integrations": integrations = Array.isArray(value) ? value : []; break;
       case "integrationLogs": integrationLogs = Array.isArray(value) ? value : []; break;
@@ -13924,10 +14100,7 @@ async function startServer() {
         const current = currentConfigs.find(item => item.id === config.id || normalizePaymentProvider(item.provider) === provider);
         return normalizePaymentGatewayConfig(tenantId, config, index === 0, current);
       });
-      const defaults = paymentGatewayConfigs[tenantId].filter(config => config.is_default);
-      if (defaults.length !== 1) {
-        paymentGatewayConfigs[tenantId] = paymentGatewayConfigs[tenantId].map((config, index) => ({ ...config, is_default: index === 0 }));
-      }
+      enforcePaymentGatewayPolicy(tenantId);
     }
     const updatedGateways = {
       ...currentGateways,

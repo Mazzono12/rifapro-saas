@@ -135,6 +135,22 @@ export class Pay2mProvider {
     return this.request<Record<string, unknown>>(`/api/v1/pix/qrcode/${encodeURIComponent(referenceCode)}`);
   }
 
+  async reconcile(referenceCode: string) {
+    return this.getPayment(referenceCode);
+  }
+
+  normalizePixPaymentResult(payment: Record<string, any>, expiration = "") {
+    return {
+      provider: "pay2m",
+      provider_payment_id: String(payment.reference_code || ""),
+      provider_reference: String(payment.external_reference || payment.reference_code || ""),
+      pix_copy_paste: String(payment.content || ""),
+      qr_code_base64: String(payment.qr_code_base64 || payment.image_base64 || ""),
+      status: String(payment.status || "awaiting_payment"),
+      expiration: String(payment.expiration_date || expiration || "")
+    };
+  }
+
   async testConnection() {
     return this.getAccessToken();
   }

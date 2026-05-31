@@ -155,6 +155,23 @@ export class PagbankProvider {
     return this.request<Record<string, unknown>>(`/orders/${encodeURIComponent(orderId)}`);
   }
 
+  async reconcile(orderId: string) {
+    return this.getPayment(orderId);
+  }
+
+  normalizePixPaymentResult(order: Record<string, any>) {
+    const qrCode = this.parsePixQrCode(order);
+    return {
+      provider: "pagbank",
+      provider_payment_id: String(order.id || ""),
+      provider_reference: String(order.reference_id || ""),
+      pix_copy_paste: qrCode.text,
+      qr_code_base64: String(order.qr_code_base64 || ""),
+      status: this.parseOrderStatus(order),
+      expiration: qrCode.expirationDate
+    };
+  }
+
   async testConnection() {
     return this.request<Record<string, unknown>>("/orders?page=0&size=1");
   }

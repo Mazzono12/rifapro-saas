@@ -173,6 +173,23 @@ export class PrimepagProvider {
     return this.request<Record<string, any>>(`/v1/pix/qrcodes/${encodeURIComponent(referenceCode)}`);
   }
 
+  async reconcile(referenceCode: string) {
+    return this.getPayment(referenceCode);
+  }
+
+  normalizePixPaymentResult(raw: Record<string, any>, expiration = "") {
+    const qrcode = this.getQrCode(raw);
+    return {
+      provider: "primepag",
+      provider_payment_id: qrcode.referenceCode,
+      provider_reference: qrcode.externalReference,
+      pix_copy_paste: qrcode.content,
+      qr_code_base64: qrcode.imageBase64,
+      status: this.parseQrCodeStatus(raw) || "pending",
+      expiration: String(raw.expiration_date || raw.expires_at || expiration || "")
+    };
+  }
+
   parseQrCodeStatus(raw: Record<string, any>) {
     const qrcode = raw.qrcode && typeof raw.qrcode === "object" ? raw.qrcode : raw;
     return normalizeStatus(qrcode.status || qrcode.payment_status || qrcode.situation || raw.status);
