@@ -13,7 +13,16 @@ const defaultGateways = {
     webhookEvents: "payment.created,payment.updated,payment.paid"
   },
   active: "sandbox",
-  mercadopago: { accessToken: "", publicKey: "", webhookUrl: "", webhookSecret: "" },
+  mercadopago: {
+    enabled: false,
+    environment: "sandbox",
+    accessToken: "",
+    publicKey: "",
+    webhookUrl: "/api/webhooks/mercadopago",
+    webhookSecret: "",
+    expirationMinutes: "15",
+    releaseStatus: "approved"
+  },
   pagbank: {
     enabled: false,
     environment: "sandbox",
@@ -73,6 +82,19 @@ const gatewayLabels: Record<string, string> = {
 };
 
 function normalizeGateways(input: any) {
+  const mercadoPagoConfig = Array.isArray(input?.configs)
+    ? input.configs.find((config: any) => config.provider === "mercadopago")
+    : null;
+  const mercadoPagoFromConfig = mercadoPagoConfig ? {
+    enabled: Boolean(mercadoPagoConfig.enabled),
+    environment: mercadoPagoConfig.environment || "sandbox",
+    accessToken: mercadoPagoConfig.credentials?.accessToken || mercadoPagoConfig.credentials?.access_token || mercadoPagoConfig.credentials?.token || "",
+    publicKey: mercadoPagoConfig.credentials?.publicKey || mercadoPagoConfig.credentials?.public_key || "",
+    webhookUrl: "/api/webhooks/mercadopago",
+    webhookSecret: mercadoPagoConfig.webhook_secret || "",
+    expirationMinutes: String(mercadoPagoConfig.config_json?.expirationMinutes || mercadoPagoConfig.credentials?.expirationMinutes || "15"),
+    releaseStatus: mercadoPagoConfig.config_json?.releaseStatus || mercadoPagoConfig.credentials?.releaseStatus || "approved"
+  } : {};
   const asaasConfig = Array.isArray(input?.configs)
     ? input.configs.find((config: any) => config.provider === "asaas")
     : null;
@@ -118,7 +140,7 @@ function normalizeGateways(input: any) {
     ...defaultGateways,
     ...(input || {}),
     pix: { ...defaultGateways.pix, ...(input?.pix || {}) },
-    mercadopago: { ...defaultGateways.mercadopago, ...(input?.mercadopago || {}) },
+    mercadopago: { ...defaultGateways.mercadopago, ...(input?.mercadopago || {}), ...mercadoPagoFromConfig },
     pagbank: { ...defaultGateways.pagbank, ...(input?.pagbank || {}), ...pagbankFromConfig },
     asaas: { ...defaultGateways.asaas, ...(input?.asaas || {}), ...asaasFromConfig },
     infinitypay: { ...defaultGateways.infinitypay, ...(input?.infinitypay || {}) },
@@ -159,18 +181,22 @@ export function AdminPaymentGateways() {
         provider: normalized.active,
         display_name: gatewayLabels[normalized.active] || normalized.active,
         enabled: Boolean(normalized.pix?.enabled),
-        environment: normalized.active === "asaas" ? normalized.asaas.environment : normalized.active === "pay2m" ? normalized.pay2m.environment : normalized.active === "pagbank" ? normalized.pagbank.environment : (normalized.pix?.sandbox ? "sandbox" : "production"),
-        credentials: normalized.active === "asaas"
+        environment: normalized.active === "mercadopago" ? normalized.mercadopago.environment : normalized.active === "asaas" ? normalized.asaas.environment : normalized.active === "pay2m" ? normalized.pay2m.environment : normalized.active === "pagbank" ? normalized.pagbank.environment : (normalized.pix?.sandbox ? "sandbox" : "production"),
+        credentials: normalized.active === "mercadopago"
+          ? { accessToken: normalized.mercadopago.accessToken, publicKey: normalized.mercadopago.publicKey, expirationMinutes: normalized.mercadopago.expirationMinutes, releaseStatus: normalized.mercadopago.releaseStatus }
+          : normalized.active === "asaas"
           ? { apiKey: normalized.asaas.apiKey, userAgent: normalized.asaas.userAgent, paymentMode: normalized.asaas.paymentMode, orderExpirationMinutes: normalized.asaas.orderExpirationMinutes, releaseMode: normalized.asaas.releaseMode }
           : normalized.active === "pay2m"
             ? { clientId: normalized.pay2m.clientId, clientSecret: normalized.pay2m.clientSecret, expirationTime: normalized.pay2m.expirationTime, splitLink: normalized.pay2m.splitLink, releaseStatus: normalized.pay2m.releaseStatus }
           : normalized.active === "pagbank"
             ? { token: normalized.pagbank.token || normalized.pagbank.apiKey, expirationMinutes: normalized.pagbank.expirationMinutes, releaseStatus: normalized.pagbank.releaseStatus }
           : normalized[normalized.active],
-        webhook_secret: normalized.active === "asaas" ? normalized.asaas.webhookSecret : normalized.active === "pay2m" ? normalized.pay2m.webhookSecret : normalized.active === "pagbank" ? normalized.pagbank.webhookSecret : normalized.pix?.webhookSecret,
-        pix_key: normalized.active === "asaas" || normalized.active === "pay2m" || normalized.active === "pagbank" ? "" : normalized.pix?.apiKey,
+        webhook_secret: normalized.active === "mercadopago" ? normalized.mercadopago.webhookSecret : normalized.active === "asaas" ? normalized.asaas.webhookSecret : normalized.active === "pay2m" ? normalized.pay2m.webhookSecret : normalized.active === "pagbank" ? normalized.pagbank.webhookSecret : normalized.pix?.webhookSecret,
+        pix_key: normalized.active === "mercadopago" || normalized.active === "asaas" || normalized.active === "pay2m" || normalized.active === "pagbank" ? "" : normalized.pix?.apiKey,
         is_default: true,
-        config_json: normalized.active === "asaas"
+        config_json: normalized.active === "mercadopago"
+          ? { expirationMinutes: Math.max(1, Number(normalized.mercadopago.expirationMinutes || 15)), releaseStatus: normalized.mercadopago.releaseStatus }
+          : normalized.active === "asaas"
           ? { userAgent: normalized.asaas.userAgent, releaseMode: normalized.asaas.releaseMode, paymentMode: normalized.asaas.paymentMode, orderExpirationMinutes: Number(normalized.asaas.orderExpirationMinutes || 15) }
           : normalized.active === "pay2m"
             ? { expirationTime: Math.min(3600, Number(normalized.pay2m.expirationTime || 1800)), splitLink: normalized.pay2m.splitLink, releaseStatus: normalized.pay2m.releaseStatus }
@@ -207,8 +233,8 @@ export function AdminPaymentGateways() {
       active: gateway,
       pix: {
         ...normalized.pix,
-        sandbox: gateway === "asaas" ? normalized.asaas.environment !== "production" : gateway === "pay2m" ? normalized.pay2m.environment !== "production" : gateway === "pagbank" ? normalized.pagbank.environment !== "production" : normalized.pix.sandbox,
-        webhookUrl: gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`
+        sandbox: gateway === "mercadopago" ? normalized.mercadopago.environment !== "production" : gateway === "asaas" ? normalized.asaas.environment !== "production" : gateway === "pay2m" ? normalized.pay2m.environment !== "production" : gateway === "pagbank" ? normalized.pagbank.environment !== "production" : normalized.pix.sandbox,
+        webhookUrl: gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`
       }
     });
   };
@@ -332,15 +358,45 @@ export function AdminPaymentGateways() {
 
                 {/* Mercado Pago */}
                 <div className={`p-6 rounded-2xl border transition-colors ${gateways.active === 'mercadopago' ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/5 bg-white/[0.02]'}`}>
-                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-                        {gateways.active === 'mercadopago' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
-                        Mercado Pago
-                    </h3>
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <h3 className="text-lg font-medium text-white flex items-center gap-2">
+                            {gateways.active === 'mercadopago' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
+                            Mercado Pago Pix real
+                        </h3>
+                        <button type="button" onClick={() => setActiveGateway("mercadopago")} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-mono uppercase text-slate-300 hover:border-emerald-400/40 hover:text-emerald-200">
+                          Usar
+                        </button>
+                    </div>
                     <div className="space-y-4">
+                        <label className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-slate-200">
+                          Ativar Mercado Pago Pix
+                          <input type="checkbox" checked={gateways.active === "mercadopago" && Boolean(gateways.pix?.enabled)} onChange={e => {
+                            const normalized = normalizeGateways(gateways);
+                            setGateways({
+                              ...normalized,
+                              active: "mercadopago",
+                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.mercadopago.environment !== "production", webhookUrl: "/api/webhooks/mercadopago" }
+                            });
+                          }} />
+                        </label>
+                        <div>
+                          <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
+                          <select value={gateways.mercadopago?.environment || "sandbox"} onChange={e => updateGateway("mercadopago", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
+                            <option value="sandbox">Sandbox</option>
+                            <option value="production">Produção</option>
+                          </select>
+                        </div>
                         <GatewayInput label="Access Token" type="password" value={gateways.mercadopago?.accessToken || ''} onChange={value => updateGateway('mercadopago', 'accessToken', value)} />
                         <GatewayInput label="Public Key" value={gateways.mercadopago?.publicKey || ''} onChange={value => updateGateway('mercadopago', 'publicKey', value)} />
-                        <GatewayInput label="Webhook URL" value={gateways.mercadopago?.webhookUrl || ''} onChange={value => updateGateway('mercadopago', 'webhookUrl', value)} />
-                        <GatewayInput label="Webhook Secret" type="password" value={gateways.mercadopago?.webhookSecret || ''} onChange={value => updateGateway('mercadopago', 'webhookSecret', value)} />
+                        <GatewayInput label="Webhook token opcional" type="password" value={gateways.mercadopago?.webhookSecret || ''} onChange={value => updateGateway('mercadopago', 'webhookSecret', value)} />
+                        <GatewayInput label="Webhook URL" value={gateways.mercadopago?.webhookUrl || '/api/webhooks/mercadopago'} onChange={value => updateGateway('mercadopago', 'webhookUrl', value)} />
+                        <GatewayInput label="Expiração PIX (minutos)" value={gateways.mercadopago?.expirationMinutes || '15'} onChange={value => updateGateway('mercadopago', 'expirationMinutes', value)} />
+                        <div>
+                          <label className="block text-xs font-mono text-slate-400 mb-1">Liberar pedido quando</label>
+                          <select value={gateways.mercadopago?.releaseStatus || "approved"} onChange={e => updateGateway("mercadopago", "releaseStatus", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
+                            <option value="approved">status approved</option>
+                          </select>
+                        </div>
                     </div>
                     <GatewayTest gateway="mercadopago" result={testResults.mercadopago} testing={testingGateway === "mercadopago"} onTest={testGateway} />
                 </div>

@@ -55,6 +55,7 @@ import { sendMetaCloudWhatsAppMessage } from "./src/server/whatsapp/providers/me
 import { AsaasProvider } from "./src/server/payments/AsaasProvider";
 import { Pay2mProvider } from "./src/server/payments/Pay2mProvider";
 import { PagbankProvider } from "./src/server/payments/PagbankProvider";
+import { MercadoPagoProvider } from "./src/server/payments/MercadoPagoProvider";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1149,6 +1150,7 @@ async function startServer() {
     provider_payment_id?: string;
     provider_reference?: string;
     qr_code_url?: string;
+    ticket_url?: string;
     billing_type: "PIX" | string;
     status: string;
     qr_code_base64?: string;
@@ -5917,6 +5919,29 @@ async function startServer() {
     return config ? { config, provider: new AsaasProvider(config) } : null;
   }
 
+  function getMercadoPagoGatewayConfig(tenantId: string) {
+    const config = getDefaultPaymentGatewayConfig(tenantId);
+    const provider = normalizePaymentProvider(config.provider);
+    if (provider !== "mercadopago" || !config.enabled) return null;
+    const credentials = config.credentials || {};
+    const configJson = config.config_json || {};
+    const accessToken = String(credentials.accessToken || credentials.access_token || credentials.token || "");
+    if (!accessToken || isMaskedGatewaySecret(accessToken)) return null;
+    return {
+      environment: config.environment === "production" ? "production" as const : "sandbox" as const,
+      accessToken,
+      webhookToken: String(config.webhook_secret || credentials.webhookToken || ""),
+      expirationMinutes: Math.max(1, Math.min(1440, Number(configJson.expirationMinutes || credentials.expirationMinutes || 15))),
+      releaseStatus: String(configJson.releaseStatus || credentials.releaseStatus || "approved").toLowerCase(),
+      baseUrl: String(configJson.baseUrl || credentials.baseUrl || "")
+    };
+  }
+
+  function getMercadoPagoProvider(tenantId: string) {
+    const config = getMercadoPagoGatewayConfig(tenantId);
+    return config ? { config, provider: new MercadoPagoProvider(config) } : null;
+  }
+
   function getPay2mGatewayConfig(tenantId: string) {
     const config = getDefaultPaymentGatewayConfig(tenantId);
     const provider = normalizePaymentProvider(config.provider);
@@ -6072,6 +6097,56 @@ async function startServer() {
     return { payment, qrCode };
   }
 
+  async function attachMercadoPagoPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
+    const mercadoPago = getMercadoPagoProvider(input.tenantId);
+    if (!mercadoPago || input.amount <= 0) return null;
+    const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
+    const pixExpiresAt = input.pixExpiresAt || new Date(Date.now() + mercadoPago.config.expirationMinutes * 60_000).toISOString();
+    const payment = await mercadoPago.provider.createPixPayment({
+      amount: Number(input.amount.toFixed(2)),
+      description: input.description || "Compra de cotas",
+      externalReference: orderId,
+      notificationUrl: buildTenantPublicUrl(input.tenantId, "/api/webhooks/mercadopago", true),
+      payerEmail: `${String(input.customer.id || orderId).toLowerCase().replace(/[^a-z0-9._-]/g, "") || "cliente"}@rifapro.local`,
+      payerFirstName: input.customer.name,
+      payerDocument: input.customer.cpf,
+      idempotencyKey: randomUUID()
+    });
+    const mercadoPagoPaymentId = String(payment.id || "");
+    const qrCode = mercadoPago.provider.parsePixQrCode(payment as Record<string, any>);
+    if (!mercadoPagoPaymentId || !qrCode.qrCode) throw new Error("Mercado Pago nao retornou id/qr_code PIX");
+    Object.assign(input.purchase, {
+      pixPayload: qrCode.qrCode,
+      pixGateway: "mercadopago",
+      pixWebhookUrl: "/api/webhooks/mercadopago",
+      externalReference: orderId,
+      externalPaymentId: mercadoPagoPaymentId,
+      pixQrCodeBase64: qrCode.qrCodeBase64,
+      pixExpiresAt
+    });
+    upsertPaymentRecord({
+      id: createPublicId("PAY_"),
+      tenant_id: input.tenantId,
+      order_id: orderId,
+      provider: "mercadopago",
+      provider_payment_id: mercadoPagoPaymentId,
+      provider_reference: orderId,
+      billing_type: "PIX",
+      status: mercadoPago.provider.parsePaymentStatus(payment as Record<string, any>) || "pending",
+      qr_code_base64: qrCode.qrCodeBase64,
+      qr_code_url: qrCode.ticketUrl,
+      ticket_url: qrCode.ticketUrl,
+      pix_payload: qrCode.qrCode,
+      pix_copy_paste: qrCode.qrCode,
+      expiration_date: pixExpiresAt,
+      raw_response: { payment: { ...payment, point_of_interaction: { transaction_data: { ...((payment as Record<string, any>).point_of_interaction?.transaction_data || {}), qr_code_base64: qrCode.qrCodeBase64 ? "[base64]" : "" } } } },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    recordPaymentWebhookLog({ tenant_id: input.tenantId, gateway: "mercadopago", purchaseId: orderId, status: "received", message: "Pagamento Pix Mercado Pago criado e QR Code gerado", statusCode: 201, eventStatus: "PAYMENT_CREATED" });
+    return payment;
+  }
+
   async function attachPay2mPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
     const pay2m = getPay2mProvider(input.tenantId);
     if (!pay2m || input.amount <= 0) return null;
@@ -6170,7 +6245,7 @@ async function startServer() {
   }
 
   async function attachActiveGatewayPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
-    return (await attachAsaasPixToOrder(input)) || (await attachPay2mPixToOrder(input)) || (await attachPagbankPixToOrder(input));
+    return (await attachMercadoPagoPixToOrder(input)) || (await attachAsaasPixToOrder(input)) || (await attachPay2mPixToOrder(input)) || (await attachPagbankPixToOrder(input));
   }
 
   function normalizeFazendinhaNumber(input: unknown) {
@@ -8993,7 +9068,7 @@ async function startServer() {
       return;
     }
 
-    const gatewayRequiresWebhook = Boolean(getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId));
+    const gatewayRequiresWebhook = Boolean(getMercadoPagoGatewayConfig(tenantId) || getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId));
     const paid = req.body.statusPagamento === "paid" || (!gatewayRequiresWebhook && req.body.simulatePayment !== false);
     const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
     const purchase: NumberModePurchase = {
@@ -9104,7 +9179,7 @@ async function startServer() {
       return null;
     }
 
-    const gatewayRequiresWebhook = Boolean(getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId));
+    const gatewayRequiresWebhook = Boolean(getMercadoPagoGatewayConfig(tenantId) || getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId));
     const paid = req.body.statusPagamento === "paid" || (!gatewayRequiresWebhook && req.body.simulatePayment !== false);
     const numeros = selectedGroups.flatMap(group => group.numeros);
     const amount = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
@@ -10289,6 +10364,9 @@ async function startServer() {
     const asaasPayment = input.payload?.payment && typeof input.payload.payment === "object" && !Array.isArray(input.payload.payment)
       ? input.payload.payment as Record<string, unknown>
       : null;
+    const mercadoPagoPayment = input.payload?.payment && typeof input.payload.payment === "object" && !Array.isArray(input.payload.payment)
+      ? input.payload.payment as Record<string, unknown>
+      : input.payload || {};
     const pay2mMessage = input.payload?.message && typeof input.payload.message === "object" && !Array.isArray(input.payload.message)
       ? input.payload.message as Record<string, unknown>
       : null;
@@ -10304,8 +10382,12 @@ async function startServer() {
     );
     const asaasPaymentId = String(asaasPayment?.id || input.payload?.paymentId || "no-payment");
     const asaasStatus = String(input.payload?.event || input.eventStatus || asaasPayment?.status || "unknown");
+    const mercadoPagoPaymentId = String((mercadoPagoPayment as Record<string, unknown>)?.id || input.payload?.paymentId || input.purchaseId || "no-payment");
+    const mercadoPagoStatus = String((mercadoPagoPayment as Record<string, unknown>)?.status || input.eventStatus || input.payload?.status || "unknown");
     const explicitEventId = input.gateway === "asaas"
       ? `${asaasPaymentId}:${asaasStatus}`
+      : input.gateway === "mercadopago"
+        ? `${mercadoPagoPaymentId}:${mercadoPagoStatus}`
       : input.payload?.eventId || input.payload?.id || nestedDataId ||
       (input.gateway === "pay2m" ? `${pay2mMessage?.reference_code || input.purchaseId || "unknown"}:${pay2mMessage?.status || input.eventStatus || "unknown"}:${pay2mMessage?.end_to_end || "no-e2e"}` : "") ||
       (input.gateway === "pagbank" ? `${pagbankOrder?.id || "no-order"}:${pagbankOrder?.reference_id || input.purchaseId || "unknown"}:${input.eventStatus || pagbankOrder?.status || "unknown"}:${pagbankEndToEnd}` : "");
@@ -10386,6 +10468,10 @@ async function startServer() {
     return normalized.includes("PAYMENT_RECEIVED") || normalized === "RECEIVED";
   }
 
+  function isPaidMercadoPagoEvent(rawStatus: string) {
+    return String(rawStatus || "").toLowerCase() === "approved";
+  }
+
   function isPaidPay2mEvent(rawStatus: string) {
     return String(rawStatus || "").toLowerCase() === "paid";
   }
@@ -10403,6 +10489,8 @@ async function startServer() {
     const rawStatus = job.eventStatus || extractPaymentStatus(job.payload as Record<string, any>);
     const isPaidEvent = job.gateway === "asaas"
       ? isPaidAsaasEvent(job.tenant_id, rawStatus)
+      : job.gateway === "mercadopago"
+        ? isPaidMercadoPagoEvent(rawStatus)
       : job.gateway === "pay2m"
         ? isPaidPay2mEvent(rawStatus)
         : job.gateway === "pagbank"
@@ -10690,6 +10778,132 @@ async function startServer() {
     } catch (error) {
       recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "asaas", purchaseId: payment.order_id, status: "failed", message: error instanceof Error ? error.message : "Falha ao reconciliar Asaas", statusCode: 502, eventStatus: "RECONCILE_FAILED" });
       res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao reconciliar Asaas" });
+    }
+  });
+
+  app.post("/api/webhooks/mercadopago", async (req, res) => {
+    const gateway = "mercadopago";
+    const tenant = getRequestTenant(req);
+    const tenantId = tenant?.id || "unknown";
+    const mercadoPagoConfig = tenant ? getMercadoPagoGatewayConfig(tenant.id) : null;
+    const webhookSecret = mercadoPagoConfig?.webhookToken || "";
+    const providedSecret = String(req.headers["x-webhook-secret"] || req.headers["mercadopago-access-token"] || req.headers["authorization"] || req.query.secret || "").replace(/^Bearer\s+/i, "");
+    if (webhookSecret) {
+      const providedBuffer = Buffer.from(providedSecret);
+      const expectedBuffer = Buffer.from(webhookSecret);
+      if (providedBuffer.length !== expectedBuffer.length || !timingSafeEqual(providedBuffer, expectedBuffer)) {
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "invalid", message: "Mercado Pago webhook token invalid", statusCode: 401 });
+        res.status(200).json({ success: false, ignored: true });
+        return;
+      }
+    }
+    const payload = (req.body || {}) as Record<string, unknown>;
+    const provider = tenant ? getMercadoPagoProvider(tenant.id) : null;
+    if (!provider) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "ignored", message: "Mercado Pago nao configurado para este tenant", statusCode: 200 });
+      res.status(200).json({ success: true, ignored: true });
+      return;
+    }
+    const parsed = provider.provider.handleWebhook(payload as Record<string, any>);
+    if (!parsed.paymentId) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "ignored", message: "Webhook Mercado Pago sem payment id", statusCode: 200, eventStatus: parsed.action });
+      res.status(200).json({ success: true, ignored: true });
+      return;
+    }
+    let remote: Record<string, any>;
+    try {
+      remote = await provider.provider.getPayment(parsed.paymentId);
+    } catch (error) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, status: "failed", message: error instanceof Error ? error.message : "Falha ao consultar Mercado Pago", statusCode: 200, eventStatus: parsed.action });
+      res.status(200).json({ success: false, queued: true });
+      return;
+    }
+    const status = provider.provider.parsePaymentStatus(remote);
+    const eventKey = buildPaymentIdempotencyKey({ tenant_id: tenantId, gateway, purchaseId: parsed.paymentId, eventStatus: status, payload: { ...payload, payment: remote } });
+    const existingEvent = webhookEvents.find(item => item.tenant_id === tenantId && String(item.provider) === "mercadopago" && item.id === eventKey);
+    if (existingEvent?.processed) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: String(remote.external_reference || ""), status: "duplicate", message: "Webhook Mercado Pago duplicado ignorado por payment/status", statusCode: 200, eventStatus: status });
+      res.json({ success: true, duplicate: true, eventId: eventKey });
+      return;
+    }
+    webhookEvents.unshift({
+      id: eventKey,
+      tenant_id: tenantId,
+      provider: "mercadopago" as IntegrationProviderId,
+      event_type: parsed.type || "payment",
+      status,
+      external_reference: String(remote.external_reference || ""),
+      provider_payment_id: String(remote.id || parsed.paymentId),
+      payload: { webhook: payload, payment: remote },
+      processed: false,
+      processed_at: "",
+      error_message: "",
+      created_at: new Date().toISOString()
+    });
+    const payment = payments.find(item =>
+      item.tenant_id === tenantId &&
+      item.provider === "mercadopago" &&
+      item.provider_payment_id === String(remote.id || parsed.paymentId)
+    );
+    if (isPaidMercadoPagoEvent(status) && !payment) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: String(remote.external_reference || ""), status: "invalid", message: "Mercado Pago aprovado sem payment interno tenant-scoped; baixa bloqueada", statusCode: 200, eventStatus: status });
+      const event = webhookEvents.find(item => item.id === eventKey);
+      if (event) {
+        event.processed = true;
+        event.processed_at = new Date().toISOString();
+        event.error_message = "Payment interno nao encontrado para provider_payment_id do tenant";
+      }
+      res.status(200).json({ success: false, ignored: true, reason: "payment_not_found" });
+      return;
+    }
+    if (["cancelled", "canceled", "rejected", "refunded", "charged_back"].includes(status) && payment?.status !== "paid") {
+      updatePaymentRecordStatus(tenantId, gateway, payment?.order_id || String(remote.id || parsed.paymentId), status, { webhook: payload, payment: remote });
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || String(remote.external_reference || ""), status: "ignored", message: `Mercado Pago ${status}`, statusCode: 200, eventStatus: status });
+      const event = webhookEvents.find(item => item.id === eventKey);
+      if (event) {
+        event.processed = true;
+        event.processed_at = new Date().toISOString();
+      }
+      res.json({ success: true, status });
+      return;
+    }
+    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || undefined, eventStatus: status, payload: { ...payload, payment: remote } });
+    await processPaymentJob(queueJob);
+    const event = webhookEvents.find(item => item.id === eventKey);
+    if (event) {
+      event.processed = queueJob.status === "paid" || queueJob.status === "cancelled";
+      event.processed_at = new Date().toISOString();
+      event.error_message = queueJob.lastError || "";
+    }
+    if (queueJob.status === "paid") return res.json({ success: true, duplicate: Boolean(queueJob.duplicateReceipt || queueJob.result?.duplicate), jobId: queueJob.id });
+    if (queueJob.status === "cancelled") return res.json({ success: true, ignored: true, jobId: queueJob.id });
+    res.status(200).json({ success: false, queued: true, error: queueJob.lastError || "Webhook queued for retry", jobId: queueJob.id });
+  });
+
+  app.post("/api/admin/payments/mercadopago/reconcile", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const reference = String(req.body.provider_payment_id || req.body.paymentId || req.body.payment_id || "").trim();
+    if (!reference) return res.status(400).json({ error: "provider_payment_id obrigatorio" });
+    const payment = payments.find(item => item.tenant_id === tenantId && item.provider === "mercadopago" && item.provider_payment_id === reference);
+    if (!payment) return res.status(404).json({ error: "Pagamento Mercado Pago nao encontrado para este tenant" });
+    const mercadoPago = getMercadoPagoProvider(tenantId);
+    if (!mercadoPago) return res.status(503).json({ error: "Mercado Pago nao configurado para este tenant" });
+    try {
+      const remote = await mercadoPago.provider.getPayment(payment.provider_payment_id || reference);
+      const status = mercadoPago.provider.parsePaymentStatus(remote);
+      if (isPaidMercadoPagoEvent(status)) {
+        const payload = { payment: remote };
+        const job = enqueuePaymentJob({ tenant_id: tenantId, gateway: "mercadopago", purchaseId: payment.order_id, eventStatus: status, payload, forceRetry: true });
+        await processPaymentJob(job);
+        return res.json({ ok: job.status === "paid", status, payment: updatePaymentRecordStatus(tenantId, "mercadopago", payment.order_id, "paid", { reconcile: remote }), job });
+      }
+      if (["cancelled", "canceled", "rejected", "refunded", "charged_back"].includes(status) && payment.status !== "paid") {
+        updatePaymentRecordStatus(tenantId, "mercadopago", payment.order_id, status, { reconcile: remote });
+      }
+      res.json({ ok: true, status, payment, remote });
+    } catch (error) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "mercadopago", purchaseId: payment.order_id, status: "failed", message: error instanceof Error ? error.message : "Falha ao reconciliar Mercado Pago", statusCode: 502, eventStatus: "RECONCILE_FAILED" });
+      res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao reconciliar Mercado Pago" });
     }
   });
 
@@ -12683,7 +12897,7 @@ async function startServer() {
       webhookEvents: "payment.created,payment.updated,payment.paid"
     },
     active: 'mercadopago',
-    mercadopago: { accessToken: '', publicKey: '', webhookUrl: '', webhookSecret: '' },
+    mercadopago: { accessToken: '', publicKey: '', webhookUrl: '/api/webhooks/mercadopago', webhookSecret: '', environment: 'sandbox', expirationMinutes: '15', releaseStatus: 'approved' },
     pagbank: { token: '', apiKey: '', webhookUrl: '/api/webhooks/pagbank', webhookSecret: '', environment: 'sandbox', expirationMinutes: '15', releaseStatus: 'PAID' },
     asaas: { apiKey: '', webhookUrl: '', webhookSecret: '' },
     infinitypay: { token: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
@@ -12852,7 +13066,7 @@ async function startServer() {
       ...tenantPixGateways.pix,
       enabled: defaultConfig.enabled,
       sandbox: defaultConfig.environment !== "production",
-      webhookUrl: provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : provider === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`,
+      webhookUrl: provider === "mercadopago" ? "/api/webhooks/mercadopago" : provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : provider === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`,
       webhookSecret: defaultConfig.webhook_secret || tenantPixGateways.pix?.webhookSecret || "",
       apiKey: defaultConfig.pix_key || tenantPixGateways.pix?.apiKey || ""
     };
@@ -12861,7 +13075,7 @@ async function startServer() {
       ...Object.fromEntries(Object.entries(defaultConfig.credentials || {}).map(([key, value]) => [key, String(value || "")])),
       ...Object.fromEntries(Object.entries(defaultConfig.config_json || {}).map(([key, value]) => [key, String(value || "")])),
       webhookSecret: defaultConfig.webhook_secret || "",
-      webhookUrl: provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : provider === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`
+      webhookUrl: provider === "mercadopago" ? "/api/webhooks/mercadopago" : provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : provider === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`
     };
     if (tenantId === legacyTenantId) gateways = tenantPixGateways;
   }
@@ -13181,7 +13395,7 @@ async function startServer() {
     const fields = credentialFields[gateway] || [];
     const presentCredentials = fields.filter(field => Boolean(gatewayConfig[field]));
     const webhookUrl = gatewayConfig.webhookUrl || String(pixConfig.webhookUrl || "") || `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`;
-    const recommendedWebhookPath = gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `/api/webhooks/payment/${gateway}`;
+    const recommendedWebhookPath = gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `/api/webhooks/payment/${gateway}`;
     const issues = [
       ...(!pixConfig.enabled ? ["PIX global está desabilitado"] : []),
       ...(presentCredentials.length === 0 && !pixConfig.apiKey ? ["Nenhuma credencial/API key configurada para este gateway"] : []),
@@ -13209,6 +13423,14 @@ async function startServer() {
         recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "pagbank", status: "received", message: "Conexao PagBank testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
       } catch (error) {
         issues.push(error instanceof Error ? error.message : "Falha ao testar conexao PagBank");
+      }
+    }
+    if (gateway === "mercadopago" && issues.length === 0) {
+      try {
+        await getMercadoPagoProvider(tenantId)?.provider.testConnection();
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "mercadopago", status: "received", message: "Conexao Mercado Pago testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
+      } catch (error) {
+        issues.push(error instanceof Error ? error.message : "Falha ao testar conexao Mercado Pago");
       }
     }
     res.json({
@@ -13269,8 +13491,8 @@ async function startServer() {
     updatedGateways.active = normalizePaymentProvider(req.body.active || req.body.pix?.gateway || updatedGateways.active);
     updatedGateways.pix = {
       ...updatedGateways.pix,
-      sandbox: updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.active === "pay2m" ? updatedGateways.pay2m?.environment !== "production" : updatedGateways.active === "pagbank" ? updatedGateways.pagbank?.environment !== "production" : updatedGateways.pix?.sandbox,
-      webhookUrl: updatedGateways.active === "asaas" ? "/api/webhooks/asaas" : updatedGateways.active === "pay2m" ? "/api/webhooks/pay2m" : updatedGateways.active === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
+      sandbox: updatedGateways.active === "mercadopago" ? updatedGateways.mercadopago?.environment !== "production" : updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.active === "pay2m" ? updatedGateways.pay2m?.environment !== "production" : updatedGateways.active === "pagbank" ? updatedGateways.pagbank?.environment !== "production" : updatedGateways.pix?.sandbox,
+      webhookUrl: updatedGateways.active === "mercadopago" ? "/api/webhooks/mercadopago" : updatedGateways.active === "asaas" ? "/api/webhooks/asaas" : updatedGateways.active === "pay2m" ? "/api/webhooks/pay2m" : updatedGateways.active === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
     };
     tenantGateways[tenantId] = updatedGateways;
     if (tenantId === legacyTenantId) gateways = updatedGateways;
