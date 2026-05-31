@@ -849,6 +849,71 @@ async function startServer() {
     createdAt: string;
     updatedAt: string;
   };
+  type PaymentWorkerJobStatus = "pending" | "processing" | "completed" | "failed" | "dead";
+  type PaymentWebhookJob = {
+    id: string;
+    tenant_id: string;
+    provider: string;
+    event_id: string;
+    eventStatus: string;
+    payload: Record<string, unknown>;
+    status: PaymentWorkerJobStatus;
+    attempts: number;
+    maxAttempts: number;
+    nextRetryAt: string;
+    lastError: string;
+    idempotencyKey: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+  type PaymentReconciliationJob = {
+    id: string;
+    tenant_id: string;
+    provider: string;
+    provider_payment_id?: string;
+    provider_reference?: string;
+    order_id?: string;
+    status: PaymentWorkerJobStatus;
+    attempts: number;
+    maxAttempts: number;
+    nextRetryAt: string;
+    lastError: string;
+    idempotencyKey: string;
+    payload: Record<string, unknown>;
+    createdAt: string;
+    updatedAt: string;
+  };
+  type PaymentReleaseJob = {
+    id: string;
+    tenant_id: string;
+    gateway: string;
+    purchaseId: string;
+    releaseType: "raffle" | "number_mode" | "fazendinha";
+    paymentJobId?: string;
+    status: PaymentWorkerJobStatus;
+    attempts: number;
+    maxAttempts: number;
+    nextRetryAt: string;
+    lastError: string;
+    idempotencyKey: string;
+    payload: Record<string, unknown>;
+    result?: Record<string, unknown>;
+    duplicateReceipt?: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+  type PaymentDeadLetterJob = {
+    id: string;
+    tenant_id: string;
+    queue: "webhook" | "reconciliation" | "payment" | "release";
+    sourceJobId: string;
+    provider: string;
+    idempotencyKey: string;
+    attempts: number;
+    reason: string;
+    payload: Record<string, unknown>;
+    createdAt: string;
+  };
   type WhatsAppProviderConfigRecord = {
     id: string;
     tenant_id: string;
@@ -2269,6 +2334,10 @@ async function startServer() {
   let tenantFeatureOverrides: Record<string, Partial<Record<TenantFeatureFlag, boolean>>> = {};
   const securityLogs: SecurityLog[] = [];
   let paymentQueue: PaymentQueueJob[] = [];
+  let payment_webhook_jobs: PaymentWebhookJob[] = [];
+  let payment_reconciliation_jobs: PaymentReconciliationJob[] = [];
+  let payment_release_jobs: PaymentReleaseJob[] = [];
+  let payment_dead_letter_queue: PaymentDeadLetterJob[] = [];
   let whatsappProviderConfigs: WhatsAppProviderConfigRecord[] = [];
   let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
   let automationFlows: AutomationFlowRecord[] = [];
@@ -4319,7 +4388,10 @@ async function startServer() {
         conversionRate: globalRevenue.summary.conversionRate,
         webhookErrors: paymentWebhookLogs.filter(log => ["failed", "invalid"].includes(log.status)).length,
         suspiciousAlerts: securityLogs.filter(log => ["WARN", "BLOCKED"].includes(log.status)).length,
-        queuedPayments: paymentQueue.filter(job => ["pending", "processing"].includes(job.status)).length
+        queuedPayments: paymentQueue.filter(job => ["pending", "processing"].includes(job.status)).length +
+          payment_webhook_jobs.filter(job => ["pending", "processing"].includes(job.status)).length +
+          payment_reconciliation_jobs.filter(job => ["pending", "processing"].includes(job.status)).length +
+          payment_release_jobs.filter(job => ["pending", "processing"].includes(job.status)).length
       },
       charts: globalRevenue.charts,
       tenants: tenantSummaries,
@@ -4411,10 +4483,13 @@ async function startServer() {
   });
 
   app.get("/api/superadmin/payments/queue", (req, res) => {
-    res.json(paymentQueue.map(job => ({
-      ...job,
-      tenant: tenants.find(tenant => tenant.id === job.tenant_id)?.nome || job.tenant_id
-    })));
+    res.json({
+      ...buildPaymentQueuesDashboard(),
+      settlement: paymentQueue.map(job => ({
+        ...job,
+        tenant: tenants.find(tenant => tenant.id === job.tenant_id)?.nome || job.tenant_id
+      }))
+    });
   });
 
   app.get("/api/superadmin/whatsapp/overview", (_req, res) => {
@@ -4463,24 +4538,22 @@ async function startServer() {
   });
 
   app.post("/api/superadmin/payments/queue/process", async (req, res) => {
-    const processed = await processPaymentQueue(Number(req.body?.limit || 50));
+    const processedDetails = await processAllPaymentWorkerQueues(Number(req.body?.limit || 50));
+    const processed = Object.values(processedDetails).reduce((sum, value) => sum + Number(value || 0), 0);
     res.json({
       processed,
-      jobs: paymentQueue.map(job => ({
-        ...job,
-        tenant: tenants.find(tenant => tenant.id === job.tenant_id)?.nome || job.tenant_id
-      }))
+      processedDetails,
+      queues: buildPaymentQueuesDashboard()
     });
   });
 
   app.post("/api/superadmin/payments/reconcile", (req, res) => {
     const stalePending = purchases.filter(purchase => purchase.status === "pending" && Date.now() - new Date(purchase.createdAt).getTime() > 15 * 60 * 1000);
-    stalePending.forEach(purchase => enqueuePaymentJob({
+    stalePending.forEach(purchase => enqueuePaymentReconciliationJob({
       tenant_id: purchase.tenant_id,
-      gateway: String(purchase.pixGateway || "unknown"),
-      purchaseId: purchase.purchaseId,
-      eventStatus: "reconciliation.pending",
-      payload: { purchaseId: purchase.purchaseId, status: "reconcile" }
+      provider: String(purchase.pixGateway || "unknown"),
+      order_id: purchase.purchaseId,
+      payload: { purchaseId: purchase.purchaseId, status: "reconciliation.pending" }
     }));
     res.json({
       queued: stalePending.length,
@@ -10716,6 +10789,14 @@ async function startServer() {
     };
     paymentQueue.unshift(job);
     paymentQueue = paymentQueue.slice(0, 500);
+    enqueuePaymentWebhookJob({
+      tenant_id: input.tenant_id,
+      provider: input.gateway,
+      event_id: idempotencyKey,
+      eventStatus: input.eventStatus,
+      payload: input.payload,
+      forceRetry: input.forceRetry
+    });
     return job;
   }
 
@@ -10726,8 +10807,162 @@ async function startServer() {
     if (status !== "processing") job.attempts += 1;
     job.updatedAt = new Date().toISOString();
     job.nextRetryAt = status === "pending" || status === "failed"
-      ? new Date(Date.now() + Math.min(job.attempts + 1, 5) * 30_000).toISOString()
+      ? new Date(Date.now() + paymentWorkerBackoffMs(job.attempts)).toISOString()
       : "";
+  }
+
+  function paymentWorkerBackoffMs(attempts: number) {
+    const base = 15_000;
+    const exponential = base * Math.max(1, 2 ** Math.max(0, attempts - 1));
+    return Math.min(exponential, 15 * 60_000);
+  }
+
+  function isPaymentWorkerJobReady(job: { status: string; attempts: number; maxAttempts: number; nextRetryAt?: string }) {
+    return ["pending", "failed"].includes(job.status) &&
+      job.attempts < job.maxAttempts &&
+      (!job.nextRetryAt || new Date(job.nextRetryAt).getTime() <= Date.now());
+  }
+
+  function markPaymentWorkerJob<T extends { status: PaymentWorkerJobStatus; attempts: number; maxAttempts: number; nextRetryAt: string; lastError: string; updatedAt: string }>(
+    job: T | undefined,
+    status: PaymentWorkerJobStatus,
+    error = ""
+  ) {
+    if (!job) return;
+    job.status = status;
+    job.lastError = error;
+    if (status !== "processing") job.attempts += 1;
+    job.updatedAt = new Date().toISOString();
+    job.nextRetryAt = status === "pending" || status === "failed"
+      ? new Date(Date.now() + paymentWorkerBackoffMs(job.attempts)).toISOString()
+      : "";
+  }
+
+  function movePaymentJobToDeadLetter(
+    queue: PaymentDeadLetterJob["queue"],
+    job: PaymentWebhookJob | PaymentReconciliationJob | PaymentReleaseJob | PaymentQueueJob,
+    reason: string
+  ) {
+    const provider = "provider" in job ? job.provider : job.gateway;
+    if (!payment_dead_letter_queue.some(item => item.tenant_id === job.tenant_id && item.idempotencyKey === job.idempotencyKey && item.queue === queue)) {
+      payment_dead_letter_queue.unshift({
+        id: createPublicId("PAYDLQ_"),
+        tenant_id: job.tenant_id,
+        queue,
+        sourceJobId: job.id,
+        provider,
+        idempotencyKey: job.idempotencyKey,
+        attempts: job.attempts,
+        reason,
+        payload: "payload" in job ? job.payload : {},
+        createdAt: new Date().toISOString()
+      });
+      payment_dead_letter_queue = payment_dead_letter_queue.slice(0, 1000);
+    }
+    recordPaymentLog({
+      tenant_id: job.tenant_id,
+      provider,
+      action: "payment_updated",
+      status: "dead_letter",
+      message: `${queue} job movido para dead letter: ${reason}`,
+      order_id: "purchaseId" in job ? job.purchaseId : "order_id" in job ? job.order_id : undefined,
+      provider_payment_id: "provider_payment_id" in job ? job.provider_payment_id : undefined
+    });
+    schedulePersistentStateSave("payment-dead-letter");
+  }
+
+  function enqueuePaymentWebhookJob(input: { tenant_id: string; provider: string; event_id?: string; eventStatus?: string; payload?: Record<string, unknown>; forceRetry?: boolean }) {
+    const now = new Date().toISOString();
+    const eventId = String(input.event_id || input.payload?.id || input.payload?.eventId || `${input.provider}:${input.eventStatus || "unknown"}`);
+    const idempotencyKey = `${input.tenant_id}:${input.provider}:webhook:${eventId}:${input.eventStatus || extractPaymentStatus(input.payload as Record<string, any> || {})}`;
+    const duplicate = payment_webhook_jobs.find(job => job.tenant_id === input.tenant_id && job.provider === input.provider && job.idempotencyKey === idempotencyKey);
+    if (duplicate && !input.forceRetry) {
+      duplicate.updatedAt = now;
+      return duplicate;
+    }
+    const job: PaymentWebhookJob = {
+      id: createPublicId("PAYWH_"),
+      tenant_id: input.tenant_id,
+      provider: input.provider,
+      event_id: eventId,
+      eventStatus: input.eventStatus || "",
+      payload: input.payload || {},
+      status: "pending",
+      attempts: 0,
+      maxAttempts: 5,
+      nextRetryAt: now,
+      lastError: "",
+      idempotencyKey,
+      createdAt: now,
+      updatedAt: now
+    };
+    payment_webhook_jobs.unshift(job);
+    payment_webhook_jobs = payment_webhook_jobs.slice(0, 1000);
+    recordPaymentLog({ tenant_id: input.tenant_id, provider: input.provider, action: "webhook_received", status: "queued", message: "Webhook recebido e enfileirado para processamento assincrono" });
+    return job;
+  }
+
+  function enqueuePaymentReconciliationJob(input: { tenant_id: string; provider: string; provider_payment_id?: string; provider_reference?: string; order_id?: string; payload?: Record<string, unknown>; forceRetry?: boolean }) {
+    const now = new Date().toISOString();
+    const idempotencyKey = `${input.tenant_id}:${input.provider}:reconcile:${input.provider_payment_id || input.provider_reference || input.order_id || "unknown"}`;
+    const duplicate = payment_reconciliation_jobs.find(job => job.tenant_id === input.tenant_id && job.provider === input.provider && job.idempotencyKey === idempotencyKey);
+    if (duplicate && !input.forceRetry) {
+      duplicate.updatedAt = now;
+      return duplicate;
+    }
+    const job: PaymentReconciliationJob = {
+      id: createPublicId("PAYREC_"),
+      tenant_id: input.tenant_id,
+      provider: input.provider,
+      provider_payment_id: input.provider_payment_id,
+      provider_reference: input.provider_reference,
+      order_id: input.order_id,
+      status: "pending",
+      attempts: 0,
+      maxAttempts: 5,
+      nextRetryAt: now,
+      lastError: "",
+      idempotencyKey,
+      payload: input.payload || {},
+      createdAt: now,
+      updatedAt: now
+    };
+    payment_reconciliation_jobs.unshift(job);
+    payment_reconciliation_jobs = payment_reconciliation_jobs.slice(0, 1000);
+    recordPaymentLog({ tenant_id: input.tenant_id, provider: input.provider, action: "reconcile", status: "queued", message: "Conciliação enfileirada", order_id: input.order_id, provider_payment_id: input.provider_payment_id });
+    return job;
+  }
+
+  function enqueuePaymentReleaseJob(input: { tenant_id: string; gateway: string; purchaseId: string; releaseType: PaymentReleaseJob["releaseType"]; paymentJobId?: string; payload?: Record<string, unknown>; forceRetry?: boolean }) {
+    const now = new Date().toISOString();
+    const idempotencyKey = `${input.tenant_id}:${input.gateway}:release:${input.releaseType}:${input.purchaseId}`;
+    const duplicate = payment_release_jobs.find(job => job.tenant_id === input.tenant_id && job.gateway === input.gateway && job.idempotencyKey === idempotencyKey);
+    if (duplicate && !input.forceRetry) {
+      duplicate.duplicateReceipt = true;
+      duplicate.updatedAt = now;
+      return duplicate;
+    }
+    const job: PaymentReleaseJob = {
+      id: createPublicId("PAYREL_"),
+      tenant_id: input.tenant_id,
+      gateway: input.gateway,
+      purchaseId: input.purchaseId,
+      releaseType: input.releaseType,
+      paymentJobId: input.paymentJobId,
+      status: "pending",
+      attempts: 0,
+      maxAttempts: 3,
+      nextRetryAt: now,
+      lastError: "",
+      idempotencyKey,
+      payload: input.payload || {},
+      createdAt: now,
+      updatedAt: now
+    };
+    payment_release_jobs.unshift(job);
+    payment_release_jobs = payment_release_jobs.slice(0, 1000);
+    recordPaymentLog({ tenant_id: input.tenant_id, provider: input.gateway, action: "payment_updated", status: "release_queued", message: "Liberação de cotas/números enfileirada", order_id: input.purchaseId });
+    return job;
   }
 
   function extractPaymentReference(gateway: string, payload: Record<string, any>) {
@@ -10780,6 +11015,61 @@ async function startServer() {
 
   function isPaidPagbankEvent(rawStatus: string) {
     return ["PAID", "AUTHORIZED", "AVAILABLE", "COMPLETED"].includes(String(rawStatus || "").toUpperCase());
+  }
+
+  async function processPaymentReleaseJob(job: PaymentReleaseJob) {
+    if (!isPaymentWorkerJobReady(job)) return job;
+    markPaymentWorkerJob(job, "processing");
+    try {
+      if (job.releaseType === "number_mode") {
+        const modePurchase = numberModePurchases.find(item => item.tenant_id === job.tenant_id && item.id === job.purchaseId);
+        if (!modePurchase) throw new Error("Number mode purchase not found for tenant");
+        if (modePurchase.status === "paid") {
+          markPaymentWorkerJob(job, "completed", "Webhook duplicado idempotente");
+          job.result = { duplicate: true, purchaseId: job.purchaseId, type: "modalidade" };
+          return job;
+        }
+        confirmNumberModePurchase(modePurchase);
+        updatePaymentRecordStatus(job.tenant_id, job.gateway, job.purchaseId, "paid", { releaseJobId: job.id, webhook: job.payload });
+        markPaymentWorkerJob(job, "completed");
+        job.result = { success: true, purchaseId: job.purchaseId, type: "modalidade", earnedLootboxes: modePurchase.earnedLootboxes };
+        return job;
+      }
+
+      if (job.releaseType === "fazendinha") {
+        const farmPurchase = fazendinhaCompras.find(item => item.tenant_id === job.tenant_id && item.id === job.purchaseId);
+        if (!farmPurchase) throw new Error("Fazendinha purchase not found for tenant");
+        if (farmPurchase.statusPagamento === "paid") {
+          markPaymentWorkerJob(job, "completed", "Webhook duplicado idempotente");
+          job.result = { duplicate: true, purchaseId: job.purchaseId, type: "fazendinha" };
+          return job;
+        }
+        confirmFazendinhaPurchase(farmPurchase);
+        updatePaymentRecordStatus(job.tenant_id, job.gateway, job.purchaseId, "paid", { releaseJobId: job.id, webhook: job.payload });
+        markPaymentWorkerJob(job, "completed");
+        job.result = { success: true, purchaseId: job.purchaseId, type: "fazendinha", earnedLootboxes: farmPurchase.earnedLootboxes };
+        return job;
+      }
+
+      const purchase = purchases.find(item => item.tenant_id === job.tenant_id && item.purchaseId === job.purchaseId);
+      if (!purchase) throw new Error("Purchase not found for tenant");
+      if (purchase.status === "paid") {
+        markPaymentWorkerJob(job, "completed", "Webhook duplicado idempotente");
+        job.result = { duplicate: true, purchaseId: job.purchaseId, type: "raffle" };
+        return job;
+      }
+      confirmPurchase(purchase);
+      purchase.linkedPurchases?.forEach(confirmPurchase);
+      updatePaymentRecordStatus(job.tenant_id, job.gateway, job.purchaseId, "paid", { releaseJobId: job.id, webhook: job.payload });
+      markPaymentWorkerJob(job, "completed");
+      job.result = { success: true, purchaseId: job.purchaseId, type: "raffle", earnedLootboxes: purchase.earnedLootboxes };
+      return job;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha na alocacao";
+      markPaymentWorkerJob(job, job.attempts + 1 >= job.maxAttempts ? "dead" : "pending", message);
+      if (job.status === "dead") movePaymentJobToDeadLetter("release", job, message);
+      return job;
+    }
   }
 
   async function processPaymentJob(job: PaymentQueueJob) {
@@ -10861,10 +11151,11 @@ async function startServer() {
           return job;
         }
         try {
-          confirmNumberModePurchase(modePurchase);
-          updatePaymentRecordStatus(job.tenant_id, job.gateway, purchaseId, "paid", { webhook: job.payload as Record<string, unknown> });
+          const releaseJob = enqueuePaymentReleaseJob({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, releaseType: "number_mode", paymentJobId: job.id, payload: job.payload });
+          await processPaymentReleaseJob(releaseJob);
+          if (releaseJob.status !== "completed") throw new Error(releaseJob.lastError || "Falha na alocacao");
           markPaymentJob(job, "paid");
-          job.result = { success: true, purchaseId, type: "modalidade", earnedLootboxes: modePurchase.earnedLootboxes };
+          job.result = releaseJob.result || { success: true, purchaseId, type: "modalidade", earnedLootboxes: modePurchase.earnedLootboxes };
           recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "confirmed", message: "Pagamento de modalidade liquidado", statusCode: 200, eventStatus: rawStatus });
         } catch {
           markPaymentJob(job, job.attempts + 1 >= job.maxAttempts ? "failed" : "pending", "Falha na alocacao");
@@ -10881,10 +11172,11 @@ async function startServer() {
           return job;
         }
         try {
-          confirmFazendinhaPurchase(farmPurchase);
-          updatePaymentRecordStatus(job.tenant_id, job.gateway, purchaseId, "paid", { webhook: job.payload as Record<string, unknown> });
+          const releaseJob = enqueuePaymentReleaseJob({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, releaseType: "fazendinha", paymentJobId: job.id, payload: job.payload });
+          await processPaymentReleaseJob(releaseJob);
+          if (releaseJob.status !== "completed") throw new Error(releaseJob.lastError || "Falha na alocacao");
           markPaymentJob(job, "paid");
-          job.result = { success: true, purchaseId, type: "fazendinha", earnedLootboxes: farmPurchase.earnedLootboxes };
+          job.result = releaseJob.result || { success: true, purchaseId, type: "fazendinha", earnedLootboxes: farmPurchase.earnedLootboxes };
           recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "confirmed", message: "Pagamento da Fazendinha liquidado", statusCode: 200, eventStatus: rawStatus });
         } catch {
           markPaymentJob(job, job.attempts + 1 >= job.maxAttempts ? "failed" : "pending", "Falha na alocacao");
@@ -10921,11 +11213,11 @@ async function startServer() {
     }
 
     try {
-      confirmPurchase(purchase);
-      purchase.linkedPurchases?.forEach(confirmPurchase);
-      updatePaymentRecordStatus(job.tenant_id, job.gateway, purchaseId, "paid", { webhook: job.payload as Record<string, unknown> });
+      const releaseJob = enqueuePaymentReleaseJob({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, releaseType: "raffle", paymentJobId: job.id, payload: job.payload });
+      await processPaymentReleaseJob(releaseJob);
+      if (releaseJob.status !== "completed") throw new Error(releaseJob.lastError || "Falha na alocacao");
       markPaymentJob(job, "paid");
-      job.result = { success: true, purchaseId, earnedLootboxes: purchase.earnedLootboxes };
+      job.result = releaseJob.result || { success: true, purchaseId, earnedLootboxes: purchase.earnedLootboxes };
       recordPaymentWebhookLog({
         tenant_id: job.tenant_id,
         gateway: job.gateway,
@@ -10961,6 +11253,9 @@ async function startServer() {
         .slice(0, limit);
       for (const job of ready) {
         await processPaymentJob(job);
+        if (job.status === "failed" && job.attempts >= job.maxAttempts) {
+          movePaymentJobToDeadLetter("payment", job, job.lastError || "Max attempts reached");
+        }
         processed += 1;
       }
       schedulePersistentStateSave("payment-worker");
@@ -10968,6 +11263,169 @@ async function startServer() {
     } finally {
       paymentWorkerRunning = false;
     }
+  }
+
+  let paymentWebhookWorkerRunning = false;
+  async function processPaymentWebhookJob(job: PaymentWebhookJob) {
+    if (!isPaymentWorkerJobReady(job)) return job;
+    markPaymentWorkerJob(job, "processing");
+    try {
+      const purchaseId = String(job.payload.purchaseId || extractPaymentReference(job.provider, job.payload as Record<string, any>) || "");
+      enqueuePaymentJob({
+        tenant_id: job.tenant_id,
+        gateway: job.provider,
+        purchaseId: purchaseId || undefined,
+        eventStatus: job.eventStatus || extractPaymentStatus(job.payload as Record<string, any>),
+        payload: job.payload
+      });
+      markPaymentWorkerJob(job, "completed");
+      recordPaymentWebhookLog({
+        tenant_id: job.tenant_id,
+        gateway: job.provider,
+        purchaseId: purchaseId || undefined,
+        status: "received",
+        message: "Webhook processado pela fila resiliente",
+        statusCode: 200,
+        eventStatus: job.eventStatus
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao processar webhook";
+      markPaymentWorkerJob(job, job.attempts + 1 >= job.maxAttempts ? "dead" : "pending", message);
+      if (job.status === "dead") movePaymentJobToDeadLetter("webhook", job, message);
+    }
+    return job;
+  }
+
+  async function processPaymentWebhookQueue(limit = 20) {
+    if (paymentWebhookWorkerRunning) return 0;
+    paymentWebhookWorkerRunning = true;
+    let processed = 0;
+    try {
+      const ready = payment_webhook_jobs.filter(isPaymentWorkerJobReady).slice(0, limit);
+      for (const job of ready) {
+        await processPaymentWebhookJob(job);
+        processed += 1;
+      }
+      schedulePersistentStateSave("payment-webhook-worker");
+      return processed;
+    } finally {
+      paymentWebhookWorkerRunning = false;
+    }
+  }
+
+  let paymentReconciliationWorkerRunning = false;
+  async function processPaymentReconciliationJob(job: PaymentReconciliationJob) {
+    if (!isPaymentWorkerJobReady(job)) return job;
+    markPaymentWorkerJob(job, "processing");
+    try {
+      const payment = payments.find(item =>
+        item.tenant_id === job.tenant_id &&
+        item.provider === job.provider &&
+        (
+          (!!job.provider_payment_id && item.provider_payment_id === job.provider_payment_id) ||
+          (!!job.provider_reference && item.provider_reference === job.provider_reference) ||
+          (!!job.order_id && item.order_id === job.order_id)
+        )
+      );
+      if (!payment) throw new Error("Payment not found for tenant");
+      enqueuePaymentJob({
+        tenant_id: job.tenant_id,
+        gateway: job.provider,
+        purchaseId: payment.order_id,
+        eventStatus: String(job.payload.status || "reconciliation.paid"),
+        payload: { ...job.payload, purchaseId: payment.order_id, provider_payment_id: payment.provider_payment_id }
+      });
+      markPaymentWorkerJob(job, "completed");
+      recordPaymentLog({
+        tenant_id: job.tenant_id,
+        provider: job.provider,
+        action: "reconcile",
+        status: "queued",
+        message: "Conciliação localizou pagamento e enfileirou baixa",
+        order_id: payment.order_id,
+        provider_payment_id: payment.provider_payment_id
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha na reconciliacao";
+      markPaymentWorkerJob(job, job.attempts + 1 >= job.maxAttempts ? "dead" : "pending", message);
+      if (job.status === "dead") movePaymentJobToDeadLetter("reconciliation", job, message);
+    }
+    return job;
+  }
+
+  async function processPaymentReconciliationQueue(limit = 20) {
+    if (paymentReconciliationWorkerRunning) return 0;
+    paymentReconciliationWorkerRunning = true;
+    let processed = 0;
+    try {
+      const ready = payment_reconciliation_jobs.filter(isPaymentWorkerJobReady).slice(0, limit);
+      for (const job of ready) {
+        await processPaymentReconciliationJob(job);
+        processed += 1;
+      }
+      schedulePersistentStateSave("payment-reconciliation-worker");
+      return processed;
+    } finally {
+      paymentReconciliationWorkerRunning = false;
+    }
+  }
+
+  let paymentReleaseWorkerRunning = false;
+  async function processPaymentReleaseQueue(limit = 20) {
+    if (paymentReleaseWorkerRunning) return 0;
+    paymentReleaseWorkerRunning = true;
+    let processed = 0;
+    try {
+      const ready = payment_release_jobs.filter(isPaymentWorkerJobReady).slice(0, limit);
+      for (const job of ready) {
+        await processPaymentReleaseJob(job);
+        processed += 1;
+      }
+      schedulePersistentStateSave("payment-release-worker");
+      return processed;
+    } finally {
+      paymentReleaseWorkerRunning = false;
+    }
+  }
+
+  async function processAllPaymentWorkerQueues(limit = 20) {
+    const webhook = await processPaymentWebhookQueue(limit);
+    const reconciliation = await processPaymentReconciliationQueue(limit);
+    const settlement = await processPaymentQueue(limit);
+    const release = await processPaymentReleaseQueue(limit);
+    return { webhook, reconciliation, settlement, release };
+  }
+
+  function buildPaymentQueuesDashboard(tenantId?: string) {
+    const filterTenant = <T extends { tenant_id: string }>(items: T[]) => tenantId ? items.filter(item => item.tenant_id === tenantId) : items;
+    const webhook = filterTenant(payment_webhook_jobs);
+    const reconciliation = filterTenant(payment_reconciliation_jobs);
+    const settlement = filterTenant(paymentQueue);
+    const release = filterTenant(payment_release_jobs);
+    const deadLetter = filterTenant(payment_dead_letter_queue);
+    const summarize = (items: Array<{ status: string }>) => ({
+      total: items.length,
+      pending: items.filter(item => item.status === "pending").length,
+      processing: items.filter(item => item.status === "processing").length,
+      failed: items.filter(item => item.status === "failed").length,
+      completed: items.filter(item => item.status === "completed" || item.status === "paid").length,
+      dead: items.filter(item => item.status === "dead").length
+    });
+    return {
+      counts: {
+        webhook: summarize(webhook),
+        reconciliation: summarize(reconciliation),
+        settlement: summarize(settlement),
+        release: summarize(release),
+        deadLetter: { total: deadLetter.length }
+      },
+      jobs: { webhook, reconciliation, settlement, release, deadLetter },
+      logs: {
+        paymentLogs: filterTenant(paymentLogs).slice(0, 50),
+        webhookLogs: filterTenant(webhookLogs).slice(0, 50),
+        gatewayHealth: filterTenant(gatewayHealth)
+      }
+    };
   }
 
   app.post("/api/webhooks/asaas", async (req, res) => {
@@ -12514,8 +12972,19 @@ async function startServer() {
 
   app.post("/api/admin/payments/queue/process", async (req, res) => {
     const tenantId = resolveRequestTenantId(req);
-    const processed = await processPaymentQueue(Number(req.body?.limit || 20));
-    res.json({ processed, jobs: paymentQueue.filter(job => job.tenant_id === tenantId) });
+    const processedDetails = await processAllPaymentWorkerQueues(Number(req.body?.limit || 20));
+    const processed = Object.values(processedDetails).reduce((sum, value) => sum + Number(value || 0), 0);
+    res.json({ processed, processedDetails, queues: buildPaymentQueuesDashboard(tenantId), jobs: paymentQueue.filter(job => job.tenant_id === tenantId) });
+  });
+
+  app.get("/api/admin/payments/queues", (req, res) => {
+    res.json(buildPaymentQueuesDashboard(resolveRequestTenantId(req)));
+  });
+
+  app.post("/api/admin/payments/queues/process", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const processed = await processAllPaymentWorkerQueues(Number(req.body?.limit || 20));
+    res.json({ processed, queues: buildPaymentQueuesDashboard(tenantId) });
   });
 
   app.get("/api/admin/audit/security", (req, res) => {
@@ -12525,12 +12994,11 @@ async function startServer() {
   app.post("/api/admin/payments/reconcile", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const stalePending = purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.status === "pending" && Date.now() - new Date(purchase.createdAt).getTime() > 15 * 60 * 1000);
-    stalePending.forEach(purchase => enqueuePaymentJob({
+    stalePending.forEach(purchase => enqueuePaymentReconciliationJob({
       tenant_id: purchase.tenant_id,
-      gateway: String(purchase.pixGateway || "unknown"),
-      purchaseId: purchase.purchaseId,
-      eventStatus: "reconciliation.pending",
-      payload: { purchaseId: purchase.purchaseId, status: "reconcile" }
+      provider: String(purchase.pixGateway || "unknown"),
+      order_id: purchase.purchaseId,
+      payload: { purchaseId: purchase.purchaseId, status: "reconciliation.pending" }
     }));
     res.json({ queued: stalePending.length, pendingPurchases: stalePending.map(purchase => purchase.purchaseId) });
   });
@@ -13789,6 +14257,10 @@ async function startServer() {
       numberModeWinners,
       securityLogs,
       paymentQueue,
+      payment_webhook_jobs,
+      payment_reconciliation_jobs,
+      payment_release_jobs,
+      payment_dead_letter_queue,
       gateways: encryptLegacyGatewaysForStorage(gateways),
       tenantGateways: Object.fromEntries(Object.entries(tenantGateways).map(([tenantId, value]) => [tenantId, encryptLegacyGatewaysForStorage(value)])),
       paymentGatewayConfigs,
@@ -13869,6 +14341,10 @@ async function startServer() {
       case "numberModeWinners": numberModeWinners = Array.isArray(value) ? value : []; break;
       case "securityLogs": replaceArray(securityLogs, value); break;
       case "paymentQueue": paymentQueue = Array.isArray(value) ? value : []; break;
+      case "payment_webhook_jobs": payment_webhook_jobs = Array.isArray(value) ? value : []; break;
+      case "payment_reconciliation_jobs": payment_reconciliation_jobs = Array.isArray(value) ? value : []; break;
+      case "payment_release_jobs": payment_release_jobs = Array.isArray(value) ? value : []; break;
+      case "payment_dead_letter_queue": payment_dead_letter_queue = Array.isArray(value) ? value : []; break;
       case "gateways": gateways = value || gateways; break;
       case "tenantGateways": replaceObject(tenantGateways, value); break;
       case "paymentGatewayConfigs": replaceObject(paymentGatewayConfigs, value); break;
@@ -14923,13 +15399,19 @@ async function startServer() {
   const paymentWorkerIntervalMs = isProductionRuntime ? 15_000 : 8_000;
   const paymentWorkerInterval = setInterval(() => void processPaymentQueue(), paymentWorkerIntervalMs);
   paymentWorkerInterval.unref?.();
+  const paymentWebhookWorkerInterval = setInterval(() => void processPaymentWebhookQueue(), paymentWorkerIntervalMs);
+  paymentWebhookWorkerInterval.unref?.();
+  const paymentReconciliationWorkerInterval = setInterval(() => void processPaymentReconciliationQueue(), isProductionRuntime ? 60_000 : 30_000);
+  paymentReconciliationWorkerInterval.unref?.();
+  const paymentReleaseWorkerInterval = setInterval(() => void processPaymentReleaseQueue(), paymentWorkerIntervalMs);
+  paymentReleaseWorkerInterval.unref?.();
   const reservationWorkerInterval = setInterval(() => {
     expireAllReservations();
     schedulePersistentStateSave("reservation-expiration-worker");
   }, 30_000);
   reservationWorkerInterval.unref?.();
   expireAllReservations();
-  void processPaymentQueue();
+  void processAllPaymentWorkerQueues();
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);

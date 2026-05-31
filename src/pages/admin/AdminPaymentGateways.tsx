@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Settings, Save, Link2, CreditCard, CheckCircle, ShieldCheck } from "lucide-react";
+import { Settings, Save, Link2, CreditCard, CheckCircle, ShieldCheck, RefreshCw, Activity } from "lucide-react";
 import { toast } from "sonner";
 
 const defaultGateways = {
@@ -188,6 +188,8 @@ export function AdminPaymentGateways() {
   const [testResults, setTestResults] = useState<Record<string, any>>({});
   const [testingGateway, setTestingGateway] = useState("");
   const [gateways, setGateways] = useState<any>(defaultGateways);
+  const [queueDashboard, setQueueDashboard] = useState<any>(null);
+  const [processingQueues, setProcessingQueues] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/gateways")
@@ -199,7 +201,32 @@ export function AdminPaymentGateways() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+    loadPaymentQueues();
   }, []);
+
+  const loadPaymentQueues = async () => {
+    try {
+      const res = await fetch("/api/admin/payments/queues");
+      if (res.ok) setQueueDashboard(await res.json());
+    } catch {
+      setQueueDashboard(null);
+    }
+  };
+
+  const processPaymentQueues = async () => {
+    setProcessingQueues(true);
+    try {
+      const res = await fetch("/api/admin/payments/queues/process", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limit: 25 }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao processar filas");
+      setQueueDashboard(data.queues);
+      toast.success("Workers de pagamento processados");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao processar filas");
+    } finally {
+      setProcessingQueues(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -698,7 +725,67 @@ export function AdminPaymentGateways() {
            </button>
          </div>
        </form>
+       <PaymentQueuesDashboard dashboard={queueDashboard} processing={processingQueues} onRefresh={loadPaymentQueues} onProcess={processPaymentQueues} />
     </div>
+  );
+}
+
+function PaymentQueuesDashboard({ dashboard, processing, onRefresh, onProcess }: { dashboard: any; processing: boolean; onRefresh: () => void; onProcess: () => void }) {
+  const counts = dashboard?.counts || {};
+  const cards = [
+    ["Webhook", counts.webhook],
+    ["Baixa", counts.settlement],
+    ["Liberação", counts.release],
+    ["Conciliação", counts.reconciliation],
+    ["Dead letter", counts.deadLetter]
+  ];
+  return (
+    <section className="glass-card rounded-3xl border border-cyan-400/15 p-6">
+      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 text-xl font-display font-semibold text-white">
+            <Activity className="h-5 w-5 text-cyan-300" /> Filas resilientes de pagamento
+          </h2>
+          <p className="mt-1 text-xs font-mono uppercase tracking-widest text-slate-400">Webhooks respondem rápido; baixa, conciliação e liberação rodam em workers separados.</p>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onRefresh} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-mono uppercase text-slate-200 hover:border-cyan-300/40">
+            <RefreshCw className="mr-2 inline h-3.5 w-3.5" /> Atualizar
+          </button>
+          <button type="button" onClick={onProcess} disabled={processing} className="rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs font-mono uppercase text-cyan-100 disabled:opacity-50">
+            {processing ? "Processando..." : "Processar agora"}
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+        {cards.map(([label, value]: any) => (
+          <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{label}</p>
+            <p className="mt-2 text-2xl font-bold text-white">{value?.total || 0}</p>
+            <p className="mt-1 text-xs text-slate-400">Pendentes: {value?.pending || 0} • Falhas: {value?.failed || 0}</p>
+          </div>
+        ))}
+      </div>
+      {!!dashboard?.logs?.gatewayHealth?.length && (
+        <div className="mt-4 overflow-x-auto">
+          <table className="min-w-full text-left text-xs text-slate-300">
+            <thead className="text-[10px] uppercase tracking-widest text-slate-500">
+              <tr><th className="py-2 pr-4">Gateway</th><th className="py-2 pr-4">Status</th><th className="py-2 pr-4">Último evento</th><th className="py-2">Mensagem</th></tr>
+            </thead>
+            <tbody>
+              {dashboard.logs.gatewayHealth.map((item: any) => (
+                <tr key={`${item.provider}-${item.lastEventAt}`} className="border-t border-white/5">
+                  <td className="py-2 pr-4 font-mono">{item.provider}</td>
+                  <td className="py-2 pr-4">{item.status}</td>
+                  <td className="py-2 pr-4">{item.lastEventAt}</td>
+                  <td className="py-2">{item.lastMessage}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
