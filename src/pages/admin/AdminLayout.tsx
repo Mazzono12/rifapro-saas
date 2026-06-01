@@ -4,7 +4,10 @@ import {
   Activity,
   Bell,
   Bot,
+  ChevronLeft,
+  ChevronRight,
   CreditCard,
+  ExternalLink,
   FileBarChart,
   FileSearch,
   Gamepad2,
@@ -170,7 +173,9 @@ function AdminLayoutContent() {
         <header className="premium-site-header sticky top-0 z-40 border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)]/90 backdrop-blur-2xl">
           <div className="mx-auto flex max-w-[1536px] items-center gap-3 px-4 py-2.5 sm:px-5 lg:px-6">
             <button onClick={() => setMobileOpen(true)} className="admin-icon-button lg:hidden" aria-label="Abrir menu"><Menu className="h-5 w-5" /></button>
-            <button onClick={() => setCollapsed(value => !value)} className="admin-icon-button hidden lg:inline-flex" aria-label={collapsed ? "Expandir menu" : "Recolher menu"} title={collapsed ? "Expandir menu" : "Recolher menu"}><Menu className="h-5 w-5" /></button>
+            <button onClick={() => setCollapsed(value => !value)} className="admin-icon-button hidden h-9 w-9 lg:inline-flex" aria-label={collapsed ? "Expandir menu" : "Recolher menu"} title={collapsed ? "Expandir menu" : "Recolher menu"}>
+              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </button>
             <div className="relative hidden min-w-0 flex-1 sm:block">
               <input className="admin-input h-11 w-full max-w-[430px] pl-11" placeholder="Buscar no painel..." />
               <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--admin-muted)]">⌕</span>
@@ -179,6 +184,9 @@ function AdminLayoutContent() {
               <h2 className="mb-0 truncate !text-sm font-semibold text-[var(--admin-text)]">{activeItem?.name || "Dashboard"}</h2>
             </div>
             <AdminThemeSwitcher collapsed placement="bottom" />
+            <Link to="/" className="admin-icon-button" aria-label="Abrir site" title="Abrir site">
+              <ExternalLink className="h-5 w-5" />
+            </Link>
             <Link to="/admin/mensagens" className="admin-icon-button relative" aria-label="Mensagens">
               <Bell className="h-5 w-5" />
               {notificationCount > 0 && (

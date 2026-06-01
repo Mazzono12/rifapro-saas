@@ -109,6 +109,8 @@
     "test:admin-superadmin-ui-review-hard": "node scripts/test-admin-superadmin-ui-review-hard.mjs",
     "test:admin-theme-limits-hard": "node scripts/test-admin-theme-limits-hard.mjs",
     "test:collapsible-sidebar-hard": "node scripts/test-collapsible-sidebar-hard.mjs",
+    "test:admin-sidebar-final-polish": "node scripts/test-admin-sidebar-final-polish.mjs",
+    "test:main-prize-mobile-media-hard": "node scripts/test-main-prize-mobile-media-hard.mjs",
     "test:payment-gateways-hard": "node scripts/test-payment-gateways-hard.mjs",
     "test:production-readiness": "node scripts/test-hard-suite.mjs production-readiness",
     "test:superadmin-finance": "node scripts/test-superadmin-finance.mjs",

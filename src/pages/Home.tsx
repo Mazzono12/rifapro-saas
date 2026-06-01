@@ -249,8 +249,8 @@ function HomeContent() {
       <PublicPageContainer className="pb-8 pt-0 space-y-10 md:space-y-12">
         {/* 1. Featured Prize (Top) */}
         {featuredRaffle && (
-          <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-x-clip bg-[var(--theme-bg)] px-0 sm:px-4">
-            <div className="public-page-container px-0">
+          <section className="w-full overflow-x-clip bg-[var(--theme-bg)]">
+            <div className="w-full">
               <StandardRaffleMediaBlock
                 mediaUrl={featuredRaffle.mediaUrl || featuredRaffle.image}
                 mediaType={(featuredRaffle.mediaType || "image") as any}
@@ -265,9 +265,9 @@ function HomeContent() {
                 soldTickets={featuredRaffle.soldTickets}
                 totalTickets={featuredRaffle.totalTickets}
                 priority
-                className="home-featured-raffle-block rounded-none border-x-0 sm:rounded-[1.25rem] sm:border-x"
+                className="home-featured-raffle-block"
               />
-              <div className="mt-4 px-3 sm:px-0">
+              <div className="mt-4">
                 <TrustBadges />
               </div>
             </div>

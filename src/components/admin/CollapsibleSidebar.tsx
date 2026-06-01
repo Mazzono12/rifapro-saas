@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import type React from "react";
-import { ChevronLeft, ExternalLink, Hexagon, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Hexagon, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { ResponsiveMediaFrame } from "../ResponsiveMediaFrame";
@@ -76,8 +76,8 @@ export function CollapsibleSidebar({
             </button>
           )}
           {!mobile && !minimized && (
-            <button onClick={() => onCollapsedChange(true)} className="admin-icon-button ml-auto" aria-label="Recolher menu lateral" title="Recolher menu lateral">
-              <ChevronLeft className="h-5 w-5" />
+            <button onClick={() => onCollapsedChange(true)} className="admin-icon-button ml-auto h-8 w-8" aria-label="Recolher menu" title="Recolher menu">
+              <ChevronLeft className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -123,17 +123,11 @@ export function CollapsibleSidebar({
 
         <div className="space-y-2 border-t border-[var(--admin-border)] py-4">
           {!mobile && (
-            <button onClick={() => onCollapsedChange(!collapsed)} className={cn("admin-button-secondary w-full", minimized && "justify-center px-0")} aria-label={minimized ? "Expandir menu" : "Recolher menu"} title={minimized ? "Expandir menu" : undefined}>
-              <ChevronLeft className={cn("h-4 w-4 transition", minimized && "rotate-180")} />
-              {!minimized && "Recolher menu"}
+            <button onClick={() => onCollapsedChange(!collapsed)} className={cn("admin-icon-button mx-auto h-9 w-9", minimized && "h-10 w-10")} aria-label={minimized ? "Expandir menu" : "Recolher menu"} title={minimized ? "Expandir menu" : "Recolher menu"}>
+              {minimized ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </button>
           )}
-          {footer || (
-            <Link to="/" className={cn("admin-button-secondary w-full", minimized && "justify-center px-0")} title={minimized ? "Abrir site" : undefined} aria-label={minimized ? "Abrir site" : undefined}>
-              <ExternalLink className="h-4 w-4" />
-              {!minimized && "Abrir site"}
-            </Link>
-          )}
+          {footer}
         </div>
       </aside>
     );

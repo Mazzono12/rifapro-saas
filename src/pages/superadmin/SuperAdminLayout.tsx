@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Building2,
+  ChevronLeft,
+  ChevronRight,
   Crown,
   ExternalLink,
   FileSearch,
@@ -90,25 +92,15 @@ function SuperAdminLayoutContent() {
         mobileOpen={mobileOpen}
         onCollapsedChange={setCollapsed}
         onMobileOpenChange={setMobileOpen}
-        footer={(
-          <div className="space-y-2">
-            <Link to="/admin" className={cn("admin-button-secondary w-full", collapsed && "justify-center px-0")} title={collapsed ? "Operacional" : undefined} aria-label={collapsed ? "Operacional" : undefined}>
-              <Building2 className="h-4 w-4" />
-              {!collapsed && "Operacional"}
-            </Link>
-            <Link to="/" className={cn("admin-button-secondary w-full", collapsed && "justify-center px-0")} title={collapsed ? "Abrir site" : undefined} aria-label={collapsed ? "Abrir site" : undefined}>
-              <ExternalLink className="h-4 w-4" />
-              {!collapsed && "Abrir site"}
-            </Link>
-          </div>
-        )}
       />
       <main className={cn("min-h-screen min-w-0 transition-[padding] duration-300", collapsed ? "lg:pl-20" : "lg:pl-72")}>
         <header className="sticky top-0 z-40 border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)]/90 backdrop-blur-2xl">
           <div className="mx-auto flex max-w-[1536px] items-center justify-between gap-4 px-4 py-2.5 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
               <button onClick={() => setMobileOpen(true)} className="admin-icon-button lg:hidden" aria-label="Abrir menu"><Menu className="h-5 w-5" /></button>
-              <button onClick={() => setCollapsed(value => !value)} className="admin-icon-button hidden lg:inline-flex" aria-label={collapsed ? "Expandir menu" : "Recolher menu"} title={collapsed ? "Expandir menu" : "Recolher menu"}><Menu className="h-5 w-5" /></button>
+              <button onClick={() => setCollapsed(value => !value)} className="admin-icon-button hidden h-9 w-9 lg:inline-flex" aria-label={collapsed ? "Expandir menu" : "Recolher menu"} title={collapsed ? "Expandir menu" : "Recolher menu"}>
+                {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              </button>
               <div className="min-w-0">
                 <span className="block truncate text-base font-semibold text-[var(--admin-text)]">{activeItem?.name || "Controle da Plataforma"}</span>
                 <span className="block text-xs text-[var(--admin-muted)]">Superadmin / {activeItem?.group || "Global"}</span>
@@ -116,6 +108,9 @@ function SuperAdminLayoutContent() {
             </div>
             <div className="flex items-center gap-2">
               <AdminThemeSwitcher collapsed placement="bottom" />
+              <Link to="/admin" className="admin-icon-button" title="Operacional" aria-label="Operacional">
+                <Building2 className="h-5 w-5" />
+              </Link>
               <Link to="/" className="admin-icon-button" title="Abrir site" aria-label="Abrir site">
                 <ExternalLink className="h-5 w-5" />
               </Link>
