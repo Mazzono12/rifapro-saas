@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-export type AdminThemeId = "neon-executive" | "titanium-light" | "power-dark-bi" | "golden-vip" | "black-white";
+export const ADMIN_THEMES = ["black", "white", "neon_blue"] as const;
+export type AdminThemeId = typeof ADMIN_THEMES[number];
 
 type AdminTheme = {
   id: AdminThemeId;
@@ -11,9 +12,9 @@ type AdminTheme = {
 
 export const adminThemes: AdminTheme[] = [
   {
-    id: "black-white",
-    name: "Black & White",
-    description: "Painel monocromático premium com contraste alto e botões brancos.",
+    id: "black",
+    name: "Black",
+    description: "Painel escuro premium com contraste alto e superfícies limpas.",
     variables: {
       "--admin-bg": "#030407",
       "--admin-bg-soft": "#090b10",
@@ -34,17 +35,17 @@ export const adminThemes: AdminTheme[] = [
     }
   },
   {
-    id: "neon-executive",
-    name: "TailAdmin Dark",
-    description: "Dashboard escuro no padrão TailAdmin, com azul brand e superfícies limpas.",
+    id: "white",
+    name: "White",
+    description: "Painel claro premium, legível e focado em operação.",
     variables: {
-      "--admin-bg": "#101828",
-      "--admin-bg-soft": "#0c111d",
-      "--admin-surface": "#111827",
-      "--admin-surface-strong": "#101828",
-      "--admin-border": "rgba(255,255,255,0.08)",
-      "--admin-text": "#f9fafb",
-      "--admin-muted": "#98a2b3",
+      "--admin-bg": "#f8fafc",
+      "--admin-bg-soft": "#eef2f7",
+      "--admin-surface": "#ffffff",
+      "--admin-surface-strong": "#ffffff",
+      "--admin-border": "#d8dee8",
+      "--admin-text": "#0f172a",
+      "--admin-muted": "#475569",
       "--admin-primary": "#465fff",
       "--admin-secondary": "#7592ff",
       "--admin-accent": "#7cd4fd",
@@ -57,72 +58,26 @@ export const adminThemes: AdminTheme[] = [
     }
   },
   {
-    id: "titanium-light",
-    name: "TailAdmin Light",
-    description: "Aparência principal TailAdmin: branco, cinza suave e azul brand.",
+    id: "neon_blue",
+    name: "Azul Neon",
+    description: "Dark premium com azul neon para painéis de alta atenção.",
     variables: {
-      "--admin-bg": "#f9fafb",
-      "--admin-bg-soft": "#f2f4f7",
-      "--admin-surface": "#ffffff",
-      "--admin-surface-strong": "#ffffff",
-      "--admin-border": "#e4e7ec",
-      "--admin-text": "#101828",
-      "--admin-muted": "#667085",
-      "--admin-primary": "#465fff",
-      "--admin-secondary": "#7592ff",
-      "--admin-accent": "#0ba5ec",
-      "--admin-success": "#12b76a",
-      "--admin-warning": "#f79009",
-      "--admin-danger": "#f04438",
-      "--admin-button": "#465fff",
-      "--admin-button-text": "#ffffff",
-      "--admin-glow": "rgba(70,95,255,0.12)"
-    }
-  },
-  {
-    id: "power-dark-bi",
-    name: "TailAdmin Analytics",
-    description: "Variação analítica com navy e indicadores verdes.",
-    variables: {
-      "--admin-bg": "#f5fbff",
-      "--admin-bg-soft": "#f0f9ff",
-      "--admin-surface": "#ffffff",
-      "--admin-surface-strong": "#ffffff",
-      "--admin-border": "#d0e8f8",
-      "--admin-text": "#102a43",
-      "--admin-muted": "#486581",
-      "--admin-primary": "#026aa2",
-      "--admin-secondary": "#12b76a",
-      "--admin-accent": "#0ba5ec",
-      "--admin-success": "#039855",
-      "--admin-warning": "#eab308",
-      "--admin-danger": "#ef4444",
-      "--admin-button": "#026aa2",
-      "--admin-button-text": "#ffffff",
-      "--admin-glow": "rgba(2,106,162,0.12)"
-    }
-  },
-  {
-    id: "golden-vip",
-    name: "TailAdmin VIP",
-    description: "Variação premium clara com destaque âmbar.",
-    variables: {
-      "--admin-bg": "#fffcf5",
-      "--admin-bg-soft": "#fffaeb",
-      "--admin-surface": "#ffffff",
-      "--admin-surface-strong": "#ffffff",
-      "--admin-border": "#fedf89",
-      "--admin-text": "#1d2939",
-      "--admin-muted": "#7a5f2a",
-      "--admin-primary": "#dc6803",
-      "--admin-secondary": "#f79009",
-      "--admin-accent": "#fdb022",
-      "--admin-success": "#12b76a",
-      "--admin-warning": "#f59e0b",
-      "--admin-danger": "#f43f5e",
-      "--admin-button": "#dc6803",
-      "--admin-button-text": "#ffffff",
-      "--admin-glow": "rgba(220,104,3,0.12)"
+      "--admin-bg": "#020617",
+      "--admin-bg-soft": "#071426",
+      "--admin-surface": "rgba(15,23,42,0.86)",
+      "--admin-surface-strong": "rgba(8,20,38,0.94)",
+      "--admin-border": "rgba(56,189,248,0.22)",
+      "--admin-text": "#eff6ff",
+      "--admin-muted": "#93b4d7",
+      "--admin-primary": "#38bdf8",
+      "--admin-secondary": "#60a5fa",
+      "--admin-accent": "#22d3ee",
+      "--admin-success": "#34d399",
+      "--admin-warning": "#fbbf24",
+      "--admin-danger": "#fb7185",
+      "--admin-button": "#38bdf8",
+      "--admin-button-text": "#020617",
+      "--admin-glow": "rgba(56,189,248,0.24)"
     }
   }
 ];
@@ -136,11 +91,16 @@ type AdminThemeContextValue = {
 const AdminThemeContext = createContext<AdminThemeContextValue | null>(null);
 const storageKey = "rifapro.admin.theme";
 
+function normalizeAdminThemeId(value: unknown): AdminThemeId {
+  const raw = String(value || "").trim();
+  if ((ADMIN_THEMES as readonly string[]).includes(raw)) return raw as AdminThemeId;
+  return "black";
+}
+
 export function AdminThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeIdState] = useState<AdminThemeId>(() => {
-    const stored = localStorage.getItem(storageKey) as AdminThemeId | null;
-    if (stored === "neon-executive") return "titanium-light";
-    return adminThemes.some(theme => theme.id === stored) ? stored! : "titanium-light";
+    const stored = localStorage.getItem(storageKey);
+    return normalizeAdminThemeId(stored);
   });
 
   const theme = useMemo(() => adminThemes.find(item => item.id === themeId) || adminThemes[0], [themeId]);
@@ -155,7 +115,7 @@ export function AdminThemeProvider({ children }: { children: React.ReactNode }) 
   const value = useMemo(() => ({
     theme,
     themeId,
-    setThemeId: setThemeIdState
+    setThemeId: (id: AdminThemeId) => setThemeIdState(normalizeAdminThemeId(id))
   }), [theme, themeId]);
 
   return <AdminThemeContext.Provider value={value}>{children}</AdminThemeContext.Provider>;
