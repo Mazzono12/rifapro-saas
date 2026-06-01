@@ -2338,6 +2338,7 @@ async function startServer() {
   let payment_reconciliation_jobs: PaymentReconciliationJob[] = [];
   let payment_release_jobs: PaymentReleaseJob[] = [];
   let payment_dead_letter_queue: PaymentDeadLetterJob[] = [];
+  const paymentReleaseLocks = new Set<string>();
   let whatsappProviderConfigs: WhatsAppProviderConfigRecord[] = [];
   let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
   let automationFlows: AutomationFlowRecord[] = [];
@@ -11019,6 +11020,13 @@ async function startServer() {
 
   async function processPaymentReleaseJob(job: PaymentReleaseJob) {
     if (!isPaymentWorkerJobReady(job)) return job;
+    const lockKey = `${job.tenant_id}:${job.gateway}:${job.releaseType}:${job.purchaseId}`;
+    if (paymentReleaseLocks.has(lockKey)) {
+      job.lastError = "Release already locked";
+      job.nextRetryAt = new Date(Date.now() + paymentWorkerBackoffMs(Math.max(1, job.attempts))).toISOString();
+      return job;
+    }
+    paymentReleaseLocks.add(lockKey);
     markPaymentWorkerJob(job, "processing");
     try {
       if (job.releaseType === "number_mode") {
@@ -11069,6 +11077,8 @@ async function startServer() {
       markPaymentWorkerJob(job, job.attempts + 1 >= job.maxAttempts ? "dead" : "pending", message);
       if (job.status === "dead") movePaymentJobToDeadLetter("release", job, message);
       return job;
+    } finally {
+      paymentReleaseLocks.delete(lockKey);
     }
   }
 
