@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Volume2, VolumeX, X } from 'lucide-react';
 import { ResponsiveMediaFrame } from './ResponsiveMediaFrame';
 import type { Story } from '../types';
 import { inferMediaType } from '../utils/media';
@@ -91,7 +90,6 @@ export function StoriesSection() {
 function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: { story: Story, stories: Story[], activeIndex: number, onClose: () => void, onNext: () => void, onPrev: () => void }) {
   const [progress, setProgress] = useState(0);
   const [isHeld, setIsHeld] = useState(false);
-  const [muted, setMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number | null>(null);
@@ -108,8 +106,15 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
     setProgress(0);
     progressRef.current = 0;
     setIsHeld(false);
-    setMuted(true);
   }, [story.id]);
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
 
   useEffect(() => {
     if (!isTimedStory) return;
@@ -156,7 +161,6 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
         await video.play();
       } catch {
         video.muted = true;
-        setMuted(true);
         await video.play().catch(() => null);
       }
     };
@@ -176,7 +180,6 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
 
     video.play().catch(() => {
       video.muted = true;
-      setMuted(true);
       video.play().catch(() => null);
     });
   }, [isHeld, isNativeVideo, story.id]);
@@ -210,22 +213,6 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
     if (suppressTapRef.current) return;
     action();
   }, []);
-
-  const toggleMute = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    const video = videoRef.current;
-    const nextMuted = !muted;
-    setMuted(nextMuted);
-    if (!video) return;
-
-    video.muted = nextMuted;
-    if (!nextMuted) {
-      video.play().catch(() => {
-        video.muted = true;
-        setMuted(true);
-      });
-    }
-  }, [muted]);
 
   return (
     <motion.div 
@@ -264,30 +251,6 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
                 </div>
                 <span className="truncate text-sm font-bold text-white drop-shadow">{story.title}</span>
               </div>
-              <div className="flex flex-shrink-0 items-center gap-2">
-                {isNativeVideo && (
-                  <button
-                    type="button"
-                    onMouseDown={event => event.stopPropagation()}
-                    onTouchStart={event => event.stopPropagation()}
-                    onClick={toggleMute}
-                    className="grid h-9 w-9 place-items-center rounded-full bg-black/35 text-white/90 backdrop-blur-md transition hover:bg-black/55 hover:text-white"
-                    aria-label={muted ? "Ativar som" : "Silenciar story"}
-                  >
-                    {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onMouseDown={event => event.stopPropagation()}
-                  onTouchStart={event => event.stopPropagation()}
-                  onClick={onClose}
-                  className="grid h-9 w-9 place-items-center rounded-full bg-black/35 text-white/90 backdrop-blur-md transition hover:bg-black/55 hover:text-white"
-                  aria-label="Fechar story"
-                >
-                  <X className="h-5 w-5"/>
-                </button>
-              </div>
             </div>
 
             <div key={story.id} className="relative h-full w-full flex-1">
@@ -295,11 +258,13 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
                  <video
                    ref={videoRef}
                    src={story.mediaUrl}
-                   className="absolute inset-0 h-full w-full object-cover"
+                   className="pointer-events-none absolute inset-0 h-full w-full object-cover"
                    autoPlay
                    playsInline
-                   muted={muted}
+                   muted
                    controls={false}
+                   controlsList="nodownload noplaybackrate noremoteplayback"
+                   disablePictureInPicture
                    preload="auto"
                    onTimeUpdate={handleVideoProgress}
                    onLoadedMetadata={handleVideoProgress}
@@ -308,7 +273,7 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
                ) : story.mediaType === "image" || resolvedType === "image" ? (
                  <img src={story.mediaUrl} alt={story.title} className="absolute inset-0 h-full w-full object-cover" draggable={false} />
                ) : (
-                 <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} className="absolute inset-0 h-full w-full rounded-none" preferredFit="auto" aspectMode="story" autoPlay muted controls={false} loop={false} />
+                 <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} className="absolute inset-0 h-full w-full rounded-none" mediaClassName="pointer-events-none" preferredFit="auto" aspectMode="story" autoPlay muted controls={false} loop={false} />
                )}
                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/60" />
                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-5 pb-8">
@@ -316,8 +281,8 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
                </div>
             </div>
 
-            <button type="button" className="absolute inset-y-0 left-0 z-20 w-1/3 cursor-w-resize bg-transparent" aria-label="Story anterior" onClick={event => handleSideTap(event, onPrev)} />
-            <button type="button" className="absolute inset-y-0 right-0 z-20 w-1/3 cursor-e-resize bg-transparent" aria-label="Proximo story" onClick={event => handleSideTap(event, onNext)} />
+            <button type="button" className="absolute inset-y-0 left-0 z-40 w-1/2 cursor-w-resize bg-transparent" aria-label="Story anterior" onClick={event => handleSideTap(event, onPrev)} />
+            <button type="button" className="absolute inset-y-0 right-0 z-40 w-1/2 cursor-e-resize bg-transparent" aria-label="Proximo story" onClick={event => handleSideTap(event, onNext)} />
         </div>
     </motion.div>
   );
