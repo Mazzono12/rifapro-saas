@@ -12,6 +12,7 @@ import { VideoPlaybackProvider } from "./context/video-playback/VideoPlaybackCon
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { PwaInstallPrompt } from "./components/pwa/PwaInstallPrompt";
 import { useCustomerStore } from "./store/useCustomerStore";
+import { AdminSectionBoundary } from "./components/admin/AdminSectionBoundary";
 
 // Track Ref Custom Hook
 function GlobalTracking() {
@@ -127,6 +128,10 @@ const SuperAdminTenantBranding = lazy(() => import("./pages/superadmin/SuperAdmi
 const SuperAdminTenantPlanResources = lazy(() => import("./pages/superadmin/SuperAdminTenantPlanResources").then(module => ({ default: module.SuperAdminTenantPlanResources })));
 const Transparency = lazy(() => import("./pages/Transparency").then(module => ({ default: module.Transparency })));
 const DrawAudit = lazy(() => import("./pages/DrawAudit").then(module => ({ default: module.DrawAudit })));
+
+function adminSection(section: string, children: React.ReactNode) {
+  return <AdminSectionBoundary section={section}>{children}</AdminSectionBoundary>;
+}
 
 import { useDynamicBackground } from "./hooks/useDynamicBackground";
 
@@ -277,37 +282,37 @@ export default function App() {
               <Route path="/:mode" element={<NumberModePage />} />
             
               <Route path="/admin" element={<ProtectedRoute roles={["superadmin", "admin"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="crm" element={<AdminCRM />} />
-                <Route path="crm/:contactId" element={<AdminCRM />} />
-                <Route path="crm/pipeline" element={<AdminCRM />} />
-                <Route path="crm/segmentos" element={<AdminCRM />} />
-                <Route path="usuarios" element={<AdminUsers />} />
-                <Route path="rifas" element={<AdminRaffles />} />
-                <Route path="stories" element={<AdminStories />} />
-                <Route path="ganhadores" element={<AdminWinners />} />
-                <Route path="cotas" element={<AdminInstantPrizes />} />
-                <Route path="vendas" element={<AdminSales />} />
-                <Route path="pagamentos" element={<AdminPaymentGateways />} />
-                <Route path="fazendinha" element={<AdminFazendinha />} />
-                <Route path="caixinhas" element={<AdminLootboxes />} />
-                <Route path="gamificacao" element={<AdminGamification />} />
-                <Route path="promocoes" element={<AdminPromotions />} />
-                <Route path="modalidades" element={<AdminModalidades />} />
-                <Route path="sorteio" element={<AdminLiveDraw />} />
-                <Route path="mensagens" element={<AdminMessages />} />
-                <Route path="relatorios" element={<AdminReports />} />
-                <Route path="operacoes" element={<AdminOperations />} />
-                <Route path="integracoes" element={<AdminIntegrations />} />
-                <Route path="automacoes" element={<AdminAutomations />} />
-                <Route path="dominios" element={<AdminDomains />} />
-                <Route path="auditoria" element={<AdminComplianceCenter />} />
-                <Route path="compliance" element={<AdminComplianceCenter />} />
-                <Route path="antifraude" element={<AdminComplianceCenter />} />
-                <Route path="gerenciar-cotas" element={<AdminComplianceCenter />} />
-                <Route path="meu-plano" element={<AdminMyPlan />} />
-                <Route path="config" element={<AdminConfig />} />
-                <Route path="config/aparencia" element={<AdminConfig initialTab="branding" />} />
+                <Route index element={adminSection("Dashboard", <AdminDashboard />)} />
+                <Route path="crm" element={adminSection("CRM", <AdminCRM />)} />
+                <Route path="crm/:contactId" element={adminSection("CRM", <AdminCRM />)} />
+                <Route path="crm/pipeline" element={adminSection("CRM Pipeline", <AdminCRM />)} />
+                <Route path="crm/segmentos" element={adminSection("CRM Segmentos", <AdminCRM />)} />
+                <Route path="usuarios" element={adminSection("Clientes", <AdminUsers />)} />
+                <Route path="rifas" element={adminSection("Rifas", <AdminRaffles />)} />
+                <Route path="stories" element={adminSection("Stories", <AdminStories />)} />
+                <Route path="ganhadores" element={adminSection("Ganhadores", <AdminWinners />)} />
+                <Route path="cotas" element={adminSection("Cotas Premiadas", <AdminInstantPrizes />)} />
+                <Route path="vendas" element={adminSection("Vendas", <AdminSales />)} />
+                <Route path="pagamentos" element={adminSection("Pagamentos", <AdminPaymentGateways />)} />
+                <Route path="fazendinha" element={adminSection("Fazendinha", <AdminFazendinha />)} />
+                <Route path="caixinhas" element={adminSection("Roleta Premiada", <AdminLootboxes />)} />
+                <Route path="gamificacao" element={adminSection("Gamificação", <AdminGamification />)} />
+                <Route path="promocoes" element={adminSection("Promoções", <AdminPromotions />)} />
+                <Route path="modalidades" element={adminSection("Modalidades", <AdminModalidades />)} />
+                <Route path="sorteio" element={adminSection("Sorteio Ao Vivo", <AdminLiveDraw />)} />
+                <Route path="mensagens" element={adminSection("Mensagens", <AdminMessages />)} />
+                <Route path="relatorios" element={adminSection("Relatórios e Afiliados", <AdminReports />)} />
+                <Route path="operacoes" element={adminSection("Operações", <AdminOperations />)} />
+                <Route path="integracoes" element={adminSection("Integrações", <AdminIntegrations />)} />
+                <Route path="automacoes" element={adminSection("Automações", <AdminAutomations />)} />
+                <Route path="dominios" element={adminSection("Domínios", <AdminDomains />)} />
+                <Route path="auditoria" element={adminSection("Auditoria", <AdminComplianceCenter />)} />
+                <Route path="compliance" element={adminSection("Compliance", <AdminComplianceCenter />)} />
+                <Route path="antifraude" element={adminSection("Antifraude", <AdminComplianceCenter />)} />
+                <Route path="gerenciar-cotas" element={adminSection("Gerenciar Cotas", <AdminComplianceCenter />)} />
+                <Route path="meu-plano" element={adminSection("Meu Plano", <AdminMyPlan />)} />
+                <Route path="config" element={adminSection("Configurações", <AdminConfig />)} />
+                <Route path="config/aparencia" element={adminSection("Aparência", <AdminConfig initialTab="branding" />)} />
               </Route>
               <Route path="/superadmin" element={<ProtectedRoute roles={["superadmin"]}><Suspense fallback={<AdminRouteFallback />}><SuperAdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={<SuperAdminDashboard />} />

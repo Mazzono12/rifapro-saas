@@ -20,7 +20,10 @@ export const raffleService = {
   async getRaffles() {
     const res = await fetch("/api/raffles");
     if (!res.ok) throw new Error("Falha ao buscar rifas");
-    return res.json() as Promise<Raffle[]>;
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) throw new Error("Resposta invalida ao buscar rifas");
+    const payload = await res.json();
+    return Array.isArray(payload) ? payload as Raffle[] : [];
   },
 
   async getRaffleById(id: string) {

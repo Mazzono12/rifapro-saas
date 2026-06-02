@@ -4,6 +4,125 @@ import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import type { Raffle } from "../../types";
 
+function asArray<T = any>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
+function safeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function safeText(value: unknown, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+
+function safeMoney(value: unknown) {
+  return safeNumber(value).toFixed(2);
+}
+
+function normalizeAdminRaffle(raffle: Partial<Raffle> | null | undefined): Raffle | null {
+  if (!raffle?.id) return null;
+  return {
+    ...raffle,
+    id: String(raffle.id),
+    title: safeText(raffle.title, "Campanha sem titulo"),
+    description: safeText(raffle.description, ""),
+    price: safeNumber(raffle.price),
+    totalTickets: Math.max(1, Math.floor(safeNumber(raffle.totalTickets, 1))),
+    soldTickets: Math.max(0, Math.floor(safeNumber(raffle.soldTickets))),
+    image: safeText(raffle.image, ""),
+    status: raffle.status || "active",
+    drawDate: safeText(raffle.drawDate, "")
+  } as Raffle;
+}
+
+function normalizePurchase(purchase: any) {
+  const customer = purchase?.customer && typeof purchase.customer === "object" ? purchase.customer : {};
+  return {
+    ...purchase,
+    purchaseId: String(purchase?.purchaseId || purchase?.id || ""),
+    raffleId: String(purchase?.raffleId || ""),
+    contact: safeText(purchase?.contact || customer.phone, ""),
+    status: safeText(purchase?.status, "pending"),
+    amount: safeNumber(purchase?.amount),
+    tickets: Math.max(0, Math.floor(safeNumber(purchase?.tickets))),
+    createdAt: safeText(purchase?.createdAt, ""),
+    numeros: asArray<number>(purchase?.numeros),
+    paymentHistory: asArray(purchase?.paymentHistory),
+    customer: {
+      ...customer,
+      id: String(customer.id || ""),
+      name: safeText(customer.name, ""),
+      phone: safeText(customer.phone, ""),
+      cpf: safeText(customer.cpf, ""),
+      city: safeText(customer.city, ""),
+      state: safeText(customer.state, "")
+    }
+  };
+}
+
+function normalizeCustomer(customer: any) {
+  return {
+    ...customer,
+    id: String(customer?.id || ""),
+    name: safeText(customer?.name, "Cliente"),
+    phone: safeText(customer?.phone, ""),
+    cpf: safeText(customer?.cpf, ""),
+    city: safeText(customer?.city, ""),
+    state: safeText(customer?.state, ""),
+    totalTickets: Math.max(0, Math.floor(safeNumber(customer?.totalTickets))),
+    affiliateRefCode: safeText(customer?.affiliateRefCode, ""),
+    purchases: asArray(customer?.purchases).map(normalizePurchase),
+    fazendinhaPurchases: asArray(customer?.fazendinhaPurchases),
+    modalidadePurchases: asArray(customer?.modalidadePurchases),
+    affiliate: customer?.affiliate && typeof customer.affiliate === "object" ? customer.affiliate : undefined
+  };
+}
+
+function normalizeAffiliateResult(item: any) {
+  const customer = normalizeCustomer(item?.customer || {});
+  const affiliate = item?.affiliate && typeof item.affiliate === "object" ? item.affiliate : {};
+  return {
+    ...item,
+    customer,
+    affiliate: {
+      ...affiliate,
+      refCode: safeText(affiliate.refCode || customer.affiliateRefCode, ""),
+      pixKey: safeText(affiliate.pixKey, ""),
+      commissionBalance: safeNumber(affiliate.commissionBalance),
+      prizeBalance: safeNumber(affiliate.prizeBalance),
+      commission: safeNumber(affiliate.commission),
+      useBalanceForPurchases: Boolean(affiliate.useBalanceForPurchases)
+    }
+  };
+}
+
+function normalizeSupportTicket(ticket: any) {
+  return {
+    ...ticket,
+    id: String(ticket?.id || ""),
+    status: safeText(ticket?.status, "open"),
+    customerName: safeText(ticket?.customerName, "Cliente"),
+    customerPhone: safeText(ticket?.customerPhone, ""),
+    messages: asArray(ticket?.messages)
+  };
+}
+
+async function readJsonArray<T = any>(url: string, normalize?: (item: any) => T): Promise<T[]> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType && !contentType.includes("application/json")) return [];
+    const payload = await response.json();
+    const items = asArray(payload);
+    return normalize ? items.map(normalize).filter(Boolean) as T[] : items as T[];
+  } catch {
+    return [];
+  }
+}
+
 export function AdminSales() {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -39,13 +158,11 @@ export function AdminSales() {
   const [purchaseRaffleFilter, setPurchaseRaffleFilter] = useState("all");
 
   const loadData = () => {
-    fetch("/api/admin/purchases")
-      .then(res => res.json())
-      .then(setPurchases);
-    fetch("/api/admin/customers").then(res => res.json()).then(setCustomers).catch(() => null);
-    fetch("/api/raffles").then(res => res.json()).then(setRaffles).catch(() => null);
-    fetch("/api/admin/affiliates/withdrawals").then(res => res.json()).then(setWithdrawals).catch(() => null);
-    fetch("/api/admin/support/tickets").then(res => res.json()).then(setSupportTickets).catch(() => null);
+    void readJsonArray("/api/admin/purchases", normalizePurchase).then(setPurchases);
+    void readJsonArray("/api/admin/customers", normalizeCustomer).then(setCustomers);
+    void readJsonArray("/api/raffles", normalizeAdminRaffle).then(setRaffles);
+    void readJsonArray("/api/admin/affiliates/withdrawals").then(setWithdrawals);
+    void readJsonArray("/api/admin/support/tickets", normalizeSupportTicket).then(setSupportTickets);
   };
 
   useEffect(() => {
@@ -142,15 +259,17 @@ export function AdminSales() {
 
   const filteredCustomers = customers.filter(customer => {
     const query = customerQuery.toLowerCase().replace(/\D/g, "");
-    const text = `${customer.name} ${customer.phone} ${customer.cpf} ${customer.city} ${customer.state}`.toLowerCase();
-    return !customerQuery || text.includes(customerQuery.toLowerCase()) || customer.phone.includes(query) || customer.cpf.includes(query);
+    const phone = safeText(customer.phone);
+    const cpf = safeText(customer.cpf);
+    const text = `${customer.name || ""} ${phone} ${cpf} ${customer.city || ""} ${customer.state || ""}`.toLowerCase();
+    return !customerQuery || text.includes(customerQuery.toLowerCase()) || phone.includes(query) || cpf.includes(query);
   });
   const filteredPurchases = purchases.filter(purchase => purchaseRaffleFilter === "all" || purchase.raffleId === purchaseRaffleFilter);
 
   const openCustomerEditor = (customer: any) => {
     setEditingCustomer({
       ...customer,
-      purchases: (customer.purchases || []).map((purchase: any) => ({
+      purchases: asArray(customer.purchases).map((purchase: any) => ({
         ...purchase,
         editableNumbers: purchase.editableNumbers ?? (purchase.numeros || []).join(", ")
       }))
@@ -199,7 +318,7 @@ export function AdminSales() {
       toast.error(data.error || "Erro ao buscar cliente");
       return;
     }
-    setCustomerLookupResults(data);
+    setCustomerLookupResults(asArray(data).map(normalizeCustomer));
   };
 
   const applyCustomerSearch = () => {
@@ -213,8 +332,9 @@ export function AdminSales() {
       toast.error(data.error || "Erro ao buscar afiliado");
       return;
     }
-    setAffiliateResults(data);
-    setSelectedAffiliate(data[0] || null);
+    const results = asArray(data).map(normalizeAffiliateResult);
+    setAffiliateResults(results);
+    setSelectedAffiliate(results[0] || null);
   };
 
   const createManualAffiliate = async () => {
@@ -230,8 +350,9 @@ export function AdminSales() {
     }
     toast.success("Afiliado cadastrado manualmente");
     setManualAffiliate({ name: "", phone: "", cpf: "", city: "", state: "", refCode: "", pixKey: "", accessPassword: "123456" });
-    setAffiliateResults([{ customer: data.customer, affiliate: data.affiliate }, ...affiliateResults]);
-    setSelectedAffiliate({ customer: data.customer, affiliate: data.affiliate });
+    const nextAffiliate = normalizeAffiliateResult({ customer: data.customer, affiliate: data.affiliate });
+    setAffiliateResults([nextAffiliate, ...affiliateResults]);
+    setSelectedAffiliate(nextAffiliate);
     loadData();
   };
 
@@ -247,9 +368,9 @@ export function AdminSales() {
       toast.error(data.error || "Erro ao atualizar saldo");
       return;
     }
-    const next = { ...selectedAffiliate, affiliate: data };
+    const next = normalizeAffiliateResult({ ...selectedAffiliate, affiliate: data });
     setSelectedAffiliate(next);
-    setAffiliateResults(results => results.map(item => item.affiliate.refCode === data.refCode ? next : item));
+    setAffiliateResults(results => results.map(item => item.affiliate?.refCode === data.refCode ? next : item));
     toast.success("Carteira do afiliado atualizada");
   };
 
@@ -265,8 +386,9 @@ export function AdminSales() {
       toast.error(data.error || "Erro ao salvar afiliado");
       return;
     }
-    setSelectedAffiliate(data);
-    setAffiliateResults(results => results.map(item => item.affiliate.refCode === data.affiliate.refCode ? data : item));
+    const normalized = normalizeAffiliateResult(data);
+    setSelectedAffiliate(normalized);
+    setAffiliateResults(results => results.map(item => item.affiliate?.refCode === normalized.affiliate.refCode ? normalized : item));
     toast.success("Afiliado atualizado");
     loadData();
   };
@@ -508,7 +630,7 @@ export function AdminSales() {
                     <div>
                       <p className="font-bold text-white">{customer.name}</p>
                       <p className="text-xs font-mono text-slate-400">{customer.phone} • CPF {customer.cpf} • {customer.city || "Nao informado"} / {customer.state || "UF"}</p>
-                      <p className="mt-1 text-xs font-mono text-cyan-300">Afiliado: {customer.affiliate?.refCode} • Saldo total R$ {Number(customer.affiliate?.commission || 0).toFixed(2)}</p>
+                      <p className="mt-1 text-xs font-mono text-cyan-300">Afiliado: {customer.affiliate?.refCode || "sem codigo"} • Saldo total R$ {safeMoney(customer.affiliate?.commission)}</p>
                     </div>
                     <button onClick={() => openCustomerEditor(customer)} className="admin-button-secondary">
                       Editar ficha
@@ -519,14 +641,14 @@ export function AdminSales() {
                     <LookupStat label="Fazendinha" value={String(customer.fazendinhaPurchases?.length || 0)} />
                     <LookupStat label="Modalidades" value={String(customer.modalidadePurchases?.length || 0)} />
                   </div>
-                  {(customer.purchases || []).length > 0 && (
+                  {asArray(customer.purchases).length > 0 && (
                     <div className="mt-4 space-y-2">
                       <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Cotas compradas em rifas</p>
-                      {customer.purchases.map((purchase: any) => (
+                      {asArray(customer.purchases).map((purchase: any) => (
                         <div key={purchase.purchaseId} className="rounded-xl border border-white/5 bg-black/20 p-3">
                           <p className="text-sm font-bold text-white">{purchase.raffleTitle} • {purchase.status}</p>
                           <p className="mt-1 break-all font-mono text-xs text-slate-400">
-                            {(purchase.numeros || []).length ? purchase.numeros.map((n: number) => String(n).padStart(6, "0")).join(", ") : "Sem cotas alocadas ainda"}
+                            {asArray<number>(purchase.numeros).length ? asArray<number>(purchase.numeros).map((n: number) => String(n).padStart(6, "0")).join(", ") : "Sem cotas alocadas ainda"}
                           </p>
                         </div>
                       ))}
@@ -548,7 +670,7 @@ export function AdminSales() {
                 <div key={withdrawal.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
-                      <p className="font-bold text-white">{withdrawal.customerName} • R$ {Number(withdrawal.amount || 0).toFixed(2)}</p>
+                      <p className="font-bold text-white">{withdrawal.customerName || "Cliente"} • R$ {safeMoney(withdrawal.amount)}</p>
                       <p className="text-xs font-mono text-slate-400">{withdrawal.customerPhone} • {withdrawal.refCode}</p>
                       <p className="mt-1 break-all text-xs font-mono text-emerald-300">PIX: {withdrawal.pixKey}</p>
                       <p className="mt-1 text-xs text-slate-500">Status: {withdrawal.status}</p>
@@ -583,7 +705,7 @@ export function AdminSales() {
                     <p className="text-xs font-mono text-slate-400">{ticket.customerPhone} • {ticket.status}</p>
                   </div>
                   <div className="max-h-44 space-y-2 overflow-y-auto rounded-xl bg-black/20 p-3 text-sm">
-                    {ticket.messages.map((message: any) => (
+                    {asArray(ticket.messages).map((message: any) => (
                       <div key={message.id} className={cn("rounded-lg p-2", message.sender === "admin" ? "bg-cyan-400/10 text-cyan-100" : message.sender === "bot" ? "bg-white/5 text-slate-300" : "bg-emerald-400/10 text-emerald-100")}>
                         <p className="text-[10px] uppercase tracking-widest opacity-70">{message.sender}</p>
                         <p>{message.body}</p>
@@ -647,11 +769,11 @@ export function AdminSales() {
             </div>
             <div className="grid gap-3 md:grid-cols-[0.85fr_1.15fr]">
               <div className="max-h-72 space-y-2 overflow-y-auto custom-scrollbar pr-1">
-                {affiliateResults.map(item => (
-                  <button key={item.affiliate.refCode} onClick={() => setSelectedAffiliate(item)} className={cn("w-full rounded-xl border p-3 text-left", selectedAffiliate?.affiliate?.refCode === item.affiliate.refCode ? "border-emerald-300/30 bg-emerald-300/10" : "border-white/5 bg-white/[0.03]")}>
-                    <p className="font-semibold text-white">{item.customer.name}</p>
-                    <p className="text-xs font-mono text-slate-500">{item.customer.phone} • CPF {item.customer.cpf}</p>
-                    <p className="text-xs font-mono text-emerald-300">{item.affiliate.refCode}</p>
+                {affiliateResults.map((item, index) => (
+                  <button key={item.affiliate?.refCode || item.customer?.id || index} onClick={() => setSelectedAffiliate(normalizeAffiliateResult(item))} className={cn("w-full rounded-xl border p-3 text-left", selectedAffiliate?.affiliate?.refCode === item.affiliate?.refCode ? "border-emerald-300/30 bg-emerald-300/10" : "border-white/5 bg-white/[0.03]")}>
+                    <p className="font-semibold text-white">{item.customer?.name || "Cliente"}</p>
+                    <p className="text-xs font-mono text-slate-500">{item.customer?.phone || "sem telefone"} • CPF {item.customer?.cpf || "nao informado"}</p>
+                    <p className="text-xs font-mono text-emerald-300">{item.affiliate?.refCode || "sem codigo"}</p>
                   </button>
                 ))}
               </div>
@@ -674,7 +796,7 @@ export function AdminSales() {
                     <label className="space-y-1 md:col-span-2">
                       <span className="text-[10px] font-mono uppercase text-slate-500">Chave PIX</span>
                       <input
-                        value={selectedAffiliate.affiliate.pixKey || ""}
+                        value={selectedAffiliate.affiliate?.pixKey || ""}
                         onChange={e => setSelectedAffiliate({
                           ...selectedAffiliate,
                           affiliate: { ...selectedAffiliate.affiliate, pixKey: e.target.value }
@@ -684,19 +806,19 @@ export function AdminSales() {
                     </label>
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-2">
-                    <MiniWallet label="Comissões" value={selectedAffiliate.affiliate.commissionBalance} />
-                    <MiniWallet label="Prêmios" value={selectedAffiliate.affiliate.prizeBalance} />
-                    <MiniWallet label="Total" value={selectedAffiliate.affiliate.commission} />
+                    <MiniWallet label="Comissões" value={selectedAffiliate.affiliate?.commissionBalance} />
+                    <MiniWallet label="Prêmios" value={selectedAffiliate.affiliate?.prizeBalance} />
+                    <MiniWallet label="Total" value={selectedAffiliate.affiliate?.commission} />
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <label className="space-y-1">
                       <span className="text-[10px] font-mono uppercase text-slate-500">Saldo comissões</span>
                       <input
                         type="number"
-                        value={selectedAffiliate.affiliate.commissionBalance || 0}
+                        value={selectedAffiliate.affiliate?.commissionBalance || 0}
                         onChange={e => {
                           const commissionBalance = Number(e.target.value);
-                          const prizeBalance = Number(selectedAffiliate.affiliate.prizeBalance || 0);
+                          const prizeBalance = safeNumber(selectedAffiliate.affiliate?.prizeBalance);
                           setSelectedAffiliate({
                             ...selectedAffiliate,
                             affiliate: { ...selectedAffiliate.affiliate, commissionBalance, commission: commissionBalance + prizeBalance }
@@ -709,10 +831,10 @@ export function AdminSales() {
                       <span className="text-[10px] font-mono uppercase text-slate-500">Saldo prêmios</span>
                       <input
                         type="number"
-                        value={selectedAffiliate.affiliate.prizeBalance || 0}
+                        value={selectedAffiliate.affiliate?.prizeBalance || 0}
                         onChange={e => {
                           const prizeBalance = Number(e.target.value);
-                          const commissionBalance = Number(selectedAffiliate.affiliate.commissionBalance || 0);
+                          const commissionBalance = safeNumber(selectedAffiliate.affiliate?.commissionBalance);
                           setSelectedAffiliate({
                             ...selectedAffiliate,
                             affiliate: { ...selectedAffiliate.affiliate, prizeBalance, commission: commissionBalance + prizeBalance }
@@ -725,7 +847,7 @@ export function AdminSales() {
                       <span className="text-sm text-white">Usar saldo para compras</span>
                       <input
                         type="checkbox"
-                        checked={Boolean(selectedAffiliate.affiliate.useBalanceForPurchases)}
+                        checked={Boolean(selectedAffiliate.affiliate?.useBalanceForPurchases)}
                         onChange={e => setSelectedAffiliate({
                           ...selectedAffiliate,
                           affiliate: { ...selectedAffiliate.affiliate, useBalanceForPurchases: e.target.checked }
@@ -783,9 +905,9 @@ export function AdminSales() {
                <h3 className="font-display text-lg font-bold text-white">Cotas de rifas editáveis</h3>
                <p className="mt-1 text-xs text-slate-500">Separe números por vírgula ou espaço. Ao salvar, o sistema remove ou acrescenta cotas nesta compra.</p>
                <div className="mt-4 space-y-3">
-                 {(editingCustomer.purchases || []).length === 0 ? (
+                 {asArray(editingCustomer.purchases).length === 0 ? (
                    <p className="text-sm text-slate-500">Nenhuma compra tradicional encontrada.</p>
-                 ) : editingCustomer.purchases.map((purchase: any, index: number) => (
+                 ) : asArray(editingCustomer.purchases).map((purchase: any, index: number) => (
                    <div key={purchase.purchaseId} className="rounded-xl border border-white/5 bg-black/20 p-3">
                      <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
                        <p className="font-bold text-white">{purchase.raffleTitle || purchase.raffleId}</p>
@@ -794,7 +916,7 @@ export function AdminSales() {
                      <textarea
                        value={purchase.editableNumbers || ""}
                        onChange={e => {
-                         const nextPurchases = [...(editingCustomer.purchases || [])];
+                         const nextPurchases = [...asArray(editingCustomer.purchases)];
                          nextPurchases[index] = { ...purchase, editableNumbers: e.target.value };
                          setEditingCustomer({ ...editingCustomer, purchases: nextPurchases });
                        }}
@@ -810,14 +932,14 @@ export function AdminSales() {
                <h3 className="font-display text-lg font-bold text-white">Outras modalidades</h3>
                <p className="mt-1 text-xs text-slate-500">Edite apenas para cotas disponíveis. Fazendinha usa IDs dos grupos: leao, vaca, aguia...</p>
                <div className="mt-4 space-y-3">
-                 {(editingCustomer.fazendinhaPurchases || []).map((purchase: any, index: number) => (
+                 {asArray(editingCustomer.fazendinhaPurchases).map((purchase: any, index: number) => (
                    <div key={purchase.id} className="rounded-xl border border-emerald-300/10 bg-emerald-300/5 p-3">
                      <p className="font-bold text-white">Fazendinha • {purchase.nomeBicho}</p>
                      <p className="font-mono text-xs text-slate-400">{purchase.numeros?.join(", ")} • {purchase.statusPagamento}</p>
                      <textarea
                        value={purchase.editableGroupIds || ""}
                        onChange={e => {
-                         const next = [...(editingCustomer.fazendinhaPurchases || [])];
+                         const next = [...asArray(editingCustomer.fazendinhaPurchases)];
                          next[index] = { ...purchase, editableGroupIds: e.target.value };
                          setEditingCustomer({ ...editingCustomer, fazendinhaPurchases: next });
                        }}
@@ -827,14 +949,14 @@ export function AdminSales() {
                      />
                    </div>
                  ))}
-                 {(editingCustomer.modalidadePurchases || []).map((purchase: any, index: number) => (
+                 {asArray(editingCustomer.modalidadePurchases).map((purchase: any, index: number) => (
                    <div key={purchase.id} className="rounded-xl border border-cyan-300/10 bg-cyan-300/5 p-3">
                      <p className="font-bold text-white">{purchase.mode}</p>
                      <p className="font-mono text-xs text-slate-400">{purchase.numbers?.join(", ")} • {purchase.status}</p>
                      <textarea
                        value={purchase.editableNumbers || ""}
                        onChange={e => {
-                         const next = [...(editingCustomer.modalidadePurchases || [])];
+                         const next = [...asArray(editingCustomer.modalidadePurchases)];
                          next[index] = { ...purchase, editableNumbers: e.target.value };
                          setEditingCustomer({ ...editingCustomer, modalidadePurchases: next });
                        }}
@@ -844,7 +966,7 @@ export function AdminSales() {
                      />
                    </div>
                  ))}
-                 {!(editingCustomer.fazendinhaPurchases || []).length && !(editingCustomer.modalidadePurchases || []).length && (
+                 {!asArray(editingCustomer.fazendinhaPurchases).length && !asArray(editingCustomer.modalidadePurchases).length && (
                    <p className="text-sm text-slate-500">Nenhuma compra em Fazendinha, Dezena, Centena ou Milhar.</p>
                  )}
                </div>
@@ -899,16 +1021,16 @@ export function AdminSales() {
                         </td>
                         <td className="py-4 px-6 text-slate-300">
                           <div className="space-y-1">
-                            {(p.paymentHistory?.length ? p.paymentHistory : []).map((item: any, idx: number) => (
+                            {asArray(p.paymentHistory).map((item: any, idx: number) => (
                               <div key={idx} className={cn("text-[10px] uppercase tracking-widest", item.status === "paid" ? "text-emerald-300" : "text-red-300")}>
                                 {item.label}
                               </div>
                             ))}
-                            {!p.paymentHistory?.length && <span className="text-[10px] text-slate-500 uppercase tracking-widest">Aguardando PIX</span>}
+                            {!asArray(p.paymentHistory).length && <span className="text-[10px] text-slate-500 uppercase tracking-widest">Aguardando PIX</span>}
                           </div>
                         </td>
-                        <td className="py-4 px-6 text-right font-bold text-white">R$ {p.amount.toFixed(2)}</td>
-                        <td className="py-4 px-6 text-right text-slate-400">{p.tickets} cotas</td>
+                        <td className="py-4 px-6 text-right font-bold text-white">R$ {safeMoney(p.amount)}</td>
+                        <td className="py-4 px-6 text-right text-slate-400">{safeNumber(p.tickets)} cotas</td>
                         <td className="py-4 px-6 text-right">
                           {p.status === "pending" ? (
                             <div className="flex justify-end gap-2">
@@ -933,11 +1055,11 @@ export function AdminSales() {
   );
 }
 
-function MiniWallet({ label, value }: { label: string; value: number }) {
+function MiniWallet({ label, value }: { label: string; value: unknown }) {
   return (
     <div className="rounded-xl border border-white/5 bg-black/20 p-3">
       <p className="text-[10px] font-mono uppercase text-slate-500">{label}</p>
-      <p className="mt-1 font-mono text-sm font-bold text-white">R$ {Number(value || 0).toFixed(2)}</p>
+      <p className="mt-1 font-mono text-sm font-bold text-white">R$ {safeMoney(value)}</p>
     </div>
   );
 }

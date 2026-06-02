@@ -55,20 +55,25 @@ export function StandardRaffleMediaBlock({
 
   return (
     <article className={cn("overflow-hidden rounded-[1.25rem] border border-[var(--theme-border)] bg-[var(--theme-surface)]", className)}>
-      <div className="relative w-full overflow-hidden bg-black">
+      <div className="relative min-h-[clamp(390px,72svh,620px)] w-full overflow-hidden bg-black sm:min-h-0">
         {hasMedia ? (
           <ResponsiveMediaFrame
             src={mediaUrl}
             type={mediaType || "image"}
             alt={title}
-            preferredFit={preferredFit}
-            aspectMode={aspectMode}
+            preferredFit={preferredFit === "auto" ? "cover" : preferredFit}
+            aspectMode={aspectMode === "auto" ? "horizontal" : aspectMode}
             priority={priority}
             muted={false}
-            className="w-full max-h-[78svh] rounded-none"
+            autoPlay
+            playsInline
+            controls={false}
+            interactive={false}
+            className="h-full min-h-[clamp(390px,72svh,620px)] w-full rounded-none sm:min-h-0"
+            mediaClassName="h-full w-full object-cover"
           />
         ) : (
-          <div className="grid h-full w-full place-items-center bg-[#030805] text-emerald-50/80">
+          <div className="grid min-h-[clamp(390px,72svh,620px)] w-full place-items-center bg-[#030805] text-emerald-50/80 sm:min-h-[360px]">
             <div className="flex flex-col items-center gap-3 text-center">
               <ImageOff className="h-10 w-10 text-emerald-300" />
               <span className="text-xs font-black uppercase tracking-[0.24em]">Banner da campanha</span>

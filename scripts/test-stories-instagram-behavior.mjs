@@ -15,6 +15,11 @@ includesAll(stories, [
   "controls={false}",
   "controlsList=\"nodownload noplaybackrate noremoteplayback\"",
   "disablePictureInPicture",
+  "video.muted = false",
+  "video.dataset.rifaproMuted = \"false\"",
+  "setSoundBlocked(true)",
+  "activateStorySound",
+  "VolumeX",
   "pointer-events-none absolute inset-0 h-full w-full object-cover",
   "mediaClassName=\"pointer-events-none\"",
   "interactive={false}",
@@ -47,10 +52,9 @@ includesAll(stories, [
   "w-1/2"
 ], "Navegacao e pausa por pressionar");
 
-assert(!stories.includes("muted={false} controls={false}"), "Story viewer nao deve iniciar video com audio ativo.");
+assert(stories.includes("muted={viewerMuted}"), "Story viewer deve tentar audio primeiro e controlar fallback muted por estado.");
 assert(!stories.includes("className=\"relative h-full w-full flex-1\" onClick={onNext}"), "Story viewer nao deve avancar por clique global unico.");
-assert(!stories.includes("VolumeX"), "Story viewer publico nao deve exibir controle de som.");
-assert(!stories.includes("Volume2"), "Story viewer publico nao deve exibir controle de som.");
+assert(stories.includes("isNativeVideo && soundBlocked"), "Botao de som deve aparecer apenas se autoplay com audio for bloqueado.");
 assert(!stories.includes("aria-label=\"Fechar story\""), "Story viewer publico nao deve exibir botao fechar.");
 
 console.log("stories-instagram-behavior: ok");

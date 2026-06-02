@@ -109,6 +109,7 @@ export function ResponsiveMediaFrame({
           mediaUrl={src!}
           mediaType={resolvedType}
           mediaFit={fit}
+          alt={alt}
           priority={priority}
           preload={priority ? "auto" : "metadata"}
           autoPlay={autoPlay}

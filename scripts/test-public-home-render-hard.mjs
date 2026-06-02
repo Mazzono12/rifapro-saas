@@ -21,9 +21,13 @@ const app = read("src/App.tsx");
 const theme = read("src/context/theme/ThemeContext.tsx");
 const branding = read("src/context/tenant-branding/TenantBrandingContext.tsx");
 const campaignMediaHero = read("src/components/CampaignMediaHero.tsx");
+const api = read("src/services/api.ts");
+const standardRaffleMediaBlock = read("src/components/StandardRaffleMediaBlock.tsx");
+const mediaRenderer = read("src/components/MediaRenderer.tsx");
 
 includesAll(home, [
   "PublicHomeErrorBoundary",
+  "HomeSectionBoundary",
   "componentDidCatch",
   "PublicHomeFallback",
   "Não foi possível carregar as campanhas",
@@ -31,11 +35,18 @@ includesAll(home, [
   "Nenhuma campanha ativa no momento",
   "Array.isArray(rawRaffles)",
   "normalizePublicRaffle",
+  "normalizeRaffleMediaType",
+  "normalizeRaffleMediaFit",
   "safeProgress",
+  "homeDebug",
   "[public-home] loading",
   "[public-home] raffles_count",
   "[public-home] render_error",
-  "refetchRaffles"
+  "refetchRaffles",
+  "section=\"modalidades\"",
+  "section=\"fazendinha\"",
+  "section=\"winners\"",
+  "section={`stories-${position}`"
 ], "Home publica resiliente");
 
 assert.ok(home.indexOf("PublicHomeErrorBoundary") < home.indexOf("function HomeContent"), "Boundary deve envolver a Home antes da renderizacao dos hooks/componentes.");
@@ -50,6 +61,19 @@ assert.ok(!fazendinhaSection.includes("data.config"), "FazendinhaSection nao dev
 includesAll(theme, ["LOCKED_THEME_ID", "\"vimeu_dark\"", "applyThemeVariables"], "Tema vimeu_dark deve continuar aplicado.");
 includesAll(branding, ["fallbackBranding", "normalizeBranding", "catch", "setBranding(fallbackBranding)"], "Branding nulo/falho deve cair para fallback.");
 includesAll(campaignMediaHero, ["const hasMedia = Boolean(mediaUrl && !failed)", "Banner da campanha"], "CampaignMediaHero deve tolerar midia nula.");
+includesAll(api, ["content-type", "application/json", "Array.isArray(payload) ? payload as Raffle[] : []"], "Servico publico de rifas deve rejeitar HTML e tolerar payload nao array.");
+includesAll(standardRaffleMediaBlock, [
+  "min-h-[clamp(390px,72svh,620px)]",
+  "preferredFit={preferredFit === \"auto\" ? \"cover\" : preferredFit}",
+  "aspectMode={aspectMode === \"auto\" ? \"horizontal\" : aspectMode}",
+  "autoPlay",
+  "playsInline",
+  "controls={false}",
+  "interactive={false}",
+  "mediaClassName=\"h-full w-full object-cover\""
+], "Hero principal mobile deve preencher o card com cover e video sem controles nativos.");
+includesAll(mediaRenderer, ["alt = \"\"", "alt={alt}"], "MediaRenderer nao deve renderizar alt quebrado como Media.");
+assert.equal(mediaRenderer.includes("alt=\"Media\""), false, "MediaRenderer nao deve mostrar texto Media quebrado.");
 includesAll(app, ["<Route path=\"/\" element={<Home />} />", "<Route path=\"/login\" element={<Login />} />", "TenantBrandingProvider"], "Rotas publicas principais devem continuar registradas.");
 
 const port = Number(process.env.PORT || (3610 + Math.floor(Math.random() * 1000)));
@@ -130,18 +154,24 @@ try {
 
   const debug = await get("/api/public/raffles-debug");
   assert.equal(debug.response.status, 200, "/api/public/raffles-debug deve continuar funcionando.");
+  assert.equal(debug.response.headers.get("content-type")?.includes("application/json"), true, "/api/public/raffles-debug deve retornar JSON.");
   const debugJson = JSON.parse(debug.text);
+  assert.equal(Boolean(debugJson.tenantSlug), true, "Debug deve confirmar tenant resolvido no dominio principal de teste.");
   assert.equal(debugJson.totalRaffles, 2, "Debug deve confirmar 2 rifas.");
   assert.equal(debugJson.activeRaffles, 2, "Debug deve confirmar 2 rifas ativas.");
 
   const raffles = await get("/api/raffles");
   assert.equal(raffles.response.status, 200, "/api/raffles deve retornar rifas publicas.");
+  assert.equal(raffles.response.headers.get("content-type")?.includes("application/json"), true, "/api/raffles deve retornar JSON.");
   const rafflesJson = JSON.parse(raffles.text);
   assert.equal(Array.isArray(rafflesJson), true, "/api/raffles deve retornar lista.");
   const titles = rafflesJson.map(item => item.title).join(" | ");
   assert.match(titles, /Land Rover/i, "Land Rover deve aparecer na Home via API publica.");
   assert.match(titles, /iPhone/i, "iPhone deve aparecer na Home via API publica.");
   assert.equal(rafflesJson.filter(item => item.status === "active").length, 2, "Home deve ter 2 rifas ativas para renderizar.");
+  const noMediaPayload = rafflesJson.map((item, index) => index === 0 ? { ...item, mediaUrl: null, image: null } : item);
+  assert.doesNotThrow(() => JSON.stringify(noMediaPayload), "Fixture de campanha sem midia deve continuar serializavel.");
+  assert.equal(noMediaPayload[0].mediaUrl, null, "Fixture cobre campaign.media ausente/null.");
 
   console.log("PASS: Home publica protegida contra tela azul, com campanhas e fallbacks validados.");
 } finally {

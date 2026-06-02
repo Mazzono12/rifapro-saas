@@ -41,26 +41,22 @@ includesAll(premiumUi, [
   "checkout-modal-overlay",
   "checkout-modal-shell",
   "checkout-modal-title",
-  "checkout-modal-close",
   "FloatingCTA"
 ], "premium UI checkout");
+assert(!premiumUi.includes("checkout-modal-close"), "checkout publico nao deve renderizar X superior no header");
+assert(!premiumUi.includes("aria-label=\"Fechar checkout\""), "checkout publico nao deve expor botao Fechar checkout");
 
 includesAll(receipt, [
-  "checkout-receipt-overlay",
-  "checkout-receipt-shell",
-  "checkout-receipt-heading-row",
-  "checkout-receipt-title-block",
   "Confirme seus dados",
   "<CheckoutCampaignMedia",
-  "checkout-title"
+  "CheckoutModalShell",
+  "Recibo pre-pagamento"
 ], "recibo pre-PIX");
 
 includesAll(raffleDetails, [
   "checkoutCriticalActive",
   "!checkoutCriticalActive && <FloatingActions",
-  "checkout-modal-overlay",
-  "checkout-modal-shell",
-  "checkout-modal-title",
+  "CheckoutModalShell",
   "Confirmar participacao",
   "<CheckoutCampaignMedia",
   "onConfirmPix"
@@ -71,7 +67,7 @@ for (const source of [numberMode, fazendinha, fazendinhaSection]) {
   if (source.includes("FloatingCTA")) {
     assert(source.includes("hidden={checkoutOpen || receiptOpen}"), "FloatingCTA deve sumir durante checkout/recibo");
   }
-  assert(source.includes("raffleData"), "recibo deve receber midia da campanha/modalidade");
+  assert(source.includes("raffleData") || source.includes("fazendinhaCheckoutMedia"), "recibo deve receber midia da campanha/modalidade");
 }
 
 for (const forbidden of [

@@ -57,9 +57,10 @@ includesAll(premiumUi, [
   "CheckoutModalHeader",
   "TenantLogo",
   "TenantHeaderName",
-  "checkout-modal-title-block",
-  "checkout-modal-close"
+  "checkout-modal-title-block"
 ], "header compartilhado do checkout");
+assert(!premiumUi.includes("checkout-modal-close"), "checkout publico nao deve renderizar X superior no header");
+assert(!premiumUi.includes("aria-label=\"Fechar checkout\""), "checkout publico nao deve expor botao Fechar checkout");
 assert(!premiumUi.includes("checkout-modal-header premium-site-header"), "header de checkout nao deve herdar premium-site-header publico");
 includesAll(preReceipt, ["CheckoutModalShell", "Recibo pre-pagamento", "Confirme seus dados"], "recibo usa shell compartilhado");
 includesAll(raffleDetails, ["CheckoutModalShell", "Pagamento PIX", "Bilhete premium"], "checkout/PIX/bilhete usam shell compartilhado");

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Volume2, VolumeX } from 'lucide-react';
 import { ResponsiveMediaFrame } from './ResponsiveMediaFrame';
 import type { Story } from '../types';
 import { inferMediaType } from '../utils/media';
@@ -113,6 +114,8 @@ export function StoriesSection() {
 function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: { story: Story, stories: Story[], activeIndex: number, onClose: () => void, onNext: () => void, onPrev: () => void }) {
   const [progress, setProgress] = useState(0);
   const [isHeld, setIsHeld] = useState(false);
+  const [viewerMuted, setViewerMuted] = useState(false);
+  const [soundBlocked, setSoundBlocked] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number | null>(null);
@@ -136,6 +139,8 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
     setProgress(0);
     progressRef.current = 0;
     setIsHeld(false);
+    setViewerMuted(false);
+    setSoundBlocked(false);
   }, [isNativeVideo, resolvedType, story.id, story.mediaType]);
 
   useEffect(() => {
@@ -182,15 +187,23 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
     if (!video) return;
 
     video.controls = false;
-    video.muted = true;
+    video.muted = false;
+    video.dataset.rifaproMuted = "false";
     video.playsInline = true;
     video.currentTime = 0;
 
     const start = async () => {
       try {
+        video.muted = false;
+        video.dataset.rifaproMuted = "false";
         await video.play();
+        setViewerMuted(false);
+        setSoundBlocked(false);
       } catch {
         video.muted = true;
+        video.dataset.rifaproMuted = "true";
+        setViewerMuted(true);
+        setSoundBlocked(true);
         await video.play().catch(() => null);
       }
     };
@@ -210,6 +223,9 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
 
     video.play().catch(() => {
       video.muted = true;
+      video.dataset.rifaproMuted = "true";
+      setViewerMuted(true);
+      setSoundBlocked(true);
       video.play().catch(() => null);
     });
   }, [isHeld, isNativeVideo, story.id]);
@@ -242,6 +258,26 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
     event.stopPropagation();
     if (suppressTapRef.current) return;
     action();
+  }, []);
+
+  const activateStorySound = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = false;
+    video.volume = 1;
+    video.dataset.rifaproMuted = "false";
+    video.play()
+      .then(() => {
+        setViewerMuted(false);
+        setSoundBlocked(false);
+      })
+      .catch(() => {
+        video.muted = true;
+        video.dataset.rifaproMuted = "true";
+        setViewerMuted(true);
+        setSoundBlocked(true);
+      });
   }, []);
 
   return (
@@ -285,6 +321,16 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
                 </div>
                 <span className="truncate text-sm font-bold text-white drop-shadow">{story.title}</span>
               </div>
+              {isNativeVideo && soundBlocked && (
+                <button
+                  type="button"
+                  className="relative z-50 grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/15 bg-black/45 text-white shadow-lg backdrop-blur-xl"
+                  aria-label={viewerMuted ? "Ativar som do story" : "Som do story ativo"}
+                  onClick={activateStorySound}
+                >
+                  {viewerMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </button>
+              )}
             </div>
 
             <div key={story.id} className="relative h-full w-full flex-1">
@@ -295,7 +341,8 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
                    className="pointer-events-none absolute inset-0 h-full w-full object-cover"
                    autoPlay
                    playsInline
-                   muted
+                   muted={viewerMuted}
+                   data-rifapro-muted={String(viewerMuted)}
                    controls={false}
                    controlsList="nodownload noplaybackrate noremoteplayback"
                    disablePictureInPicture

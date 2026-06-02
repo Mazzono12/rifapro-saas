@@ -31,7 +31,11 @@ export function Home() {
 }
 
 function logPublicHome(event: "loading" | "raffles_count" | "render_error", detail?: Record<string, unknown>) {
-  if (!import.meta.env.PROD) return;
+  const debugEnabled = !import.meta.env.PROD || (
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("homeDebug") === "1"
+  );
+  if (!debugEnabled) return;
   const labels = {
     loading: "[public-home] loading",
     raffles_count: "[public-home] raffles_count",
@@ -41,6 +45,30 @@ function logPublicHome(event: "loading" | "raffles_count" | "render_error", deta
   const message = `${labels[event]}${suffix}`;
   if (event === "render_error") console.warn(message);
   else console.info(message);
+}
+
+class HomeSectionBoundary extends React.Component<
+  { children: ReactNode; section: string; fallback?: ReactNode },
+  { error: Error | null }
+> {
+  declare props: { children: ReactNode; section: string; fallback?: ReactNode };
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error) {
+    logPublicHome("render_error", {
+      section: this.props.section,
+      reason: error.message || "unknown"
+    });
+  }
+
+  render() {
+    if (this.state.error) return this.props.fallback ?? null;
+    return this.props.children;
+  }
 }
 
 class PublicHomeErrorBoundary extends React.Component<
@@ -95,24 +123,59 @@ function PublicHomeFallback({ mode, onRetry }: { mode: "error" | "empty"; onRetr
   );
 }
 
+function safeText(value: unknown, fallback: string) {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || fallback;
+}
+
+function safeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeRaffleStatus(status: unknown): Raffle["status"] {
+  const normalized = String(status || "active").trim().toLowerCase();
+  if (["active", "completed", "draft", "paused", "cancelled"].includes(normalized)) return normalized as Raffle["status"];
+  return "active";
+}
+
+function normalizeRaffleMediaType(type: unknown): Raffle["mediaType"] {
+  const normalized = String(type || "image").trim().toLowerCase();
+  if (["video", "image", "youtube", "vimeo", "bunny"].includes(normalized)) return normalized as Raffle["mediaType"];
+  if (normalized === "gif") return "image";
+  return "image";
+}
+
+function normalizeRaffleMediaFit(fit: unknown): Raffle["mediaFit"] {
+  const normalized = String(fit || "cover").trim().toLowerCase();
+  if (["cover", "contain", "fill"].includes(normalized)) return normalized as Raffle["mediaFit"];
+  return "cover";
+}
+
 function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raffle | null {
   if (!raffle || !raffle.id) return null;
   const rawRaffle = raffle as Partial<Raffle> & { imageUrl?: string };
-  const price = Number(rawRaffle.price);
-  const totalTickets = Math.max(1, Math.floor(Number(rawRaffle.totalTickets)));
-  const soldTickets = Math.max(0, Math.floor(Number(rawRaffle.soldTickets)));
+  const price = safeNumber(rawRaffle.price);
+  const totalTickets = Math.max(1, Math.floor(safeNumber(rawRaffle.totalTickets, 1)));
+  const soldTickets = Math.max(0, Math.floor(safeNumber(rawRaffle.soldTickets)));
+  const image = safeText(rawRaffle.image || rawRaffle.imageUrl, "");
+  const mediaUrl = safeText(rawRaffle.mediaUrl || image, "");
   return {
     ...rawRaffle,
     id: String(rawRaffle.id),
-    title: String(rawRaffle.title || "Campanha sem titulo"),
-    description: String(rawRaffle.description || "Campanha ativa com cotas disponíveis."),
-    price: Number.isFinite(price) ? price : 0,
-    totalTickets: Number.isFinite(totalTickets) ? totalTickets : 1,
-    soldTickets: Number.isFinite(soldTickets) ? soldTickets : 0,
-    status: rawRaffle.status || "active",
-    image: rawRaffle.image || rawRaffle.imageUrl || "",
-    mediaUrl: rawRaffle.mediaUrl || rawRaffle.image || rawRaffle.imageUrl || "",
-    drawDate: rawRaffle.drawDate || new Date().toISOString()
+    title: safeText(rawRaffle.title, "Campanha sem titulo"),
+    description: safeText(rawRaffle.description, "Campanha ativa com cotas disponiveis."),
+    price,
+    totalTickets,
+    soldTickets: Math.min(soldTickets, totalTickets),
+    status: normalizeRaffleStatus(rawRaffle.status),
+    image,
+    mediaUrl,
+    mediaType: normalizeRaffleMediaType(rawRaffle.mediaType),
+    mediaFit: normalizeRaffleMediaFit(rawRaffle.mediaFit),
+    drawDate: safeText(rawRaffle.drawDate, new Date().toISOString()),
+    heroPrimaryButton: safeText(rawRaffle.heroPrimaryButton, "Participar agora"),
+    countdownLabel: rawRaffle.countdownLabel ? String(rawRaffle.countdownLabel) : undefined
   } as Raffle;
 }
 
@@ -202,39 +265,47 @@ function HomeContent() {
     
     if (position === 'floating-left') {
       return (
-        <div className="fixed left-4 top-1/2 -translate-y-1/2 z-50 pointer-events-none">
-          <div className="pointer-events-auto w-[120px]">
-            <StoriesSection />
+        <HomeSectionBoundary section={`stories-${position}`}>
+          <div className="fixed left-4 top-1/2 -translate-y-1/2 z-50 pointer-events-none">
+            <div className="pointer-events-auto w-[120px]">
+              <StoriesSection />
+            </div>
           </div>
-        </div>
+        </HomeSectionBoundary>
       );
     }
     
     if (position === 'floating-right') {
       return (
-        <div className="fixed right-4 top-1/2 -translate-y-1/2 z-50 pointer-events-none">
-          <div className="pointer-events-auto w-[120px]">
-            <StoriesSection />
+        <HomeSectionBoundary section={`stories-${position}`}>
+          <div className="fixed right-4 top-1/2 -translate-y-1/2 z-50 pointer-events-none">
+            <div className="pointer-events-auto w-[120px]">
+              <StoriesSection />
+            </div>
           </div>
-        </div>
+        </HomeSectionBoundary>
       );
     }
 
     if (position === 'top') {
       return (
-        <div className="w-full pt-8 pb-4 border-b border-white/5">
-          <StoriesSection />
-        </div>
+        <HomeSectionBoundary section={`stories-${position}`}>
+          <div className="w-full pt-8 pb-4 border-b border-white/5">
+            <StoriesSection />
+          </div>
+        </HomeSectionBoundary>
       );
     }
 
     // Default 'bottom'
     return (
-      <div className="fixed bottom-0 inset-x-0 z-50 pointer-events-none pb-4 bg-gradient-to-t from-black via-black/80 to-transparent pt-12">
-        <div className="pointer-events-auto w-full max-w-7xl mx-auto flex justify-center">
-          <StoriesSection />
+      <HomeSectionBoundary section={`stories-${position}`}>
+        <div className="fixed bottom-0 inset-x-0 z-50 pointer-events-none pb-4 bg-gradient-to-t from-black via-black/80 to-transparent pt-12">
+          <div className="pointer-events-auto w-full max-w-7xl mx-auto flex justify-center">
+            <StoriesSection />
+          </div>
         </div>
-      </div>
+      </HomeSectionBoundary>
     );
   };
 
@@ -274,8 +345,12 @@ function HomeContent() {
           </section>
       )}
 
-      <ModalidadesSection />
-      <FazendinhaSection />
+      <HomeSectionBoundary section="modalidades">
+        <ModalidadesSection />
+      </HomeSectionBoundary>
+      <HomeSectionBoundary section="fazendinha">
+        <FazendinhaSection />
+      </HomeSectionBoundary>
 
       <section className="grid gap-3 md:grid-cols-4">
         {[
@@ -380,7 +455,9 @@ function HomeContent() {
       </div>
 
       <section>
-        <WinnersGallery />
+        <HomeSectionBoundary section="winners">
+          <WinnersGallery />
+        </HomeSectionBoundary>
       </section>
     </PublicPageContainer>
 

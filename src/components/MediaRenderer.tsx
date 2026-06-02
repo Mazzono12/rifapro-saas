@@ -11,6 +11,7 @@ interface Props {
   playWhenVisible?: boolean;
   visibilityThreshold?: number;
   mediaFit?: 'cover' | 'contain' | 'fill';
+  alt?: string;
   interactive?: boolean;
   priority?: boolean;
   preload?: 'none' | 'metadata' | 'auto';
@@ -22,7 +23,7 @@ interface Props {
   onMetadata?: (width: number, height: number) => void;
 }
 
-export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true, muted = true, playWhenVisible = false, visibilityThreshold = 0.55, mediaFit = 'cover', interactive = true, priority = false, preload = 'metadata', poster, loop = true, playsInline = true, onLoad, onError, onMetadata }: Props) {
+export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true, muted = true, playWhenVisible = false, visibilityThreshold = 0.55, mediaFit = 'cover', alt = "", interactive = true, priority = false, preload = 'metadata', poster, loop = true, playsInline = true, onLoad, onError, onMetadata }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [visible, setVisible] = useState(!playWhenVisible);
@@ -59,7 +60,7 @@ export function MediaRenderer({ mediaUrl, mediaType, className, autoPlay = true,
     return (
       <img 
         src={mediaUrl} 
-        alt="Media" 
+        alt={alt}
         className={`${fitClass} ${className}`}
         loading={priority ? "eager" : "lazy"}
         decoding="async"

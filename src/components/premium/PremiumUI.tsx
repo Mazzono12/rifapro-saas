@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
-import { AlertTriangle, CheckCircle2, Clock3, Inbox, QrCode, ShieldCheck, Ticket, Trophy, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, Inbox, QrCode, ShieldCheck, Ticket, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "../../lib/utils";
@@ -444,10 +444,10 @@ export function CheckoutContentArea({ children, className = "" }: { children: Re
   return <div className={cn("checkout-content-area min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain", className)}>{children}</div>;
 }
 
-export function CheckoutModalHeader({ title, eyebrow = "Checkout seguro", onClose, compact = false }: { title: string; eyebrow?: string; onClose: () => void; compact?: boolean }) {
+export function CheckoutModalHeader({ title, eyebrow = "Checkout seguro", compact = false }: { title: string; eyebrow?: string; onClose: () => void; compact?: boolean }) {
   return (
     <header className={cn("checkout-modal-header sticky top-0 z-10 shrink-0 border-b border-white/10 bg-[#090b11]/96 backdrop-blur-xl", compact ? "px-3 py-2" : "px-3 py-3 sm:px-4")} data-media-aware={compact ? "compact-no-media" : "standard-media"}>
-      <CheckoutPageContainer className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-0">
+      <CheckoutPageContainer className="grid grid-cols-1 items-center gap-3 px-0">
         <div className="checkout-modal-title-block flex min-w-0 items-center gap-2.5 sm:gap-3">
           <TenantLogo className={cn("checkout-modal-logo shrink-0", compact ? "h-8 w-8" : "h-9 w-9 sm:h-10 sm:w-10")} eager />
           <div className="min-w-0">
@@ -460,9 +460,6 @@ export function CheckoutModalHeader({ title, eyebrow = "Checkout seguro", onClos
             </p>
           </div>
         </div>
-        <button type="button" onClick={onClose} className="checkout-modal-close grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.045] p-0 text-slate-200" aria-label="Fechar checkout">
-          <X className="h-5 w-5" />
-        </button>
       </CheckoutPageContainer>
     </header>
   );

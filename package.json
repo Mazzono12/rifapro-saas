@@ -108,6 +108,7 @@
     "test:webhook-storm-hard": "node scripts/test-webhook-storm-hard.mjs",
     "test:release-locking-hard": "node scripts/test-release-locking-hard.mjs",
     "test:admin-superadmin-ui-review-hard": "node scripts/test-admin-superadmin-ui-review-hard.mjs",
+    "test:admin-section-boundary-hard": "node scripts/test-admin-section-boundary-hard.mjs",
     "test:admin-theme-limits-hard": "node scripts/test-admin-theme-limits-hard.mjs",
     "test:collapsible-sidebar-hard": "node scripts/test-collapsible-sidebar-hard.mjs",
     "test:admin-sidebar-final-polish": "node scripts/test-admin-sidebar-final-polish.mjs",
@@ -148,6 +149,7 @@
     ,"test:native-crm": "node scripts/test-native-crm.mjs"
     ,"test:tenant-automations": "node scripts/test-tenant-automations.mjs"
     ,"test:public-conversion": "node scripts/test-public-conversion-widgets.mjs"
+    ,"test:public-checkout-no-close-x": "node scripts/test-public-checkout-no-close-x.mjs"
     ,"test:public-debug-routes": "node scripts/test-public-debug-routes.mjs"
     ,"test:public-api-keys": "node scripts/test-public-api-keys.mjs"
     ,"test:pwa-secure": "node scripts/test-pwa-secure.mjs"

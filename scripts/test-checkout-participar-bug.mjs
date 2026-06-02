@@ -53,17 +53,17 @@ for (const token of [
   "checkoutCriticalActive",
   "!checkoutCriticalActive && <FloatingActions",
   "!checkoutCriticalActive && (",
-  "CheckoutCampaignMedia",
-  "checkout-modal-title-block",
-  "checkout-modal-kicker",
-  "checkout-modal-title",
-  "checkout-modal-close"
+  "CheckoutCampaignMedia"
 ]) {
   assert(raffleDetails.includes(token), `RaffleDetails deve proteger modal/floating actions: ${token}`);
 }
+for (const token of ["checkout-modal-title-block", "checkout-modal-kicker", "checkout-modal-title"]) {
+  assert(premiumUi.includes(token), `PremiumUI deve manter header compartilhado do checkout: ${token}`);
+}
 
 assert(/@media \(max-width:\s*640px\)[\s\S]*\.checkout-modal-header[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*!important/.test(css), "mobile deve forcar header em uma coluna sem espremer titulo");
-assert(/\.checkout-modal-close[\s\S]*grid-column:\s*1 \/ -1\s*!important/.test(css), "botao Fechar deve ir para linha propria no mobile");
+assert(!premiumUi.includes("checkout-modal-close"), "botao X superior do checkout publico deve permanecer removido");
+assert(!premiumUi.includes("aria-label=\"Fechar checkout\""), "checkout publico nao deve expor aria-label de X superior");
 assert(/\.checkout-media-preview[\s\S]*width:\s*100%/.test(css), "preview de foto/video do checkout deve ocupar largura total");
 assert(!/\.fixed\.inset-0\[class\*="z-\[80\]"\]\s+button/.test(css), "overlay fixo generico nao pode forcar botoes a 100% e comprimir header");
 
@@ -71,9 +71,9 @@ for (const token of [
   "CheckoutCampaignMedia",
   "checkout-campaign-media",
   "checkout-media-preview",
-  "raffle?.checkoutMediaUrl",
-  "raffle?.mediaUrl",
-  "raffle?.image",
+  "\"checkoutMediaUrl\"",
+  "\"mediaUrl\"",
+  "\"image\"",
   "checkout-media-fallback"
 ]) {
   assert(checkoutMedia.includes(token), `CheckoutCampaignMedia incompleto: ${token}`);
