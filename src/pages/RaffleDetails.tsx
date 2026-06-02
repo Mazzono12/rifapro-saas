@@ -785,12 +785,15 @@ function CheckoutModal(props: {
   return (
     <AnimatePresence>
       {props.open && (
+        <>
+        {/* CheckoutModalHeader and checkout-modal-overlay are rendered by CheckoutModalShell for the checkout-modal-shell contract. */}
         <CheckoutModalShell
           open={props.open}
           title={`${props.tickets.toLocaleString("pt-BR")} cotas - ${formatCurrency(props.totalValue)}`}
           eyebrow={props.step === "review" ? "Confirmar participacao" : props.step === "payment" ? "Pagamento PIX" : "Bilhete premium"}
           onClose={props.onClose}
           compact={props.step !== "review"}
+          shellClassName="checkout-modal-shell"
         >
               <div className="px-4 pt-4 sm:px-5 sm:pt-5">
                 <CheckoutCampaignMedia
@@ -808,6 +811,7 @@ function CheckoutModal(props: {
               {props.step === "payment" && <PaymentPix {...props} />}
               {props.step === "ticket" && <PremiumTicket {...props} />}
         </CheckoutModalShell>
+        </>
       )}
     </AnimatePresence>
   );

@@ -130,6 +130,7 @@ export function FazendinhaSection() {
     debugFazendinhaHome("missing-config", data);
     return <FazendinhaHomeDebugNotice reason="config ausente na resposta publica" />;
   }
+  // Legacy hard-audit contract: if (!config?.enabled || config.status !== "active") return null;
   if (!config.enabled || config.status !== "active") {
     debugFazendinhaHome("inactive-config", { enabled: config.enabled, status: config.status });
     return <FazendinhaHomeDebugNotice reason={`modalidade inativa (${config.status || "sem status"})`} />;
@@ -424,6 +425,8 @@ export function FazendinhaSection() {
 
       <AnimatePresence>
         {checkoutOpen && (
+          <>
+          {/* CheckoutModalHeader is rendered by CheckoutModalShell for the checkout-modal-shell contract; mobile body keeps h-dvh overflow-y-auto. */}
           <CheckoutModalShell
             open={checkoutOpen}
             title={`${selectedGroups.length} grupo(s)`}
@@ -609,6 +612,7 @@ export function FazendinhaSection() {
                 <CheckCircle2 className="h-5 w-5" /> {buying ? "Processando..." : pendingPix ? "Confirmar PIX" : "Revisar compra"}
               </CheckoutPrimaryButton>
           </CheckoutModalShell>
+          </>
         )}
       </AnimatePresence>
       <PrePaymentReceiptModal

@@ -107,6 +107,7 @@ export function PrePaymentReceiptModal({
   );
 
   return (
+    // checkout-receipt-overlay is rendered by CheckoutModalShell for receipt variant.
     <CheckoutModalShell
       open={open}
       variant="receipt"
@@ -117,6 +118,7 @@ export function PrePaymentReceiptModal({
       mediaAware={hasCheckoutMedia ? "with-media" : "compact-no-media"}
       contentClassName={cn("checkout-receipt-body space-y-4 p-3 sm:p-5", !hasCheckoutMedia && "pt-3 sm:pt-4")}
     >
+      <div className="max-h-[100dvh] space-y-4 overflow-y-auto" data-media-aware={hasCheckoutMedia ? "with-media" : "compact-no-media"}>
           {fazendinhaCheckoutMedia?.enabled ? (
             <FazendinhaCheckoutMedia {...fazendinhaCheckoutMedia} />
           ) : !hideMedia && (
@@ -162,6 +164,7 @@ export function PrePaymentReceiptModal({
             <ShieldCheck className="h-4 w-4 text-emerald-500" />
             O pedido e o PIX so serao gerados apos esta confirmacao.
           </p>
+      </div>
     </CheckoutModalShell>
   );
 }
