@@ -25,6 +25,7 @@ type ResponsiveMediaFrameProps = {
   muted?: boolean;
   loop?: boolean;
   playsInline?: boolean;
+  interactive?: boolean;
   className?: string;
   mediaClassName?: string;
   fallbackTitle?: string;
@@ -53,6 +54,7 @@ export function ResponsiveMediaFrame({
   muted = true,
   loop = true,
   playsInline = true,
+  interactive,
   className,
   mediaClassName,
   fallbackTitle = "Mídia indisponível",
@@ -67,6 +69,7 @@ export function ResponsiveMediaFrame({
   const aspectRatio = aspectRatioForMode(aspectMode, aspect);
   const isContain = fit === "contain";
   const dataOrientation = aspect?.orientation || (aspectMode === "auto" ? "unknown" : aspectMode);
+  const resolvedInteractive = interactive ?? (controls || resolvedType !== "image");
 
   const handleMetadata = (width: number, height: number) => {
     const next = detectMediaAspectRatio(width, height);
@@ -114,7 +117,7 @@ export function ResponsiveMediaFrame({
           loop={loop}
           playsInline={playsInline}
           playWhenVisible={!priority}
-          interactive={controls || resolvedType !== "image"}
+          interactive={resolvedInteractive}
           className={cn("h-full w-full", mediaClassName)}
           onMetadata={handleMetadata}
           onLoad={onLoad}

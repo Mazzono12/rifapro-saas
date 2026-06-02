@@ -19,6 +19,12 @@ function normalizeStories(payload: unknown): Story[] {
     .filter(story => story.active);
 }
 
+function storiesDebug(event: string, detail: Record<string, unknown>) {
+  if (typeof window === "undefined") return;
+  if (!new URLSearchParams(window.location.search).has("storiesDebug")) return;
+  console.info(`[stories-debug] ${event}`, detail);
+}
+
 export function StoriesSection() {
   const [stories, setStories] = useState<Story[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
@@ -30,7 +36,24 @@ export function StoriesSection() {
       .catch(() => setStories([]));
   }, []);
 
-  const openStory = useCallback((idx: number) => setActiveStoryIndex(idx), []);
+  useEffect(() => {
+    storiesDebug("StoriesSection rendered", {
+      component: "StoriesSection",
+      count: stories.length,
+      mediaTypes: stories.map(story => story.mediaType).join(",")
+    });
+  }, [stories]);
+
+  const openStory = useCallback((idx: number) => {
+    storiesDebug("story clicked", {
+      component: "StoriesSection",
+      index: idx,
+      storyId: stories[idx]?.id,
+      mediaType: stories[idx]?.mediaType,
+      mediaUrl: stories[idx]?.mediaUrl
+    });
+    setActiveStoryIndex(idx);
+  }, [stories]);
   const closeStory = useCallback(() => setActiveStoryIndex(null), []);
 
   const nextStory = useCallback(() => {
@@ -61,8 +84,8 @@ export function StoriesSection() {
           >
             <div className="relative h-[72px] w-[72px] rounded-full bg-[conic-gradient(from_210deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5,#feda75)] p-[3px] shadow-[0_10px_28px_rgba(0,0,0,0.28)] transition-transform duration-300 group-hover:scale-105">
               <div className="h-full w-full rounded-full bg-[var(--theme-bg)] p-[3px]">
-                <div className="h-full w-full overflow-hidden rounded-full bg-black">
-                  <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} autoPlay={false} preferredFit="cover" aspectMode="square" className="h-full w-full rounded-full" />
+                <div className="h-full w-full overflow-hidden rounded-full bg-black" data-rifapro-story-thumb={story.id}>
+                  <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} autoPlay={false} controls={false} interactive={false} preferredFit="cover" aspectMode="square" className="h-full w-full rounded-full" mediaClassName="pointer-events-none" />
                 </div>
               </div>
             </div>
@@ -103,10 +126,17 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
 
   useEffect(() => {
     window.dispatchEvent(new Event("rifapro:story-open"));
+    storiesDebug("StoryViewer mounted", {
+      component: "StoryViewer",
+      storyId: story.id,
+      mediaType: story.mediaType,
+      resolvedType,
+      isNativeVideo
+    });
     setProgress(0);
     progressRef.current = 0;
     setIsHeld(false);
-  }, [story.id]);
+  }, [isNativeVideo, resolvedType, story.id, story.mediaType]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -224,6 +254,10 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
     >
         <div
           className="relative flex h-[100dvh] w-full touch-none select-none flex-col overflow-hidden bg-black shadow-[0_0_80px_rgba(255,255,255,0.05)] md:h-[86vh] md:max-w-[430px] md:rounded-[28px] md:border md:border-white/[0.08]"
+          data-rifapro-story-viewer={story.id}
+          data-rifapro-story-component="StoryViewer"
+          data-rifapro-story-media-type={story.mediaType}
+          data-rifapro-story-resolved-type={resolvedType}
           onMouseDown={beginHold}
           onMouseUp={endHold}
           onMouseLeave={endHold}
@@ -245,8 +279,8 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
             <div className="absolute inset-x-0 top-5 z-30 flex items-center justify-between gap-3 px-4">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="h-10 w-10 rounded-full bg-[conic-gradient(from_210deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5,#feda75)] p-[2px]">
-                  <div className="h-full w-full overflow-hidden rounded-full bg-black">
-                    <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} className="h-full w-full rounded-full" autoPlay={false} preferredFit="cover" aspectMode="square" />
+                  <div className="h-full w-full overflow-hidden rounded-full bg-black" data-rifapro-story-avatar={story.id}>
+                    <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} className="h-full w-full rounded-full" mediaClassName="pointer-events-none" autoPlay={false} controls={false} interactive={false} preferredFit="cover" aspectMode="square" />
                   </div>
                 </div>
                 <span className="truncate text-sm font-bold text-white drop-shadow">{story.title}</span>
@@ -273,7 +307,7 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
                ) : story.mediaType === "image" || resolvedType === "image" ? (
                  <img src={story.mediaUrl} alt={story.title} className="absolute inset-0 h-full w-full object-cover" draggable={false} />
                ) : (
-                 <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} className="absolute inset-0 h-full w-full rounded-none" mediaClassName="pointer-events-none" preferredFit="auto" aspectMode="story" autoPlay muted controls={false} loop={false} />
+                 <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} className="absolute inset-0 h-full w-full rounded-none" mediaClassName="pointer-events-none" preferredFit="auto" aspectMode="story" autoPlay muted controls={false} interactive={false} loop={false} />
                )}
                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/60" />
                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-5 pb-8">
