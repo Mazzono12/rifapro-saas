@@ -18,7 +18,7 @@ assert.ok(!home.includes("home-featured-raffle-block rounded-none border-x-0"), 
 assert.ok(standardBlock.includes("ResponsiveMediaFrame"), "Premio principal deve continuar usando ResponsiveMediaFrame.");
 assert.ok(standardBlock.includes("preferredFit={preferredFit}") && standardBlock.includes("aspectMode={aspectMode}"), "Midia principal deve preservar fit/aspect responsivos.");
 assert.ok(standardBlock.includes("showDescriptionBelow") && standardBlock.includes("!noOverlay"), "Descricao deve ficar abaixo e overlay deve continuar controlado.");
-assert.ok(standardBlock.includes("className=\"w-full max-h-[78svh] rounded-none\""), "Midia deve ocupar 100% da largura do bloco sem distorcer.");
+assert.ok(standardBlock.includes("className=\"h-full max-h-[min(78svh,720px)] w-full rounded-none\""), "Midia deve ocupar 100% da largura do bloco sem distorcer.");
 
 mkdirSync("reports/hard", { recursive: true });
 writeFileSync("reports/hard/main-prize-mobile-media-hard.json", JSON.stringify({

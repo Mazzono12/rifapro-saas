@@ -50,17 +50,16 @@ export function ModalidadesSection() {
                 autoPlay={true}
                 muted={false}
                 interactive={true}
-                className="h-full min-h-56 w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                className="h-full min-h-56 w-full transition-transform duration-700 group-hover:scale-105"
                 fallback={<div className="grid h-56 place-items-center bg-gradient-to-br from-neon-cyan/20 via-neon-purple/10 to-fuchsia-300/20"><Hash className="h-14 w-14 text-white/70" /></div>}
               />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-              <span className="pointer-events-none absolute left-4 top-4 rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-emerald-200">
-                Ativo
-              </span>
             </div>
 
             <div>
               <p className="text-xs font-mono uppercase tracking-[0.28em] text-neon-cyan">Jogo ativo</p>
+              <span className="mt-3 inline-flex rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-emerald-200">
+                Ativo
+              </span>
               <h2 className="mt-3 font-display text-4xl font-black text-white md:text-5xl">{banner.title}</h2>
               <p className="mt-4 max-w-2xl text-slate-300">{banner.description}</p>
 

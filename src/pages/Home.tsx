@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
-import { Zap, Activity, ChevronRight, PlayCircle, QrCode, MessageCircle, Trophy, Sparkles } from "lucide-react";
+import { Zap, ChevronRight, PlayCircle, QrCode, MessageCircle, Trophy, Sparkles } from "lucide-react";
 import { StoriesSection } from "../components/StoriesSection";
 import { WinnersGallery } from "../components/WinnersGallery";
 import { CampaignMediaHero } from "../components/CampaignMediaHero";
@@ -386,16 +386,11 @@ function HomeContent() {
                 <CampaignMediaHero
                   mediaUrl={raffle.mediaUrl || raffle.image}
                   mediaType={(raffle.mediaType || "image") as any}
-                  mediaFit={raffle.mediaFit === "fill" ? "fill" : "cover"}
+                  mediaFit={raffle.mediaFit === "fill" ? "fill" : raffle.mediaFit || "auto"}
                   title={raffle.title}
                   overlay={false}
                   className="absolute inset-0 h-full w-full"
                 />
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[var(--theme-bg)] via-[var(--theme-bg)]/70 to-transparent" />
-                <div className="pointer-events-none absolute right-4 top-4 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg backdrop-blur-xl">
-                  <Activity className="w-3.5 h-3.5" />
-                  <span>Ativo</span>
-                </div>
               </div>
               
               <div className="mx-auto max-w-7xl px-4 py-10 md:py-14">

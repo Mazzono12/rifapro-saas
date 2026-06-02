@@ -195,6 +195,7 @@ async function frontendHard() {
   await runNodeScript("scripts/test-public-checkout-no-close-x.mjs");
   await runNodeScript("scripts/test-ui-contrast-hard.mjs");
   await runNodeScript("scripts/test-mediadelivery-video-source.mjs");
+  await runNodeScript("scripts/test-clean-media-layout-hard.mjs");
 }
 
 async function productionReadiness() {
@@ -218,6 +219,7 @@ async function productionReadiness() {
   await runNodeScript("scripts/test-public-api-keys.mjs");
   await runNodeScript("scripts/test-pwa-secure.mjs");
   await runNodeScript("scripts/test-stories-instagram-behavior.mjs");
+  await runNodeScript("scripts/test-clean-media-layout-hard.mjs");
   await runNodeScript("scripts/test-public-home-render-hard.mjs");
   await runNodeScript("scripts/test-admin-section-boundary-hard.mjs");
   await runNodeScript("scripts/test-theme-builder-marketplace.mjs");

@@ -24,7 +24,7 @@ export function detectMediaAspectRatio(width: number, height: number): MediaAspe
             ? "story"
             : "vertical"
           : "portrait";
-  const recommendedFit = orientation === "banner" || orientation === "horizontal" ? "cover" : "contain";
+  const recommendedFit = "contain";
   const containerClass = `responsive-media-${orientation}`;
   return { ratio, orientation, recommendedFit, containerClass };
 }
@@ -40,5 +40,5 @@ export function aspectRatioForMode(mode: ResponsiveMediaAspectMode, detected?: M
 
 export function mediaFitForMode(preferredFit: ResponsiveMediaFit, detected?: MediaAspectDetection | null) {
   if (preferredFit === "cover" || preferredFit === "contain") return preferredFit;
-  return detected?.recommendedFit || "cover";
+  return detected?.recommendedFit || "contain";
 }

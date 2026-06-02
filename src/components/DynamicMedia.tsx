@@ -2,7 +2,7 @@ import { inferMediaType } from "../utils/media";
 import { ResponsiveMediaFrame } from "./ResponsiveMediaFrame";
 import type React from "react";
 
-export function DynamicMedia({ mediaUrl, mediaType, className, autoPlay = true, muted = true, interactive = true, fallback, mediaFit = "cover" }: {
+export function DynamicMedia({ mediaUrl, mediaType, className, autoPlay = true, muted = true, interactive = true, fallback, mediaFit = "auto" }: {
   mediaUrl?: string;
   mediaType?: "image" | "video" | "youtube" | "vimeo" | "bunny";
   className?: string;
@@ -10,7 +10,7 @@ export function DynamicMedia({ mediaUrl, mediaType, className, autoPlay = true, 
   muted?: boolean;
   interactive?: boolean;
   fallback?: React.ReactNode;
-  mediaFit?: "cover" | "contain" | "fill";
+  mediaFit?: "auto" | "cover" | "contain" | "fill";
 }) {
   if (!mediaUrl) return <>{fallback || null}</>;
   return (

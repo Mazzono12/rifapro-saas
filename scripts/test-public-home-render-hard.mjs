@@ -76,15 +76,16 @@ includesAll(branding, ["fallbackBranding", "normalizeBranding", "catch", "setBra
 includesAll(campaignMediaHero, ["const hasMedia = Boolean(mediaUrl && !failed)", "Banner da campanha"], "CampaignMediaHero deve tolerar midia nula.");
 includesAll(api, ["content-type", "application/json", "Array.isArray(payload) ? payload as Raffle[] : []"], "Servico publico de rifas deve rejeitar HTML e tolerar payload nao array.");
 includesAll(standardRaffleMediaBlock, [
-  "min-h-[clamp(390px,72svh,620px)]",
-  "preferredFit={preferredFit === \"auto\" ? \"cover\" : preferredFit}",
-  "aspectMode={aspectMode === \"auto\" ? \"horizontal\" : aspectMode}",
+  "clean-media-block",
+  "media-info-block",
+  "preferredFit={preferredFit}",
+  "aspectMode={aspectMode}",
   "autoPlay",
   "playsInline",
   "controls={false}",
   "interactive={false}",
-  "mediaClassName=\"h-full w-full object-cover\""
-], "Hero principal mobile deve preencher o card com cover e video sem controles nativos.");
+  "mediaClassName=\"h-full w-full\""
+], "Hero principal mobile deve mostrar midia limpa e completa sem controles nativos.");
 includesAll(mediaRenderer, ["alt = \"\"", "alt={alt}"], "MediaRenderer nao deve renderizar alt quebrado como Media.");
 assert.equal(mediaRenderer.includes("alt=\"Media\""), false, "MediaRenderer nao deve mostrar texto Media quebrado.");
 includesAll(app, ["<Route path=\"/\" element={<Home />} />", "<Route path=\"/login\" element={<Login />} />", "TenantBrandingProvider"], "Rotas publicas principais devem continuar registradas.");

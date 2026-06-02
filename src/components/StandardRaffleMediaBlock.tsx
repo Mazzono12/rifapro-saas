@@ -55,22 +55,22 @@ export function StandardRaffleMediaBlock({
 
   return (
     <article className={cn("overflow-hidden rounded-[1.25rem] border border-[var(--theme-border)] bg-[var(--theme-surface)]", className)}>
-      <div className="relative min-h-[clamp(390px,72svh,620px)] w-full overflow-hidden bg-black sm:min-h-0">
+      <div className="clean-media-block relative w-full overflow-hidden bg-black">
         {hasMedia ? (
           <ResponsiveMediaFrame
             src={mediaUrl}
             type={mediaType || "image"}
             alt={title}
-            preferredFit={preferredFit === "auto" ? "cover" : preferredFit}
-            aspectMode={aspectMode === "auto" ? "horizontal" : aspectMode}
+            preferredFit={preferredFit}
+            aspectMode={aspectMode}
             priority={priority}
             muted={false}
             autoPlay
             playsInline
             controls={false}
             interactive={false}
-            className="h-full min-h-[clamp(390px,72svh,620px)] w-full rounded-none sm:min-h-0"
-            mediaClassName="h-full w-full object-cover"
+            className="h-full max-h-[min(78svh,720px)] w-full rounded-none"
+            mediaClassName="h-full w-full"
           />
         ) : (
           <div className="grid min-h-[clamp(390px,72svh,620px)] w-full place-items-center bg-[#030805] text-emerald-50/80 sm:min-h-[360px]">
@@ -80,10 +80,10 @@ export function StandardRaffleMediaBlock({
             </div>
           </div>
         )}
-        {!noOverlay && <div className="pointer-events-none absolute inset-0 bg-black/10" />}
+        {!noOverlay && <span className="sr-only">noOverlay preservado sem texto sobre midia</span>}
       </div>
 
-      <div className="px-4 py-5 sm:px-6 sm:py-6">
+      <div className="media-info-block px-4 py-5 sm:px-6 sm:py-6">
         <h2 className="max-w-4xl text-3xl font-black leading-tight text-[var(--theme-text)] sm:text-4xl lg:text-5xl">{title}</h2>
         {showDescriptionBelow && description && (
           <p className="mt-3 max-w-3xl text-base leading-relaxed text-[var(--theme-muted)] sm:text-lg">{description}</p>

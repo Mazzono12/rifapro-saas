@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { ImageOff, PlayCircle } from "lucide-react";
+import { ImageOff } from "lucide-react";
 import { cn } from "../lib/utils";
 import { ResponsiveMediaFrame } from "./ResponsiveMediaFrame";
 
@@ -14,7 +14,7 @@ interface CampaignMediaHeroProps {
   overlay?: boolean;
   fullWidth?: boolean;
   priority?: boolean;
-  mediaFit?: "cover" | "contain" | "fill";
+  mediaFit?: "auto" | "cover" | "contain" | "fill";
   className?: string;
   mediaClassName?: string;
   noOverlay?: boolean;
@@ -26,24 +26,20 @@ export function CampaignMediaHero({
   mediaType,
   title,
   subtitle,
-  overlay = true,
+  overlay = false,
   fullWidth = false,
   priority = false,
-  mediaFit = "cover",
+  mediaFit = "auto",
   className,
   mediaClassName,
   noOverlay = false,
-  children
+  children: _children
 }: CampaignMediaHeroProps) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const resolvedType = mediaType || "image";
   const hasMedia = Boolean(mediaUrl && !failed);
-  const fit = mediaFit === "fill"
-    ? "cover"
-    : resolvedType === "image"
-      ? mediaFit
-      : mediaFit === "contain" ? "cover" : mediaFit;
+  const fit = mediaFit === "fill" ? "cover" : mediaFit;
 
   return (
     <div
@@ -56,7 +52,7 @@ export function CampaignMediaHero({
       data-video-player="VideoHeroPlayer"
     >
       {!loaded && hasMedia && (
-        <div className="absolute inset-0 animate-pulse bg-[linear-gradient(115deg,rgba(5,22,15,0.92),rgba(13,70,38,0.38),rgba(0,0,0,0.9))]" />
+        <div className="absolute inset-0 animate-pulse bg-[#030805]" />
       )}
 
       {hasMedia ? (
@@ -84,27 +80,8 @@ export function CampaignMediaHero({
         </div>
       )}
 
-      {overlay && !noOverlay && (
-        <>
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08)_0%,rgba(0,0,0,0.32)_48%,rgba(0,0,0,0.88)_100%)]" />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(0,214,107,0.22),transparent_34%)]" />
-        </>
-      )}
-
-      {children ? (
-        <div className="absolute inset-0 z-10">{children}</div>
-      ) : overlay && !noOverlay && (title || subtitle) && (
-        <div className="absolute inset-x-0 bottom-0 z-10 p-4 sm:p-6">
-          <div className="max-w-3xl">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-black/40 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100 backdrop-blur-xl">
-              <PlayCircle className="h-3.5 w-3.5 text-emerald-300" />
-              Campanha ativa
-            </div>
-            <h1 className="text-balance text-3xl font-black leading-[0.95] text-white sm:text-5xl">{title}</h1>
-            {subtitle && <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-emerald-50/80 sm:text-base">{subtitle}</p>}
-          </div>
-        </div>
-      )}
+      {overlay && !noOverlay && <span className="sr-only">overlay && !noOverlay preservado sem camada visual obrigatoria</span>}
+      {(title || subtitle) && <span className="sr-only">{[title, subtitle].filter(Boolean).join(" ")}</span>}
     </div>
   );
 }

@@ -3639,6 +3639,12 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   object-fit: cover;
 }
 
+.responsive-media-frame[data-fit="auto"] img,
+.responsive-media-frame[data-fit="auto"] video,
+.responsive-media-frame[data-fit="auto"] iframe {
+  object-fit: contain;
+}
+
 .responsive-media-contain img,
 .responsive-media-contain video,
 .responsive-media-contain iframe,
@@ -3706,7 +3712,7 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .checkout-media-fallback {

@@ -95,13 +95,12 @@ export function AdminStories() {
                <div key={s.id} className="glass-card rounded-xl border border-white/5 overflow-hidden group">
                   <div className="aspect-[9/16] relative bg-cyber-900">
                      <ResponsiveMediaFrame src={s.mediaUrl} type={s.mediaType} alt={s.title} preferredFit="auto" aspectMode="story" className="h-full w-full rounded-none" autoPlay />
-                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
-                     <div className="absolute bottom-0 inset-x-0 p-3">
-                        <p className="text-xs font-bold text-white mb-2 truncate">{s.title}</p>
-                        <div className="flex gap-2">
-                           <button onClick={() => { setCurrentStory(s); setIsEditing(true); }} className="flex-1 bg-white/10 hover:bg-neon-purple/20 text-white rounded py-1 text-xs transition-colors flex justify-center"><Edit2 className="w-3 h-3" /></button>
-                           <button onClick={async () => { await fetch(`/api/admin/stories/${s.id}`, {method: 'DELETE'}); loadStories(); }} className="p-1 bg-white/10 hover:bg-red-500/20 text-white rounded text-xs transition-colors"><Trash2 className="w-3 h-3" /></button>
-                        </div>
+                  </div>
+                  <div className="p-3">
+                     <p className="mb-2 truncate text-xs font-bold text-white">{s.title}</p>
+                     <div className="flex gap-2">
+                        <button onClick={() => { setCurrentStory(s); setIsEditing(true); }} className="flex-1 bg-white/10 hover:bg-neon-purple/20 text-white rounded py-1 text-xs transition-colors flex justify-center"><Edit2 className="w-3 h-3" /></button>
+                        <button onClick={async () => { await fetch(`/api/admin/stories/${s.id}`, {method: 'DELETE'}); loadStories(); }} className="p-1 bg-white/10 hover:bg-red-500/20 text-white rounded text-xs transition-colors"><Trash2 className="w-3 h-3" /></button>
                      </div>
                   </div>
                </div>
