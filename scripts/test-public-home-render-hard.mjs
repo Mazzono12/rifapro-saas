@@ -53,10 +53,23 @@ assert.ok(home.indexOf("PublicHomeErrorBoundary") < home.indexOf("function HomeC
 assert.ok(home.includes("mediaUrl={featuredRaffle.mediaUrl || featuredRaffle.image}"), "Midia nula deve cair para imagem/fallback no hero principal.");
 assert.ok(home.includes("mediaUrl={raffle.mediaUrl || raffle.image}"), "Midia nula deve cair para imagem/fallback nos cards.");
 
-const configGuard = "if (!config?.enabled || config.status !== \"active\") return null;";
 assert.ok(fazendinhaSection.includes("const config = data?.config;"), "FazendinhaSection deve guardar config opcional.");
-assert.ok(fazendinhaSection.indexOf(configGuard) < fazendinhaSection.indexOf("const configName"), "FazendinhaSection nao pode acessar config antes do guard.");
+assert.ok(fazendinhaSection.includes("if (!config.enabled || config.status !== \"active\")"), "FazendinhaSection deve proteger config inativa/ausente.");
+assert.ok(fazendinhaSection.indexOf("if (!config.enabled || config.status !== \"active\")") < fazendinhaSection.indexOf("const configName"), "FazendinhaSection nao pode acessar config antes do guard.");
 assert.ok(!fazendinhaSection.includes("data.config"), "FazendinhaSection nao deve acessar data.config diretamente.");
+
+includesAll(home, [
+  "home-benefit-chips",
+  "home-benefit-chip",
+  "grid grid-cols-2",
+  "PIX automatico",
+  "WhatsApp",
+  "Sorteio auditavel",
+  "Gamificacao"
+], "Beneficios da Home devem ser chips compactos mobile.");
+assert.equal(home.includes("Rifas ativas"), false, "Titulo Rifas ativas deve ser removido da Home publica.");
+assert.equal(home.includes("premium-card p-4"), false, "Beneficios nao devem voltar a cards altos no mobile.");
+assert.equal(home.includes("pb-40"), false, "Home nao deve manter spacer grande antes do rodape.");
 
 includesAll(theme, ["LOCKED_THEME_ID", "\"vimeu_dark\"", "applyThemeVariables"], "Tema vimeu_dark deve continuar aplicado.");
 includesAll(branding, ["fallbackBranding", "normalizeBranding", "catch", "setBranding(fallbackBranding)"], "Branding nulo/falho deve cair para fallback.");

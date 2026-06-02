@@ -89,6 +89,9 @@ for (const quantity of [1, 5, 700, 3000]) {
 
 assert(raffleDetails.includes("Confirmar participacao"), "header de confirmacao deve continuar presente");
 assert(raffleDetails.includes("Confirmar PIX"), "Confirmar PIX deve continuar presente");
+assert(!raffleDetails.includes("Participar agora"), "detalhe/checkout publico nao deve exibir CTA duplicado Participar agora");
+assert(raffleDetails.includes("Resumo da compra"), "barra mobile deve manter resumo funcional sem rotulo duplicado");
+assert(raffleDetails.includes("onClick={openCheckout}"), "acao principal do checkout deve continuar abrindo o fluxo");
 assert(raffleDetails.includes("formatCurrency(props.totalValue)"), "valor do checkout deve continuar formatado");
 assert(packageJson.includes('"test:checkout-participar-bug"'), "package.json deve expor test:checkout-participar-bug");
 

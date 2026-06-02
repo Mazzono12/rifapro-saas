@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
-import { Zap, Activity, Terminal, ChevronRight, PlayCircle } from "lucide-react";
+import { Zap, Activity, ChevronRight, PlayCircle, QrCode, MessageCircle, Trophy, Sparkles } from "lucide-react";
 import { StoriesSection } from "../components/StoriesSection";
 import { WinnersGallery } from "../components/WinnersGallery";
 import { CampaignMediaHero } from "../components/CampaignMediaHero";
@@ -312,12 +312,12 @@ function HomeContent() {
   const featuredProgress = safeProgress(featuredRaffle);
 
   return (
-    <PremiumPageLayout className="w-full relative pb-40">
+    <PremiumPageLayout className="w-full relative pb-12 md:pb-20">
       {renderStories('top')}
       {renderStories('floating-left')}
       {renderStories('floating-right')}
 
-      <PublicPageContainer className="pb-8 pt-0 space-y-10 md:space-y-12">
+      <PublicPageContainer className="pb-2 pt-0 space-y-7 md:space-y-10">
         {/* 1. Featured Prize (Top) */}
         {featuredRaffle && (
           <section className="w-full overflow-x-clip bg-[var(--theme-bg)]">
@@ -352,28 +352,21 @@ function HomeContent() {
         <FazendinhaSection />
       </HomeSectionBoundary>
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section aria-label="Beneficios da plataforma" className="home-benefit-chips grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
         {[
-          ["PIX automatico", "Pagamento com confirmacao em tempo real e reserva de cotas."],
-          ["Suporte WhatsApp", "Contato rapido antes, durante e depois da compra."],
-          ["Sorteio auditavel", "Campanhas com status, progresso e comprovantes rastreaveis."],
-          ["Gamificacao", "Roletas, caixinhas e raspadinhas integradas ao checkout."]
-        ].map(([title, description]) => (
-          <article key={title} className="premium-card p-4">
-            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--theme-primary)]">{title}</p>
-            <p className="mt-2 text-sm leading-6 text-[var(--theme-muted)]">{description}</p>
-          </article>
+          { title: "PIX automatico", icon: QrCode, tone: "border-cyan-300/25 bg-cyan-400/10 text-cyan-100 shadow-cyan-950/20" },
+          { title: "WhatsApp", icon: MessageCircle, tone: "border-emerald-300/25 bg-emerald-400/10 text-emerald-100 shadow-emerald-950/20" },
+          { title: "Sorteio auditavel", icon: Trophy, tone: "border-amber-300/30 bg-amber-400/12 text-amber-100 shadow-amber-950/20" },
+          { title: "Gamificacao", icon: Sparkles, tone: "border-violet-300/25 bg-violet-400/10 text-violet-100 shadow-violet-950/20" }
+        ].map(({ title, icon: Icon, tone }) => (
+          <div key={title} className={cn("home-benefit-chip inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-center text-[11px] font-black uppercase tracking-[0.14em] shadow-lg backdrop-blur-xl md:min-h-12 md:text-xs", tone)}>
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{title}</span>
+          </div>
         ))}
       </section>
 
-      <div className="flex items-center justify-between mb-8 pt-8 border-t border-[var(--theme-border)]">
-        <h2 className="text-3xl md:text-5xl font-black flex items-center gap-3 text-[var(--theme-text)]">
-          <Terminal className="w-6 h-6 text-[var(--theme-primary)]" />
-          Rifas ativas
-        </h2>
-      </div>
-
-      <div className="space-y-14">
+      <div className="space-y-10 md:space-y-14">
         {secondaryRaffles.map((raffle, idx) => {
           const progress = safeProgress(raffle);
           return (
@@ -454,7 +447,7 @@ function HomeContent() {
         })}
       </div>
 
-      <section>
+      <section className="mb-0">
         <HomeSectionBoundary section="winners">
           <WinnersGallery />
         </HomeSectionBoundary>

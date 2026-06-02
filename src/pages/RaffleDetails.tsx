@@ -428,7 +428,7 @@ export function RaffleDetails() {
             className="premium-floating-cta text-left lg:hidden"
           >
             <span>
-              <span className="block text-[10px] uppercase tracking-[0.22em] opacity-75">Participar agora</span>
+              <span className="block text-[10px] uppercase tracking-[0.22em] opacity-75">Resumo da compra</span>
               <span className="block text-base">{tickets.toLocaleString("pt-BR")} cotas</span>
             </span>
             <span className="rounded-xl bg-black/10 px-3 py-2 text-sm">{formatCurrency(totalValue)}</span>
