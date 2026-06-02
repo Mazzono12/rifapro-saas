@@ -24,6 +24,10 @@ export interface Raffle {
   heroShowStats?: boolean;
   status: 'active' | 'completed' | 'draft' | 'paused' | 'cancelled';
   drawDate: string;
+  countdownEnabled?: boolean;
+  countdownEndAt?: string;
+  salesEndAt?: string;
+  manuallyClosedAt?: string;
   progressOverride?: number;
   countdownLabel?: string;
   pixConfig?: RafflePixConfig;

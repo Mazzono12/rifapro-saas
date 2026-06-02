@@ -174,6 +174,10 @@ function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raff
     mediaType: normalizeRaffleMediaType(rawRaffle.mediaType),
     mediaFit: normalizeRaffleMediaFit(rawRaffle.mediaFit),
     drawDate: safeText(rawRaffle.drawDate, new Date().toISOString()),
+    countdownEnabled: rawRaffle.countdownEnabled === true,
+    countdownEndAt: safeText(rawRaffle.countdownEndAt, ""),
+    salesEndAt: safeText(rawRaffle.salesEndAt, ""),
+    manuallyClosedAt: safeText(rawRaffle.manuallyClosedAt, ""),
     heroPrimaryButton: safeText(rawRaffle.heroPrimaryButton, "Participar agora"),
     countdownLabel: rawRaffle.countdownLabel ? String(rawRaffle.countdownLabel) : undefined
   } as Raffle;

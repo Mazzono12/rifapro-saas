@@ -7,6 +7,35 @@ import type { MediaAspectDetection, ResponsiveMediaAspectMode, ResponsiveMediaFi
 
 const maxUploadSize = 100 * 1024 * 1024;
 const acceptedMedia = ".jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm,.wmv,.wma,.wmi";
+type MediaUsage = "hero" | "story" | "winner" | "card";
+
+const mediaUsageProfiles: Record<MediaUsage, { title: string; size: string; ratio: string; aspect: ResponsiveMediaAspectMode; tone: string }> = {
+  hero: { title: "Banner Hero", size: "1920x1080", ratio: "16:9", aspect: "horizontal", tone: "border-cyan-300/25 bg-cyan-400/10 text-cyan-100" },
+  story: { title: "Story", size: "1080x1920", ratio: "9:16", aspect: "story", tone: "border-violet-300/25 bg-violet-400/10 text-violet-100" },
+  winner: { title: "Ganhador", size: "1080x1080", ratio: "1:1", aspect: "square", tone: "border-amber-300/30 bg-amber-400/10 text-amber-100" },
+  card: { title: "Card", size: "1080x1080", ratio: "1:1", aspect: "square", tone: "border-emerald-300/25 bg-emerald-400/10 text-emerald-100" }
+};
+
+function detectMediaUsage(label: string, explicit?: MediaUsage): MediaUsage {
+  if (explicit) return explicit;
+  const normalized = label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/story|stories|reels/.test(normalized)) return "story";
+  if (/ganhador|ganhadores|vencedor|winner/.test(normalized)) return "winner";
+  if (/hero|landing|banner|home|apresentacao|principal/.test(normalized)) return "hero";
+  return "card";
+}
+
+function detectFileMediaType(file: File): MediaType {
+  if (file.type.startsWith("video/")) return "video";
+  if (file.type === "image/gif" || /\.gif$/i.test(file.name)) return "gif" as MediaType;
+  return inferMediaType(file.name);
+}
+
+function displayMediaType(type: MediaType | string | undefined) {
+  if (type === "video" || type === "youtube" || type === "vimeo" || type === "bunny") return "Video";
+  if (type === "gif") return "GIF";
+  return "Imagem";
+}
 
 type MediaPickerProps = {
   label: string;
@@ -16,19 +45,26 @@ type MediaPickerProps = {
   required?: boolean;
   accept?: string;
   allowExternalVideo?: boolean;
+  mediaUsage?: MediaUsage;
 };
 
-export function MediaPicker({ label, value = "", mediaType, onChange, required = false, accept = acceptedMedia, allowExternalVideo = true }: MediaPickerProps) {
+export function MediaPicker({ label, value = "", mediaType, onChange, required = false, accept = acceptedMedia, allowExternalVideo = true, mediaUsage }: MediaPickerProps) {
   const [uploading, setUploading] = useState(false);
   const [lastError, setLastError] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
   const [detectedAspect, setDetectedAspect] = useState<MediaAspectDetection | null>(null);
   const [fitMode, setFitMode] = useState<ResponsiveMediaFit>("auto");
-  const [mediaAspectPreference, setMediaAspectPreference] = useState<ResponsiveMediaAspectMode>("auto");
+  const usage = detectMediaUsage(label, mediaUsage);
+  const profile = mediaUsageProfiles[usage];
+  const [mediaAspectPreference, setMediaAspectPreference] = useState<ResponsiveMediaAspectMode>(profile.aspect);
+  const [detectedUploadType, setDetectedUploadType] = useState<MediaType | "">("");
+  const currentMediaType = detectedUploadType || mediaType || inferMediaType(value);
 
   const uploadFile = async (file?: File) => {
     if (!file) return;
     setLastError("");
+    const nextDetectedType = detectFileMediaType(file);
+    setDetectedUploadType(nextDetectedType);
     const extension = `.${file.name.split(".").pop() || ""}`.toLowerCase();
     const allowedExtensions = accept
       .split(",")
@@ -93,6 +129,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, required =
       return;
     }
     onChange(url, detectedType);
+    setDetectedUploadType(detectedType);
     toast.success("Vídeo externo aplicado");
   };
 
@@ -103,6 +140,15 @@ export function MediaPicker({ label, value = "", mediaType, onChange, required =
           <ImagePlus className="h-4 w-4 text-[var(--admin-primary)]" /> {label}
         </span>
         <span className="text-xs text-[var(--admin-muted)]">Até 100MB</span>
+      </div>
+      <div className={`mb-3 rounded-xl border px-3 py-3 ${profile.tone}`} data-media-usage={usage}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em]">{profile.title}</p>
+          <p className="text-[11px] font-semibold opacity-90">Tipo detectado: {displayMediaType(currentMediaType)}</p>
+        </div>
+        <p className="mt-1 text-xs leading-5 opacity-90">
+          Recomendado: <strong>{profile.size}</strong> ({profile.ratio})
+        </p>
       </div>
       <div className="grid gap-4">
         <label className="admin-button-secondary inline-flex min-h-12 cursor-pointer items-center justify-center gap-2">

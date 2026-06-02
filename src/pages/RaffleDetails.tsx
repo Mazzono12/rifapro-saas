@@ -51,6 +51,18 @@ import { PromotionBadges, PromotionSummaryCard } from "../components/promotions/
 type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
 
+function getLatestSalesDeadline(raffle?: Raffle | null) {
+  if (!raffle?.countdownEnabled) return "";
+  return [raffle.salesEndAt, raffle.countdownEndAt]
+    .map(value => {
+      if (!value) return "";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+    })
+    .filter(Boolean)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || "";
+}
+
 const quickAmounts = [100, 700, 1800, 3000, 5000, 10000];
 
 const casinoCards = [
@@ -175,7 +187,8 @@ export function RaffleDetails() {
     toast.success("Cota premiada encontrada", { description: `Premio instantaneo: ${formatCurrency(total)}` });
   }, [purchase]);
 
-  const countdown = useCountdown(raffle?.drawDate || (raffle as any)?.endDate || (raffle as any)?.createdAt);
+  const salesDeadline = getLatestSalesDeadline(raffle);
+  const countdown = useCountdown(salesDeadline);
   const totalTickets = Math.max(1, Number(raffle?.totalTickets || 1));
   const soldTickets = Math.max(0, Number(raffle?.soldTickets || 0));
   const progress = raffle ? Math.min(100, Math.max(0, raffle.progressOverride ?? (soldTickets / totalTickets) * 100)) : 0;
@@ -393,7 +406,7 @@ export function RaffleDetails() {
             <Link to="/minhas-cotas" className="-mt-2 flex min-h-12 items-center justify-center gap-2 rounded-b-2xl border border-white/10 bg-black/85 text-sm font-black text-white shadow-[0_16px_40px_rgba(0,0,0,0.32)]">
               <ShoppingCart className="h-4 w-4" /> Meus Bilhetes
             </Link>
-            <CountdownStrip countdown={countdown} />
+            {salesDeadline && <CountdownStrip countdown={countdown} expired={Boolean((raffle as any).salesExpired)} />}
             <DrawInfo raffle={raffle} />
             <PriceImpact price={raffle.price} />
             <PromotionBadges badges={publicPromotions} />
@@ -577,7 +590,7 @@ function HeroCard({ raffle, mediaUrl, mediaType, mediaFit: _mediaFit, progress }
   );
 }
 
-function CountdownStrip({ countdown }: { countdown: CountdownParts }) {
+function CountdownStrip({ countdown, expired = false }: { countdown: CountdownParts; expired?: boolean }) {
   const items = [
     ["dias", countdown.days],
     ["horas", countdown.hours],
@@ -586,7 +599,7 @@ function CountdownStrip({ countdown }: { countdown: CountdownParts }) {
   ];
   return (
     <section className="premium-card rounded-[1.5rem] p-4">
-      <p className="mb-3 text-center text-[11px] font-black uppercase tracking-[0.28em] text-[var(--theme-primary)]">Vendas encerram em</p>
+      <p className="mb-3 text-center text-[11px] font-black uppercase tracking-[0.28em] text-[var(--theme-primary)]">{expired ? "Vendas encerradas" : "Vendas encerram em"}</p>
       <div className="grid grid-cols-4 gap-2">
         {items.map(([label, value]) => (
           <div key={label} className="rounded-2xl border border-white/10 bg-black/35 p-3 text-center">

@@ -81,6 +81,7 @@ export function AdminWinners() {
                   <div className="md:col-span-2">
                     <MediaPicker
                       label="Mídia do ganhador"
+                      mediaUsage="winner"
                       value={current.mediaUrl || ""}
                       mediaType={current.mediaType}
                       required

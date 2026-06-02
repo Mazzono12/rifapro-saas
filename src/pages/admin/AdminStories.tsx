@@ -74,6 +74,7 @@ export function AdminStories() {
                   <div className="md:col-span-2">
                     <MediaPicker
                       label="Mídia do story"
+                      mediaUsage="story"
                       value={currentStory.mediaUrl || ""}
                       mediaType={currentStory.mediaType}
                       required

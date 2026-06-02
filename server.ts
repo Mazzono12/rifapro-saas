@@ -1778,6 +1778,11 @@ async function startServer() {
       heroShowStats: true,
       status: "active",
       drawDate: "2026-10-15T20:00:00Z",
+      countdownEnabled: false,
+      countdownEndAt: "",
+      salesEndAt: "",
+      manuallyClosedAt: "",
+      countdownLabel: "",
       videoConfig: { ...settings.mainVideoPlayer },
       pixConfig: {
         inheritGlobal: true,
@@ -1820,6 +1825,11 @@ async function startServer() {
       heroShowStats: true,
       status: "active",
       drawDate: "2026-06-01T20:00:00Z",
+      countdownEnabled: false,
+      countdownEndAt: "",
+      salesEndAt: "",
+      manuallyClosedAt: "",
+      countdownLabel: "",
       videoConfig: { ...settings.mainVideoPlayer },
       pixConfig: {
         inheritGlobal: true,
@@ -7059,6 +7069,46 @@ async function startServer() {
     return Boolean(value) && new Date(value || "").getTime() <= Date.now();
   }
 
+  function normalizeOptionalIsoDate(value: unknown) {
+    if (value === null || value === undefined || value === "") return "";
+    const date = new Date(String(value));
+    return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+  }
+
+  function getRaffleSalesDeadline(raffle: typeof raffles[number]) {
+    if (raffle.countdownEnabled !== true) return "";
+    const candidates = [raffle.countdownEndAt, raffle.salesEndAt]
+      .map(normalizeOptionalIsoDate)
+      .filter(Boolean)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    return candidates[0] || "";
+  }
+
+  function isRaffleSalesExpired(raffle: typeof raffles[number], now = Date.now()) {
+    const deadline = getRaffleSalesDeadline(raffle);
+    return Boolean(deadline) && new Date(deadline).getTime() <= now;
+  }
+
+  function assertRaffleOpenForCheckout(raffle: typeof raffles[number]) {
+    if (raffle.status !== "active") throw new Error("Rifa encerrada ou indisponivel");
+    if (isRaffleSalesExpired(raffle)) throw new Error("Vendas encerradas pelo contador regressivo");
+  }
+
+  function normalizeRaffleCountdownPayload(input: Record<string, any>, current?: Partial<typeof raffles[number]>) {
+    const countdownEnabled = input.countdownEnabled !== undefined ? Boolean(input.countdownEnabled) : Boolean(current?.countdownEnabled);
+    const countdownEndAt = input.countdownEndAt !== undefined
+      ? normalizeOptionalIsoDate(input.countdownEndAt)
+      : normalizeOptionalIsoDate(current?.countdownEndAt);
+    const salesEndAt = input.salesEndAt !== undefined
+      ? normalizeOptionalIsoDate(input.salesEndAt)
+      : normalizeOptionalIsoDate(current?.salesEndAt);
+    return {
+      countdownEnabled,
+      countdownEndAt,
+      salesEndAt
+    };
+  }
+
   function isFazendinhaReservationExpired(purchase: FazendinhaPurchase) {
     return purchase.statusPagamento === "cancelled" ||
       (purchase.statusPagamento === "reserved" && isPastReservationExpiry(purchase.reservedUntil || purchase.pixExpiresAt));
@@ -7200,14 +7250,24 @@ async function startServer() {
   }
 
   function reserveAvailableNumbers(raffle: typeof raffles[number], quantity: number) {
+    assertRaffleOpenForCheckout(raffle);
     expirePendingReservations(raffle.tenant_id, raffle.id);
     return assignAvailableNumbers(raffle, quantity);
   }
 
   function sanitizeRaffleForPublic(raffle: typeof raffles[number]) {
     const { soldNumbers, pixConfig, n8nEnabled, ...safeRaffle } = raffle;
+    const salesDeadline = getRaffleSalesDeadline(raffle);
+    const salesExpired = isRaffleSalesExpired(raffle);
     return {
       ...safeRaffle,
+      salesDeadline,
+      salesExpired,
+      countdownLabel: salesDeadline
+        ? salesExpired
+          ? "Vendas encerradas"
+          : (raffle.countdownLabel || `Vendas ate ${new Date(salesDeadline).toLocaleString("pt-BR")}`)
+        : "",
       pixConfig: pixConfig ? {
         inheritGlobal: pixConfig.inheritGlobal,
         enabled: pixConfig.enabled,
@@ -7219,7 +7279,11 @@ async function startServer() {
 
   function sanitizeRaffleForAdmin(raffle: typeof raffles[number]) {
     const { soldNumbers, ...safeRaffle } = raffle;
-    return safeRaffle;
+    return {
+      ...safeRaffle,
+      salesDeadline: getRaffleSalesDeadline(raffle),
+      salesExpired: isRaffleSalesExpired(raffle)
+    };
   }
 
   // === API Routes ===
@@ -8765,7 +8829,11 @@ async function startServer() {
         const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === raffleId);
         const tickets = normalizeTickets(req.body.tickets);
         if (!raffle) return res.status(404).json({ error: "Rifa nao encontrada" });
-        if (raffle.status !== "active") return res.status(403).json({ error: "Rifa encerrada ou indisponivel" });
+        try {
+          assertRaffleOpenForCheckout(raffle);
+        } catch (error) {
+          return res.status(403).json({ error: error instanceof Error ? error.message : "Rifa encerrada ou indisponivel" });
+        }
         if (tickets === null) return res.status(400).json({ error: "Quantidade invalida" });
         expirePendingReservations(tenantId, raffle.id);
         const pixConfig = getRafflePixConfig(raffle);
@@ -8774,6 +8842,13 @@ async function startServer() {
         const addonTickets = normalizeTickets(req.body.addon?.tickets) || 0;
         const addonRaffle = req.body.addon?.raffleId ? raffles.find(item => item.tenant_id === tenantId && item.id === req.body.addon.raffleId) : null;
         if (addonRaffle) expirePendingReservations(tenantId, addonRaffle.id);
+        if (addonRaffle) {
+          try {
+            assertRaffleOpenForCheckout(addonRaffle);
+          } catch (error) {
+            return res.status(403).json({ error: error instanceof Error ? error.message : "Rifa adicional encerrada ou indisponivel" });
+          }
+        }
 
         let coupon: CampaignCoupon | null = null;
         if (req.body.couponCode) coupon = getActiveCoupon(req.body.couponCode, raffle.id, tickets, tenantId);
@@ -8954,8 +9029,10 @@ async function startServer() {
         res.status(404).json({ error: "Raffle not found" });
         return;
     }
-    if (raffle.status !== "active") {
-        res.status(403).json({ error: "Rifa encerrada ou indisponivel" });
+    try {
+      assertRaffleOpenForCheckout(raffle);
+    } catch (error) {
+        res.status(403).json({ error: error instanceof Error ? error.message : "Rifa encerrada ou indisponivel" });
         return;
     }
     try {
@@ -8978,6 +9055,14 @@ async function startServer() {
 
     const addonRaffle = req.body.addon?.raffleId ? raffles.find(r => r.tenant_id === tenantId && r.id === req.body.addon.raffleId) : null;
     if (addonRaffle) expirePendingReservations(tenantId, addonRaffle.id);
+    if (addonRaffle) {
+      try {
+        assertRaffleOpenForCheckout(addonRaffle);
+      } catch (error) {
+        res.status(403).json({ error: error instanceof Error ? error.message : "Rifa adicional encerrada ou indisponivel" });
+        return;
+      }
+    }
     if (addonRaffle && addonRaffle.soldTickets + addonTickets > addonRaffle.totalTickets) {
       res.status(400).json({ error: "Quantidade adicional indisponível" });
       return;
@@ -13872,6 +13957,8 @@ async function startServer() {
       soldTickets: 0,
       ...normalizeMediaPayload(req.body),
       tenant_id: tenantId,
+      ...normalizeRaffleCountdownPayload(req.body),
+      manuallyClosedAt: req.body.status && req.body.status !== "active" ? new Date().toISOString() : "",
       pixConfig: { ...getDefaultRafflePixConfig(), ...(req.body.pixConfig || {}) },
       videoConfig: { ...settings.mainVideoPlayer, ...(req.body.videoConfig || {}) },
       n8nEnabled: Boolean(req.body.n8nEnabled),
@@ -13897,10 +13984,15 @@ async function startServer() {
     const index = raffles.findIndex(r => r.id === req.params.id && adminCanAccessTenant(req, r.tenant_id));
     if (index !== -1) {
       const currentSoldNumbers = raffles[index].soldNumbers;
+      const nextCountdown = normalizeRaffleCountdownPayload(req.body, raffles[index]);
+      const statusChangedToClosed = req.body.status !== undefined && req.body.status !== "active" && raffles[index].status === "active";
+      const statusChangedToActive = req.body.status === "active";
       raffles[index] = {
         ...raffles[index],
         ...normalizeMediaPayload(req.body),
         tenant_id: raffles[index].tenant_id,
+        ...nextCountdown,
+        manuallyClosedAt: statusChangedToActive ? "" : statusChangedToClosed ? new Date().toISOString() : raffles[index].manuallyClosedAt,
         pixConfig: { ...getDefaultRafflePixConfig(), ...(raffles[index].pixConfig || {}), ...(req.body.pixConfig || {}) },
         videoConfig: { ...settings.mainVideoPlayer, ...(raffles[index].videoConfig || {}), ...(req.body.videoConfig || {}) },
         n8nEnabled: req.body.n8nEnabled !== undefined ? Boolean(req.body.n8nEnabled) : Boolean(raffles[index].n8nEnabled),

@@ -308,6 +308,7 @@ export function AdminRaffles() {
                   <div className="md:col-span-2">
                     <MediaPicker
                       label="Imagem principal / fallback"
+                      mediaUsage="card"
                       value={currentRaffle.image || ""}
                       required
                       onChange={(mediaUrl) => setCurrentRaffle({ ...currentRaffle, image: mediaUrl })}
@@ -316,6 +317,7 @@ export function AdminRaffles() {
                   <div className="md:col-span-2">
                     <MediaPicker
                       label="Mídia da landing page"
+                      mediaUsage="hero"
                       value={currentRaffle.mediaUrl || ""}
                       mediaType={currentRaffle.mediaType}
                       onChange={(mediaUrl, mediaType) => setCurrentRaffle({ ...currentRaffle, mediaUrl, mediaType })}
@@ -324,6 +326,7 @@ export function AdminRaffles() {
                   <div className="md:col-span-2">
                     <MediaPicker
                       label="Mídia exclusiva do checkout"
+                      mediaUsage="card"
                       value={currentRaffle.checkoutMediaUrl || ""}
                       mediaType={currentRaffle.checkoutMediaType}
                       onChange={(checkoutMediaUrl, checkoutMediaType) => setCurrentRaffle({ ...currentRaffle, checkoutMediaUrl, checkoutMediaType })}
@@ -466,6 +469,29 @@ export function AdminRaffles() {
                      <input type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
                             value={currentRaffle.drawDate || ''} onChange={e => setCurrentRaffle({...currentRaffle, drawDate: e.target.value})} />
                    </div>
+                  <label className="flex items-center gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.05] p-4">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(currentRaffle.countdownEnabled)}
+                      onChange={e => setCurrentRaffle({ ...currentRaffle, countdownEnabled: e.target.checked })}
+                    />
+                    <span>
+                      <span className="block text-sm font-bold text-white">Ativar contador regressivo de vendas</span>
+                      <span className="mt-1 block text-xs text-slate-400">Quando desligado, a rifa nao encerra por data e continua ativa ate encerramento manual.</span>
+                    </span>
+                  </label>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Fim das vendas</label>
+                    <input
+                      type="datetime-local"
+                      className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                      value={toDateTimeLocal(currentRaffle.salesEndAt || currentRaffle.countdownEndAt || "")}
+                      onChange={e => {
+                        const next = e.target.value ? new Date(e.target.value).toISOString() : "";
+                        setCurrentRaffle({ ...currentRaffle, salesEndAt: next, countdownEndAt: next });
+                      }}
+                    />
+                  </div>
                   <div>
                     <label className="block text-xs font-mono text-slate-400 mb-1">Texto do time regressivo</label>
                     <input type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
@@ -640,6 +666,14 @@ function TextField({ label, value, onChange, placeholder }: { label: string; val
       />
     </label>
   );
+}
+
+function toDateTimeLocal(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
 function AdminTable({ title, rows, empty }: { title: string; rows: Array<Array<string>>; empty: string }) {

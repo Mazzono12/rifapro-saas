@@ -83,7 +83,7 @@ for (const [path, tokens] of [
   ["src/components/branding/ThemeBuilder.tsx", ["ResponsiveMediaFrame", "marketplace"]],
   ["src/components/branding/BrandingPreview.tsx", ["ResponsiveMediaFrame", "preferredFit=\"contain\""]],
   ["src/components/branding/TenantLogo.tsx", ["ResponsiveMediaFrame", "preferredFit=\"contain\""]],
-  ["src/pages/admin/AdminLayout.tsx", ["ResponsiveMediaFrame", "preferredFit=\"contain\""]]
+  ["src/components/admin/CollapsibleSidebar.tsx", ["ResponsiveMediaFrame", "preferredFit=\"contain\""]]
 ]) {
   includesAll(read(path), tokens, path);
 }
