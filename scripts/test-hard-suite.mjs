@@ -214,6 +214,7 @@ async function productionReadiness() {
   await runNodeScript("scripts/test-public-debug-routes.mjs");
   await runNodeScript("scripts/test-public-api-keys.mjs");
   await runNodeScript("scripts/test-pwa-secure.mjs");
+  await runNodeScript("scripts/test-stories-instagram-behavior.mjs");
   await runNodeScript("scripts/test-theme-builder-marketplace.mjs");
   await step("bundle sem service role quando dist existir", () => {
     if (!existsSync(join(root, "dist"))) return;

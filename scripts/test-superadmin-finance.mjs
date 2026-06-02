@@ -1,14 +1,28 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:net";
 import { spawn } from "node:child_process";
 
-const port = Number(process.env.PORT || (3139 + Math.floor(Math.random() * 1000)));
+async function findAvailablePort() {
+  if (process.env.PORT) return Number(process.env.PORT);
+  return new Promise((resolve, reject) => {
+    const probe = createServer();
+    probe.on("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      probe.close(() => resolve(port));
+    });
+  });
+}
+
+const port = await findAvailablePort();
 const baseUrl = `http://127.0.0.1:${port}`;
 const env = { ...process.env, PORT: String(port), NODE_ENV: "production", SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", SUPERADMIN_EMAIL: "superadmin.finance@test.local", SUPERADMIN_PASSWORD: "SenhaSuper123!", JWT_SECRET: "test-superadmin-finance-secret", GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-superadmin-finance-gateway-key" };
 const server = spawn(process.execPath, ["dist/server.js"], { cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"] });
 
 async function wait() {
   for (let i = 0; i < 60; i++) {
-    try { const r = await fetch(`${baseUrl}/api/auth/session`); if (r.status >= 400) return; } catch {}
+    try { const r = await fetch(`${baseUrl}/api/public/health`); if (r.status === 200) return; } catch {}
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   throw new Error("Servidor nao iniciou");

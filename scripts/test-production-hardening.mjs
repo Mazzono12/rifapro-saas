@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:net";
 import { spawn } from "node:child_process";
 
-const port = Number(process.env.PORT || (3133 + Math.floor(Math.random() * 1000)));
+async function findAvailablePort() {
+  if (process.env.PORT) return Number(process.env.PORT);
+  return new Promise((resolve, reject) => {
+    const probe = createServer();
+    probe.on("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      probe.close(() => resolve(port));
+    });
+  });
+}
+
+const port = await findAvailablePort();
 const baseUrl = `http://127.0.0.1:${port}`;
 const env = {
   ...process.env,
@@ -23,8 +37,8 @@ const server = spawn(process.execPath, ["dist/server.js"], { cwd: process.cwd(),
 async function waitForServer() {
   for (let attempt = 0; attempt < 60; attempt += 1) {
     try {
-      const response = await fetch(`${baseUrl}/api/auth/session`);
-      if (response.status >= 400) return;
+      const response = await fetch(`${baseUrl}/api/public/health`);
+      if (response.status === 200) return;
     } catch {}
     await new Promise(resolve => setTimeout(resolve, 100));
   }
