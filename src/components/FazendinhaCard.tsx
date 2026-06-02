@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { CheckCircle2, Clock, Lock } from "lucide-react";
 import { cn } from "../lib/utils";
-import { FAZENDINHA_ANIMAL_MARKS } from "../lib/fazendinha";
+import { FAZENDINHA_ANIMAL_MARKS, fazendinhaPublicGroupId } from "../lib/fazendinha";
 import type { FazendinhaGroup } from "../types";
 import type React from "react";
 
@@ -28,7 +28,8 @@ type FazendinhaCardProps = {
 export function FazendinhaCard({ group, selected, onSelect }: FazendinhaCardProps) {
   const status = statusMap[group.status];
   const StatusIcon = status.icon;
-  const gradient = gradients[Math.abs(group.id.charCodeAt(0) + group.id.length) % gradients.length];
+  const publicGroupId = fazendinhaPublicGroupId(group.id);
+  const gradient = gradients[Math.abs(publicGroupId.charCodeAt(0) + publicGroupId.length) % gradients.length];
   const disabled = group.status !== "available";
 
   return (
@@ -48,7 +49,7 @@ export function FazendinhaCard({ group, selected, onSelect }: FazendinhaCardProp
       <div className={cn("absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br blur-2xl opacity-40", gradient)} />
       <div className="relative z-10 flex items-start justify-between gap-1.5 sm:gap-2">
         <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-2xl font-black text-slate-950 shadow-[inset_0_-10px_22px_rgba(0,0,0,0.16)] sm:h-16 sm:w-16 sm:rounded-2xl sm:text-4xl lg:h-20 lg:w-20 lg:text-5xl", gradient)}>
-          {FAZENDINHA_ANIMAL_MARKS[group.id] || group.nomeBicho.slice(0, 2).toUpperCase()}
+          {FAZENDINHA_ANIMAL_MARKS[publicGroupId] || group.nomeBicho.slice(0, 2).toUpperCase()}
         </div>
         <span className={cn("inline-flex items-center gap-1 rounded-full border px-1.5 py-1 text-[8px] font-mono uppercase sm:px-2 sm:text-[10px]", status.className)}>
           <StatusIcon className="h-3 w-3" /> <span className="hidden sm:inline">{status.label}</span>

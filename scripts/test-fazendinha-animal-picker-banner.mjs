@@ -31,7 +31,7 @@ includesAll(section, [
   "selectedGroups.some"
 ], "banner na area de bichos");
 assert(section.indexOf("<FazendinhaAnimalPickerBanner") < section.indexOf("boardGroupIds.map"), "banner deve ficar acima da grade/lista de bichos");
-assert(section.indexOf("boardGroupIds.map") < section.indexOf("Cotas escolhidas"), "grade/lista de bichos deve vir antes da area escolher/desfazer");
+assert(section.indexOf("boardGroupIds.map") < section.indexOf("selectedCount={selectedGroups.length}"), "grade/lista de bichos deve vir antes da area escolher/desfazer");
 assert(!section.includes("CheckoutCampaignMedia"), "checkout da Fazendinha na Home nao deve renderizar midia/banner");
 assert(!section.includes("<DynamicMedia"), "checkout da Fazendinha na Home nao deve renderizar banner dinamico antes de Cliente identificado");
 assert(section.includes("FazendinhaCheckoutMedia"), "checkout da Fazendinha na Home deve usar midia especifica do checkout");

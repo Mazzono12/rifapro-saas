@@ -9,7 +9,7 @@ import { useFazendinha, useFazendinhaMediaSettings } from "../hooks/useRaffles";
 import { checkoutService, fazendinhaService } from "../services/api";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { cn } from "../lib/utils";
-import { FAZENDINHA_ANIMAL_MARKS, FAZENDINHA_GROUP_ORDER } from "../lib/fazendinha";
+import { FAZENDINHA_ANIMAL_MARKS, FAZENDINHA_GROUP_ORDER, fazendinhaPublicGroupId } from "../lib/fazendinha";
 import type { FazendinhaGroup, FazendinhaPurchase, Raffle } from "../types";
 import { PostPurchaseLootboxModal } from "./PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "./PixPaymentResultModal";
@@ -44,8 +44,27 @@ function normalizeFazendinhaGroup(group: Partial<FazendinhaGroup> | null | undef
   } as FazendinhaGroup;
 }
 
+function isFazendinhaHomeDebugEnabled() {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("homeDebug") === "1";
+}
+
+function debugFazendinhaHome(reason: string, detail?: unknown) {
+  if (!isFazendinhaHomeDebugEnabled()) return;
+  console.info("[homeDebug] FazendinhaSection", reason, detail);
+}
+
+function FazendinhaHomeDebugNotice({ reason }: { reason: string }) {
+  if (!isFazendinhaHomeDebugEnabled()) return null;
+  return (
+    <div className="rounded-2xl border border-amber-400/35 bg-amber-500/10 p-4 text-sm font-semibold text-amber-100">
+      Debug Fazendinha: {reason}
+    </div>
+  );
+}
+
 export function FazendinhaSection() {
-  const { data } = useFazendinha();
+  const { data, error, isError, isLoading } = useFazendinha();
   const { data: mediaSettings } = useFazendinhaMediaSettings();
   const queryClient = useQueryClient();
   const { customer, setCustomer } = useCustomerStore();
@@ -93,15 +112,31 @@ export function FazendinhaSection() {
     const rawGroups = Array.isArray(data?.groups) ? data.groups : [];
     return rawGroups.map(group => normalizeFazendinhaGroup(group)).filter((group): group is FazendinhaGroup => Boolean(group));
   }, [data?.groups]);
-  const groupsById = useMemo(() => new Map(groups.map(group => [group.id, group])), [groups]);
-  const extraGroups = groups.filter(group => !boardGroupIds.includes(group.id));
+  const groupsById = useMemo(() => new Map(groups.map(group => [fazendinhaPublicGroupId(group.id), group])), [groups]);
+  const extraGroups = groups.filter(group => !boardGroupIds.includes(fazendinhaPublicGroupId(group.id)));
   const selectedTotal = selectedGroups.reduce((sum, group) => sum + safeNumber(group.preco), 0);
   const safeAddonSuggestion = addonSuggestion?.raffle?.id ? addonSuggestion : null;
   const addonAmount = safeNumber(safeAddonSuggestion?.amount);
   const addonValue = acceptAddon && safeAddonSuggestion ? addonAmount : 0;
   const totalValue = selectedTotal + addonValue;
   const config = data?.config;
-  if (!config?.enabled || config.status !== "active") return null;
+  const pixCountdown = usePixCountdown(pendingPix?.purchase?.pixExpiresAt || pendingPix?.purchase?.reservedUntil);
+  if (isLoading) return null;
+  if (isError) {
+    debugFazendinhaHome("api-error", error instanceof Error ? error.message : error);
+    return <FazendinhaHomeDebugNotice reason="falha ao carregar /api/fazendinha" />;
+  }
+  if (!config) {
+    debugFazendinhaHome("missing-config", data);
+    return <FazendinhaHomeDebugNotice reason="config ausente na resposta publica" />;
+  }
+  if (!config.enabled || config.status !== "active") {
+    debugFazendinhaHome("inactive-config", { enabled: config.enabled, status: config.status });
+    return <FazendinhaHomeDebugNotice reason={`modalidade inativa (${config.status || "sem status"})`} />;
+  }
+  if (!groups.length) {
+    debugFazendinhaHome("empty-groups", data);
+  }
 
   const configName = String(config.name || "Fazendinha");
   const configMainPrize = String(config.mainPrize || (config as any).prize || "Premio principal");
@@ -116,7 +151,6 @@ export function FazendinhaSection() {
   const checkoutMedia = mediaSettings?.checkoutMedia || data?.mediaSettings?.checkoutMedia;
   const premiumExperience = mediaSettings?.premiumExperience || data?.mediaSettings?.premiumExperience;
   const formattedPricePerGroup = formatCurrency(configPricePerGroup);
-  const pixCountdown = usePixCountdown(pendingPix?.purchase?.pixExpiresAt || pendingPix?.purchase?.reservedUntil);
 
   const toggleGroup = (group?: FazendinhaGroup) => {
     if (!group || group.status !== "available") return;

@@ -7059,6 +7059,11 @@ async function startServer() {
     return Boolean(value) && new Date(value || "").getTime() <= Date.now();
   }
 
+  function isFazendinhaReservationExpired(purchase: FazendinhaPurchase) {
+    return purchase.statusPagamento === "cancelled" ||
+      (purchase.statusPagamento === "reserved" && isPastReservationExpiry(purchase.reservedUntil || purchase.pixExpiresAt));
+  }
+
   function releaseReservedNumbers(raffle: typeof raffles[number], numbers: number[]) {
     numbers.forEach(number => raffle.soldNumbers.delete(number));
     raffle.soldTickets = Math.max(0, raffle.soldNumbers.size);
@@ -9610,8 +9615,16 @@ async function startServer() {
 
   function confirmFazendinhaPurchase(purchase: FazendinhaPurchase) {
     expireFazendinhaReservations(purchase.tenant_id);
-    if (purchase.statusPagamento === "cancelled") throw new Error("Fazendinha reservation expired");
-    const groups = fazendinhaGroups.filter(group => group.tenant_id === purchase.tenant_id && (purchase.grupoIds?.includes(group.id) || group.compraId === purchase.id));
+    if (isFazendinhaReservationExpired(purchase)) {
+      purchase.statusPagamento = "cancelled";
+      throw new Error("Fazendinha reservation expired");
+    }
+    const expectedGroupIds = purchase.grupoIds?.length ? purchase.grupoIds : [purchase.grupoId].filter((id): id is string => Boolean(id));
+    const groups = fazendinhaGroups.filter(group => group.tenant_id === purchase.tenant_id && (expectedGroupIds.includes(group.id) || group.compraId === purchase.id));
+    if (groups.length < expectedGroupIds.length) throw new Error("Fazendinha reservation expired");
+    if (purchase.statusPagamento !== "paid" && groups.some(group => group.compraId !== purchase.id || !["reserved", "sold"].includes(group.status))) {
+      throw new Error("Fazendinha reservation expired");
+    }
     if (purchase.statusPagamento !== "paid") {
       purchase.statusPagamento = "paid";
       groups.forEach(group => {

@@ -68,11 +68,17 @@ assert(!home.includes("<FazendinhaHomeMediaBlock"), "Home nao deve renderizar o 
 
 includesAll(section, [
   "useFazendinhaMediaSettings",
+  "fazendinhaPublicGroupId",
+  "debugFazendinhaHome",
+  "homeDebug",
   "FazendinhaAnimalPickerBanner",
   "<FazendinhaAnimalPickerBanner {...homeBanner} />",
   "boardGroupIds.map"
 ], "FazendinhaSection posiciona banner acima dos bichos");
 assert(section.indexOf("<FazendinhaAnimalPickerBanner") < section.indexOf("boardGroupIds.map"), "banner deve vir antes da grade de bichos");
+assert(section.includes("new Map(groups.map(group => [fazendinhaPublicGroupId(group.id), group]))"), "Home deve mapear grupos tenant-scoped pelo id publico do bicho");
+assert(section.includes("selectedGroups.map(group => group.id)"), "checkout deve enviar o id real do grupo para preservar tenant/multitenant");
+assert(section.includes("<FazendinhaHomeDebugNotice"), "Home deve exibir diagnostico da Fazendinha quando homeDebug=1");
 assert(!section.includes("CheckoutCampaignMedia"), "checkout da Fazendinha nao deve renderizar midia/banner");
 assert(!section.includes("<DynamicMedia"), "checkout da Fazendinha nao deve renderizar midia/banner dinamico");
 assert(section.includes("FazendinhaCheckoutMedia"), "checkout da Fazendinha deve usar midia propria separada");
