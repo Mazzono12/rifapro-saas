@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   Plug,
+  Search,
   ShieldAlert,
   ShieldCheck,
   SlidersHorizontal
@@ -93,20 +94,29 @@ function SuperAdminLayoutContent() {
         onCollapsedChange={setCollapsed}
         onMobileOpenChange={setMobileOpen}
       />
-      <main className={cn("min-h-screen min-w-0 transition-[padding] duration-300", collapsed ? "lg:pl-20" : "lg:pl-72")}>
+      <main className={cn("min-h-screen min-w-0 transition-[padding] duration-300", collapsed ? "lg:pl-[88px]" : "lg:pl-[292px]")}>
         <header className="sticky top-0 z-40 border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)]/90 backdrop-blur-2xl">
-          <div className="mx-auto flex max-w-[1536px] items-center justify-between gap-4 px-4 py-2.5 sm:px-6">
+          <div className="mx-auto flex max-w-[1536px] items-center gap-2 px-3 py-2 sm:px-4 lg:px-5">
             <div className="flex min-w-0 items-center gap-3">
               <button onClick={() => setMobileOpen(true)} className="admin-icon-button lg:hidden" aria-label="Abrir menu"><Menu className="h-5 w-5" /></button>
-              <button onClick={() => setCollapsed(value => !value)} className="admin-icon-button hidden h-9 w-9 lg:inline-flex" aria-label={collapsed ? "Expandir menu" : "Recolher menu"} title={collapsed ? "Expandir menu" : "Recolher menu"}>
+              <button onClick={() => setCollapsed(value => !value)} className="admin-sidebar-toggle hidden lg:inline-grid" aria-label={collapsed ? "Expandir menu" : "Recolher menu"} title={collapsed ? "Expandir menu" : "Recolher menu"}>
                 {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
               </button>
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-[var(--admin-primary)] text-xs font-black text-[var(--admin-button-text)]">SA</div>
               <div className="min-w-0">
                 <span className="block truncate text-base font-semibold text-[var(--admin-text)]">{activeItem?.name || "Controle da Plataforma"}</span>
                 <span className="block text-xs text-[var(--admin-muted)]">Superadmin / {activeItem?.group || "Global"}</span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="relative hidden min-w-0 flex-1 sm:block">
+              <input className="admin-input h-10 w-full max-w-[430px] pl-10" placeholder="Buscar tenant, domínio, auditoria..." />
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <div className="hidden items-center gap-2 rounded-[10px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-2 text-xs font-bold text-[var(--admin-info)] lg:flex">
+                <span className="h-2 w-2 rounded-full bg-[var(--admin-info)] shadow-[0_0_16px_var(--admin-info)]" />
+                Plataforma
+              </div>
               <AdminThemeSwitcher collapsed placement="bottom" />
               <Link to="/admin" className="admin-icon-button" title="Operacional" aria-label="Operacional">
                 <Building2 className="h-5 w-5" />

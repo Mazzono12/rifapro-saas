@@ -3767,3 +3767,530 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* CIFHER Visual System - scoped to Admin and SuperAdmin only */
+.admin-shell {
+  --admin-panel-shadow: 0 18px 46px rgba(0, 0, 0, 0.24);
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 18% -10%, color-mix(in srgb, var(--admin-primary) 18%, transparent), transparent 34%),
+    linear-gradient(145deg, var(--admin-bg), var(--admin-bg-soft) 48%, var(--admin-bg-deep));
+  color: var(--admin-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.admin-shell *,
+.admin-shell *::before,
+.admin-shell *::after {
+  letter-spacing: 0;
+  scrollbar-width: none;
+}
+
+.admin-shell *::-webkit-scrollbar,
+.cifher-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.admin-shell h1,
+.admin-shell .text-3xl,
+.admin-shell .text-4xl,
+.admin-shell .text-5xl {
+  font-size: clamp(26px, 2vw, 28px) !important;
+  line-height: 1.1 !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell h2,
+.admin-shell .text-2xl {
+  font-size: 21px !important;
+  line-height: 1.2 !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell h3,
+.admin-shell .text-xl,
+.admin-shell .text-lg {
+  font-size: 15px !important;
+  line-height: 1.35 !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell p,
+.admin-shell span,
+.admin-shell label,
+.admin-shell td,
+.admin-shell th {
+  overflow-wrap: anywhere;
+}
+
+.admin-shell .text-white,
+.admin-shell .text-slate-100,
+.admin-shell .text-slate-200,
+.admin-shell .text-slate-300,
+.admin-shell .text-black {
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .text-slate-400,
+.admin-shell .text-slate-500,
+.admin-shell .text-slate-600,
+.admin-shell .text-gray-400,
+.admin-shell .text-gray-500 {
+  color: var(--admin-muted) !important;
+}
+
+.admin-shell .admin-card,
+.admin-shell .admin-card-strong,
+.admin-shell .glass-card,
+.admin-shell .premium-card,
+.admin-shell section[class*="glass-card"],
+.admin-shell .rounded-3xl,
+.admin-shell .rounded-2xl {
+  border-radius: 8px !important;
+}
+
+.admin-shell .admin-card,
+.admin-shell .glass-card,
+.admin-shell .premium-card {
+  border: 1px solid var(--admin-border) !important;
+  background: linear-gradient(180deg, var(--admin-surface-strong), var(--admin-surface)) !important;
+  box-shadow: var(--admin-panel-shadow);
+}
+
+.admin-shell .admin-card .admin-card,
+.admin-shell .admin-card .glass-card,
+.admin-shell .glass-card .admin-card,
+.admin-shell .glass-card .glass-card {
+  box-shadow: none;
+}
+
+.admin-shell .bg-white\/\[0\.02\],
+.admin-shell .bg-white\/\[0\.025\],
+.admin-shell .bg-white\/\[0\.03\],
+.admin-shell .bg-white\/\[0\.035\],
+.admin-shell .bg-white\/\[0\.04\],
+.admin-shell .bg-white\/\[0\.06\],
+.admin-shell .bg-black\/20,
+.admin-shell .bg-black\/30,
+.admin-shell .bg-cyber-900,
+.admin-shell .bg-cyber-900\/50,
+.admin-shell .bg-cyber-800,
+.admin-shell .bg-cyber-700 {
+  background-color: color-mix(in srgb, var(--admin-surface-strong) 86%, var(--admin-primary) 14%) !important;
+}
+
+.admin-shell .border-white\/5,
+.admin-shell .border-white\/10,
+.admin-shell .border-white\/\[0\.05\],
+.admin-shell .border-white\/\[0\.06\],
+.admin-shell .border-white\/\[0\.1\],
+.admin-shell .border-cyan-300\/10,
+.admin-shell .border-neon-cyan\/20,
+.admin-shell .border-neon-purple\/30 {
+  border-color: var(--admin-border) !important;
+}
+
+.admin-shell input,
+.admin-shell select,
+.admin-shell textarea,
+.admin-shell .admin-input {
+  min-height: 40px;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 10px !important;
+  background: color-mix(in srgb, var(--admin-surface) 88%, var(--admin-bg) 12%) !important;
+  color: var(--admin-text) !important;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.admin-shell textarea,
+.admin-shell textarea.admin-input {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.admin-shell input::placeholder,
+.admin-shell textarea::placeholder,
+.admin-shell .admin-input::placeholder {
+  color: var(--admin-muted) !important;
+}
+
+.admin-shell input:focus,
+.admin-shell select:focus,
+.admin-shell textarea:focus,
+.admin-shell .admin-input:focus {
+  border-color: color-mix(in srgb, var(--admin-primary) 72%, white 8%) !important;
+  box-shadow: 0 0 0 3px var(--admin-glow) !important;
+}
+
+.admin-button,
+.admin-button-primary,
+.admin-shell .neon-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border: 1px solid color-mix(in srgb, var(--admin-primary) 42%, transparent) !important;
+  border-radius: 12px !important;
+  background: var(--admin-button) !important;
+  color: var(--admin-button-text) !important;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 14px 26px var(--admin-glow);
+}
+
+.admin-button:hover,
+.admin-button-primary:hover,
+.admin-shell .neon-button:hover {
+  box-shadow: 0 18px 34px var(--admin-glow);
+  transform: translateY(-1px);
+}
+
+.admin-button-secondary,
+.admin-shell button[class*="border-white"],
+.admin-shell a[class*="border-white"] {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 12px !important;
+  background: var(--admin-surface) !important;
+  color: var(--admin-secondary-text) !important;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-button-secondary:hover,
+.admin-shell button[class*="border-white"]:hover,
+.admin-shell a[class*="border-white"]:hover {
+  border-color: color-mix(in srgb, var(--admin-primary) 62%, transparent) !important;
+  color: var(--admin-text) !important;
+  background: color-mix(in srgb, var(--admin-primary) 12%, var(--admin-surface)) !important;
+}
+
+.admin-icon-button {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  min-height: 34px !important;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 10px !important;
+  background: var(--admin-surface) !important;
+  color: var(--admin-secondary-text) !important;
+}
+
+.admin-icon-button:hover {
+  color: var(--admin-text) !important;
+  border-color: color-mix(in srgb, var(--admin-primary) 62%, transparent) !important;
+  background: color-mix(in srgb, var(--admin-primary) 12%, var(--admin-surface)) !important;
+}
+
+.admin-sidebar-toggle {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  min-height: 34px !important;
+  place-items: center;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: var(--admin-muted) !important;
+  box-shadow: none !important;
+}
+
+.admin-sidebar-toggle:hover {
+  background: color-mix(in srgb, var(--admin-primary) 10%, transparent) !important;
+  color: var(--admin-text) !important;
+}
+
+.premium-admin-sidebar {
+  background: var(--admin-sidebar) !important;
+}
+
+.premium-admin-sidebar nav a {
+  min-height: 40px;
+}
+
+.admin-shell table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+
+.admin-shell thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--admin-surface-strong) !important;
+}
+
+.admin-shell th {
+  padding: 8px 10px !important;
+  color: var(--admin-muted) !important;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.admin-shell td {
+  padding: 8px 10px !important;
+  color: var(--admin-secondary-text) !important;
+  font-size: 14px;
+}
+
+.admin-shell tbody tr {
+  transition: background .16s ease;
+}
+
+.admin-shell tbody tr:hover {
+  background: color-mix(in srgb, var(--admin-primary) 10%, transparent) !important;
+}
+
+.admin-shell .font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.admin-shell [role="dialog"],
+.admin-shell .modal,
+.admin-shell [class*="fixed"][class*="inset-0"] > .admin-card,
+.admin-shell [class*="fixed"][class*="inset-0"] > .glass-card {
+  max-width: min(620px, calc(100vw - 24px));
+}
+
+.admin-shell [class*="fixed"][class*="inset-0"] {
+  backdrop-filter: blur(10px);
+}
+
+html[data-admin-theme="light"] .admin-shell,
+html[data-admin-theme="system"] .admin-shell {
+  --admin-panel-shadow: 0 18px 42px rgba(64, 28, 106, 0.12);
+}
+
+@media (max-width: 1023px) {
+  .admin-shell main {
+    padding-left: 0 !important;
+  }
+
+  .premium-admin-sidebar {
+    width: min(88vw, 304px) !important;
+  }
+}
+
+/* CIFHER Admin final audit fixes: this block intentionally wins over legacy admin/public harmony passes. */
+.admin-shell {
+  --admin-panel-shadow: 0 18px 46px rgba(0, 0, 0, 0.24);
+  background:
+    radial-gradient(circle at 18% -10%, color-mix(in srgb, var(--admin-primary) 16%, transparent), transparent 30rem),
+    radial-gradient(circle at 90% 8%, color-mix(in srgb, var(--admin-info) 10%, transparent), transparent 24rem),
+    linear-gradient(145deg, var(--admin-bg), var(--admin-bg-soft) 48%, var(--admin-bg-deep)) !important;
+  color: var(--admin-text) !important;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+.admin-shell h1,
+.admin-shell .text-3xl,
+.admin-shell .text-4xl,
+.admin-shell .text-5xl {
+  font-size: 27px !important;
+  line-height: 1.1 !important;
+}
+
+.admin-shell h2,
+.admin-shell .text-2xl {
+  font-size: 21px !important;
+  line-height: 1.2 !important;
+}
+
+.admin-shell h3,
+.admin-shell .text-xl,
+.admin-shell .text-lg {
+  font-size: 15px !important;
+  line-height: 1.35 !important;
+}
+
+.admin-shell .admin-card,
+.admin-shell .admin-card-strong,
+.admin-shell .glass-card,
+.admin-shell .premium-card,
+.admin-shell section[class*="glass-card"],
+.admin-shell .rounded-3xl,
+.admin-shell .rounded-2xl {
+  border-radius: 8px !important;
+}
+
+.admin-shell .admin-card,
+.admin-shell .glass-card,
+.admin-shell .premium-card {
+  border-color: var(--admin-border) !important;
+  background: linear-gradient(180deg, var(--admin-surface-strong), var(--admin-surface)) !important;
+  color: var(--admin-text) !important;
+  box-shadow: var(--admin-panel-shadow) !important;
+}
+
+.admin-shell .admin-card .admin-card,
+.admin-shell .admin-card .glass-card,
+.admin-shell .glass-card .admin-card,
+.admin-shell .glass-card .glass-card {
+  box-shadow: none !important;
+}
+
+.admin-shell input,
+.admin-shell select,
+.admin-shell textarea,
+.admin-shell .admin-input {
+  min-height: 40px !important;
+  border-color: var(--admin-border) !important;
+  border-radius: 10px !important;
+  background: color-mix(in srgb, var(--admin-surface) 88%, var(--admin-bg) 12%) !important;
+  color: var(--admin-text) !important;
+  caret-color: var(--admin-primary) !important;
+}
+
+.admin-shell textarea,
+.admin-shell textarea.admin-input {
+  min-height: 120px !important;
+  resize: vertical;
+}
+
+.admin-shell input[type="checkbox"],
+.admin-shell input[type="radio"] {
+  min-height: 1.1rem !important;
+  width: 1.1rem !important;
+  min-width: 1.1rem !important;
+  height: 1.1rem !important;
+  accent-color: var(--admin-primary) !important;
+}
+
+.admin-shell input[type="file"] {
+  border-style: dashed !important;
+}
+
+.admin-shell input::file-selector-button {
+  margin-right: .75rem;
+  border: 0;
+  border-radius: 10px;
+  background: var(--admin-button);
+  padding: .55rem .8rem;
+  color: var(--admin-button-text);
+  font-weight: 700;
+}
+
+.admin-shell input::placeholder,
+.admin-shell textarea::placeholder,
+.admin-shell .admin-input::placeholder {
+  color: var(--admin-muted) !important;
+  opacity: .82 !important;
+}
+
+.admin-shell input:focus,
+.admin-shell select:focus,
+.admin-shell textarea:focus,
+.admin-shell .admin-input:focus {
+  border-color: color-mix(in srgb, var(--admin-primary) 72%, white 8%) !important;
+  box-shadow: 0 0 0 3px var(--admin-glow) !important;
+}
+
+.admin-button,
+.admin-button-primary,
+.admin-shell .neon-button {
+  min-height: 40px !important;
+  border-radius: 12px !important;
+  border-color: color-mix(in srgb, var(--admin-primary) 42%, transparent) !important;
+  background: var(--admin-button) !important;
+  color: var(--admin-button-text) !important;
+  box-shadow: 0 14px 26px var(--admin-glow) !important;
+}
+
+.admin-button-secondary,
+.admin-shell button[class*="border-white"],
+.admin-shell a[class*="border-white"] {
+  min-height: 40px !important;
+  border-radius: 12px !important;
+  border-color: var(--admin-border) !important;
+  background: var(--admin-surface) !important;
+  color: var(--admin-secondary-text) !important;
+}
+
+.admin-shell button[class*="text-red"],
+.admin-shell button[class*="text-rose"],
+.admin-shell .premium-button-danger {
+  border-color: color-mix(in srgb, var(--admin-danger) 44%, transparent) !important;
+  background: color-mix(in srgb, var(--admin-danger) 16%, var(--admin-surface)) !important;
+  color: var(--admin-danger) !important;
+  box-shadow: none !important;
+}
+
+.admin-icon-button,
+.admin-sidebar-toggle {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+}
+
+.admin-shell .premium-admin-sidebar {
+  width: 292px;
+  background: var(--admin-sidebar) !important;
+}
+
+.admin-shell .premium-admin-sidebar[data-collapsed="true"] {
+  width: 88px;
+}
+
+.admin-shell .premium-admin-sidebar nav {
+  scrollbar-width: none;
+}
+
+.admin-shell .premium-admin-sidebar nav::-webkit-scrollbar,
+.admin-shell .overflow-x-auto::-webkit-scrollbar,
+.admin-shell .cifher-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.admin-shell table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: 14px !important;
+}
+
+.admin-shell thead,
+.admin-shell th {
+  background: var(--admin-surface-strong) !important;
+}
+
+.admin-shell th,
+.admin-shell td {
+  padding: 8px 10px !important;
+}
+
+.admin-shell th {
+  color: var(--admin-muted) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+}
+
+.admin-shell td {
+  color: var(--admin-secondary-text) !important;
+}
+
+html[data-admin-theme="light"] .admin-shell {
+  --admin-panel-shadow: 0 18px 42px rgba(64, 28, 106, 0.12);
+}
+
+@media (max-width: 1023px) {
+  .admin-shell .premium-admin-sidebar,
+  .admin-shell .premium-admin-sidebar[data-collapsed="true"] {
+    width: min(88vw, 304px) !important;
+  }
+}

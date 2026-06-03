@@ -7,6 +7,8 @@
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.js",
     "start": "node dist/server.js",
+    "start:prod": "NODE_ENV=production node dist/server.js",
+    "prod:check": "node scripts/prod-check.mjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "backup:persistent-state": "node scripts/backup-persistent-state.mjs",
@@ -25,6 +27,7 @@
     "test:rls": "node scripts/test-rls-policies.mjs",
     "test:auth-supabase": "node scripts/test-supabase-auth-multitenant.mjs",
     "seed:auth-supabase": "node scripts/seed-supabase-auth.mjs",
+    "seed:superadmin": "node scripts/seed-superadmin.mjs",
     "test:frontend-auth": "node scripts/test-frontend-auth-saas.mjs",
     "test:gateway-credentials-security": "node scripts/test-gateway-credentials-security.mjs",
     "test:all-hard": "node scripts/test-hard-suite.mjs all-hard",
@@ -54,6 +57,7 @@
     "test:fazendinha-audit-hard": "node scripts/test-fazendinha-audit-hard.mjs",
     "test:fazendinha-media-settings-hard": "node scripts/test-fazendinha-media-settings-hard.mjs",
     "test:fazendinha-premium-experience": "node scripts/test-fazendinha-premium-experience.mjs",
+    "test:fazendinha-config-tenant-isolation": "node scripts/test-fazendinha-config-tenant-isolation.mjs",
     "test:home-premium-spacing-hard": "node scripts/test-home-premium-spacing-hard.mjs",
     "test:premium-final-review": "node scripts/test-premium-final-review.mjs",
     "test:premium-global-audit-hard": "node scripts/test-premium-global-audit-hard.mjs",
@@ -118,6 +122,11 @@
     "test:main-prize-mobile-media-hard": "node scripts/test-main-prize-mobile-media-hard.mjs",
     "test:payment-gateways-hard": "node scripts/test-payment-gateways-hard.mjs",
     "test:production-readiness": "node scripts/test-hard-suite.mjs production-readiness",
+    "test:all-modalidades-active-hard": "node scripts/test-all-modalidades-active-hard.mjs",
+    "test:modalidades-no-client-paid": "node scripts/test-modalidades-no-client-paid.mjs",
+    "test:fazendinha-no-client-paid": "node scripts/test-fazendinha-no-client-paid.mjs",
+    "test:no-public-superadmin-signup": "node scripts/test-no-public-superadmin-signup.mjs",
+    "test:persistence-dirty-save": "node scripts/test-persistence-dirty-save.mjs",
     "test:superadmin-finance": "node scripts/test-superadmin-finance.mjs",
     "test:tenant-domains": "node scripts/test-tenant-domains.mjs",
     "test:impersonation-audit": "node scripts/test-impersonation-audit.mjs",
@@ -139,6 +148,7 @@
     ,"test:asaas-pix-hard": "node scripts/test-asaas-pix-hard.mjs"
     ,"test:asaas-multitenant-isolation-hard": "node scripts/test-asaas-multitenant-isolation-hard.mjs"
     ,"test:asaas-production-readiness-hard": "node scripts/test-asaas-production-readiness-hard.mjs"
+    ,"test:asaas-webhook-tenant-resolution": "node scripts/test-asaas-webhook-tenant-resolution.mjs"
     ,"test:tenant-branding": "node scripts/test-tenant-branding.mjs"
     ,"test:branding-assets": "node scripts/test-branding-assets.mjs"
     ,"test:audit-ledger": "node scripts/test-compliance-audit-modules.mjs audit-ledger"
@@ -154,6 +164,8 @@
     ,"test:public-conversion": "node scripts/test-public-conversion-widgets.mjs"
     ,"test:public-checkout-no-close-x": "node scripts/test-public-checkout-no-close-x.mjs"
     ,"test:public-debug-routes": "node scripts/test-public-debug-routes.mjs"
+    ,"test:no-public-debug-production": "node scripts/test-no-public-debug-production.mjs"
+    ,"test:coupon-consume-after-pix": "node scripts/test-coupon-consume-after-pix.mjs"
     ,"test:public-api-keys": "node scripts/test-public-api-keys.mjs"
     ,"test:pwa-secure": "node scripts/test-pwa-secure.mjs"
     ,"test:theme-builder": "node scripts/test-theme-builder-marketplace.mjs"

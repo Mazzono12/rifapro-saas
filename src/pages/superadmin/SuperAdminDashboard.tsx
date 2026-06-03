@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Activity, AlertTriangle, Building2, CreditCard, DollarSign, Download, Eye, LifeBuoy, Palette, Pencil, Plus, RefreshCw, ShieldAlert, SlidersHorizontal, Ticket, Trophy, X } from "lucide-react";
+import { Activity, AlertTriangle, Building2, CreditCard, DollarSign, Download, Eye, LifeBuoy, LogIn, Palette, Pencil, Plus, RefreshCw, ShieldAlert, SlidersHorizontal, Ticket, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminDataTable, AdminLoadingSkeleton, MetricCard, ChartCard } from "../../components/admin/AdminPremium";
 
@@ -105,6 +105,7 @@ export function SuperAdminDashboard() {
   const [saving, setSaving] = useState(false);
   const [impersonatingTenant, setImpersonatingTenant] = useState<Tenant | null>(null);
   const [supportReason, setSupportReason] = useState("");
+  const [accessingTenantId, setAccessingTenantId] = useState("");
 
   async function loadData() {
     setLoading(true);
@@ -195,6 +196,25 @@ export function SuperAdminDashboard() {
     window.location.href = body.redirectUrl;
   }
 
+  async function enterTenantEnvironment(tenant: Tenant) {
+    setAccessingTenantId(tenant.id);
+    try {
+      const response = await fetch(`/api/superadmin/tenants/${tenant.id}/impersonate/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: `Entrada no ambiente do inquilino ${tenant.nome} via Superadmin` })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toast.error(body.error || "Nao foi possivel entrar no ambiente do inquilino.");
+        return;
+      }
+      window.location.href = body.redirectUrl;
+    } finally {
+      setAccessingTenantId("");
+    }
+  }
+
   const recentSales = useMemo(() => sales.slice(0, 12), [sales]);
   const chartMax = (items: ChartPoint[] = []) => Math.max(1, ...items.map(item => item.amount || 0));
 
@@ -229,6 +249,50 @@ export function SuperAdminDashboard() {
         <Link className="admin-button-secondary" to="/superadmin/dominios">Gerenciar domínios</Link>
         <Link className="admin-button-secondary" to="/superadmin/auditoria">Auditoria segura</Link>
       </div>
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Ambientes dos inquilinos</h2>
+            <p className="text-sm text-[var(--admin-muted)]">Entre no painel operacional de cada tenant com sessao auditada e isolamento por inquilino.</p>
+          </div>
+          <button type="button" onClick={() => void loadData()} className="admin-button-secondary" title="Atualizar ambientes">
+            <RefreshCw className="h-4 w-4" />
+            Atualizar
+          </button>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {tenants.map(tenant => (
+            <div key={tenant.id} className="admin-card flex min-h-[172px] flex-col justify-between p-4">
+              <div className="flex items-start gap-3">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] text-sm font-black text-white" style={{ backgroundColor: tenant.cor_primaria || "#06b6d4" }}>
+                  {tenant.nome.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-semibold text-[var(--admin-text)]">{tenant.nome}</h3>
+                  <p className="truncate text-xs text-[var(--admin-muted)]">{tenant.slug} · {tenant.id}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {statusBadge(tenant.status)}
+                    <span className="inline-flex rounded-md bg-white/10 px-2 py-1 text-xs font-semibold text-[var(--admin-muted)]">{tenant.plano}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-[var(--admin-muted)]">
+                <span><strong className="block text-sm text-[var(--admin-text)]">{tenant.raffleCount}</strong>Rifas</span>
+                <span><strong className="block text-sm text-[var(--admin-text)]">{tenant.purchaseCount}</strong>Vendas</span>
+                <span><strong className="block text-sm text-[var(--admin-text)]">{money(tenant.paidRevenue)}</strong>Receita</span>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button type="button" className="admin-button-primary flex-1 justify-center" disabled={accessingTenantId === tenant.id} onClick={() => void enterTenantEnvironment(tenant)}>
+                  <LogIn className="h-4 w-4" />
+                  {accessingTenantId === tenant.id ? "Entrando..." : "Entrar no ambiente"}
+                </button>
+                <Link className="admin-icon-button" title="Financeiro do inquilino" to={`/superadmin/tenants/${tenant.id}/financeiro`}><Eye className="h-4 w-4" /></Link>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="grid gap-5 xl:grid-cols-3">
         {[
@@ -302,6 +366,7 @@ export function SuperAdminDashboard() {
               <Link className="admin-icon-button" title="Ver financeiro" to={`/superadmin/tenants/${tenant.id}/financeiro`}><Eye className="h-4 w-4" /></Link>
               <Link className="admin-icon-button" title="Aparência" to={`/superadmin/tenants/${tenant.id}/aparencia`}><Palette className="h-4 w-4" /></Link>
               <Link className="admin-icon-button" title="Plano e Recursos" to={`/superadmin/tenants/${tenant.id}/plano`}><SlidersHorizontal className="h-4 w-4" /></Link>
+              <button type="button" className="admin-icon-button" title="Entrar no ambiente" disabled={accessingTenantId === tenant.id} onClick={() => void enterTenantEnvironment(tenant)}><LogIn className="h-4 w-4" /></button>
               <button type="button" className="admin-icon-button" title="Acessar como suporte" onClick={() => { setImpersonatingTenant(tenant); setSupportReason(""); }}><LifeBuoy className="h-4 w-4" /></button>
               <button type="button" className="admin-icon-button" title="Editar tenant" onClick={() => setForm({ ...tenant })}><Pencil className="h-4 w-4" /></button>
               <button type="button" className="admin-button-secondary" onClick={() => void toggleSuspension(tenant)}>

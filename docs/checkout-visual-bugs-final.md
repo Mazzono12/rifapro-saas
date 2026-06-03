@@ -1,6 +1,6 @@
 # Auditoria visual final dos checkouts
 
-Executado em build de producao local: `https://rifapro-saas-production.up.railway.app`.
+Executado em build de producao local: `http://127.0.0.1:4191`.
 Screenshots: `reports/screenshots/checkout-final/`.
 
 ## Causa real encontrada

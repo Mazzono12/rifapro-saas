@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+coverage
+reports
+screenshots
+.vite
+.cache
+.env
+*.log
+*.map
+package-lock.json

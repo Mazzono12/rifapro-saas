@@ -35,7 +35,8 @@ for (const snippet of [
 for (const snippet of [
   "value: Number(input.amount.toFixed(2))",
   "dueDate",
-  "externalReference: orderId",
+  "buildAsaasExternalReference(input.tenantId, orderId)",
+  "externalReference: asaasExternalReference",
   "pixQrCodeBase64: qrCode.encodedImage || \"\"",
   "pix_copy_paste: pixPayload",
   "expiration_date: pixExpiresAt",

@@ -806,7 +806,7 @@ function CheckoutModal(props: {
           eyebrow={props.step === "review" ? "Confirmar participacao" : props.step === "payment" ? "Pagamento PIX" : "Bilhete premium"}
           onClose={props.onClose}
           compact={props.step !== "review"}
-          shellClassName="checkout-modal-shell"
+          shellClassName="checkout-screen checkout-modal-shell"
         >
               <div className="px-4 pt-4 sm:px-5 sm:pt-5">
                 <CheckoutCampaignMedia

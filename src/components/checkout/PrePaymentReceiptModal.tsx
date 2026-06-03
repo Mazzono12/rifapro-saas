@@ -116,6 +116,7 @@ export function PrePaymentReceiptModal({
       onClose={onClose}
       compact={!hasCheckoutMedia}
       mediaAware={hasCheckoutMedia ? "with-media" : "compact-no-media"}
+      shellClassName="checkout-receipt-shell"
       contentClassName={cn("checkout-receipt-body space-y-4 p-3 sm:p-5", !hasCheckoutMedia && "pt-3 sm:pt-4")}
     >
       <div className="max-h-[100dvh] space-y-4 overflow-y-auto" data-media-aware={hasCheckoutMedia ? "with-media" : "compact-no-media"}>
@@ -194,7 +195,7 @@ export function CheckoutReceiptSummary({
     <CheckoutCard>
       <div className="mb-3 flex min-w-0 items-center gap-2">
         <CreditCard className="h-4 w-4 text-emerald-300" />
-        <h3 className="font-black">Resumo da Compra</h3>
+        <h3 className="checkout-title font-black">Resumo da Compra</h3>
       </div>
       <SummaryRow label="Campanha" value={campaign || "Campanha"} />
       <SummaryRow label="Sorteio" value={raffle || campaign || "Sorteio"} />

@@ -64,6 +64,47 @@ const __dirname = path.dirname(__filename);
 loadEnv({ path: path.resolve(process.cwd(), ".env.local") });
 loadEnv();
 
+const APP_VERSION = process.env.APP_VERSION || process.env.npm_package_version || "0.0.0";
+const SINGLE_PROCESS_SAFE = true;
+const MULTI_INSTANCE_SAFE = false;
+const SECRET_VALUE_PATTERN = /(api[_-]?key|secret|token|password|service[_-]?role|database[_-]?url|jwt|authorization)/i;
+
+function maskSecretText(input: string) {
+  const envSecrets = [
+    process.env.DATABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    process.env.ASAAS_API_KEY,
+    process.env.ASAAS_WEBHOOK_TOKEN,
+    process.env.JWT_SECRET,
+    process.env.SESSION_SECRET,
+    process.env.GATEWAY_CREDENTIALS_ENCRYPTION_KEY
+  ].filter((value): value is string => Boolean(value && value.length >= 8));
+
+  return envSecrets.reduce((text, secret) => text.split(secret).join("[masked]"), input)
+    .replace(/(service_role_key|api[_-]?key|secret|token|password|authorization|database_url|jwt_secret|session_secret)\s*[:=]\s*["']?[^"',\s}]+/gi, "$1=[masked]");
+}
+
+function maskLogValue(value: unknown): unknown {
+  if (typeof value === "string") return maskSecretText(value);
+  if (!value || typeof value !== "object") return value;
+  if (value instanceof Error) {
+    value.message = maskSecretText(value.message);
+    if (value.stack) value.stack = maskSecretText(value.stack);
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(maskLogValue);
+  const safe: Record<string, unknown> = {};
+  Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
+    safe[key] = SECRET_VALUE_PATTERN.test(key) ? "[masked]" : maskLogValue(item);
+  });
+  return safe;
+}
+
+(["log", "info", "warn", "error"] as const).forEach(level => {
+  const original = console[level].bind(console);
+  console[level] = (...args: unknown[]) => original(...args.map(maskLogValue));
+});
+
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
@@ -82,8 +123,83 @@ async function startServer() {
     if ("checkoutMediaUrl" in next) next.checkoutMediaType = normalizeMediaTypeForUrl(next.checkoutMediaUrl, next.checkoutMediaType) || next.checkoutMediaType;
     return next as T;
   }
-  const isProductionRuntime = process.env.NODE_ENV === "production" && !process.env.RIFAPRO_TEST_MODE;
+  const isNodeProduction = process.env.NODE_ENV === "production";
+  const isProductionRuntime = isNodeProduction && !process.env.RIFAPRO_TEST_MODE;
   const testEndpointsEnabled = process.env.ENABLE_TEST_ENDPOINTS === "true" || !isProductionRuntime;
+  const publicDebugEnabled = process.env.ENABLE_PUBLIC_DEBUG === "true";
+  const productionRequiredEnv = [
+    "NODE_ENV",
+    "PORT",
+    "DATABASE_URL",
+    "STORAGE_DRIVER",
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "ASAAS_API_KEY",
+    "ASAAS_WEBHOOK_TOKEN",
+    "PUBLIC_BASE_URL",
+    "ADMIN_BASE_URL",
+    "JWT_SECRET",
+    "SESSION_SECRET"
+  ];
+  const configuredStorageDriver = String(process.env.STORAGE_DRIVER || "").toLowerCase();
+  const validStorageDriver = configuredStorageDriver === "postgres" || configuredStorageDriver === "persistent";
+  const strongSecret = (value: unknown) => typeof value === "string" && value.length >= 32 && !/(troque|change|example|secret|senha|password|default)/i.test(value);
+  const productionValidationErrors = isProductionRuntime
+    ? [
+        ...productionRequiredEnv.filter(key => !String(process.env[key] || "").trim()).map(key => `${key} obrigatoria`),
+        process.env.NODE_ENV !== "production" ? "NODE_ENV deve ser production" : "",
+        !validStorageDriver ? "STORAGE_DRIVER deve ser postgres ou persistent" : "",
+        publicDebugEnabled ? "ENABLE_PUBLIC_DEBUG deve ser false em producao" : "",
+        !strongSecret(process.env.JWT_SECRET) ? "JWT_SECRET deve ser forte (32+ caracteres, sem placeholder)" : "",
+        !strongSecret(process.env.SESSION_SECRET) ? "SESSION_SECRET deve ser forte (32+ caracteres, sem placeholder)" : ""
+      ].filter(Boolean)
+    : [];
+
+  if (productionValidationErrors.length) {
+    console.error("Ambiente de producao invalido:", productionValidationErrors);
+    process.exit(1);
+  }
+  if (isNodeProduction && !MULTI_INSTANCE_SAFE) {
+    console.warn("multiInstanceSafe=false: deploy permitido apenas com 1 processo backend. Nao use cluster, PM2 cluster mode ou multiplas instancias.");
+  }
+
+  const allowedCorsOrigins = new Set(
+    [
+      process.env.PUBLIC_BASE_URL,
+      process.env.ADMIN_BASE_URL,
+      ...(process.env.CORS_ORIGINS || "").split(",")
+    ]
+      .map(value => String(value || "").trim())
+      .filter(Boolean)
+      .map(value => {
+        try {
+          return new URL(value).origin;
+        } catch {
+          return value.replace(/\/+$/, "");
+        }
+      })
+  );
+
+  app.use((req, res, next) => {
+    const origin = String(req.headers.origin || "");
+    if (origin) {
+      const originAllowed = !isProductionRuntime || allowedCorsOrigins.has(origin);
+      if (originAllowed) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+        res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-Id, X-Support-Session-Id, X-Webhook-Secret");
+        res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+      } else if (req.method === "OPTIONS") {
+        res.status(403).json({ error: "Origem nao permitida" });
+        return;
+      }
+    }
+    if (req.method === "OPTIONS") {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
 
   app.use(express.json({
     verify: (req, _res, buf) => {
@@ -143,9 +259,19 @@ async function startServer() {
   const supabaseAdmin: SupabaseClient | null = supabaseUrl && supabaseServiceKey
     ? createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false, autoRefreshToken: false } })
     : null;
+  const persistenceMode = String(process.env.STORAGE_DRIVER || (supabaseAdmin ? "postgres" : "memory")).toLowerCase();
+  const persistentStorageDrivers = new Set(["postgres", "persistent"]);
+  const memoryStateRisk = !persistentStorageDrivers.has(persistenceMode);
+  const productionSafe = !memoryStateRisk || !isNodeProduction || Boolean(process.env.RIFAPRO_TEST_MODE);
   let persistentStateReady = false;
   let persistentStateTimer: ReturnType<typeof setTimeout> | null = null;
   let persistentStateSaving = false;
+  let persistentStateDirty = false;
+  let persistentStateDirtyReason = "";
+  if (isNodeProduction && memoryStateRisk && !process.env.RIFAPRO_TEST_MODE) {
+    console.error(`STORAGE_DRIVER=${persistenceMode} nao e seguro para producao. Use STORAGE_DRIVER=postgres ou STORAGE_DRIVER=persistent antes do deploy.`);
+    process.exit(1);
+  }
   if (!process.env.JWT_SECRET) {
     console.warn("JWT_SECRET nao configurado; sessoes serao invalidas apos reiniciar o servidor.");
   }
@@ -783,7 +909,7 @@ async function startServer() {
     action: string;
     ip: string;
     status: "INFO" | "WARN" | "BLOCKED";
-    severity: "low" | "medium" | "high";
+    severity: "low" | "medium" | "high" | "critical";
     actor?: string;
     detail?: string;
     date: string;
@@ -1484,6 +1610,9 @@ async function startServer() {
     numeros: string[];
     valorPago: number;
     statusPagamento: "reserved" | "paid" | "cancelled";
+    paymentStatus?: "pending" | "paid" | "cancelled";
+    paidAt?: string | null;
+    confirmedAt?: string | null;
     dataCompra: string;
     reservedUntil?: string;
     pixExpiresAt?: string;
@@ -1541,6 +1670,9 @@ async function startServer() {
     numbers: string[];
     amount: number;
     status: "reserved" | "paid" | "cancelled";
+    paymentStatus?: "pending" | "paid" | "cancelled";
+    paidAt?: string | null;
+    confirmedAt?: string | null;
     createdAt: string;
     reservedUntil?: string;
     pixExpiresAt?: string;
@@ -1928,7 +2060,7 @@ async function startServer() {
     ["vaca", "Vaca", ["97", "98", "99", "00"]],
   ] as const;
 
-  let fazendinhaConfig = {
+  const defaultFazendinhaConfig = {
     tenant_id: legacyTenantId,
     enabled: true,
     name: "A Fazendinha",
@@ -1944,6 +2076,11 @@ async function startServer() {
     mediaUrl: TEST_VIDEO_URL,
     mediaType: TEST_VIDEO_MEDIA_TYPE as "image" | "video" | "youtube" | "vimeo" | "bunny",
     addonSuggestionTickets: 5
+  };
+  type FazendinhaConfig = typeof defaultFazendinhaConfig;
+  let fazendinhaConfig: FazendinhaConfig = deepClone(defaultFazendinhaConfig);
+  let fazendinhaConfigs: Record<string, FazendinhaConfig> = {
+    [legacyTenantId]: fazendinhaConfig
   };
   type FazendinhaHomeMediaSettings = {
     tenant_id: string;
@@ -2028,6 +2165,7 @@ async function startServer() {
     };
   }
   function defaultFazendinhaPremiumExperience(tenantId: string): FazendinhaPremiumExperienceSettings {
+    const config = getFazendinhaConfig(tenantId);
     return {
       premiumInfoEnabled: true,
       premiumTitle: "Escolha seus bichinhos da sorte",
@@ -2036,15 +2174,15 @@ async function startServer() {
       caixinhaHighlightEnabled: true,
       caixinhaTitle: "Caixinha Premiada",
       caixinhaDescription: "Compras confirmadas podem liberar uma caixinha com prêmio surpresa.",
-      caixinhaPrizeValue: String(fazendinhaConfig.lootboxConfig?.prizeName || "Prêmio instantâneo"),
+      caixinhaPrizeValue: String(config.lootboxConfig?.prizeName || "Prêmio instantâneo"),
       caixinhaIcon: "🎁",
       extractionEnabled: true,
       extractionTime: "",
       extractionText: "Próxima extração",
       prizeLabel: "Prêmio",
-      prizeValue: String(fazendinhaConfig.mainPrize || "Prêmio principal"),
+      prizeValue: String(config.mainPrize || "Prêmio principal"),
       ticketPriceLabel: "Cada bichinho por apenas",
-      ticketPriceValue: String(fazendinhaConfig.pricePerGroup || ""),
+      ticketPriceValue: String(config.pricePerGroup || ""),
       ctaLabel: "Participar da Fazendinha",
       ctaSubtitle: "Escolha seus bichinhos e revise a compra antes do PIX."
     };
@@ -2139,7 +2277,7 @@ async function startServer() {
     nomeBicho,
     numeros: [...numeros],
     status: "available",
-    preco: fazendinhaConfig.pricePerGroup,
+    preco: getFazendinhaConfig(legacyTenantId).pricePerGroup,
     imagemUrl: ""
   }));
   let fazendinhaCompras: FazendinhaPurchase[] = [];
@@ -2239,7 +2377,54 @@ async function startServer() {
       .filter((config): config is NumberModeConfig => Boolean(config));
   }
 
+  function cloneFazendinhaConfigForTenant(config: Partial<FazendinhaConfig>, tenantId: string): FazendinhaConfig {
+    return {
+      ...deepClone(defaultFazendinhaConfig),
+      ...deepClone(config),
+      tenant_id: tenantId,
+      lootboxConfig: createFazendinhaLootboxConfig(config.lootboxConfig)
+    };
+  }
+
+  function getFazendinhaConfig(tenantId: string) {
+    if (!fazendinhaConfigs[tenantId]) {
+      const source = tenantId === legacyTenantId
+        ? (fazendinhaConfigs[legacyTenantId] || fazendinhaConfig || defaultFazendinhaConfig)
+        : defaultFazendinhaConfig;
+      fazendinhaConfigs[tenantId] = cloneFazendinhaConfigForTenant(source, tenantId);
+    }
+    if (tenantId === legacyTenantId) fazendinhaConfig = fazendinhaConfigs[tenantId];
+    return fazendinhaConfigs[tenantId];
+  }
+
+  function updateFazendinhaConfig(tenantId: string, input: Partial<FazendinhaConfig>) {
+    const current = getFazendinhaConfig(tenantId);
+    const next = cloneFazendinhaConfigForTenant({
+      ...current,
+      ...normalizeMediaPayload(input),
+      lootboxConfig: createFazendinhaLootboxConfig(input.lootboxConfig || current.lootboxConfig)
+    }, tenantId);
+    fazendinhaConfigs[tenantId] = next;
+    if (tenantId === legacyTenantId) fazendinhaConfig = next;
+    return next;
+  }
+
+  function replaceFazendinhaConfigs(value: unknown) {
+    const incoming = value && typeof value === "object" ? value as Record<string, Partial<FazendinhaConfig>> : {};
+    Object.keys(fazendinhaConfigs).forEach(key => delete fazendinhaConfigs[key]);
+    Object.entries(incoming).forEach(([tenantId, config]) => {
+      if (tenantId) fazendinhaConfigs[tenantId] = cloneFazendinhaConfigForTenant(config || {}, tenantId);
+    });
+    fazendinhaConfigs[legacyTenantId] ||= cloneFazendinhaConfigForTenant(fazendinhaConfig || defaultFazendinhaConfig, legacyTenantId);
+    fazendinhaConfig = fazendinhaConfigs[legacyTenantId];
+  }
+
+  function ensureFazendinhaConfigsForKnownTenants() {
+    tenants.forEach(tenant => getFazendinhaConfig(tenant.id));
+  }
+
   function ensureFazendinhaStateForTenant(tenantId: string) {
+    const config = getFazendinhaConfig(tenantId);
     const hasGroups = fazendinhaGroups.some(group => group.tenant_id === tenantId);
     if (!hasGroups) {
       fazendinhaGroups.push(...fazendinhaSeed.map(([id, nomeBicho, numeros]) => ({
@@ -2248,7 +2433,7 @@ async function startServer() {
         nomeBicho,
         numeros: [...numeros],
         status: "available" as FazendinhaStatus,
-        preco: fazendinhaConfig.pricePerGroup,
+        preco: config.pricePerGroup,
         imagemUrl: ""
       })));
     }
@@ -2379,6 +2564,28 @@ async function startServer() {
          return;
      }
      next();
+  }
+
+  const criticalRequestCounts = new Map<string, { count: number; resetAt: number }>();
+  function criticalRateLimiter(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const ip = String(req.ip || req.socket.remoteAddress || "unknown");
+    const key = `${ip}:${req.path}`;
+    const now = Date.now();
+    const windowMs = 60 * 1000;
+    const maxRequests = 30;
+    let record = criticalRequestCounts.get(key);
+    if (!record || record.resetAt <= now) {
+      record = { count: 1, resetAt: now + windowMs };
+      criticalRequestCounts.set(key, record);
+    } else {
+      record.count++;
+    }
+    if (record.count > maxRequests) {
+      recordSecurityEvent({ tenant_id: "unknown", action: "CRITICAL_RATE_LIMIT_BLOCKED", ip, status: "BLOCKED", severity: "high", detail: `${req.method} ${req.path}` });
+      res.status(429).json({ error: "Muitas tentativas. Aguarde alguns segundos." });
+      return;
+    }
+    next();
   }
 
   const apiRequestCounts = new Map<string, { count: number; resetAt: number }>();
@@ -3016,15 +3223,31 @@ async function startServer() {
   }
 
   function registerPublicDebugRoutes() {
+    const publicDebugNotFound = { error: "Endpoint nao encontrado" };
+    const canAccessPublicDebug = (req: express.Request) => {
+      if (!isNodeProduction || publicDebugEnabled) return true;
+      const session = getAuthSession(req);
+      const role = normalizeAuthRole(session?.role);
+      return role === "admin" || role === "superadmin";
+    };
+
     app.get("/api/public/health", (_req, res) => {
-      res.json({ ok: true });
+      res.json({ ok: true, version: APP_VERSION });
     });
 
     app.get("/api/public/tenant-debug", async (req, res) => {
+      if (!canAccessPublicDebug(req)) {
+        res.status(404).json(publicDebugNotFound);
+        return;
+      }
       res.json(await buildPublicTenantDebug(req));
     });
 
     app.get("/api/public/raffles-debug", async (req, res) => {
+      if (!canAccessPublicDebug(req)) {
+        res.status(404).json(publicDebugNotFound);
+        return;
+      }
       const debug = await buildPublicRafflesDebug(req);
       if (isProductionRuntime && debug.reasonIfEmpty) {
         console.warn(`[public-raffles] tenant=${debug.tenantSlug || "none"} reason=${debug.reasonIfEmpty}`);
@@ -3060,6 +3283,45 @@ async function startServer() {
     ).slice(0, 2).toUpperCase();
     res.setHeader("Cache-Control", "private, max-age=3600");
     res.json({ city, state, source: city ? "edge_headers" : "none" });
+  });
+
+  function buildSystemStatusPayload() {
+    const storageDriver = persistenceMode;
+    const databaseConnected = Boolean(supabaseAdmin && persistentStorageDrivers.has(storageDriver));
+    const productionReady = productionValidationErrors.length === 0 &&
+      (!isNodeProduction || (
+        validStorageDriver &&
+        !publicDebugEnabled &&
+        databaseConnected &&
+        strongSecret(process.env.JWT_SECRET) &&
+        strongSecret(process.env.SESSION_SECRET)
+      ));
+    return {
+      ok: true,
+      version: APP_VERSION,
+      uptime: process.uptime(),
+      storageDriver,
+      singleProcessSafe: true,
+      multiInstanceSafe: false,
+      databaseConnected,
+      publicDebugEnabled,
+      productionReady,
+      memoryStateRisk,
+      persistenceMode,
+      productionSafe,
+      warnings: [
+        ...(memoryStateRisk ? ["Estado critico em memoria: use STORAGE_DRIVER=postgres ou persistent antes de producao real."] : []),
+        ...(!MULTI_INSTANCE_SAFE ? ["multiInstanceSafe=false: manter exatamente 1 processo backend."] : [])
+      ]
+    };
+  }
+
+  app.get("/api/health", (_req, res) => {
+    res.json(buildSystemStatusPayload());
+  });
+
+  app.get("/api/system/status", (_req, res) => {
+    res.json(buildSystemStatusPayload());
   });
 
   app.get("/api/public/branding", async (req, res) => {
@@ -3574,6 +3836,19 @@ async function startServer() {
       const email = String(req.body.email || "").trim().toLowerCase();
       const password = String(req.body.password || req.body.senha || "");
       const requestedRole = normalizeAuthRole(req.body.role || "admin");
+      if (isNodeProduction && requestedRole === "superadmin") {
+        recordSecurityEvent({
+          tenant_id: "platform",
+          action: "PUBLIC_SUPERADMIN_SIGNUP_BLOCKED",
+          ip: String(req.ip || req.socket.remoteAddress || ""),
+          status: "BLOCKED",
+          severity: "critical",
+          actor: email,
+          detail: "role=superadmin"
+        });
+        res.status(403).json({ error: "Cadastro publico de superadmin bloqueado em producao" });
+        return;
+      }
       const canUsePrivilegedSignupFields = !isProductionRuntime || process.env.ALLOW_PUBLIC_PRIVILEGED_SIGNUP === "true";
       const role = canUsePrivilegedSignupFields ? requestedRole : requestedRole === "superadmin" ? "superadmin" : "admin";
       const requestedTenantId = req.body.tenant_id ? String(req.body.tenant_id) : undefined;
@@ -3603,6 +3878,36 @@ async function startServer() {
           detail: requestedTenantId
         });
         res.status(403).json({ error: "Tenant do cadastro deve ser definido pelo dominio da requisicao" });
+        return;
+      }
+
+      if (!supabaseAdmin) {
+        if (authUsers.some(item => item.email === email)) {
+          res.status(409).json({ error: "Usuario ja cadastrado" });
+          return;
+        }
+        const user: AuthUserRecord = {
+          id: createPublicId("USR_"),
+          nome,
+          email,
+          senha_hash: await bcrypt.hash(password, 12),
+          role: role === "tenant_admin" ? "admin" : role,
+          tenant_id: tenantId,
+          ativo: true,
+          criado_em: new Date().toISOString()
+        };
+        authUsers.push(user);
+        res.status(201).json({
+          usuario: {
+            id: user.id,
+            tenant_id: user.tenant_id,
+            nome: user.nome,
+            email: user.email,
+            role: normalizeAuthRole(user.role),
+            ativo: user.ativo,
+            created_at: user.criado_em
+          }
+        });
         return;
       }
 
@@ -6268,10 +6573,70 @@ async function startServer() {
     return payment;
   }
 
+  function buildAsaasExternalReference(tenantId: string, orderId: string) {
+    return `tenant:${encodeURIComponent(tenantId)}:order:${encodeURIComponent(orderId)}`;
+  }
+
+  function parseAsaasExternalReference(reference: unknown) {
+    const value = String(reference || "").trim();
+    const match = /^tenant:([^:]+):order:(.+)$/i.exec(value);
+    if (!match) return { tenantId: "", orderId: value, signed: false };
+    try {
+      return {
+        tenantId: decodeURIComponent(match[1]),
+        orderId: decodeURIComponent(match[2]),
+        signed: true
+      };
+    } catch {
+      return { tenantId: "", orderId: "", signed: false };
+    }
+  }
+
+  function resolveAsaasWebhookPayment(input: { externalReference?: unknown; paymentId?: unknown }) {
+    const parsedReference = parseAsaasExternalReference(input.externalReference);
+    const signedReference = String(input.externalReference || "").trim();
+    const paymentId = String(input.paymentId || "").trim();
+    const paymentByProvider = paymentId
+      ? payments.find(item =>
+          item.provider === "asaas" &&
+          (item.provider_payment_id === paymentId || item.asaas_payment_id === paymentId)
+        )
+      : undefined;
+    const paymentBySignedReference = parsedReference.signed && parsedReference.tenantId && parsedReference.orderId
+      ? payments.find(item =>
+          item.tenant_id === parsedReference.tenantId &&
+          item.provider === "asaas" &&
+          (item.provider_reference === signedReference || item.order_id === parsedReference.orderId)
+        )
+      : undefined;
+    const paymentByLegacyOrder = !parsedReference.signed && parsedReference.orderId
+      ? payments.find(item => item.provider === "asaas" && item.order_id === parsedReference.orderId)
+      : undefined;
+    const payment = paymentByProvider || paymentBySignedReference || paymentByLegacyOrder;
+    const tenantId = payment?.tenant_id || parsedReference.tenantId || "";
+    const orderId = payment?.order_id || parsedReference.orderId || "";
+    const conflict = Boolean(
+      (paymentByProvider && paymentBySignedReference && paymentByProvider.tenant_id !== paymentBySignedReference.tenant_id) ||
+      (paymentByProvider && parsedReference.tenantId && paymentByProvider.tenant_id !== parsedReference.tenantId) ||
+      (paymentByProvider && parsedReference.orderId && paymentByProvider.order_id !== parsedReference.orderId)
+    );
+    const source = paymentByProvider
+      ? "provider_payment_id"
+      : paymentBySignedReference
+        ? "signed_external_reference"
+        : paymentByLegacyOrder
+          ? "legacy_order_id"
+          : parsedReference.signed
+            ? "signed_external_reference_only"
+            : "unresolved";
+    return { tenantId, orderId, payment, conflict, source, parsedReference };
+  }
+
   async function attachAsaasPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
     const asaas = getAsaasProvider(input.tenantId);
     if (!asaas || input.amount <= 0) return null;
     const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
+    const asaasExternalReference = buildAsaasExternalReference(input.tenantId, orderId);
     const customerGatewayKey = `${input.tenantId}:asaas:${asaas.config.environment}`;
     input.customer.gatewayCustomerIds ||= {};
     let asaasCustomerId = input.customer.gatewayCustomerIds[customerGatewayKey];
@@ -6292,7 +6657,7 @@ async function startServer() {
       customerId: asaasCustomerId,
       value: Number(input.amount.toFixed(2)),
       dueDate,
-      externalReference: orderId,
+      externalReference: asaasExternalReference,
       description: input.description
     });
     const asaasPaymentId = String(payment.id || "");
@@ -6304,7 +6669,7 @@ async function startServer() {
       pixPayload,
       pixGateway: "asaas",
       pixWebhookUrl: "/api/webhooks/asaas",
-      externalReference: orderId,
+      externalReference: asaasExternalReference,
       externalPaymentId: asaasPaymentId,
       pixQrCodeBase64: qrCode.encodedImage || "",
       pixExpiresAt
@@ -6316,7 +6681,7 @@ async function startServer() {
       provider: "asaas",
       asaas_payment_id: asaasPaymentId,
       provider_payment_id: asaasPaymentId,
-      provider_reference: asaasPaymentId,
+      provider_reference: asaasExternalReference,
       billing_type: "PIX",
       status: String(payment.status || "PENDING"),
       qr_code_base64: qrCode.encodedImage || "",
@@ -6586,6 +6951,7 @@ async function startServer() {
   }
 
   function resetFazendinhaRound(tenantId = legacyTenantId) {
+    const config = getFazendinhaConfig(tenantId);
     fazendinhaGroups = fazendinhaGroups.filter(group => group.tenant_id !== tenantId);
     fazendinhaGroups.push(...fazendinhaSeed.map(([id, nomeBicho, numeros]) => ({
       id: tenantId === legacyTenantId ? id : `${tenantId}:${id}`,
@@ -6593,23 +6959,25 @@ async function startServer() {
       nomeBicho,
       numeros: [...numeros],
       status: "available" as FazendinhaStatus,
-      preco: fazendinhaConfig.pricePerGroup,
+      preco: config.pricePerGroup,
       imagemUrl: ""
     })));
     fazendinhaCompras = fazendinhaCompras.filter(purchase => purchase.tenant_id !== tenantId);
     fazendinhaResultados = fazendinhaResultados.filter(result => result.tenant_id !== tenantId);
     fazendinhaGanhadores = fazendinhaGanhadores.filter(winner => winner.tenant_id !== tenantId);
-    fazendinhaConfig.resultNumber = "";
-    fazendinhaConfig.resultSource = "";
-    fazendinhaConfig.status = "active";
-    fazendinhaConfig.lootboxConfig = createFazendinhaLootboxConfig({
-      ...fazendinhaConfig.lootboxConfig,
+    config.resultNumber = "";
+    config.resultSource = "";
+    config.status = "active";
+    config.lootboxConfig = createFazendinhaLootboxConfig({
+      ...config.lootboxConfig,
       prizeClaimed: false,
       winnerPurchaseId: undefined
     });
+    updateFazendinhaConfig(tenantId, config);
   }
 
   function resolveFazendinhaWinner(numeroSorteado: string, origemResultado = "Loteria", tenantId = legacyTenantId) {
+    const config = getFazendinhaConfig(tenantId);
     const normalized = normalizeFazendinhaNumber(numeroSorteado);
     const group = fazendinhaGroups.find(item => item.tenant_id === tenantId && item.numeros.includes(normalized));
     const purchase = group?.compraId ? fazendinhaCompras.find(item => item.tenant_id === tenantId && item.id === group.compraId) : undefined;
@@ -6621,9 +6989,10 @@ async function startServer() {
       dataResultado: new Date().toISOString()
     };
     fazendinhaResultados.unshift(result);
-    fazendinhaConfig.resultNumber = normalized;
-    fazendinhaConfig.resultSource = origemResultado;
-    fazendinhaConfig.status = "closed";
+    config.resultNumber = normalized;
+    config.resultSource = origemResultado;
+    config.status = "closed";
+    updateFazendinhaConfig(tenantId, config);
 
     const winner: FazendinhaWinner = purchase && group
       ? {
@@ -6633,7 +7002,7 @@ async function startServer() {
           grupoId: group.id,
           nomeBicho: group.nomeBicho,
           numeroSorteado: normalized,
-          premio: fazendinhaConfig.mainPrize,
+          premio: config.mainPrize,
           data: result.dataResultado
         }
       : {
@@ -7114,6 +7483,14 @@ async function startServer() {
       (purchase.statusPagamento === "reserved" && isPastReservationExpiry(purchase.reservedUntil || purchase.pixExpiresAt));
   }
 
+  function publicPendingPaymentState() {
+    return {
+      paymentStatus: "pending" as const,
+      paidAt: null,
+      confirmedAt: null
+    };
+  }
+
   function releaseReservedNumbers(raffle: typeof raffles[number], numbers: number[]) {
     numbers.forEach(number => raffle.soldNumbers.delete(number));
     raffle.soldTickets = Math.max(0, raffle.soldNumbers.size);
@@ -7153,6 +7530,7 @@ async function startServer() {
       )
       .forEach(purchase => {
         purchase.status = "cancelled";
+        purchase.paymentStatus = "cancelled";
         numberModeBets = numberModeBets.filter(bet => !(bet.tenant_id === purchase.tenant_id && bet.purchaseId === purchase.id));
         auditLogs.unshift({
           id: createPublicId("AUD_"),
@@ -7178,6 +7556,7 @@ async function startServer() {
       )
       .forEach(purchase => {
         purchase.statusPagamento = "cancelled";
+        purchase.paymentStatus = "cancelled";
         fazendinhaGroups
           .filter(group => group.tenant_id === purchase.tenant_id && group.compraId === purchase.id && group.status === "reserved")
           .forEach(group => {
@@ -8470,7 +8849,8 @@ async function startServer() {
     purchase.nomeBichos = groups.map(group => group.nomeBicho);
     purchase.nomeBicho = groups.map(group => group.nomeBicho).join(", ");
     purchase.numeros = groups.flatMap(group => group.numeros);
-    purchase.valorPago = Number((groups.reduce((sum, group) => sum + Number(group.preco || fazendinhaConfig.pricePerGroup), 0)).toFixed(2));
+    const config = getFazendinhaConfig(purchase.tenant_id);
+    purchase.valorPago = Number((groups.reduce((sum, group) => sum + Number(group.preco || config.pricePerGroup), 0)).toFixed(2));
   }
 
   app.get("/api/admin/customers/search", (req, res) => {
@@ -8805,7 +9185,7 @@ async function startServer() {
     res.json({ case: fraudCase, customer });
   });
 
-  app.post("/api/checkout/preview", (req, res) => {
+  app.post("/api/checkout/preview", criticalRateLimiter, (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const tenant = tenants.find(item => item.id === tenantId);
     try {
@@ -8921,7 +9301,8 @@ async function startServer() {
       }
 
       if (type === "fazendinha") {
-        if (!fazendinhaConfig.enabled || fazendinhaConfig.status !== "active") return res.status(403).json({ error: "A Fazendinha nao esta ativa no momento" });
+        const fazConfig = getFazendinhaConfig(tenantId);
+        if (!fazConfig.enabled || fazConfig.status !== "active") return res.status(403).json({ error: "A Fazendinha nao esta ativa no momento" });
         if (!tenantPixGateways.pix?.enabled) return res.status(503).json({ error: "Gateway PIX indisponivel" });
         ensureFazendinhaStateForTenant(tenantId);
         const groupIds = Array.from(new Set((Array.isArray(req.body.groupIds) ? req.body.groupIds : []).map(String).filter(Boolean)));
@@ -8942,7 +9323,7 @@ async function startServer() {
           gateway,
           packageLabel: `${selectedGroups.length} grupo(s)`,
           bonuses: {
-            lootboxes: fazendinhaConfig.lootboxEnabled ? selectedGroups.length : 0,
+            lootboxes: fazConfig.lootboxEnabled ? selectedGroups.length : 0,
             roulettes: Math.floor(selectedGroups.length / 2),
             description: addonRaffle ? "Rifa adicional incluida no resumo" : undefined
           },
@@ -8990,7 +9371,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/raffles/:id/buy", async (req, res) => {
+  app.post("/api/raffles/:id/buy", criticalRateLimiter, async (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     try {
       assertTenantOperationalForCheckout(tenants.find(item => item.id === tenantId));
@@ -9172,8 +9553,6 @@ async function startServer() {
       promotionSummary
     };
 
-    if (coupon) coupon.used++;
-
     if (addonRaffle && addonTickets > 0) {
       purchase.linkedPurchases = [{
         tenant_id: tenantId,
@@ -9228,9 +9607,12 @@ async function startServer() {
       res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao criar PIX Asaas" });
       return;
     }
+
+    if (coupon) coupon.used++;
     
     purchases.push(purchase);
     if (purchase.linkedPurchases) purchases.push(...purchase.linkedPurchases);
+    schedulePersistentStateSave("checkout-purchase-created", 0);
     persistAppliedPromotions({ tenantId, raffleId: id, orderId: purchase.purchaseId, customer, amount, quantity: effectiveTickets }, promotionSummary);
     if (purchase.status === "pending") {
       scheduleAutomation("abandoned_pix_recovery", { tenant_id: tenantId, customer_id: customer.id, order_id: purchase.purchaseId, purchase, customer });
@@ -9323,8 +9705,10 @@ async function startServer() {
     const tenantId = resolveRequestTenantId(req);
     ensureFazendinhaStateForTenant(tenantId);
     expireFazendinhaReservations(tenantId);
+    const config = getFazendinhaConfig(tenantId);
+    const { tenant_id: _tenantId, ...publicConfig } = config;
     res.json({
-      config: { ...fazendinhaConfig, tenant_id: tenantId },
+      config: publicConfig,
       homeMedia: publicFazendinhaHomeMedia(tenantId),
       mediaSettings: publicFazendinhaMediaSettings(tenantId),
       groups: fazendinhaGroups.filter(item => item.tenant_id === tenantId),
@@ -9373,18 +9757,21 @@ async function startServer() {
   });
 
   app.get("/api/fazendinha/addon-suggestion", (req, res) => {
-    const suggestion = raffles.find(r => r.tenant_id === resolveRequestTenantId(req) && r.status === "active" && r.soldTickets < r.totalTickets);
+    const tenantId = resolveRequestTenantId(req);
+    const config = getFazendinhaConfig(tenantId);
+    const suggestion = raffles.find(r => r.tenant_id === tenantId && r.status === "active" && r.soldTickets < r.totalTickets);
     if (!suggestion) {
       res.status(404).json({ error: "Nenhuma rifa ativa para sugestao" });
       return;
     }
-    const tickets = Math.max(1, Number(fazendinhaConfig.addonSuggestionTickets || 5));
+    const tickets = Math.max(1, Number(config.addonSuggestionTickets || 5));
     const { soldNumbers, ...safeRaffle } = suggestion;
     res.json({ raffle: safeRaffle, tickets, amount: tickets * suggestion.price });
   });
 
   app.get("/api/modalidades", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
+    const fazConfig = getFazendinhaConfig(tenantId);
     res.json({
       rifas: {
         id: "rifas",
@@ -9397,10 +9784,10 @@ async function startServer() {
         ranking: purchases.filter(p => p.tenant_id === tenantId && p.status === "paid").slice(0, 5)
       },
       fazendinha: {
-        ...fazendinhaConfig,
+        ...fazConfig,
         id: "fazendinha",
-        mediaUrl: fazendinhaConfig.mediaUrl,
-        mediaType: fazendinhaConfig.mediaType,
+        mediaUrl: fazConfig.mediaUrl,
+        mediaType: fazConfig.mediaType,
         ranking: fazendinhaCompras.filter(item => item.tenant_id === tenantId).slice(0, 5)
       },
       numberModes: getNumberModeConfigsForTenant(tenantId)
@@ -9432,7 +9819,7 @@ async function startServer() {
     });
   });
 
-  app.post("/api/modalidades/:mode/buy", async (req, res) => {
+  app.post("/api/modalidades/:mode/buy", criticalRateLimiter, async (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     try {
       assertTenantOperationalForCheckout(tenants.find(item => item.id === tenantId));
@@ -9479,8 +9866,9 @@ async function startServer() {
       return;
     }
 
-    const gatewayRequiresWebhook = Boolean(getMercadoPagoGatewayConfig(tenantId) || getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPrimepagGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId) || getCoraGatewayConfig(tenantId));
-    const paid = req.body.statusPagamento === "paid" || (!gatewayRequiresWebhook && req.body.simulatePayment !== false);
+    // Payload publico nunca liquida pagamento. Campos como statusPagamento,
+    // paymentStatus, status, paid e confirmed sao ignorados aqui.
+    const paid = false;
     const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
     const purchase: NumberModePurchase = {
       id: createPublicId("MO_"),
@@ -9488,7 +9876,8 @@ async function startServer() {
       mode,
       numbers,
       amount: numbers.length * config.price,
-      status: paid ? "paid" : "reserved",
+      status: "reserved",
+      ...publicPendingPaymentState(),
       createdAt: new Date().toISOString(),
       reservedUntil: fastExpiresAt,
       pixExpiresAt: fastExpiresAt,
@@ -9524,6 +9913,7 @@ async function startServer() {
         pixExpiresAt: purchase.pixExpiresAt
       });
     });
+    schedulePersistentStateSave("number-mode-reservation-created", 0);
 
     config.lootboxConfig = createScopedLootboxConfig(config.lootboxConfig);
     const earnedLootboxes = paid && config.lootboxEnabled
@@ -9553,13 +9943,14 @@ async function startServer() {
   async function createFazendinhaPurchase(req: express.Request, res: express.Response, requestedGroupIds: string[]) {
     const tenantId = resolveRequestTenantId(req);
     ensureFazendinhaStateForTenant(tenantId);
+    const config = getFazendinhaConfig(tenantId);
     try {
       assertTenantOperationalForCheckout(tenants.find(item => item.id === tenantId));
     } catch (error) {
       res.status(403).json({ error: error instanceof Error ? error.message : "Tenant inativo ou indisponivel para compras" });
       return null;
     }
-    if (!fazendinhaConfig.enabled || fazendinhaConfig.status !== "active") {
+    if (!config.enabled || config.status !== "active") {
       res.status(403).json({ error: "A Fazendinha nao esta ativa no momento" });
       return null;
     }
@@ -9590,8 +9981,9 @@ async function startServer() {
       return null;
     }
 
-    const gatewayRequiresWebhook = Boolean(getMercadoPagoGatewayConfig(tenantId) || getAsaasGatewayConfig(tenantId) || getPay2mGatewayConfig(tenantId) || getPrimepagGatewayConfig(tenantId) || getPagbankGatewayConfig(tenantId) || getCoraGatewayConfig(tenantId));
-    const paid = req.body.statusPagamento === "paid" || (!gatewayRequiresWebhook && req.body.simulatePayment !== false);
+    // Payload publico nunca liquida pagamento. Campos como statusPagamento,
+    // paymentStatus, status, paid e confirmed sao ignorados aqui.
+    const paid = false;
     const numeros = selectedGroups.flatMap(group => group.numeros);
     const amount = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
     const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
@@ -9605,7 +9997,8 @@ async function startServer() {
       nomeBichos: selectedGroups.map(group => group.nomeBicho),
       numeros,
       valorPago: amount,
-      statusPagamento: paid ? "paid" : "reserved",
+      statusPagamento: "reserved",
+      ...publicPendingPaymentState(),
       dataCompra: new Date().toISOString(),
       reservedUntil: fastExpiresAt,
       pixExpiresAt: fastExpiresAt,
@@ -9613,7 +10006,7 @@ async function startServer() {
       refCode: req.body.refCode
     };
 
-    const addonTickets = normalizeTickets(req.body.addon?.tickets) || Math.max(1, Number(fazendinhaConfig.addonSuggestionTickets || 5));
+    const addonTickets = normalizeTickets(req.body.addon?.tickets) || Math.max(1, Number(config.addonSuggestionTickets || 5));
     const addonRaffle = req.body.addon?.raffleId ? raffles.find(r => r.tenant_id === tenantId && r.id === req.body.addon.raffleId) : null;
     if (addonRaffle && addonRaffle.soldTickets + addonTickets > addonRaffle.totalTickets) {
       res.status(400).json({ error: "Quantidade adicional indisponivel" });
@@ -9669,7 +10062,7 @@ async function startServer() {
       return null;
     }
 
-    const earnedLootboxes = paid && fazendinhaConfig.lootboxEnabled
+    const earnedLootboxes = paid && config.lootboxEnabled
       ? processFazendinhaLootboxDrops(customer.phone, selectedGroups.map(group => group.id), purchase.id, tenantId)
       : 0;
     purchase.earnedLootboxes = earnedLootboxes;
@@ -9691,6 +10084,7 @@ async function startServer() {
       group.compraId = purchase.id;
     });
     fazendinhaCompras.unshift(purchase);
+    schedulePersistentStateSave("fazendinha-reservation-created", 0);
     const pixPayload = (purchase as FazendinhaPurchase & { pixPayload?: string }).pixPayload || buildPixPayload(purchase.valorPago, undefined, purchase.id, tenantId);
     purchase.linkedPurchases?.forEach(linked => {
       linked.pixPayload = pixPayload;
@@ -9699,9 +10093,11 @@ async function startServer() {
   }
 
   function confirmFazendinhaPurchase(purchase: FazendinhaPurchase) {
+    const config = getFazendinhaConfig(purchase.tenant_id);
     expireFazendinhaReservations(purchase.tenant_id);
     if (isFazendinhaReservationExpired(purchase)) {
       purchase.statusPagamento = "cancelled";
+      purchase.paymentStatus = "cancelled";
       throw new Error("Fazendinha reservation expired");
     }
     const expectedGroupIds = purchase.grupoIds?.length ? purchase.grupoIds : [purchase.grupoId].filter((id): id is string => Boolean(id));
@@ -9712,6 +10108,9 @@ async function startServer() {
     }
     if (purchase.statusPagamento !== "paid") {
       purchase.statusPagamento = "paid";
+      purchase.paymentStatus = "paid";
+      purchase.paidAt = purchase.paidAt || new Date().toISOString();
+      purchase.confirmedAt = purchase.confirmedAt || purchase.paidAt;
       groups.forEach(group => {
         group.status = "sold";
         group.compradorId = purchase.usuarioId;
@@ -9725,10 +10124,10 @@ async function startServer() {
         tenantId: purchase.tenant_id,
         refCode: purchase.refCode,
         buyerCustomerId: purchase.customer.id,
-        amount: groups.reduce((sum, group) => sum + Number(group.preco || fazendinhaConfig.pricePerGroup), 0),
+        amount: groups.reduce((sum, group) => sum + Number(group.preco || config.pricePerGroup), 0),
         source: `conversion:${purchase.id}`
       });
-      purchase.earnedLootboxes = fazendinhaConfig.lootboxEnabled
+      purchase.earnedLootboxes = config.lootboxEnabled
         ? processFazendinhaLootboxDrops(purchase.customer.phone, groups.map(group => group.id), purchase.id, purchase.tenant_id)
         : 0;
     }
@@ -9749,6 +10148,9 @@ async function startServer() {
     const bets = numberModeBets.filter(bet => bet.tenant_id === purchase.tenant_id && bet.purchaseId === purchase.id);
     if (bets.length < purchase.numbers.length) throw new Error("Number mode reservation expired");
     purchase.status = "paid";
+    purchase.paymentStatus = "paid";
+    purchase.paidAt = purchase.paidAt || new Date().toISOString();
+    purchase.confirmedAt = purchase.confirmedAt || purchase.paidAt;
     bets.forEach(bet => {
       bet.status = "paid";
     });
@@ -9769,14 +10171,14 @@ async function startServer() {
     return purchase;
   }
 
-  app.post("/api/fazendinha/buy", async (req, res) => {
+  app.post("/api/fazendinha/buy", criticalRateLimiter, async (req, res) => {
     const groupIds = Array.isArray(req.body.groupIds) ? req.body.groupIds.map(String) : [];
     const result = await createFazendinhaPurchase(req, res, groupIds);
     if (!result) return;
     res.json(stripSensitiveCustomerFields(result));
   });
 
-  app.post("/api/fazendinha/groups/:groupId/buy", async (req, res) => {
+  app.post("/api/fazendinha/groups/:groupId/buy", criticalRateLimiter, async (req, res) => {
     const result = await createFazendinhaPurchase(req, res, [req.params.groupId]);
     if (!result) return;
     res.json(stripSensitiveCustomerFields({ ...result, group: result.groups[0] }));
@@ -9789,8 +10191,9 @@ async function startServer() {
   app.get("/api/admin/fazendinha", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     ensureFazendinhaStateForTenant(tenantId);
+    const config = getFazendinhaConfig(tenantId);
     res.json({
-      config: { ...fazendinhaConfig, tenant_id: tenantId },
+      config,
       homeMedia: publicFazendinhaHomeMedia(tenantId),
       mediaSettings: publicFazendinhaMediaSettings(tenantId),
       groups: scoped(fazendinhaGroups, req),
@@ -9824,22 +10227,21 @@ async function startServer() {
   });
 
   app.put("/api/admin/fazendinha/config", (req, res) => {
-    fazendinhaConfig = {
-      ...fazendinhaConfig,
-      ...normalizeMediaPayload(req.body),
-      lootboxConfig: createFazendinhaLootboxConfig(req.body.lootboxConfig || fazendinhaConfig.lootboxConfig)
-    };
-    fazendinhaGroups = fazendinhaGroups.map(group => adminCanAccessTenant(req, group.tenant_id) ? ({
+    const tenantId = resolveRequestTenantId(req);
+    const config = updateFazendinhaConfig(tenantId, req.body || {});
+    fazendinhaGroups = fazendinhaGroups.map(group => group.tenant_id === tenantId ? ({
       ...group,
       preco: req.body.pricePerGroup !== undefined && group.status === "available"
         ? Number(req.body.pricePerGroup)
         : group.preco
     }) : group);
-    res.json({ config: fazendinhaConfig, groups: scoped(fazendinhaGroups, req) });
+    res.json({ config, groups: scoped(fazendinhaGroups, req) });
   });
 
   app.post("/api/admin/fazendinha/result", (req, res) => {
-    if (fazendinhaConfig.status === "closed" && fazendinhaConfig.resultNumber) {
+    const tenantId = resolveRequestTenantId(req);
+    const config = getFazendinhaConfig(tenantId);
+    if (config.status === "closed" && config.resultNumber) {
       res.status(409).json({ error: "Rodada ja encerrada. Resete a rodada para lançar um novo resultado." });
       return;
     }
@@ -9848,7 +10250,7 @@ async function startServer() {
       res.status(400).json({ error: "Numero sorteado invalido" });
       return;
     }
-    res.json(resolveFazendinhaWinner(numeroSorteado, req.body.origemResultado || "Loteria", resolveRequestTenantId(req)));
+    res.json(resolveFazendinhaWinner(numeroSorteado, req.body.origemResultado || "Loteria", tenantId));
   });
 
   app.get("/api/admin/modalidades", (req, res) => {
@@ -9859,7 +10261,7 @@ async function startServer() {
       bets: scoped(numberModeBets, req),
       winners: scoped(numberModeWinners, req),
       fazendinha: {
-        config: fazendinhaConfig,
+        config: getFazendinhaConfig(tenantId),
         groups: scoped(fazendinhaGroups, req),
         purchases: scoped(fazendinhaCompras, req),
         winners: scoped(fazendinhaGanhadores, req)
@@ -9916,7 +10318,7 @@ async function startServer() {
     const tenantId = resolveRequestTenantId(req);
     ensureFazendinhaStateForTenant(tenantId);
     resetFazendinhaRound(tenantId);
-    res.json({ config: { ...fazendinhaConfig, tenant_id: tenantId }, groups: scoped(fazendinhaGroups, req) });
+    res.json({ config: getFazendinhaConfig(tenantId), groups: scoped(fazendinhaGroups, req) });
   });
 
   function createScopedLootboxConfig(config?: Partial<LootboxEconomy>): LootboxEconomy {
@@ -10004,8 +10406,10 @@ async function startServer() {
 
   function getLootboxConfigByScope(scopeId = "global") {
     if (scopeId === "fazendinha") {
-      fazendinhaConfig.lootboxConfig = createFazendinhaLootboxConfig(fazendinhaConfig.lootboxConfig);
-      return fazendinhaConfig.lootboxConfig;
+      const config = getFazendinhaConfig(legacyTenantId);
+      config.lootboxConfig = createFazendinhaLootboxConfig(config.lootboxConfig);
+      updateFazendinhaConfig(legacyTenantId, config);
+      return config.lootboxConfig;
     }
 
     if (scopeId.startsWith("mode:")) {
@@ -10118,8 +10522,10 @@ async function startServer() {
    }
 
   function processFazendinhaLootboxDrops(contact: string, selectedGroupIds: string[], purchaseId: string, tenantId = legacyTenantId) {
-     fazendinhaConfig.lootboxConfig = createFazendinhaLootboxConfig(fazendinhaConfig.lootboxConfig);
-     const config = fazendinhaConfig.lootboxConfig;
+     const fazConfig = getFazendinhaConfig(tenantId);
+     fazConfig.lootboxConfig = createFazendinhaLootboxConfig(fazConfig.lootboxConfig);
+     updateFazendinhaConfig(tenantId, fazConfig);
+     const config = fazConfig.lootboxConfig;
      return processLootboxDrops(contact, selectedGroupIds.length, purchaseId, config, "fazendinha", "fazendinha", tenantId);
    }
 
@@ -11538,9 +11944,26 @@ async function startServer() {
 
   app.post("/api/webhooks/asaas", async (req, res) => {
     const gateway = "asaas";
-    const tenant = getRequestTenant(req);
-    const tenantId = tenant?.id || "unknown";
-    const asaasConfig = tenant ? getAsaasGatewayConfig(tenant.id) : null;
+    const payload = (req.body || {}) as Record<string, unknown>;
+    const preParsed = new AsaasProvider({ apiKey: "webhook", environment: "sandbox", userAgent: "RifaPro Webhook" }).handleWebhook(payload as Record<string, any>);
+    const paymentPayload = payload.payment && typeof payload.payment === "object" && !Array.isArray(payload.payment)
+      ? payload.payment as Record<string, unknown>
+      : {};
+    const asaasPaymentId = String(preParsed.paymentId || paymentPayload.id || "");
+    const externalReference = preParsed.externalReference || extractPaymentReference(gateway, payload as Record<string, any>);
+    const resolved = resolveAsaasWebhookPayment({ externalReference, paymentId: asaasPaymentId });
+    const tenantId = resolved.tenantId || "unknown";
+    if (resolved.conflict) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: resolved.orderId || undefined, status: "invalid", message: "Asaas webhook reference/payment tenant mismatch; baixa bloqueada", statusCode: 200, eventStatus: preParsed.eventType || preParsed.status });
+      res.status(200).json({ success: false, ignored: true, reason: "tenant_mismatch" });
+      return;
+    }
+    if (!resolved.tenantId) {
+      recordPaymentWebhookLog({ tenant_id: "unknown", gateway, purchaseId: resolved.orderId || undefined, status: "invalid", message: "Asaas webhook sem tenant resolvido por externalReference/payment", statusCode: 200, eventStatus: preParsed.eventType || preParsed.status });
+      res.status(200).json({ success: false, ignored: true, reason: "tenant_not_resolved" });
+      return;
+    }
+    const asaasConfig = getAsaasGatewayConfig(resolved.tenantId);
     const webhookSecret = asaasConfig?.webhookToken || "";
     const providedSecret = String(req.headers["asaas-access-token"] || "");
     if (webhookSecret) {
@@ -11556,14 +11979,9 @@ async function startServer() {
       res.status(401).json({ error: "Webhook token Asaas obrigatorio em producao" });
       return;
     }
-    const payload = (req.body || {}) as Record<string, unknown>;
     const parsed = new AsaasProvider({ apiKey: "webhook", environment: "sandbox", userAgent: "RifaPro Webhook" }).handleWebhook(payload as Record<string, any>, asaasConfig?.releaseMode || "PAYMENT_RECEIVED");
     const rawStatus = parsed.eventType || parsed.status || extractPaymentStatus(payload as Record<string, any>);
-    const paymentPayload = payload.payment && typeof payload.payment === "object" && !Array.isArray(payload.payment)
-      ? payload.payment as Record<string, unknown>
-      : {};
-    const asaasPaymentId = String(parsed.paymentId || paymentPayload.id || "");
-    const purchaseIdToConfirm = parsed.externalReference || extractPaymentReference(gateway, payload as Record<string, any>);
+    const purchaseIdToConfirm = resolved.orderId || parseAsaasExternalReference(parsed.externalReference).orderId || extractPaymentReference(gateway, payload as Record<string, any>);
     const eventKey = buildPaymentIdempotencyKey({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, eventStatus: rawStatus, payload });
     const existingEvent = webhookEvents.find(item => item.tenant_id === tenantId && String(item.provider) === "asaas" && item.id === eventKey);
     if (existingEvent?.processed) {
@@ -11585,10 +12003,10 @@ async function startServer() {
       error_message: "",
       created_at: new Date().toISOString()
     });
-    const payment = payments.find(item =>
+    const payment = resolved.payment || payments.find(item =>
       item.tenant_id === tenantId &&
       item.provider === "asaas" &&
-      (item.provider_payment_id === asaasPaymentId || item.asaas_payment_id === asaasPaymentId)
+      (item.provider_payment_id === asaasPaymentId || item.asaas_payment_id === asaasPaymentId || item.order_id === purchaseIdToConfirm)
     );
     if (parsed.shouldRelease && !payment) {
       recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, status: "invalid", message: "Asaas pago sem payment interno tenant-scoped; baixa bloqueada", statusCode: 200, eventStatus: rawStatus });
@@ -14309,6 +14727,7 @@ async function startServer() {
   }
 
   function persistentCollections() {
+    ensureFazendinhaConfigsForKnownTenants();
     return {
       tenants,
       authUsers,
@@ -14361,7 +14780,7 @@ async function startServer() {
       instantPrizes,
       stories,
       winners,
-      fazendinhaConfig,
+      fazendinhaConfigs,
       fazendinhaGroups,
       fazendinhaCompras,
       fazendinhaResultados,
@@ -14445,7 +14864,8 @@ async function startServer() {
       case "instantPrizes": instantPrizes = Array.isArray(value) ? value : []; break;
       case "stories": stories = Array.isArray(value) ? value : []; break;
       case "winners": winners = Array.isArray(value) ? value : []; break;
-      case "fazendinhaConfig": fazendinhaConfig = value || fazendinhaConfig; break;
+      case "fazendinhaConfig": fazendinhaConfig = cloneFazendinhaConfigForTenant(value || fazendinhaConfig, legacyTenantId); fazendinhaConfigs[legacyTenantId] = fazendinhaConfig; break;
+      case "fazendinhaConfigs": replaceFazendinhaConfigs(value); break;
       case "fazendinhaGroups": fazendinhaGroups = Array.isArray(value) ? value : []; break;
       case "fazendinhaCompras": fazendinhaCompras = Array.isArray(value) ? value : []; break;
       case "fazendinhaResultados": fazendinhaResultados = Array.isArray(value) ? value : []; break;
@@ -14534,17 +14954,29 @@ async function startServer() {
     persistentStateReady = true;
   }
 
-  function schedulePersistentStateSave(reason: string) {
+  function schedulePersistentStateSave(reason: string, delayMs = 50) {
     if (!persistentStateReady || !supabaseAdmin) return;
+    if (persistentStateSaving) {
+      persistentStateDirty = true;
+      persistentStateDirtyReason = reason;
+      return;
+    }
     if (persistentStateTimer) clearTimeout(persistentStateTimer);
     persistentStateTimer = setTimeout(() => {
       void persistAllState(reason);
-    }, 50);
+    }, Math.max(0, delayMs));
   }
 
   async function persistAllState(reason: string) {
-    if (!supabaseAdmin || persistentStateSaving) return;
+    if (!supabaseAdmin) return;
+    if (persistentStateSaving) {
+      persistentStateDirty = true;
+      persistentStateDirtyReason = reason;
+      return;
+    }
     persistentStateSaving = true;
+    persistentStateDirty = false;
+    persistentStateDirtyReason = "";
     try {
       const rows = buildPersistentRows();
       const { error } = await supabaseAdmin
@@ -14565,6 +14997,12 @@ async function startServer() {
       }
     } finally {
       persistentStateSaving = false;
+      if (persistentStateDirty) {
+        const dirtyReason = persistentStateDirtyReason || `${reason}:dirty`;
+        persistentStateDirty = false;
+        persistentStateDirtyReason = "";
+        schedulePersistentStateSave(dirtyReason, 0);
+      }
     }
   }
 
@@ -14952,7 +15390,7 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  app.post("/api/coupons/validate", (req, res) => {
+  app.post("/api/coupons/validate", criticalRateLimiter, (req, res) => {
     const raffleId = String(req.body.raffleId || "");
     const tickets = normalizeTickets(req.body.tickets) || 1;
     const tenantId = resolveRequestTenantId(req);

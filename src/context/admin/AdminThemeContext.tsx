@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-export const ADMIN_THEMES = ["black", "white", "neon_blue"] as const;
+export const ADMIN_THEMES = ["dark", "light", "system"] as const;
 export type AdminThemeId = typeof ADMIN_THEMES[number];
 
 type AdminTheme = {
@@ -12,72 +12,84 @@ type AdminTheme = {
 
 export const adminThemes: AdminTheme[] = [
   {
-    id: "black",
-    name: "Black",
-    description: "Painel escuro premium com contraste alto e superfícies limpas.",
+    id: "dark",
+    name: "Escuro",
+    description: "CIFHER escuro operacional, denso e premium.",
     variables: {
-      "--admin-bg": "#030407",
-      "--admin-bg-soft": "#090b10",
-      "--admin-surface": "rgba(255,255,255,0.055)",
-      "--admin-surface-strong": "rgba(255,255,255,0.09)",
-      "--admin-border": "rgba(255,255,255,0.14)",
-      "--admin-text": "#ffffff",
-      "--admin-muted": "#a1a1aa",
-      "--admin-primary": "#ffffff",
-      "--admin-secondary": "#d4d4d8",
-      "--admin-accent": "#71717a",
-      "--admin-success": "#ffffff",
-      "--admin-warning": "#d4d4d8",
-      "--admin-danger": "#fca5a5",
-      "--admin-button": "#ffffff",
-      "--admin-button-text": "#030407",
-      "--admin-glow": "rgba(255,255,255,0.18)"
-    }
-  },
-  {
-    id: "white",
-    name: "White",
-    description: "Painel claro premium, legível e focado em operação.",
-    variables: {
-      "--admin-bg": "#f8fafc",
-      "--admin-bg-soft": "#eef2f7",
-      "--admin-surface": "#ffffff",
-      "--admin-surface-strong": "#ffffff",
-      "--admin-border": "#d8dee8",
-      "--admin-text": "#0f172a",
-      "--admin-muted": "#475569",
-      "--admin-primary": "#465fff",
-      "--admin-secondary": "#7592ff",
-      "--admin-accent": "#7cd4fd",
-      "--admin-success": "#12b76a",
-      "--admin-warning": "#f79009",
-      "--admin-danger": "#f04438",
-      "--admin-button": "#465fff",
-      "--admin-button-text": "#ffffff",
-      "--admin-glow": "rgba(70,95,255,0.16)"
-    }
-  },
-  {
-    id: "neon_blue",
-    name: "Azul Neon",
-    description: "Dark premium com azul neon para painéis de alta atenção.",
-    variables: {
-      "--admin-bg": "#020617",
-      "--admin-bg-soft": "#071426",
-      "--admin-surface": "rgba(15,23,42,0.86)",
-      "--admin-surface-strong": "rgba(8,20,38,0.94)",
-      "--admin-border": "rgba(56,189,248,0.22)",
-      "--admin-text": "#eff6ff",
-      "--admin-muted": "#93b4d7",
-      "--admin-primary": "#38bdf8",
-      "--admin-secondary": "#60a5fa",
-      "--admin-accent": "#22d3ee",
+      "--admin-bg": "#06020d",
+      "--admin-bg-soft": "#090514",
+      "--admin-bg-deep": "#10091f",
+      "--admin-sidebar": "#07030f",
+      "--admin-surface": "#120a22",
+      "--admin-surface-strong": "#170d2b",
+      "--admin-border": "rgba(168,85,247,0.24)",
+      "--admin-text": "#f5f3ff",
+      "--admin-muted": "#8b7bae",
+      "--admin-secondary-text": "#c4b5fd",
+      "--admin-primary": "#8b2cff",
+      "--admin-secondary": "#a855f7",
+      "--admin-accent": "#d946ef",
+      "--admin-info": "#38bdf8",
       "--admin-success": "#34d399",
       "--admin-warning": "#fbbf24",
       "--admin-danger": "#fb7185",
-      "--admin-button": "#38bdf8",
-      "--admin-button-text": "#020617",
-      "--admin-glow": "rgba(56,189,248,0.24)"
+      "--admin-button": "linear-gradient(90deg, #8b2cff, #d946ef)",
+      "--admin-button-text": "#f5f3ff",
+      "--admin-glow": "rgba(139,44,255,0.32)"
+    }
+  },
+  {
+    id: "light",
+    name: "Claro",
+    description: "CIFHER White operacional com superfícies claras.",
+    variables: {
+      "--admin-bg": "#f8f6ff",
+      "--admin-bg-soft": "#ffffff",
+      "--admin-bg-deep": "#f1edff",
+      "--admin-sidebar": "#ffffff",
+      "--admin-surface": "#ffffff",
+      "--admin-surface-strong": "#f7f3ff",
+      "--admin-border": "rgba(139,44,255,0.20)",
+      "--admin-text": "#211432",
+      "--admin-muted": "#8a7a9f",
+      "--admin-secondary-text": "#625178",
+      "--admin-primary": "#8b2cff",
+      "--admin-secondary": "#a855f7",
+      "--admin-accent": "#d946ef",
+      "--admin-info": "#38bdf8",
+      "--admin-success": "#12b76a",
+      "--admin-warning": "#fbbf24",
+      "--admin-danger": "#fb7185",
+      "--admin-button": "linear-gradient(90deg, #8b2cff, #d946ef)",
+      "--admin-button-text": "#ffffff",
+      "--admin-glow": "rgba(139,44,255,0.18)"
+    }
+  },
+  {
+    id: "system",
+    name: "Sistema",
+    description: "Acompanha o tema do dispositivo mantendo o padrão CIFHER.",
+    variables: {
+      "--admin-bg": "#06020d",
+      "--admin-bg-soft": "#090514",
+      "--admin-bg-deep": "#10091f",
+      "--admin-sidebar": "#07030f",
+      "--admin-surface": "#120a22",
+      "--admin-surface-strong": "#170d2b",
+      "--admin-border": "rgba(168,85,247,0.24)",
+      "--admin-text": "#f5f3ff",
+      "--admin-muted": "#8b7bae",
+      "--admin-secondary-text": "#c4b5fd",
+      "--admin-primary": "#8b2cff",
+      "--admin-secondary": "#a855f7",
+      "--admin-accent": "#d946ef",
+      "--admin-info": "#38bdf8",
+      "--admin-success": "#34d399",
+      "--admin-warning": "#fbbf24",
+      "--admin-danger": "#fb7185",
+      "--admin-button": "linear-gradient(90deg, #8b2cff, #d946ef)",
+      "--admin-button-text": "#f5f3ff",
+      "--admin-glow": "rgba(139,44,255,0.32)"
     }
   }
 ];
@@ -94,7 +106,10 @@ const storageKey = "rifapro.admin.theme";
 function normalizeAdminThemeId(value: unknown): AdminThemeId {
   const raw = String(value || "").trim();
   if ((ADMIN_THEMES as readonly string[]).includes(raw)) return raw as AdminThemeId;
-  return "black";
+  if (raw === "black") return "dark";
+  if (raw === "white") return "light";
+  if (raw === "neon_blue") return "system";
+  return "dark";
 }
 
 export function AdminThemeProvider({ children }: { children: React.ReactNode }) {
@@ -108,8 +123,19 @@ export function AdminThemeProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.adminTheme = theme.id;
-    Object.entries(theme.variables).forEach(([key, value]) => root.style.setProperty(key, String(value)));
+    const applyVariables = () => {
+      const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+      const systemTheme = prefersLight ? adminThemes[1] : adminThemes[0];
+      const variables = theme.id === "system" ? systemTheme.variables : theme.variables;
+      Object.entries(variables).forEach(([key, value]) => root.style.setProperty(key, String(value)));
+    };
+    applyVariables();
     localStorage.setItem(storageKey, theme.id);
+    if (theme.id === "system") {
+      const query = window.matchMedia("(prefers-color-scheme: light)");
+      query.addEventListener("change", applyVariables);
+      return () => query.removeEventListener("change", applyVariables);
+    }
   }, [theme]);
 
   const value = useMemo(() => ({

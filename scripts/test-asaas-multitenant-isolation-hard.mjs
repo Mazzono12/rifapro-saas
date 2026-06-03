@@ -33,7 +33,8 @@ const attachBlock = blockBetween(server, "async function attachAsaasPixToOrder",
 for (const snippet of [
   "getAsaasProvider(input.tenantId)",
   "const customerGatewayKey = `${input.tenantId}:asaas:${asaas.config.environment}`",
-  "externalReference: orderId",
+  "const asaasExternalReference = buildAsaasExternalReference(input.tenantId, orderId)",
+  "externalReference: asaasExternalReference",
   "tenant_id: input.tenantId",
   "provider: \"asaas\"",
   "asaas_payment_id: asaasPaymentId",
@@ -43,16 +44,18 @@ for (const snippet of [
 
 const webhookBlock = blockBetween(server, "app.post(\"/api/webhooks/asaas\"", "app.post(\"/api/admin/payments/asaas/reconcile\"");
 for (const snippet of [
-  "const tenant = getRequestTenant(req)",
-  "const tenantId = tenant?.id || \"unknown\"",
-  "getAsaasGatewayConfig(tenant.id)",
+  "resolveAsaasWebhookPayment({ externalReference, paymentId: asaasPaymentId })",
+  "const tenantId = resolved.tenantId || \"unknown\"",
+  "getAsaasGatewayConfig(resolved.tenantId)",
+  "Asaas webhook reference/payment tenant mismatch; baixa bloqueada",
+  "Asaas webhook sem tenant resolvido por externalReference/payment",
   "item.tenant_id === tenantId && String(item.provider) === \"asaas\" && item.id === eventKey",
   "tenant_id: tenantId",
   "provider: \"asaas\" as IntegrationProviderId",
   "provider_payment_id: asaasPaymentId",
   "item.tenant_id === tenantId",
   "item.provider === \"asaas\"",
-  "item.provider_payment_id === asaasPaymentId || item.asaas_payment_id === asaasPaymentId",
+  "item.provider_payment_id === asaasPaymentId || item.asaas_payment_id === asaasPaymentId || item.order_id === purchaseIdToConfirm",
   "Asaas pago sem payment interno tenant-scoped; baixa bloqueada",
   "enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id",
   "updatePaymentRecordStatus(tenantId, gateway",
@@ -85,9 +88,9 @@ const processBlock = blockBetween(server, "async function processPaymentJob", "a
 for (const snippet of [
   "purchases.find(p => p.tenant_id === job.tenant_id && p.purchaseId === purchaseId)",
   "numberModePurchases.find(item => item.tenant_id === job.tenant_id && item.id === purchaseId)",
-  "fazendinhaCompras.find(item => item.tenant_id === job.tenant_id && item.id === purchaseId)",
-  "updatePaymentRecordStatus(job.tenant_id, job.gateway, purchaseId"
+  "fazendinhaCompras.find(item => item.tenant_id === job.tenant_id && item.id === purchaseId)"
 ]) has(processBlock, snippet, "Baixa/liberacao Asaas deve respeitar tenant da fila");
+has(server, "updatePaymentRecordStatus(job.tenant_id, job.gateway, job.purchaseId", "Baixa/liberacao Asaas deve atualizar payment pelo tenant da fila");
 
 for (const snippet of [
   "on public.payments (tenant_id, provider, provider_payment_id)",

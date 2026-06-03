@@ -53,7 +53,7 @@ export function AdminThemeSwitcher({
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ duration: 0.18 }}
             className={cn(
-              "absolute z-50 w-64 rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-2 shadow-2xl backdrop-blur-2xl",
+              "absolute z-50 w-64 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-2 shadow-2xl backdrop-blur-2xl",
               placement === "bottom" ? "right-0 top-[calc(100%+0.75rem)]" : "bottom-[calc(100%+0.75rem)] left-0"
             )}
           >
@@ -65,7 +65,7 @@ export function AdminThemeSwitcher({
                   setOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-white/[0.06]",
+                  "flex w-full items-center gap-3 rounded-[10px] px-3 py-2 text-left text-sm transition hover:bg-[var(--admin-primary)]/10",
                   themeId === theme.id ? "text-[var(--admin-primary)]" : "text-[var(--admin-text)]"
                 )}
                 title={theme.description}
@@ -93,7 +93,7 @@ export function AdminSearchBox({ placeholder = "Buscar usuarios, cotas, vendas, 
     <label className="relative block w-full">
       <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
       <input
-        className="h-11 w-full rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] pl-11 pr-4 text-sm text-[var(--admin-text)] outline-none transition focus:border-[var(--admin-primary)]"
+        className="admin-input h-10 w-full rounded-[10px] pl-11 pr-4"
         placeholder={placeholder}
       />
     </label>
@@ -126,7 +126,7 @@ export function MetricCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-[var(--admin-muted)]">{label}</p>
-          <div className="mt-2 text-2xl font-semibold tracking-tight text-[var(--admin-text)]">{value}</div>
+          <div className="mt-2 text-2xl font-semibold text-[var(--admin-text)]">{value}</div>
           {trend && <p className="mt-1 text-sm" style={{ color: toneVar }}>{trend}</p>}
         </div>
         <div className="grid h-12 w-12 place-items-center rounded-xl" style={{ color: toneVar, background: `${toneVar}18` }}>
@@ -175,17 +175,17 @@ export function AdminLoadingSkeleton() {
 export function AdminDataTable({ columns, rows, empty = "Nenhum registro encontrado." }: { columns: string[]; rows: React.ReactNode[][]; empty?: string }) {
   return (
     <div className="admin-card overflow-hidden">
-      <div className="overflow-x-auto custom-scrollbar">
+      <div className="overflow-x-auto cifher-scrollbar">
         <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="border-b border-[var(--admin-border)] bg-gray-50/80 text-xs text-[var(--admin-muted)]">
-            <tr>{columns.map(column => <th key={column} className="px-5 py-3 font-medium">{column}</th>)}</tr>
+          <thead className="border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)] text-xs text-[var(--admin-muted)]">
+            <tr>{columns.map(column => <th key={column} className="sticky top-0 px-4 py-2.5 font-semibold">{column}</th>)}</tr>
           </thead>
           <tbody className="divide-y divide-[var(--admin-border)]">
             {rows.length === 0 ? (
-              <tr><td className="px-5 py-8 text-center text-[var(--admin-muted)]" colSpan={columns.length}><PremiumEmptyState title={empty} description="Os dados aparecem aqui assim que houver movimentacao no tenant." /></td></tr>
+              <tr><td className="px-4 py-8 text-center text-[var(--admin-muted)]" colSpan={columns.length}><PremiumEmptyState title={empty} description="Os dados aparecem aqui assim que houver movimentacao no tenant." /></td></tr>
             ) : rows.map((row, index) => (
-              <tr key={index} className="transition hover:bg-gray-50/80">
-                {row.map((cell, cellIndex) => <td key={cellIndex} className="px-5 py-4 text-[var(--admin-text)]">{cell}</td>)}
+              <tr key={index} className="transition hover:bg-[var(--admin-primary)]/10">
+                {row.map((cell, cellIndex) => <td key={cellIndex} className="px-4 py-2.5 text-[var(--admin-text)]">{cell}</td>)}
               </tr>
             ))}
           </tbody>

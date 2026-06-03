@@ -7,10 +7,12 @@ const env = {
   ...process.env,
   PORT: String(port),
   NODE_ENV: "production",
+  RIFAPRO_TEST_MODE: "hard",
   SUPABASE_URL: "",
   VITE_SUPABASE_URL: "",
   SUPABASE_SERVICE_ROLE_KEY: "",
   SUPABASE_SERVICE_KEY: "",
+  STORAGE_DRIVER: "persistent",
   SUPERADMIN_EMAIL: "superadmin.concurrency@test.local",
   SUPERADMIN_PASSWORD: "SenhaSuperadmin123!",
   JWT_SECRET: "test-purchase-concurrency-jwt-secret-long-value",
@@ -29,7 +31,7 @@ async function wait(ms) {
 }
 
 async function waitForServer() {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
     try {
       const response = await fetch(`${baseUrl}/api/auth/session`);
       if (response.status >= 400) return;

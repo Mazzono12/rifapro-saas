@@ -19,7 +19,8 @@ const env = {
   SUPERADMIN_EMAIL: "superadmin.public-debug@test.local",
   SUPERADMIN_PASSWORD: "SenhaSuperadmin123!",
   JWT_SECRET: "test-public-debug-routes-jwt-secret-long-value",
-  GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-public-debug-routes-gateway-key"
+  GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-public-debug-routes-gateway-key",
+  ENABLE_PUBLIC_DEBUG: "true"
 };
 
 const server = spawn(process.execPath, [serverEntry], {

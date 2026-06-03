@@ -223,6 +223,11 @@ async function productionReadiness() {
   await runNodeScript("scripts/test-public-home-render-hard.mjs");
   await runNodeScript("scripts/test-admin-section-boundary-hard.mjs");
   await runNodeScript("scripts/test-theme-builder-marketplace.mjs");
+  await runNodeScript("scripts/test-modalidades-no-client-paid.mjs");
+  await runNodeScript("scripts/test-fazendinha-no-client-paid.mjs");
+  await runNodeScript("scripts/test-all-modalidades-active-hard.mjs");
+  await runNodeScript("scripts/test-no-public-superadmin-signup.mjs");
+  await runNodeScript("scripts/test-persistence-dirty-save.mjs");
   await step("bundle sem service role quando dist existir", () => {
     if (!existsSync(join(root, "dist"))) return;
     const frontendBundleFiles = [
@@ -280,6 +285,9 @@ try {
   const report = {
     mode,
     success: true,
+    singleProcessSafe: true,
+    multiInstanceSafe: false,
+    productionStateWarning: "Reservas em memoria sao single-process; multi-instance exige persistencia com locks transacionais.",
     startedAt: startedAt.toISOString(),
     finishedAt: new Date().toISOString(),
     durationMs: Date.now() - startedAt.getTime(),
