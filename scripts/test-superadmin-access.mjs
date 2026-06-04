@@ -7,31 +7,39 @@ const env = {
   ...process.env,
   PORT: String(port),
   NODE_ENV: "production",
-  SUPABASE_URL: "",
-  VITE_SUPABASE_URL: "",
-  SUPABASE_SERVICE_ROLE_KEY: "",
-  SUPABASE_SERVICE_KEY: "",
+  SUPABASE_URL: "http://127.0.0.1:54321",
+  VITE_SUPABASE_URL: "http://127.0.0.1:54321",
+  SUPABASE_SERVICE_ROLE_KEY: "superadminAccessSupabaseRoleValueForHardeningSuite20260604",
+  SUPABASE_SERVICE_KEY: "superadminAccessSupabaseRoleValueForHardeningSuite20260604",
   SUPERADMIN_EMAIL: "superadmin.access@test.local",
   SUPERADMIN_PASSWORD: "SenhaSuperadmin123!",
-  JWT_SECRET: "test-superadmin-jwt-secret-long-value"
+  PUBLIC_BASE_URL: baseUrl,
+  ADMIN_BASE_URL: baseUrl,
+  STORAGE_DRIVER: "persistent",
+  JWT_SECRET: "superadminAccessJwtValueForHardeningSuite20260604",
+  SESSION_SECRET: "superadminAccessSessionValueForHardeningSuite20260604",
+  GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "superadminAccessGatewayValueForHardeningSuite20260604"
 };
 const server = spawn(process.execPath, ["dist/server.js"], {
   cwd: process.cwd(),
   env,
   stdio: ["ignore", "pipe", "pipe"]
 });
+let serverOutput = "";
+server.stdout.on("data", chunk => { serverOutput += chunk.toString(); });
+server.stderr.on("data", chunk => { serverOutput += chunk.toString(); });
 
 async function waitForServer() {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     try {
       const response = await fetch(`${baseUrl}/api/auth/session`);
-      if (response.status >= 400) return;
+      if (response.status > 0) return;
     } catch {
       // Server is still starting.
     }
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  throw new Error("Servidor de teste nao iniciou a tempo.");
+  throw new Error(`Servidor de teste nao iniciou a tempo.\n${serverOutput.slice(-2000)}`);
 }
 
 async function request(path, options = {}) {

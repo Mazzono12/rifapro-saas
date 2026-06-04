@@ -36,6 +36,32 @@ import { cn } from "../lib/utils";
 import { uploadCustomerProfilePhoto } from "../utils/customerMedia";
 
 type MarketingTab = "banners" | "videos" | "stories" | "reels" | "textos";
+type AffiliateDashboard = {
+  refCode: string;
+  couponCode: string;
+  links: { primary: string; short: string };
+  metrics: {
+    clicks: number;
+    conversions: number;
+    referredCustomers: number;
+    revenue: number;
+    conversionRate: number;
+    commissionsTotal: number;
+    commissionsPending: number;
+    commissionsReleased: number;
+    commissionsPaid: number;
+    availableToWithdraw: number;
+    prizesBalance: number;
+  };
+  recurring: { enabled: boolean; status: string; monthlyCommission: number; note: string };
+  customers: Array<{ customer: string; plan: string; status: string; registeredAt: string; lastPaymentAt: string; commissionGenerated: number }>;
+  commissions: Array<{ id: string; type: string; source: string; amount: number; status: string; createdAt: string }>;
+  withdrawals: Array<{ id: string; amount: number; status: string; requestedAt: string; paidAt?: string; adminNote?: string }>;
+  ranking: {
+    month: Array<{ position: number; affiliate: string; customers: number; conversions: number; revenue: number; commissionGenerated: number; conversion: number }>;
+    year: Array<{ position: number; affiliate: string; customers: number; conversions: number; revenue: number; commissionGenerated: number; conversion: number }>;
+  };
+};
 
 const marketingTabs: Array<{ id: MarketingTab; label: string; icon: React.ElementType }> = [
   { id: "banners", label: "Banners", icon: Image },
@@ -48,6 +74,7 @@ const marketingTabs: Array<{ id: MarketingTab; label: string; icon: React.Elemen
 export function Affiliates() {
   const { customer, setCustomer } = useCustomerStore();
   const [stats, setStats] = useState<AffiliateStats | null>(null);
+  const [dashboard, setDashboard] = useState<AffiliateDashboard | null>(null);
   const [settings, setSettings] = useState<any>(null);
   const [pixKey, setPixKey] = useState("");
   const [useBalance, setUseBalance] = useState(false);
@@ -58,17 +85,18 @@ export function Affiliates() {
 
   useEffect(() => {
     if (!customer) return;
-    fetch(`/api/affiliates/${customer.affiliateRefCode}`)
-      .then(res => res.json())
-      .then(data => {
-        setStats(data);
-        setPixKey(data.pixKey || "");
-        setUseBalance(Boolean(data.useBalanceForPurchases));
-        const balance = Number(data.commissionBalance ?? data.commission ?? 0) + Number(data.prizeBalance || 0);
-        setWithdrawAmount(balance ? balance.toFixed(2) : "");
-        setCustomer({ ...customer, affiliate: data });
-      })
-      .catch(() => null);
+    Promise.all([
+      fetch(`/api/affiliates/${customer.affiliateRefCode}`).then(res => res.json()),
+      fetch(`/api/affiliates/${customer.affiliateRefCode}/dashboard`).then(res => res.ok ? res.json() : null).catch(() => null)
+    ]).then(([data, dashboardData]) => {
+      setStats(data);
+      setDashboard(dashboardData);
+      setPixKey(data.pixKey || "");
+      setUseBalance(Boolean(data.useBalanceForPurchases));
+      const balance = Number(dashboardData?.metrics?.availableToWithdraw ?? ((data.commissionBalance ?? data.commission ?? 0) + Number(data.prizeBalance || 0)));
+      setWithdrawAmount(balance ? balance.toFixed(2) : "");
+      setCustomer({ ...customer, affiliate: data });
+    }).catch(() => null);
   }, [customer?.affiliateRefCode]);
 
   useEffect(() => {
@@ -76,14 +104,16 @@ export function Affiliates() {
   }, []);
 
   const affiliateLink = useMemo(() => {
+    if (dashboard?.links?.primary) return dashboard.links.primary;
     if (typeof window === "undefined" || !customer) return "";
     return `${window.location.origin}/?ref=${customer.affiliateRefCode}&utm_source=afiliado&utm_medium=painel`;
-  }, [customer?.affiliateRefCode]);
+  }, [customer?.affiliateRefCode, dashboard?.links?.primary]);
 
   const shortLink = useMemo(() => {
+    if (dashboard?.links?.short) return dashboard.links.short;
     if (typeof window === "undefined" || !customer) return "";
     return `${window.location.origin}/?ref=${customer.affiliateRefCode}`;
-  }, [customer?.affiliateRefCode]);
+  }, [customer?.affiliateRefCode, dashboard?.links?.short]);
 
   const copyValue = async (value: string, message: string) => {
     await navigator.clipboard.writeText(value);
@@ -104,6 +134,7 @@ export function Affiliates() {
     }
     setStats(data);
     setCustomer({ ...customer, affiliate: data });
+    fetch(`/api/affiliates/${customer.affiliateRefCode}/dashboard`).then(res => res.ok ? res.json() : null).then(setDashboard).catch(() => null);
     toast.success("Preferências de afiliado salvas");
   };
 
@@ -139,6 +170,7 @@ export function Affiliates() {
       if (!res.ok) throw new Error(data.error || "Erro ao solicitar saque");
       setStats(data.affiliate);
       setCustomer({ ...customer, affiliate: data.affiliate });
+      fetch(`/api/affiliates/${customer.affiliateRefCode}/dashboard`).then(response => response.ok ? response.json() : null).then(setDashboard).catch(() => null);
       toast.success("Solicitação de saque enviada", {
         description: "O admin foi notificado para fazer a transferência manual no banco."
       });
@@ -165,24 +197,24 @@ export function Affiliates() {
 
   const rules = stats.rules;
   const eligible = stats.enabled;
-  const commissionBalance = Number(stats.commissionBalance ?? stats.commission ?? 0);
-  const prizeBalance = Number(stats.prizeBalance ?? 0);
+  const commissionBalance = Number(dashboard?.metrics.commissionsReleased ?? stats.commissionBalance ?? stats.commission ?? 0);
+  const prizeBalance = Number(dashboard?.metrics.prizesBalance ?? stats.prizeBalance ?? 0);
   const totalBalance = commissionBalance + prizeBalance;
-  const paidAmount = stats.history
+  const paidAmount = Number(dashboard?.metrics.commissionsPaid ?? stats.history
     .filter(entry => entry.amount < 0 || /paid/i.test(entry.type))
-    .reduce((sum, entry) => sum + Math.abs(Number(entry.amount || 0)), 0);
+    .reduce((sum, entry) => sum + Math.abs(Number(entry.amount || 0)), 0));
   const expectedCommission = Number((stats.revenue * ((rules?.commissionRate || 0) / 100)).toFixed(2));
-  const totalCommissions = Math.max(expectedCommission, commissionBalance + paidAmount);
-  const pendingCommissions = Math.max(0, expectedCommission - commissionBalance - paidAmount);
+  const totalCommissions = Number(dashboard?.metrics.commissionsTotal ?? Math.max(expectedCommission, commissionBalance + paidAmount));
+  const pendingCommissions = Number(dashboard?.metrics.commissionsPending ?? Math.max(0, expectedCommission - commissionBalance - paidAmount));
   const releasedCommissions = commissionBalance;
-  const conversionRate = stats.clicks > 0 ? (stats.conversions / stats.clicks) * 100 : stats.conversions > 0 ? 100 : 0;
+  const conversionRate = Number(dashboard?.metrics.conversionRate ?? (stats.clicks > 0 ? (stats.conversions / stats.clicks) * 100 : stats.conversions > 0 ? 100 : 0));
   const canWithdraw = totalBalance >= (rules?.minWithdrawAmount || 0);
   const nextPayment = nextBusinessPaymentLabel();
-  const couponCode = String(customer.affiliateRefCode || "").toUpperCase();
-  const referredRows = buildReferredRows(stats);
-  const historyRows = buildHistoryRows(stats.history, nextPayment);
-  const rankingMonth = buildRankingRows(customer.name, stats, "month");
-  const rankingYear = buildRankingRows(customer.name, stats, "year");
+  const couponCode = dashboard?.couponCode || String(customer.affiliateRefCode || "").toUpperCase();
+  const referredRows = dashboard ? buildReferredRowsFromDashboard(dashboard.customers) : buildReferredRows(stats);
+  const historyRows = dashboard ? buildHistoryRowsFromDashboard(dashboard.commissions, dashboard.withdrawals, nextPayment) : buildHistoryRows(stats.history, nextPayment);
+  const rankingMonth = dashboard ? buildRankingRowsFromDashboard(dashboard.ranking.month) : buildRankingRows(customer.name, stats, "month");
+  const rankingYear = dashboard ? buildRankingRowsFromDashboard(dashboard.ranking.year) : buildRankingRows(customer.name, stats, "year");
   const chartData = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((name, index) => ({
     name,
     ganhos: Number(Math.max(0, totalCommissions * ((index + 1) / 8)).toFixed(2))
@@ -227,8 +259,8 @@ export function Affiliates() {
         <MetricCard icon={CalendarClock} label="Comissões Pendentes" value={money(pendingCommissions)} trend="a liberar" tone="warning" />
         <MetricCard icon={CheckCircle2} label="Comissões Liberadas" value={money(releasedCommissions)} trend="saldo disponível" tone="primary" />
         <MetricCard icon={Banknote} label="Saques Realizados" value={money(paidAmount)} trend={`${paidWithdrawalCount(stats.history)} baixa(s)`} tone="accent" />
-        <MetricCard icon={Users} label="Clientes Indicados" value={stats.referredCustomers} trend={`${stats.conversions} conversões`} />
-        <MetricCard icon={TrendingUp} label="Conversão" value={`${conversionRate.toFixed(1)}%`} trend={`${stats.clicks} cliques`} tone="success" />
+        <MetricCard icon={Users} label="Clientes Indicados" value={dashboard?.metrics.referredCustomers ?? stats.referredCustomers} trend={`${dashboard?.metrics.conversions ?? stats.conversions} conversões`} />
+        <MetricCard icon={TrendingUp} label="Conversão" value={`${conversionRate.toFixed(1)}%`} trend={`${dashboard?.metrics.clicks ?? stats.clicks} cliques`} tone="success" />
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -289,6 +321,11 @@ export function Affiliates() {
             <FinanceStat label="Pago" value={money(paidAmount)} />
             <FinanceStat label="Próximo pagamento" value={nextPayment} />
           </div>
+          {dashboard?.recurring && (
+            <div className="mt-3 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3 text-xs leading-5 text-[var(--admin-muted)]">
+              Comissão recorrente: {dashboard.recurring.status === "preparation" ? "em preparação" : "ativa"}. {dashboard.recurring.note}
+            </div>
+          )}
           <div className="mt-5 space-y-4 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
             <label className="grid gap-2 text-sm font-semibold text-[var(--admin-text)]">
               Chave PIX para saque
@@ -549,6 +586,19 @@ function buildReferredRows(stats: AffiliateStats) {
   ]);
 }
 
+function buildReferredRowsFromDashboard(customers: AffiliateDashboard["customers"]) {
+  return customers.slice(0, 40).map((item, index) => [
+    item.customer || `Cliente indicado #${index + 1}`,
+    item.plan || "Cliente",
+    <span key={`status-${index}`} className={cn("text-xs font-semibold", item.status === "active" ? "text-[var(--admin-success)]" : "text-[var(--admin-muted)]")}>
+      {item.status === "active" ? "Ativo" : "Cadastrado"}
+    </span>,
+    item.registeredAt ? new Date(item.registeredAt).toLocaleDateString("pt-BR") : "-",
+    item.lastPaymentAt ? new Date(item.lastPaymentAt).toLocaleDateString("pt-BR") : "-",
+    money(item.commissionGenerated)
+  ]);
+}
+
 function buildHistoryRows(history: AffiliateStats["history"], nextPayment: string) {
   const rows = history.slice(-20).reverse().map((entry, index) => [
     historyTypeLabel(entry.type),
@@ -557,6 +607,33 @@ function buildHistoryRows(history: AffiliateStats["history"], nextPayment: strin
     <span key={`${entry.type}-${index}`} className="text-xs font-semibold text-[var(--admin-muted)]">{historyStatus(entry.type, nextPayment)}</span>
   ]);
   return rows;
+}
+
+function buildHistoryRowsFromDashboard(commissions: AffiliateDashboard["commissions"], withdrawals: AffiliateDashboard["withdrawals"], nextPayment: string) {
+  return [
+    ...withdrawals.map(item => ({
+      type: "Saque",
+      amount: item.amount,
+      date: item.paidAt || item.requestedAt,
+      status: withdrawalStatusLabel(item.status, nextPayment),
+      tone: item.status === "paid" ? "text-[var(--admin-success)]" : item.status === "pending" ? "text-[var(--admin-warning)]" : "text-[var(--admin-danger)]"
+    })),
+    ...commissions.map(item => ({
+      type: commissionTypeLabel(item.type),
+      amount: item.amount,
+      date: item.createdAt,
+      status: item.status === "released" ? "Liberado" : item.status,
+      tone: "text-[var(--admin-muted)]"
+    }))
+  ]
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+    .slice(0, 30)
+    .map((item, index) => [
+      item.type,
+      money(item.amount),
+      item.date ? new Date(item.date).toLocaleString("pt-BR") : "-",
+      <span key={`${item.type}-${index}`} className={cn("text-xs font-semibold", item.tone)}>{item.status}</span>
+    ]);
 }
 
 function buildRankingRows(name: string, stats: AffiliateStats, period: "month" | "year") {
@@ -576,8 +653,29 @@ function buildRankingRows(name: string, stats: AffiliateStats, period: "month" |
   ]);
 }
 
+function buildRankingRowsFromDashboard(rows: AffiliateDashboard["ranking"]["month"]) {
+  return rows.map(item => [
+    `#${item.position}`,
+    item.affiliate,
+    item.customers,
+    money(item.revenue),
+    <span key={item.position} className="text-[var(--admin-success)]">{money(item.commissionGenerated)} · {item.conversion.toFixed(1)}%</span>
+  ]);
+}
+
 function paidWithdrawalCount(history: AffiliateStats["history"]) {
   return history.filter(entry => entry.amount < 0 || /paid/i.test(entry.type)).length;
+}
+
+function commissionTypeLabel(type: string) {
+  if (type === "sale_commission") return "Comissão por venda";
+  return historyTypeLabel(type);
+}
+
+function withdrawalStatusLabel(status: string, nextPayment: string) {
+  if (status === "paid") return "Pago";
+  if (status === "rejected") return "Rejeitado";
+  return `Pendente · ${nextPayment}`;
 }
 
 function historyTypeLabel(type: string) {

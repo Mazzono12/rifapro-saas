@@ -11240,6 +11240,173 @@ async function startServer() {
     return affiliate;
   }
 
+  type AffiliatePaidOrder = {
+    id: string;
+    tenant_id: string;
+    refCode?: string;
+    customer?: CustomerRecord;
+    amount: number;
+    status: string;
+    createdAt: string;
+    channel: string;
+  };
+
+  function getAffiliatePaidOrders(tenantId: string, refCode: string): AffiliatePaidOrder[] {
+    const traditional = purchases
+      .filter(item => item.tenant_id === tenantId && item.refCode === refCode && item.status === "paid")
+      .map(item => ({ id: item.purchaseId, tenant_id: item.tenant_id, refCode: item.refCode, customer: item.customer, amount: item.amount, status: item.status, createdAt: item.createdAt, channel: "rifa" }));
+    const modes = numberModePurchases
+      .filter(item => item.tenant_id === tenantId && item.refCode === refCode && item.status === "paid")
+      .map(item => ({ id: item.id, tenant_id: item.tenant_id, refCode: item.refCode, customer: item.customer, amount: item.amount, status: item.status, createdAt: item.createdAt, channel: item.mode }));
+    const farm = fazendinhaCompras
+      .filter(item => item.tenant_id === tenantId && item.refCode === refCode && item.statusPagamento === "paid")
+      .map(item => ({ id: item.id, tenant_id: item.tenant_id, refCode: item.refCode, customer: item.customer, amount: item.valorPago, status: item.statusPagamento, createdAt: item.paidAt || item.confirmedAt || item.dataCompra, channel: "fazendinha" }));
+    return [...traditional, ...modes, ...farm].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  function affiliateOwnerCustomer(affiliate: AffiliateRecord) {
+    return affiliate.customerId
+      ? Object.values(customersByPhone).find(item => item.tenant_id === affiliate.tenant_id && item.id === affiliate.customerId)
+      : undefined;
+  }
+
+  function isAffiliateOwnerRequest(req: express.Request, affiliate: AffiliateRecord) {
+    const customer = affiliateOwnerCustomer(affiliate);
+    return Boolean(customer && requestOwnsCustomer(req, customer));
+  }
+
+  function affiliateCommissionEntries(affiliate: AffiliateRecord) {
+    return affiliate.history
+      .filter(entry => Number(entry.amount || 0) > 0)
+      .map(entry => ({
+        id: entry.type,
+        type: entry.type.startsWith("conversion:") ? "sale_commission" : entry.type,
+        source: entry.type,
+        amount: Number(entry.amount || 0),
+        status: "released",
+        createdAt: entry.date
+      }))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  function affiliatePaidTotal(tenantId: string, refCode: string) {
+    return affiliateWithdrawals
+      .filter(item => item.tenant_id === tenantId && item.refCode === refCode && item.status === "paid")
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  }
+
+  function buildAffiliateReferredCustomers(affiliate: AffiliateRecord) {
+    const tenantSettings = getTenantSettings(affiliate.tenant_id);
+    return Object.values(customersByPhone)
+      .filter(customer => customer.tenant_id === affiliate.tenant_id && customer.referredBy === affiliate.refCode)
+      .map(customer => {
+        const paidOrders = getAffiliatePaidOrders(affiliate.tenant_id, affiliate.refCode)
+          .filter(order => order.customer?.id === customer.id);
+        const revenue = paidOrders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+        return {
+          id: customer.id,
+          customer: maskDisplayName(customer.name),
+          plan: "Cliente",
+          status: paidOrders.length ? "active" : "registered",
+          registeredAt: customer.createdAt,
+          lastPaymentAt: paidOrders[0]?.createdAt || "",
+          commissionGenerated: Number((revenue * (tenantSettings.affiliateProgram.commissionRate / 100)).toFixed(2))
+        };
+      })
+      .sort((a, b) => String(b.lastPaymentAt || b.registeredAt).localeCompare(String(a.lastPaymentAt || a.registeredAt)));
+  }
+
+  function buildAffiliateWithdrawals(affiliate: AffiliateRecord) {
+    return affiliateWithdrawals
+      .filter(item => item.tenant_id === affiliate.tenant_id && item.refCode === affiliate.refCode)
+      .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
+      .map(item => ({
+        id: item.id,
+        amount: item.amount,
+        status: item.status,
+        requestedAt: item.requestedAt,
+        paidAt: item.paidAt || "",
+        adminNote: item.status === "rejected" ? item.adminNote || "" : ""
+      }));
+  }
+
+  function buildAffiliateRanking(tenantId: string, period: "month" | "year") {
+    const now = new Date();
+    const startsAt = new Date(period === "month" ? now.getFullYear() : now.getFullYear(), period === "month" ? now.getMonth() : 0, 1).getTime();
+    return Object.values(affiliates)
+      .filter(affiliate => affiliate.tenant_id === tenantId)
+      .map(affiliate => {
+        const owner = affiliateOwnerCustomer(affiliate);
+        const orders = getAffiliatePaidOrders(tenantId, affiliate.refCode).filter(order => new Date(order.createdAt).getTime() >= startsAt);
+        const referredCustomers = new Set(orders.map(order => order.customer?.id).filter(Boolean));
+        const commissionGenerated = affiliate.history
+          .filter(entry => Number(entry.amount || 0) > 0 && new Date(entry.date).getTime() >= startsAt)
+          .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+        const clicks = Math.max(0, Number(affiliate.clicks || 0));
+        const conversion = clicks > 0 ? Number(((orders.length / clicks) * 100).toFixed(2)) : orders.length > 0 ? 100 : 0;
+        return {
+          refCode: affiliate.refCode,
+          affiliate: maskDisplayName(owner?.name || affiliate.refCode),
+          customers: referredCustomers.size,
+          conversions: orders.length,
+          revenue: Number(orders.reduce((sum, order) => sum + Number(order.amount || 0), 0).toFixed(2)),
+          commissionGenerated: Number(commissionGenerated.toFixed(2)),
+          conversion
+        };
+      })
+      .filter(item => item.customers > 0 || item.commissionGenerated > 0 || item.revenue > 0)
+      .sort((a, b) => b.commissionGenerated - a.commissionGenerated || b.revenue - a.revenue)
+      .slice(0, 10)
+      .map((item, index) => ({ position: index + 1, ...item }));
+  }
+
+  function buildAffiliateDashboard(req: express.Request, affiliate: AffiliateRecord) {
+    const tenantSettings = getTenantSettings(affiliate.tenant_id);
+    const orders = getAffiliatePaidOrders(affiliate.tenant_id, affiliate.refCode);
+    const commissions = affiliateCommissionEntries(affiliate);
+    const generated = commissions.reduce((sum, item) => sum + item.amount, 0);
+    const paid = affiliatePaidTotal(affiliate.tenant_id, affiliate.refCode);
+    const released = Math.max(0, Number(affiliate.commissionBalance || 0));
+    const pending = 0;
+    const referredCustomers = buildAffiliateReferredCustomers(affiliate);
+    const withdrawals = buildAffiliateWithdrawals(affiliate);
+    const origin = `${req.protocol}://${req.get("host")}`;
+    const primaryLink = `${origin}/?ref=${encodeURIComponent(affiliate.refCode)}&utm_source=afiliado&utm_medium=painel`;
+    const shortLink = `${origin}/?ref=${encodeURIComponent(affiliate.refCode)}`;
+    return {
+      refCode: affiliate.refCode,
+      couponCode: affiliate.refCode.toUpperCase(),
+      links: { primary: primaryLink, short: shortLink },
+      rules: tenantSettings.affiliateProgram,
+      metrics: {
+        clicks: affiliate.clicks,
+        conversions: orders.length,
+        referredCustomers: referredCustomers.length,
+        revenue: Number(orders.reduce((sum, order) => sum + order.amount, 0).toFixed(2)),
+        conversionRate: affiliate.clicks > 0 ? Number(((orders.length / affiliate.clicks) * 100).toFixed(2)) : orders.length > 0 ? 100 : 0,
+        commissionsTotal: Number(generated.toFixed(2)),
+        commissionsPending: pending,
+        commissionsReleased: released,
+        commissionsPaid: Number(paid.toFixed(2)),
+        availableToWithdraw: Number(((affiliate.commissionBalance || 0) + (affiliate.prizeBalance || 0)).toFixed(2)),
+        prizesBalance: Number((affiliate.prizeBalance || 0).toFixed(2))
+      },
+      recurring: {
+        enabled: false,
+        status: "preparation",
+        monthlyCommission: 0,
+        note: "Nao ha ledger de recorrencia ativo; valores recorrentes nao sao simulados."
+      },
+      customers: referredCustomers,
+      commissions,
+      withdrawals,
+      ranking: {
+        month: buildAffiliateRanking(affiliate.tenant_id, "month"),
+        year: buildAffiliateRanking(affiliate.tenant_id, "year")
+      }
+    };
+  }
+
   function manuallyConfirmPurchasePayment(purchase: PurchaseRecord, req: express.Request, reason: string) {
     const normalizedReason = String(reason || "").trim();
     if (!normalizedReason) throw new Error("Motivo da confirmacao manual e obrigatorio");
@@ -15655,8 +15822,26 @@ async function startServer() {
       return;
     }
 
-    const { pixKey, history, ...publicAffiliate } = affiliate;
+    const publicAffiliate = {
+      tenant_id: affiliate.tenant_id,
+      refCode: affiliate.refCode,
+      enabled: affiliate.enabled
+    };
     res.json({ ...publicAffiliate, rules: settings.affiliateProgram });
+  });
+
+  app.get("/api/affiliates/:refCode/dashboard", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const affiliate = affiliates[tenantCustomerKey(tenantId, req.params.refCode)];
+    if (!affiliate) {
+      res.status(404).json({ error: "Affiliate not found" });
+      return;
+    }
+    if (!isAffiliateOwnerRequest(req, affiliate)) {
+      res.status(403).json({ error: "Acesso negado para este afiliado" });
+      return;
+    }
+    res.json(buildAffiliateDashboard(req, affiliate));
   });
 
   app.get("/api/admin/affiliates/search", (req, res) => {
