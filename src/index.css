@@ -4341,6 +4341,46 @@ html[data-admin-theme="light"] .admin-shell {
   line-height: 1.2 !important;
 }
 
+.admin-button,
+.admin-button-primary,
+.admin-button-secondary,
+.admin-action-button {
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.admin-button svg,
+.admin-button-primary svg,
+.admin-button-secondary svg,
+.admin-action-button svg {
+  flex: 0 0 auto;
+}
+
+.admin-action-button {
+  display: inline-flex;
+  min-height: 34px !important;
+  align-items: center;
+  justify-content: center;
+  gap: .375rem;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 8px !important;
+  background: var(--admin-surface) !important;
+  color: var(--admin-secondary-text) !important;
+  font-size: 12px !important;
+  font-weight: 700;
+  line-height: 1 !important;
+  padding: .45rem .6rem;
+  box-shadow: none !important;
+  transition: border-color .18s ease, background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.admin-action-button:hover {
+  border-color: color-mix(in srgb, var(--admin-primary) 62%, transparent) !important;
+  background: color-mix(in srgb, var(--admin-primary) 12%, var(--admin-surface)) !important;
+  color: var(--admin-text) !important;
+  transform: translateY(-1px);
+}
+
 .admin-icon-button,
 .admin-sidebar-toggle {
   border-radius: 8px !important;

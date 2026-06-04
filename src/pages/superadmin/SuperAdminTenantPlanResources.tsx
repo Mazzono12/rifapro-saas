@@ -81,7 +81,7 @@ export function SuperAdminTenantPlanResources() {
             <input value={reason} onChange={event => setReason(event.target.value)} className="admin-input w-full" />
           </label>
         </div>
-        <button onClick={savePlan} className="admin-button mt-4">Salvar plano</button>
+        <button type="button" onClick={savePlan} className="admin-button mt-4 h-10 px-3 text-sm">Salvar plano</button>
       </section>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

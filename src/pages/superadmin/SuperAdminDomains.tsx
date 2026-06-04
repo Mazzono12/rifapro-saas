@@ -77,7 +77,7 @@ export function SuperAdminDomains() {
           <option value="custom_domain">Domínio próprio</option>
           <option value="subdomain">Subdomínio</option>
         </select>
-        <button className="admin-button-primary self-end" type="submit"><Plus className="h-4 w-4" /> Adicionar</button>
+        <button className="admin-button self-end" type="submit"><Plus className="h-4 w-4" /> Adicionar</button>
       </form>
 
       <AdminDataTable
@@ -89,9 +89,9 @@ export function SuperAdminDomains() {
           <div key={`${domain.id}-dns`}><p>{domain.dns_target}</p><p className="text-xs text-[var(--admin-muted)]">{domain.ssl_status}</p></div>,
           domain.is_primary ? "Sim" : "Não",
           <div key={`${domain.id}-actions`} className="flex flex-wrap gap-2">
-            <button className="admin-button-secondary" onClick={() => void action(`/api/superadmin/domains/${domain.id}/verify`)}><CheckCircle2 className="h-4 w-4" /> Verificar</button>
-            <button className="admin-button-secondary" onClick={() => void action(`/api/superadmin/domains/${domain.id}/primary`, "PUT")}><Star className="h-4 w-4" /> Principal</button>
-            <button className="admin-icon-button" onClick={() => void action(`/api/superadmin/domains/${domain.id}`, "DELETE")}><Trash2 className="h-4 w-4" /></button>
+            <button className="admin-action-button" onClick={() => void action(`/api/superadmin/domains/${domain.id}/verify`)}><CheckCircle2 className="h-4 w-4" /> Verificar</button>
+            <button className="admin-action-button" onClick={() => void action(`/api/superadmin/domains/${domain.id}/primary`, "PUT")}><Star className="h-4 w-4" /> Principal</button>
+            <button className="admin-icon-button" title="Remover domínio" aria-label="Remover domínio" onClick={() => void action(`/api/superadmin/domains/${domain.id}`, "DELETE")}><Trash2 className="h-4 w-4" /></button>
           </div>
         ])}
       />

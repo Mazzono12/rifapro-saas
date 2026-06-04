@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { BarChart3, Download, ExternalLink, LifeBuoy } from "lucide-react";
+import { ArrowLeft, BarChart3, Download, ExternalLink, LifeBuoy, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { AdminDataTable, AdminLoadingSkeleton, MetricCard } from "../../components/admin/AdminPremium";
 
@@ -57,10 +57,12 @@ export function SuperAdminTenantDetail() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link to="/superadmin" className="text-sm text-[var(--admin-muted)]">← Voltar para clientes</Link>
+          <Link to="/superadmin/clientes" className="admin-action-button">
+            <ArrowLeft className="h-4 w-4" /> Clientes
+          </Link>
           <h2 className="mt-1 text-2xl font-semibold text-[var(--admin-text)]">{data.tenant.nome}</h2>
         </div>
-        <a className="admin-button-secondary" href={`/api/superadmin/tenants/${tenantId}/reports/revenue/export`}>
+        <a className="admin-button-secondary h-10 px-3 text-sm" href={`/api/superadmin/tenants/${tenantId}/reports/revenue/export`}>
           <Download className="h-4 w-4" /> CSV financeiro
         </a>
       </div>
@@ -76,7 +78,7 @@ export function SuperAdminTenantDetail() {
         <label className="space-y-1 text-sm text-[var(--admin-muted)]">Motivo obrigatório para acesso assistido
           <input className="admin-input w-full" value={reason} onChange={event => setReason(event.target.value)} placeholder="Ex.: suporte solicitado pelo cliente para revisar pedidos" required />
         </label>
-        <button className="admin-button-primary self-end" type="submit"><LifeBuoy className="h-4 w-4" /> Acessar como suporte</button>
+        <button className="admin-button self-end" type="submit"><LifeBuoy className="h-4 w-4" /> Acessar</button>
       </form>
 
       <AdminDataTable
@@ -85,9 +87,9 @@ export function SuperAdminTenantDetail() {
           raffle.title,
           raffle.status,
           `${raffle.soldTickets}/${raffle.totalTickets}`,
-          <div key={raffle.id} className="flex gap-2">
-            <a className="admin-button-secondary" href={`/raffle/${raffle.id}`} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Pública</a>
-            <Link className="admin-button-secondary" to={`/admin/rifas`}>Editar rifa</Link>
+          <div key={raffle.id} className="flex flex-wrap gap-2">
+            <a className="admin-action-button" href={`/raffle/${raffle.id}`} target="_blank" rel="noreferrer" title="Abrir página pública"><ExternalLink className="h-4 w-4" /> Pública</a>
+            <Link className="admin-action-button" to="/admin/rifas" title="Editar no painel operacional"><Pencil className="h-4 w-4" /> Editar</Link>
           </div>
         ])}
       />

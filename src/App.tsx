@@ -118,6 +118,7 @@ const AdminComplianceCenter = lazy(() => import("./pages/admin/AdminComplianceCe
 const AdminMyPlan = lazy(() => import("./pages/admin/AdminMyPlan").then(module => ({ default: module.AdminMyPlan })));
 const SuperAdminLayout = lazy(() => import("./pages/superadmin/SuperAdminLayout").then(module => ({ default: module.SuperAdminLayout })));
 const SuperAdminDashboard = lazy(() => import("./pages/superadmin/SuperAdminDashboard").then(module => ({ default: module.SuperAdminDashboard })));
+const SuperAdminClients = lazy(() => import("./pages/superadmin/SuperAdminClients").then(module => ({ default: module.SuperAdminClients })));
 const SuperAdminIntegrations = lazy(() => import("./pages/superadmin/SuperAdminIntegrations").then(module => ({ default: module.SuperAdminIntegrations })));
 const SuperAdminDomains = lazy(() => import("./pages/superadmin/SuperAdminDomains").then(module => ({ default: module.SuperAdminDomains })));
 const SuperAdminAudit = lazy(() => import("./pages/superadmin/SuperAdminAudit").then(module => ({ default: module.SuperAdminAudit })));
@@ -316,6 +317,7 @@ export default function App() {
               </Route>
               <Route path="/superadmin" element={<ProtectedRoute roles={["superadmin"]}><Suspense fallback={<AdminRouteFallback />}><SuperAdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={<SuperAdminDashboard />} />
+                <Route path="clientes" element={<SuperAdminClients />} />
                 <Route path="integracoes" element={<SuperAdminIntegrations />} />
                 <Route path="dominios" element={<SuperAdminDomains />} />
                 <Route path="auditoria" element={<SuperAdminAudit />} />

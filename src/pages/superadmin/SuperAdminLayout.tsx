@@ -60,7 +60,7 @@ function SuperAdminLayoutContent() {
 
   const navItems = useMemo<SidebarNavItem[]>(() => [
     { name: "Gestão Global", path: "/superadmin", icon: Crown, group: "Gestão Global" },
-    { name: "Clientes", path: "/superadmin#clientes", icon: Building2, group: "Gestão Global" },
+    { name: "Clientes", path: "/superadmin/clientes", icon: Building2, group: "Gestão Global" },
     { name: "Financeiro", path: "/superadmin/relatorios", icon: FileText, group: "Gestão Global" },
     { name: "Aparência", path: "/superadmin/aparencia", icon: Palette, group: "Ambiente" },
     { name: "Domínios", path: "/superadmin/dominios", icon: Globe2, group: "Ambiente" },

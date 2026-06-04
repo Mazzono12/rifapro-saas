@@ -240,7 +240,7 @@ export function AdminDashboard() {
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid auto-rows-fr gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={BadgeDollarSign} label="Faturamento Confirmado" value={currency.format(totalRevenue)} trend={`${paid.length} vendas confirmadas`} tone="success" />
         <MetricCard icon={CheckCircle2} label="Vendas Confirmadas" value={paid.length} trend={`${totalTickets} números vendidos`} tone="accent" />
         <MetricCard icon={Box} label="Conversão Operacional" value={`${conversionRate.toFixed(1)}%`} trend="Eficiência do período filtrado" tone="success" />

@@ -60,24 +60,22 @@ export function SuperAdminReports() {
       <section className="admin-card p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase tracking-widest text-[var(--admin-primary)]">Exportações oficiais</p>
-            <h2 className="mt-1 text-2xl font-black text-[var(--admin-text)]">Relatórios verificados do ambiente premium</h2>
-            <p className="mt-2 text-sm text-[var(--admin-muted)]">PDF/CSV com verificação protegida, assinatura digital e validação pública por QR Code.</p>
+            <h2 className="text-2xl font-semibold text-[var(--admin-text)]">Financeiro</h2>
           </div>
           <div className="flex flex-wrap gap-2">
-            <select value={reportType} onChange={event => setReportType(event.target.value)} className="admin-input h-11 min-w-56 rounded-2xl px-4">
+            <select value={reportType} onChange={event => setReportType(event.target.value)} className="admin-input h-10 min-w-56 px-3 text-sm">
               {reportTypes.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
             </select>
-            <details className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] px-4 py-2">
+            <details className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-2">
               <summary className="cursor-pointer text-sm font-semibold text-[var(--admin-text)]">Configurações Avançadas</summary>
-              <input value={tenantId} onChange={event => setTenantId(event.target.value)} className="admin-input mt-3 h-11 min-w-56 rounded-2xl px-4" placeholder="Código interno opcional" />
+              <input value={tenantId} onChange={event => setTenantId(event.target.value)} className="admin-input mt-3 h-10 min-w-56 px-3 text-sm" placeholder="Código interno opcional" />
             </details>
-            <select value={format} onChange={event => setFormat(event.target.value as "pdf" | "csv")} className="admin-input h-11 rounded-2xl px-4">
+            <select value={format} onChange={event => setFormat(event.target.value as "pdf" | "csv")} className="admin-input h-10 px-3 text-sm">
               <option value="pdf">PDF</option>
               <option value="csv">CSV</option>
             </select>
-            <button onClick={() => void generate()} disabled={generating} className="admin-button-primary">
-              <FileText className="h-4 w-4" /> {generating ? "Gerando..." : "Gerar oficial"}
+            <button onClick={() => void generate()} disabled={generating} className="admin-button h-10 px-3 text-sm">
+              <FileText className="h-4 w-4" /> {generating ? "Gerando..." : "Gerar"}
             </button>
           </div>
         </div>
@@ -97,7 +95,7 @@ export function SuperAdminReports() {
           String(item.format).toUpperCase(),
           <span className="text-xs font-semibold text-[var(--admin-success)]">Auditoria disponível</span>,
           item.generated_by || "-",
-          <button onClick={() => void downloadOfficial(item.id)} className="admin-button-secondary py-2 text-xs"><Download className="h-4 w-4" /> Baixar</button>
+          <button onClick={() => void downloadOfficial(item.id)} className="admin-action-button"><Download className="h-4 w-4" /> Baixar</button>
         ])}
         empty="Nenhum relatório oficial gerado."
       />
