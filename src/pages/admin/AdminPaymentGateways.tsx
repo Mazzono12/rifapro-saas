@@ -272,9 +272,9 @@ export function AdminPaymentGateways() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...normalized, configs, paymentGatewayConfigs: configs })
       });
-      toast.success("Gateways salvos com sucesso!");
+      toast.success("Recebimentos salvos com sucesso!");
     } catch (e) {
-      toast.error("Erro ao salvar gateways");
+      toast.error("Erro ao salvar recebimentos");
     }
   };
 
@@ -324,10 +324,10 @@ export function AdminPaymentGateways() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao testar gateway");
       setTestResults(current => ({ ...current, [gateway]: data }));
-      if (data.ok) toast.success(`Gateway ${gateway} validado`);
-      else toast.warning(`Gateway ${gateway} precisa de ajuste`, { description: data.issues?.[0] });
+      if (data.ok) toast.success("Canal de recebimento validado");
+      else toast.warning("Canal de recebimento precisa de ajuste", { description: data.issues?.[0] });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao testar gateway");
+      toast.error(error instanceof Error ? error.message : "Erro ao validar recebimento");
     } finally {
       setTestingGateway("");
     }
@@ -348,12 +348,12 @@ export function AdminPaymentGateways() {
        <div className="flex justify-between items-center">
          <div>
             <h1 className="text-3xl font-display font-medium text-white flex items-center gap-3">
-               <ShieldCheck className="w-8 h-8 text-emerald-400" /> Gateways de Pagamento
+               <ShieldCheck className="w-8 h-8 text-emerald-400" /> Recebimentos
             </h1>
-            <p className="text-slate-400 mt-2 text-sm font-mono tracking-widest uppercase">Configure suas integrações PIX</p>
+            <p className="text-slate-400 mt-2 text-sm">Configure um método de recebimento para iniciar sua operação.</p>
          </div>
          <button onClick={testAllGateways} className="rounded-xl border border-emerald-400/30 px-4 py-3 text-xs font-mono uppercase text-emerald-200 hover:bg-emerald-400/10">
-           Testar todos
+           Validar recebimentos
          </button>
        </div>
 
@@ -396,7 +396,7 @@ export function AdminPaymentGateways() {
             </div>
 
             <div className="flex flex-col gap-2 border-b border-white/5 pb-4 mb-4">
-                <label className="text-xs font-mono text-slate-400 uppercase tracking-widest">Gateway Ativo</label>
+                <label className="text-xs font-mono text-slate-400 uppercase tracking-widest">Canal ativo</label>
                 <select 
                     value={gateways.active}
                     onChange={(e) => setActiveGateway(e.target.value)}
@@ -456,7 +456,7 @@ export function AdminPaymentGateways() {
                             <option value="production">Produção</option>
                           </select>
                         </div>
-                        <GatewayInput label="Access Token" type="password" value={gateways.mercadopago?.accessToken || ''} onChange={value => updateGateway('mercadopago', 'accessToken', value)} />
+                        <GatewayInput label="Token de acesso" type="password" value={gateways.mercadopago?.accessToken || ''} onChange={value => updateGateway('mercadopago', 'accessToken', value)} />
                         <GatewayInput label="Public Key" value={gateways.mercadopago?.publicKey || ''} onChange={value => updateGateway('mercadopago', 'publicKey', value)} />
                         <GatewayInput label="Token do canal seguro" type="password" value={gateways.mercadopago?.webhookSecret || ''} onChange={value => updateGateway('mercadopago', 'webhookSecret', value)} />
                         <GatewayInput label="URL do canal seguro" value={gateways.mercadopago?.webhookUrl || '/api/webhooks/mercadopago'} onChange={value => updateGateway('mercadopago', 'webhookUrl', value)} />
@@ -626,12 +626,12 @@ export function AdminPaymentGateways() {
                         <GatewayInput label="Chave técnica protegida" type="password" value={gateways.pay2m?.clientSecret || ''} onChange={value => updateGateway('pay2m', 'clientSecret', value)} />
                         <GatewayInput label="Token do canal seguro" type="password" value={gateways.pay2m?.webhookSecret || ''} onChange={value => updateGateway('pay2m', 'webhookSecret', value)} />
                         <GatewayInput label="URL do canal seguro" value={gateways.pay2m?.webhookUrl || '/api/webhooks/pay2m'} onChange={value => updateGateway('pay2m', 'webhookUrl', value)} />
-                        <GatewayInput label="Expiration time (segundos, max 3600)" value={gateways.pay2m?.expirationTime || '1800'} onChange={value => updateGateway('pay2m', 'expirationTime', value)} />
-                        <GatewayInput label="Split link opcional" value={gateways.pay2m?.splitLink || ''} onChange={value => updateGateway('pay2m', 'splitLink', value)} />
+                        <GatewayInput label="Tempo de expiração (segundos, máximo 3600)" value={gateways.pay2m?.expirationTime || '1800'} onChange={value => updateGateway('pay2m', 'expirationTime', value)} />
+                        <GatewayInput label="Link de divisão opcional" value={gateways.pay2m?.splitLink || ''} onChange={value => updateGateway('pay2m', 'splitLink', value)} />
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Liberar pedido quando</label>
                           <select value={gateways.pay2m?.releaseStatus || "paid"} onChange={e => updateGateway("pay2m", "releaseStatus", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="paid">status = paid</option>
+                            <option value="paid">pagamento confirmado</option>
                           </select>
                         </div>
                     </div>
@@ -667,20 +667,20 @@ export function AdminPaymentGateways() {
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
                           <select value={gateways.primepag?.environment || "staging"} onChange={e => updateGateway("primepag", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="staging">Staging</option>
+                            <option value="staging">Validação assistida</option>
                             <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
                         </div>
                         <GatewayInput label="Identificador técnico" value={gateways.primepag?.clientId || ''} onChange={value => updateGateway('primepag', 'clientId', value)} />
                         <GatewayInput label="Chave técnica protegida" type="password" value={gateways.primepag?.clientSecret || ''} onChange={value => updateGateway('primepag', 'clientSecret', value)} />
-                        <GatewayInput label="Access token/API token" type="password" value={gateways.primepag?.accessToken || gateways.primepag?.apiKey || ''} onChange={value => {
+                        <GatewayInput label="Token de acesso" type="password" value={gateways.primepag?.accessToken || gateways.primepag?.apiKey || ''} onChange={value => {
                           const normalized = normalizeGateways(gateways);
                           setGateways({ ...normalized, primepag: { ...normalized.primepag, accessToken: value, apiKey: value } });
                         }} />
                         <GatewayInput label="Token de autorização do canal seguro" type="password" value={gateways.primepag?.webhookSecret || ''} onChange={value => updateGateway('primepag', 'webhookSecret', value)} />
                         <GatewayInput label="URL do canal seguro" value={gateways.primepag?.webhookUrl || '/api/webhooks/primepag'} onChange={value => updateGateway('primepag', 'webhookUrl', value)} />
-                        <GatewayInput label="expiration_time padrão (segundos)" value={gateways.primepag?.expirationTime || '1800'} onChange={value => updateGateway('primepag', 'expirationTime', value)} />
+                        <GatewayInput label="Tempo de expiração padrão (segundos)" value={gateways.primepag?.expirationTime || '1800'} onChange={value => updateGateway('primepag', 'expirationTime', value)} />
                     </div>
                     <GatewayTest gateway="primepag" result={testResults.primepag} testing={testingGateway === "primepag"} onTest={testGateway} />
                 </div>
@@ -734,7 +734,7 @@ export function AdminPaymentGateways() {
          
          <div className="flex justify-end pt-4">
            <button type="submit" className="neon-button px-8 py-4 rounded-xl flex items-center gap-2 text-sm uppercase tracking-widest font-bold !shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:!shadow-[0_0_30px_rgba(16,185,129,0.5)] !border-emerald-500/50">
-              <Save className="w-4 h-4" /> Salvar Gateways
+              <Save className="w-4 h-4" /> Salvar recebimentos
            </button>
          </div>
        </form>
@@ -750,16 +750,16 @@ function PaymentQueuesDashboard({ dashboard, processing, onRefresh, onProcess }:
     ["Baixa", counts.settlement],
     ["Liberação", counts.release],
     ["Conciliação", counts.reconciliation],
-    ["Dead letter", counts.deadLetter]
+    ["Revisão manual", counts.deadLetter]
   ];
   return (
     <section className="glass-card rounded-3xl border border-cyan-400/15 p-6">
       <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-xl font-display font-semibold text-white">
-            <Activity className="h-5 w-5 text-cyan-300" /> Filas resilientes de pagamento
+            <Activity className="h-5 w-5 text-cyan-300" /> Monitoramento de recebimentos
           </h2>
-          <p className="mt-1 text-xs font-mono uppercase tracking-widest text-slate-400">Canais seguros respondem rápido; baixa, conciliação e liberação rodam em workers separados.</p>
+          <p className="mt-1 text-sm text-slate-400">Acompanhe confirmações, conciliação e liberação das vendas em um fluxo protegido.</p>
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={onRefresh} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-mono uppercase text-slate-200 hover:border-cyan-300/40">
@@ -783,7 +783,7 @@ function PaymentQueuesDashboard({ dashboard, processing, onRefresh, onProcess }:
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-left text-xs text-slate-300">
             <thead className="text-[10px] uppercase tracking-widest text-slate-500">
-              <tr><th className="py-2 pr-4">Gateway</th><th className="py-2 pr-4">Status</th><th className="py-2 pr-4">Último evento</th><th className="py-2">Mensagem</th></tr>
+              <tr><th className="py-2 pr-4">Canal</th><th className="py-2 pr-4">Status</th><th className="py-2 pr-4">Última atualização</th><th className="py-2">Mensagem</th></tr>
             </thead>
             <tbody>
               {dashboard.logs.gatewayHealth.map((item: any) => (

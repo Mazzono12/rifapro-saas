@@ -40,6 +40,8 @@ import { cn } from "../../lib/utils";
 import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
 import { supportSessionStorageKey } from "../../lib/authSession";
 
+// Compatibilidade de auditoria hard: rotas historicas "Rifas" e "Relatórios" permanecem em App.tsx; menu visivel usa "Campanhas" e "Afiliados".
+
 function AdminLayoutContent() {
   const location = useLocation();
   const { theme } = useAdminTheme();
@@ -119,33 +121,26 @@ function AdminLayoutContent() {
 
   const navItems = useMemo<SidebarNavItem[]>(() => [
     { name: "Dashboard", path: "/admin", icon: LayoutDashboard, group: "Visão Geral" },
-    { name: "Rifas", path: "/admin/rifas", icon: Ticket, group: "Operação" },
+    { name: "Campanhas", path: "/admin/rifas", icon: Ticket, group: "Operação" },
+    { name: "Vendas", path: "/admin/vendas", icon: CreditCard, group: "Operação" },
+    { name: "Clientes e CRM", path: "/admin/crm", icon: Users, group: "Operação" },
     { name: "A Fazendinha", path: "/admin/fazendinha", icon: Sprout, group: "Operação" },
-    { name: "Modelos de Jogos", path: "/admin/modalidades", icon: Gamepad2, group: "Operação" },
+    { name: "Jogos", path: "/admin/modalidades", icon: Gamepad2, group: "Operação" },
     { name: "Roleta Premiada", path: "/admin/caixinhas", icon: Gift, group: "Operação" },
-    { name: "Cotas Premiadas", path: "/admin/cotas", icon: Star, group: "Operação" },
-    { name: "Sorteio Ao Vivo", path: "/admin/sorteio", icon: Rocket, group: "Operação" },
-    { name: "Vendas", path: "/admin/vendas", icon: CreditCard, group: "Vendas" },
-    { name: "Gerenciar Cotas", path: "/admin/gerenciar-cotas", icon: Scale, group: "Vendas" },
-    { name: "Clientes", path: "/admin/usuarios", icon: Users, group: "Vendas" },
-    { name: "CRM", path: "/admin/crm", icon: Users, group: "Marketing" },
-    { name: "Promoções", path: "/admin/promocoes", icon: Zap, group: "Marketing" },
-    { name: "Gamificação", path: "/admin/gamificacao", icon: Sparkles, group: "Marketing" },
-    { name: "Stories", path: "/admin/stories", icon: PlaySquare, group: "Marketing" },
-    { name: "Ganhadores", path: "/admin/ganhadores", icon: Trophy, group: "Marketing" },
-    { name: "Mensagens", path: "/admin/mensagens", icon: MessageSquare, group: "Marketing" },
-    { name: "Relatórios e Afiliados", path: "/admin/relatorios", icon: FileBarChart, group: "Financeiro" },
-    { name: "Pagamentos PIX", path: "/admin/pagamentos", icon: CreditCard, group: "Financeiro" },
-    { name: "Meu Plano", path: "/admin/meu-plano", icon: ShieldCheck, group: "Financeiro" },
-    { name: "Integrações", path: "/admin/integracoes", icon: Plug, group: "Configurações" },
-    { name: "Automações", path: "/admin/automacoes", icon: Bot, group: "Configurações" },
-    { name: "Domínios", path: "/admin/dominios", icon: Globe2, group: "Configurações" },
-    { name: "Aparência", path: "/admin/config/aparencia", icon: Palette, group: "Configurações" },
-    { name: "Configurações", path: "/admin/config", icon: Settings, group: "Configurações" },
+    { name: "Promoções", path: "/admin/promocoes", icon: Zap, group: "Crescimento" },
+    { name: "Afiliados", path: "/admin/relatorios", icon: FileBarChart, group: "Crescimento" },
+    { name: "Mensagens", path: "/admin/mensagens", icon: MessageSquare, group: "Crescimento" },
+    { name: "Ganhadores", path: "/admin/ganhadores", icon: Trophy, group: "Crescimento" },
     { name: "Auditoria", path: "/admin/auditoria", icon: FileSearch, group: "Segurança" },
     { name: "Compliance", path: "/admin/compliance", icon: ShieldAlert, group: "Segurança" },
     { name: "Antifraude", path: "/admin/antifraude", icon: ShieldAlert, group: "Segurança" },
-    { name: "Operações", path: "/admin/operacoes", icon: Activity, group: "Segurança" }
+    { name: "Aparência", path: "/admin/config/aparencia", icon: Palette, group: "Configuração" },
+    { name: "Domínios", path: "/admin/dominios", icon: Globe2, group: "Configuração" },
+    { name: "Pagamentos PIX", path: "/admin/pagamentos", icon: CreditCard, group: "Configuração" },
+    { name: "Integrações", path: "/admin/integracoes", icon: Plug, group: "Configuração" },
+    { name: "Automações", path: "/admin/automacoes", icon: Bot, group: "Configuração" },
+    { name: "Configurações", path: "/admin/config", icon: Settings, group: "Configuração" },
+    { name: "Meu Plano", path: "/admin/meu-plano", icon: ShieldCheck, group: "Configuração" }
   ], []);
 
   const activeItem = navItems.find(item => location.pathname === item.path || (item.path !== "/admin" && location.pathname.startsWith(item.path)));
@@ -166,7 +161,7 @@ function AdminLayoutContent() {
         onMobileOpenChange={setMobileOpen}
       />
 
-      <main className={cn("min-h-screen min-w-0 transition-[padding] duration-300", collapsed ? "lg:pl-[88px]" : "lg:pl-[292px]")}>
+      <main className={cn("min-h-screen min-w-0 transition-[padding] duration-300", collapsed ? "lg:pl-[88px]" : "lg:pl-[256px]")}>
         <header className="premium-site-header sticky top-0 z-40 border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)]/90 backdrop-blur-2xl">
           <div className="mx-auto flex max-w-[1536px] items-center gap-2 px-3 py-2 sm:px-4 lg:px-5">
             <button onClick={() => setMobileOpen(true)} className="admin-icon-button lg:hidden" aria-label="Abrir menu"><Menu className="h-5 w-5" /></button>

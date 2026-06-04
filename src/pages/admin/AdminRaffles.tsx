@@ -162,13 +162,14 @@ export function AdminRaffles() {
     <div className="space-y-6 fade-in">
        <div className="flex justify-between items-center">
          <div>
-            <h1 className="text-3xl font-display font-bold text-white">Gerenciar Rifas</h1>
+            <h1 className="text-3xl font-display font-bold text-white">Campanhas</h1>
+            <p className="mt-2 text-sm text-slate-400">Crie, publique e acompanhe suas campanhas comerciais.</p>
          </div>
          <button 
            onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, n8nEnabled: false, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
            className="bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/50 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
          >
-           <Plus className="w-4 h-4" /> Nova Rifa
+           <Plus className="w-4 h-4" /> Nova campanha
          </button>
        </div>
 
@@ -180,10 +181,10 @@ export function AdminRaffles() {
                  <ArrowLeft className="w-4 h-4" /> Voltar para rifas
                </button>
                <h2 className="text-3xl font-display font-bold text-white">{selectedRaffle.title}</h2>
-               <p className="text-slate-400 text-sm mt-1">Administração e contabilidade individual do sorteio #{selectedRaffle.id}</p>
+               <p className="text-slate-400 text-sm mt-1">Acompanhamento individual da campanha selecionada.</p>
              </div>
              <button onClick={() => { setCurrentRaffle(selectedRaffle); setIsEditing(true); setSelectedRaffle(null); }} className="neon-button px-5 py-3 rounded-xl flex items-center gap-2">
-               <Edit2 className="w-4 h-4" /> Editar sorteio
+               <Edit2 className="w-4 h-4" /> Editar campanha
              </button>
            </div>
 
@@ -269,7 +270,7 @@ export function AdminRaffles() {
        ) : isEditing ? (
          <div className="glass-card p-6 rounded-2xl border border-neon-cyan/30">
             <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
-               <h2 className="text-xl font-bold">{currentRaffle.id ? 'Editar Rifa' : 'Criar Nova Rifa'}</h2>
+               <h2 className="text-xl font-bold">{currentRaffle.id ? "Editar campanha" : "Criar nova campanha"}</h2>
                <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-white"><X className="w-6 h-6" /></button>
             </div>
             
@@ -547,7 +548,7 @@ export function AdminRaffles() {
                       <span className="text-sm text-white">Habilitar PIX neste sorteio</span>
                     </label>
                     <label>
-                      <span className="block text-xs font-mono text-slate-400 mb-1">Gateway específico</span>
+                      <span className="block text-xs font-mono text-slate-400 mb-1">Canal de recebimento específico</span>
                       <select className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" value={(currentRaffle.pixConfig || defaultPixConfig).gateway} onChange={e => updatePixConfig({ gateway: e.target.value as PixGatewayId })}>
                         <option value="mercadopago">Mercado Pago</option>
                         <option value="pagbank">PagBank</option>
@@ -571,7 +572,7 @@ export function AdminRaffles() {
                         <PixField label="Chave técnica protegida" value={(currentRaffle.pixConfig || defaultPixConfig).clientSecret || ""} onChange={value => updatePixConfig({ clientSecret: value })} />
                         <PixField label="URL do canal seguro" value={(currentRaffle.pixConfig || defaultPixConfig).webhookUrl || ""} onChange={value => updatePixConfig({ webhookUrl: value })} />
                         <PixField label="Chave do canal seguro" value={(currentRaffle.pixConfig || defaultPixConfig).webhookSecret || ""} onChange={value => updatePixConfig({ webhookSecret: value })} />
-                        <PixField label="Eventos do canal seguro" value={(currentRaffle.pixConfig || defaultPixConfig).webhookEvents || ""} onChange={value => updatePixConfig({ webhookEvents: value })} />
+                        <PixField label="Atualizações do canal seguro" value={(currentRaffle.pixConfig || defaultPixConfig).webhookEvents || ""} onChange={value => updatePixConfig({ webhookEvents: value })} />
                       </div>
                     </details>
                   </div>
@@ -585,8 +586,22 @@ export function AdminRaffles() {
             </form>
          </div>
        ) : (
-         <div className="grid gap-4">
-            {raffles.map(r => (
+          <div className="grid gap-4">
+            {raffles.length === 0 ? (
+              <div className="glass-card rounded-3xl border border-emerald-300/15 bg-emerald-300/[0.04] p-8 text-center">
+                <Ticket className="mx-auto h-10 w-10 text-emerald-300" />
+                <h2 className="mt-4 text-2xl font-display font-bold text-white">Nenhuma campanha criada ainda.</h2>
+                <p className="mx-auto mt-2 max-w-xl text-sm text-slate-400">
+                  Configure sua primeira campanha para iniciar sua operação e preparar a experiência de venda.
+                </p>
+                <button
+                  onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, n8nEnabled: false, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
+                  className="neon-button mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3"
+                >
+                  <Plus className="h-4 w-4" /> Criar primeira campanha
+                </button>
+              </div>
+            ) : raffles.map(r => (
                <div key={r.id} className="glass-card p-4 rounded-xl border border-white/5 flex flex-col md:flex-row gap-6 items-center">
                   <div className="w-full md:w-48 h-32 rounded-lg bg-cyber-900 overflow-hidden relative shrink-0">
                      <ResponsiveMediaFrame src={r.image} type="image" alt={r.title} preferredFit="auto" aspectMode="auto" className="h-full w-full rounded-none" />
@@ -604,7 +619,7 @@ export function AdminRaffles() {
                         <span>|</span>
                         <span>Bilhetes: {r.soldTickets}/{r.totalTickets}</span>
                         <span>|</span>
-                        <span className={r.n8nEnabled ? "text-emerald-300" : "text-slate-500"}>n8n {r.n8nEnabled ? "ligado" : "desligado"}</span>
+                        <span className={r.n8nEnabled ? "text-emerald-300" : "text-slate-500"}>Automação {r.n8nEnabled ? "ativa" : "inativa"}</span>
                      </div>
                   </div>
                   <div className="flex gap-2">

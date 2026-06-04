@@ -57,13 +57,14 @@ function SuperAdminLayoutContent() {
   }, [mobileOpen]);
 
   const navItems = useMemo<SidebarNavItem[]>(() => [
-    { name: "Gestão Global", path: "/superadmin", icon: Crown, group: "Gestão" },
-    { name: "Aparência global", path: "/superadmin/aparencia", icon: Palette, group: "Gestão" },
-    { name: "Financeiro executivo", path: "/superadmin/relatorios", icon: FileText, group: "Financeiro" },
-    { name: "Integrações", path: "/superadmin/integracoes", icon: Plug, group: "Operação" },
-    { name: "Domínios", path: "/superadmin/dominios", icon: Globe2, group: "Ambiente" },
-    { name: "Auditoria", path: "/superadmin/auditoria", icon: FileSearch, group: "Compliance" },
-    { name: "Antifraude", path: "/superadmin/antifraude", icon: ShieldAlert, group: "Compliance" }
+    { name: "Visão Executiva", path: "/superadmin", icon: Crown, group: "Gestão Global" },
+    { name: "Clientes", path: "/superadmin#clientes", icon: Building2, group: "Gestão Global" },
+    { name: "Financeiro executivo", path: "/superadmin/relatorios", icon: FileText, group: "Gestão Global" },
+    { name: "Identidade visual", path: "/superadmin/aparencia", icon: Palette, group: "Ambiente Premium" },
+    { name: "Domínios", path: "/superadmin/dominios", icon: Globe2, group: "Ambiente Premium" },
+    { name: "Integrações", path: "/superadmin/integracoes", icon: Plug, group: "Ambiente Premium" },
+    { name: "Auditoria", path: "/superadmin/auditoria", icon: FileSearch, group: "Segurança" },
+    { name: "Antifraude", path: "/superadmin/antifraude", icon: ShieldAlert, group: "Segurança" }
   ], []);
 
   const activeItem = navItems.find(item => location.pathname === item.path || (item.path !== "/superadmin" && location.pathname.startsWith(item.path)));
@@ -85,7 +86,7 @@ function SuperAdminLayoutContent() {
         onCollapsedChange={setCollapsed}
         onMobileOpenChange={setMobileOpen}
       />
-      <main className={cn("min-h-screen min-w-0 transition-[padding] duration-300", collapsed ? "lg:pl-[88px]" : "lg:pl-[292px]")}>
+      <main className={cn("min-h-screen min-w-0 transition-[padding] duration-300", collapsed ? "lg:pl-[88px]" : "lg:pl-[256px]")}>
         <header className="sticky top-0 z-40 border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)]/90 backdrop-blur-2xl">
           <div className="mx-auto flex max-w-[1536px] items-center gap-2 px-3 py-2 sm:px-4 lg:px-5">
             <div className="flex min-w-0 items-center gap-3">

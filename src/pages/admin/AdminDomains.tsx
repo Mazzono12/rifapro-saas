@@ -76,12 +76,12 @@ export function AdminDomains() {
       </form>
 
       <section className="admin-card p-5">
-        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Instruções DNS</h2>
-        <p className="mt-2 text-sm text-[var(--admin-muted)]">Subdomínios usam CNAME. Domínios próprios podem usar CNAME ou A record conforme a infraestrutura. SSL fica preparado como pendente até a emissão real ser integrada.</p>
+        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Orientações de domínio</h2>
+        <p className="mt-2 text-sm text-[var(--admin-muted)]">Adicione o endereço que seus clientes usarão para acessar a operação. A validação confirma se o domínio está pronto para uso público.</p>
       </section>
 
       <AdminDataTable
-        columns={["Domínio", "Status", "DNS", "SSL", "Principal", "Ações"]}
+        columns={["Domínio", "Status", "Configuração", "Segurança", "Principal", "Ações"]}
         rows={domains.map(domain => [
           <div key={domain.id}><p className="font-semibold">{domain.domain}</p><p className="text-xs text-[var(--admin-muted)]">{domain.type}</p></div>,
           domain.status,
@@ -94,7 +94,7 @@ export function AdminDomains() {
             <button className="admin-icon-button" onClick={() => void action(`/api/admin/domains/${domain.id}`, "DELETE")}><Trash2 className="h-4 w-4" /></button>
           </div>
         ])}
-        empty="Nenhum domínio configurado."
+        empty="Nenhum domínio configurado ainda. Adicione seu domínio para deixar a experiência mais profissional."
       />
     </div>
   );

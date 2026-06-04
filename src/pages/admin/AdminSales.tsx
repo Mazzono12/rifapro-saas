@@ -607,7 +607,11 @@ export function AdminSales() {
               </div>
            </div>
            <div className="max-h-80 overflow-y-auto custom-scrollbar space-y-2 pr-1">
-             {filteredCustomers.map(customer => (
+             {filteredCustomers.length === 0 ? (
+               <div className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-5 text-sm text-[var(--admin-muted)]">
+                 Os clientes aparecerão aqui conforme sua operação crescer.
+               </div>
+             ) : filteredCustomers.map(customer => (
                <button key={customer.id} onClick={() => openCustomerEditor(customer)} className="w-full rounded-xl border border-[var(--admin-border)] bg-white/[0.03] p-3 text-left transition hover:border-[var(--admin-primary)] hover:bg-white/[0.06]">
                  <p className="font-semibold text-[var(--admin-text)]">{customer.name}</p>
                  <p className="text-xs font-mono text-[var(--admin-muted)]">{customer.phone} • CPF {customer.cpf} • {customer.city || "Cidade"} / {customer.state || "UF"}</p>
@@ -983,7 +987,7 @@ export function AdminSales() {
           <div className="p-4 border-b border-[var(--admin-border)] flex gap-4">
             <div className="relative flex-1 max-w-sm">
                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--admin-muted)]" />
-               <input type="text" placeholder="Buscar por HASH ou telefone..." className="admin-input w-full rounded-xl py-2 pl-10 pr-4 text-sm" />
+               <input type="text" placeholder="Buscar por venda ou telefone..." className="admin-input w-full rounded-xl py-2 pl-10 pr-4 text-sm" />
             </div>
           </div>
           
@@ -991,7 +995,7 @@ export function AdminSales() {
              <table className="w-full text-left border-collapse whitespace-nowrap">
                <thead>
                  <tr className="bg-white/[0.035] text-xs font-mono text-[var(--admin-muted)] tracking-wider">
-                   <th className="font-semibold py-4 px-6 border-b border-white/5">HASH / ID</th>
+                   <th className="font-semibold py-4 px-6 border-b border-white/5">VENDA</th>
                    <th className="font-semibold py-4 px-6 border-b border-white/5">CONTATO</th>
                    <th className="font-semibold py-4 px-6 border-b border-white/5 text-center">STATUS</th>
                    <th className="font-semibold py-4 px-6 border-b border-white/5">HISTÓRICO PIX</th>
@@ -1003,11 +1007,11 @@ export function AdminSales() {
                <tbody className="font-mono text-sm">
                   {filteredPurchases.length === 0 ? (
                      <tr>
-                        <td colSpan={7} className="py-8 text-center text-slate-500">Nenhuma venda registrada até o momento.</td>
+                        <td colSpan={7} className="py-8 text-center text-slate-500">Nenhuma venda registrada ainda. Publique sua primeira campanha para iniciar a operação.</td>
                      </tr>
                   ) : filteredPurchases.map((p, i) => (
                      <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="py-4 px-6 text-neon-cyan">{p.purchaseId}</td>
+                        <td className="py-4 px-6 text-neon-cyan">Venda {i + 1}</td>
                         <td className="py-4 px-6 text-slate-300">{p.contact || "Anônimo"}</td>
                         <td className="py-4 px-6 text-center">
                           <span className={cn(

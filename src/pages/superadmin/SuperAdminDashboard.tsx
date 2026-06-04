@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState, type ElementType } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Activity, AlertTriangle, BarChart3, Building2, CreditCard, DollarSign, Download, Eye, LifeBuoy, LogIn, MonitorCheck, Palette, Pencil, Plus, RefreshCw, ShieldAlert, SlidersHorizontal, Sparkles, Ticket, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
@@ -235,33 +235,29 @@ export function SuperAdminDashboard() {
   const strategicAlerts = Number(metrics?.suspiciousAlerts || 0) + Number(metrics?.queuedPayments || 0) + Number(metrics?.webhookErrors || 0);
   const growingOperations = tenants.filter(tenant => tenant.status === "active" && tenant.paidRevenue > 0).length;
   const environmentHealth = strategicAlerts > 0 ? "Monitoramento ativo" : "Ambiente saudável";
-  const topClient = ranking[0]?.tenant || tenants.find(tenant => tenant.status === "active")?.nome || "Nenhum cliente ativo no período";
-
   if (loading && !metrics) return <AdminLoadingSkeleton />;
 
   return (
     <div className="space-y-6">
       <section className="admin-card overflow-hidden p-0">
-        <div className="grid gap-5 p-5 lg:grid-cols-[1fr_auto] lg:items-end xl:p-6">
-          <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--admin-info)]/30 bg-[var(--admin-info)]/10 px-3 py-1 text-xs font-bold text-[var(--admin-info)]">
-              <span className="h-2 w-2 rounded-full bg-[var(--admin-info)] shadow-[0_0_18px_var(--admin-info)]" />
-              Monitoramento premium
-            </div>
+        <div className="grid gap-4 p-4 lg:grid-cols-[1fr_auto] lg:items-end xl:p-5">
+          <div className="space-y-3">
             <div>
-              <p className="text-sm font-semibold text-[var(--admin-muted)]">Central Executiva Premium</p>
-              <h2 className="mt-1 text-3xl font-semibold leading-tight text-[var(--admin-text)] sm:text-4xl">Visão Executiva</h2>
-              <p className="mt-2 max-w-3xl text-sm text-[var(--admin-muted)] sm:text-base">
-                Controle consolidado de clientes, faturamento, crescimento e saúde geral do Ambiente Premium.
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[var(--admin-info)]/25 bg-[var(--admin-info)]/10 px-2.5 py-1 text-xs font-bold text-[var(--admin-info)]">
+                <span className="h-2 w-2 rounded-full bg-[var(--admin-info)]" />
+                Monitoramento premium
+              </div>
+              <h2 className="mt-1 text-2xl font-semibold leading-tight text-[var(--admin-text)]">Visão Executiva</h2>
+              <p className="mt-1 max-w-2xl text-sm text-[var(--admin-muted)]">
+                Clientes, faturamento e saúde geral do ambiente em leitura rápida.
               </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <ExecutiveSignal icon={MonitorCheck} label="Saúde geral do ambiente" value={environmentHealth} tone={strategicAlerts ? "warning" : "success"} />
-              <ExecutiveSignal icon={BarChart3} label="Operações em crescimento" value={`${growingOperations} contas com faturamento confirmado`} tone="accent" />
-              <ExecutiveSignal icon={Trophy} label="Cliente em destaque" value={topClient} tone="primary" />
+            <div className="flex flex-wrap gap-2 text-xs font-semibold">
+              <span className="rounded-full border border-[var(--admin-border)] bg-white/[0.035] px-3 py-1 text-[var(--admin-text)]">Saúde: {environmentHealth}</span>
+              <span className="rounded-full border border-[var(--admin-border)] bg-white/[0.035] px-3 py-1 text-[var(--admin-muted)]">{growingOperations} operações em crescimento</span>
             </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[520px]">
+          <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[460px]">
             <button type="button" onClick={() => setForm({ ...emptyForm })} className="admin-button-primary">
               <Plus className="h-4 w-4" />
               Novo cliente
@@ -281,25 +277,28 @@ export function SuperAdminDashboard() {
         title="Indicadores consolidados"
         description="Leitura rápida da base de clientes, receita e performance do ambiente."
       />
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Clientes ativos" value={`${metrics?.activeTenants || 0}/${metrics?.tenants || 0}`} icon={Building2} trend="base em operação" tone="primary" />
-        <MetricCard label="Campanhas ativas" value={`${metrics?.activeRaffles || 0}/${metrics?.raffles || 0}`} icon={Ticket} trend="operações publicadas" tone="accent" />
         <MetricCard label="Faturamento consolidado" value={money(metrics?.paidRevenue || 0)} icon={CreditCard} trend="vendas confirmadas" tone="success" />
-        <MetricCard label="Receita operacional" value={money(metrics?.platformCommission || 0)} icon={DollarSign} trend="resultado do ambiente" tone="success" />
-        <MetricCard label="Confirmações pendentes" value={metrics?.pendingPix || 0} icon={ShieldAlert} trend="acompanhar para conversão" tone="warning" />
+        <MetricCard label="Vendas Confirmadas" value={metrics?.paidOrders || 0} icon={Ticket} trend={`${metrics?.purchases || 0} vendas no total`} tone="accent" />
+        <MetricCard label="Saúde Geral" value={environmentHealth} icon={MonitorCheck} trend={`${strategicAlerts} alertas estratégicos`} tone={strategicAlerts ? "warning" : "success"} />
       </div>
 
+      <SectionHeader
+        eyebrow="Detalhes"
+        title="Indicadores complementares"
+        description="Métricas secundárias para acompanhamento executivo."
+      />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <MetricCard label="Campanhas ativas" value={`${metrics?.activeRaffles || 0}/${metrics?.raffles || 0}`} icon={Ticket} trend="operações publicadas" tone="accent" />
+        <MetricCard label="Receita operacional" value={money(metrics?.platformCommission || 0)} icon={DollarSign} trend="resultado do ambiente" tone="success" />
+        <MetricCard label="Confirmações pendentes" value={metrics?.pendingPix || 0} icon={ShieldAlert} trend="acompanhar para conversão" tone="warning" />
         <MetricCard label="Faturamento hoje" value={money(metrics?.revenueToday || 0)} icon={DollarSign} trend="resultado do dia" tone="success" />
         <MetricCard label="Últimos 7 dias" value={money(metrics?.revenueLast7Days || 0)} icon={DollarSign} tone="primary" />
         <MetricCard label="Mês atual" value={money(metrics?.revenueCurrentMonth || 0)} icon={DollarSign} tone="accent" />
         <MetricCard label="Crescimento consolidado" value={money(metrics?.revenueCurrentYear || 0)} icon={Sparkles} trend="acumulado anual" tone="success" />
         <MetricCard label="Ticket médio" value={money(metrics?.averageTicket || 0)} icon={CreditCard} trend="valor médio confirmado" tone="primary" />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
         <MetricCard label="Alertas estratégicos" value={strategicAlerts} icon={AlertTriangle} trend="itens que pedem atenção" tone="warning" />
-        <MetricCard label="Monitoramento premium" value={environmentHealth} icon={MonitorCheck} trend="saúde geral do ambiente" tone={strategicAlerts ? "warning" : "success"} />
         <MetricCard label="Conversão operacional" value={`${metrics?.conversionRate || 0}%`} icon={Activity} trend="performance das contas" tone="primary" />
       </div>
 
@@ -308,16 +307,16 @@ export function SuperAdminDashboard() {
         title="Comandos executivos"
         description="Atalhos para crescimento, acompanhamento e padronização do ambiente."
       />
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
         <button type="button" onClick={() => setForm({ ...emptyForm })} className="admin-button-primary"><Plus className="h-4 w-4" /> Novo cliente</button>
         <Link className="admin-button-secondary" to="/superadmin"><Building2 className="h-4 w-4" /> Ver clientes</Link>
         <Link className="admin-button-secondary" to="/superadmin/aparencia"><Palette className="h-4 w-4" /> Aparência global</Link>
         <Link className="admin-button-secondary" to="/superadmin/relatorios"><BarChart3 className="h-4 w-4" /> Relatórios executivos</Link>
         <Link className="admin-button-secondary" to="/superadmin/auditoria"><MonitorCheck className="h-4 w-4" /> Monitoramento</Link>
-        <a className="admin-button-secondary sm:col-span-2 xl:col-span-5" href="/api/superadmin/reports/revenue/export"><Download className="h-4 w-4" /> Exportar visão consolidada</a>
+        <a className="admin-button-secondary" href="/api/superadmin/reports/revenue/export"><Download className="h-4 w-4" /> Exportar</a>
       </div>
 
-      <section className="space-y-3">
+      <section id="clientes" className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-[var(--admin-text)]">Performance das contas</h2>
@@ -563,24 +562,6 @@ function SectionHeader({ eyebrow, title, description }: { eyebrow: string; title
       <p className="text-xs font-bold uppercase text-[var(--admin-primary)]">{eyebrow}</p>
       <h2 className="mt-1 text-xl font-semibold text-[var(--admin-text)]">{title}</h2>
       <p className="mt-1 text-sm text-[var(--admin-muted)]">{description}</p>
-    </div>
-  );
-}
-
-function ExecutiveSignal({ icon: Icon, label, value, tone }: { icon: ElementType; label: string; value: string; tone: "primary" | "success" | "warning" | "accent" }) {
-  const color = {
-    primary: "var(--admin-primary)",
-    success: "var(--admin-success)",
-    warning: "var(--admin-warning)",
-    accent: "var(--admin-accent)"
-  }[tone];
-  return (
-    <div className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.035] p-3">
-      <div className="mb-2 flex items-center gap-2 text-xs font-bold" style={{ color }}>
-        <Icon className="h-4 w-4" />
-        {label}
-      </div>
-      <p className="line-clamp-2 text-sm font-semibold text-[var(--admin-text)]">{value}</p>
     </div>
   );
 }

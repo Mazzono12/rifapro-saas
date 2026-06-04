@@ -4238,7 +4238,7 @@ html[data-admin-theme="system"] .admin-shell {
 }
 
 .admin-shell .premium-admin-sidebar {
-  width: 292px;
+  width: 256px;
   background: var(--admin-sidebar) !important;
 }
 
@@ -4291,7 +4291,7 @@ html[data-admin-theme="light"] .admin-shell {
 @media (max-width: 1023px) {
   .admin-shell .premium-admin-sidebar,
   .admin-shell .premium-admin-sidebar[data-collapsed="true"] {
-    width: min(88vw, 304px) !important;
+    width: min(86vw, 288px) !important;
   }
 }
 
@@ -4360,9 +4360,9 @@ html[data-admin-theme="light"] .admin-shell {
 @media (max-width: 1023px) {
   .admin-shell .premium-admin-sidebar,
   .admin-shell .premium-admin-sidebar[data-collapsed="true"] {
-    width: min(92vw, 320px) !important;
+    width: min(86vw, 288px) !important;
     max-width: calc(100vw - 1rem);
-    padding-inline: 1rem !important;
+    padding-inline: .75rem !important;
   }
 
   .admin-shell .premium-admin-sidebar nav {

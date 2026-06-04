@@ -55,8 +55,8 @@ export function CollapsibleSidebar({
       <aside
         className={cn(
           "premium-admin-sidebar admin-collapsible-sidebar flex h-dvh flex-col border-r border-[var(--admin-border)] bg-[var(--admin-sidebar)] text-[var(--admin-text)] shadow-[12px_0_36px_rgba(0,0,0,0.18)] transition-[width,transform] duration-300",
-          mobile ? "w-[min(88vw,304px)] px-4" : "fixed left-0 top-0 z-50 hidden px-3 lg:flex",
-          !mobile && (minimized ? "w-[88px]" : "w-[292px]")
+          mobile ? "w-[min(86vw,288px)] px-3" : "fixed left-0 top-0 z-50 hidden px-2.5 lg:flex",
+          !mobile && (minimized ? "w-[88px]" : "w-[256px]")
         )}
         data-collapsed={minimized ? "true" : "false"}
       >
@@ -105,8 +105,8 @@ export function CollapsibleSidebar({
                           : "text-[var(--admin-secondary-text)] hover:bg-[var(--admin-primary)]/10 hover:text-[var(--admin-text)]"
                       )}
                     >
-                      <span className={cn("grid h-7 w-7 shrink-0 place-items-center rounded-[8px]", isActive ? "bg-black/10" : "bg-[var(--admin-primary)]/10")}>
-                        <item.icon className="h-4.5 w-4.5" />
+                      <span className={cn("grid shrink-0 place-items-center rounded-[8px]", minimized ? "h-9 w-9" : "h-7 w-7", isActive ? "bg-black/10" : "bg-[var(--admin-primary)]/10")}>
+                        <item.icon className={minimized ? "h-5 w-5" : "h-4.5 w-4.5"} />
                       </span>
                       {!minimized && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
                       {minimized && (
