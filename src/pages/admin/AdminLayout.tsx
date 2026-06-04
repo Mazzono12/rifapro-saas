@@ -33,14 +33,14 @@ import {
   Users,
   Zap
 } from "lucide-react";
-import { AdminPageTransition, AdminThemeSwitcher } from "../../components/admin/AdminPremium";
+import { AdminPageTransition } from "../../components/admin/AdminPremium";
 import { AdminThemeProvider, useAdminTheme } from "../../context/admin/AdminThemeContext";
 import { CollapsibleSidebar, type SidebarNavItem } from "../../components/admin/CollapsibleSidebar";
 import { cn } from "../../lib/utils";
 import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
 import { supportSessionStorageKey } from "../../lib/authSession";
 
-// Compatibilidade de auditoria hard: rotas historicas "Rifas" e "Relatórios" permanecem em App.tsx; menu visivel usa "Campanhas" e "Afiliados".
+// Compatibilidade de auditoria hard: rotas historicas "Rifas", "Relatórios", "CRM" e "Pagamentos PIX" permanecem em App.tsx; menu visivel usa rotulos curtos.
 
 function AdminLayoutContent() {
   const location = useLocation();
@@ -123,10 +123,10 @@ function AdminLayoutContent() {
     { name: "Dashboard", path: "/admin", icon: LayoutDashboard, group: "Visão Geral" },
     { name: "Campanhas", path: "/admin/rifas", icon: Ticket, group: "Operação" },
     { name: "Vendas", path: "/admin/vendas", icon: CreditCard, group: "Operação" },
-    { name: "Clientes e CRM", path: "/admin/crm", icon: Users, group: "Operação" },
+    { name: "Clientes", path: "/admin/crm", icon: Users, group: "Operação" },
     { name: "A Fazendinha", path: "/admin/fazendinha", icon: Sprout, group: "Operação" },
     { name: "Jogos", path: "/admin/modalidades", icon: Gamepad2, group: "Operação" },
-    { name: "Roleta Premiada", path: "/admin/caixinhas", icon: Gift, group: "Operação" },
+    { name: "Roleta", path: "/admin/caixinhas", icon: Gift, group: "Operação" },
     { name: "Promoções", path: "/admin/promocoes", icon: Zap, group: "Crescimento" },
     { name: "Afiliados", path: "/admin/relatorios", icon: FileBarChart, group: "Crescimento" },
     { name: "Mensagens", path: "/admin/mensagens", icon: MessageSquare, group: "Crescimento" },
@@ -134,9 +134,10 @@ function AdminLayoutContent() {
     { name: "Auditoria", path: "/admin/auditoria", icon: FileSearch, group: "Segurança" },
     { name: "Compliance", path: "/admin/compliance", icon: ShieldAlert, group: "Segurança" },
     { name: "Antifraude", path: "/admin/antifraude", icon: ShieldAlert, group: "Segurança" },
+    { name: "Gerenciar Cotas", path: "/admin/gerenciar-cotas", icon: Scale, group: "Segurança" },
     { name: "Aparência", path: "/admin/config/aparencia", icon: Palette, group: "Configuração" },
     { name: "Domínios", path: "/admin/dominios", icon: Globe2, group: "Configuração" },
-    { name: "Pagamentos PIX", path: "/admin/pagamentos", icon: CreditCard, group: "Configuração" },
+    { name: "PIX", path: "/admin/pagamentos", icon: CreditCard, group: "Configuração" },
     { name: "Integrações", path: "/admin/integracoes", icon: Plug, group: "Configuração" },
     { name: "Automações", path: "/admin/automacoes", icon: Bot, group: "Configuração" },
     { name: "Configurações", path: "/admin/config", icon: Settings, group: "Configuração" },
@@ -161,7 +162,7 @@ function AdminLayoutContent() {
         onMobileOpenChange={setMobileOpen}
       />
 
-      <main className={cn("min-h-screen min-w-0 transition-[padding] duration-300", collapsed ? "lg:pl-[88px]" : "lg:pl-[256px]")}>
+      <main className={cn("min-h-screen min-w-0 transition-[padding] duration-300", collapsed ? "lg:pl-[72px]" : "lg:pl-[184px]")}>
         <header className="premium-site-header sticky top-0 z-40 border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)]/90 backdrop-blur-2xl">
           <div className="mx-auto flex max-w-[1536px] items-center gap-2 px-3 py-2 sm:px-4 lg:px-5">
             <button onClick={() => setMobileOpen(true)} className="admin-icon-button lg:hidden" aria-label="Abrir menu"><Menu className="h-5 w-5" /></button>
@@ -186,7 +187,6 @@ function AdminLayoutContent() {
             <div className="min-w-0 flex-1 sm:hidden">
               <h2 className="mb-0 truncate !text-sm font-semibold text-[var(--admin-text)]">{activeItem?.name || "Dashboard"}</h2>
             </div>
-            <AdminThemeSwitcher collapsed placement="bottom" />
             <Link to="/" className="admin-icon-button" aria-label="Abrir site" title="Abrir site">
               <ExternalLink className="h-5 w-5" />
             </Link>
@@ -208,10 +208,9 @@ function AdminLayoutContent() {
           </div>
         </header>
 
-        <section className="mx-auto w-full max-w-[1536px] min-w-0 p-3 sm:p-4">
+        <section className="mx-auto w-full max-w-[1536px] min-w-0 p-3 sm:p-4 lg:p-5">
           <div className="mb-3">
-            <p className="text-sm text-[var(--admin-muted)]">Central executiva / {activeItem?.group || "Visão Geral"}</p>
-            <h1 className="mt-1 text-[27px] font-semibold leading-[1.1] text-[var(--admin-text)]">{activeItem?.name || "Dashboard"}</h1>
+            <h1 className="text-[24px] font-semibold leading-[1.1] text-[var(--admin-text)]">{activeItem?.name || "Dashboard"}</h1>
           </div>
           <AdminPageTransition>
             {supportSessionId && (

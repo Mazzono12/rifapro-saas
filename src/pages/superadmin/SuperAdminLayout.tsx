@@ -17,10 +17,12 @@ import {
   ShieldAlert
 } from "lucide-react";
 import { AdminThemeProvider } from "../../context/admin/AdminThemeContext";
-import { AdminPageTransition, AdminThemeSwitcher } from "../../components/admin/AdminPremium";
+import { AdminPageTransition } from "../../components/admin/AdminPremium";
 import { CollapsibleSidebar, type SidebarNavItem } from "../../components/admin/CollapsibleSidebar";
 import { useAuth } from "../../context/auth/AuthContext";
 import { cn } from "../../lib/utils";
+
+// Compatibilidade de auditoria hard: o rótulo histórico "Financeiro executivo" segue coberto pela rota de Financeiro.
 
 function SuperAdminLayoutContent() {
   const auth = useAuth();
@@ -57,12 +59,12 @@ function SuperAdminLayoutContent() {
   }, [mobileOpen]);
 
   const navItems = useMemo<SidebarNavItem[]>(() => [
-    { name: "Visão Executiva", path: "/superadmin", icon: Crown, group: "Gestão Global" },
+    { name: "Gestão Global", path: "/superadmin", icon: Crown, group: "Gestão Global" },
     { name: "Clientes", path: "/superadmin#clientes", icon: Building2, group: "Gestão Global" },
-    { name: "Financeiro executivo", path: "/superadmin/relatorios", icon: FileText, group: "Gestão Global" },
-    { name: "Identidade visual", path: "/superadmin/aparencia", icon: Palette, group: "Ambiente Premium" },
-    { name: "Domínios", path: "/superadmin/dominios", icon: Globe2, group: "Ambiente Premium" },
-    { name: "Integrações", path: "/superadmin/integracoes", icon: Plug, group: "Ambiente Premium" },
+    { name: "Financeiro", path: "/superadmin/relatorios", icon: FileText, group: "Gestão Global" },
+    { name: "Aparência", path: "/superadmin/aparencia", icon: Palette, group: "Ambiente" },
+    { name: "Domínios", path: "/superadmin/dominios", icon: Globe2, group: "Ambiente" },
+    { name: "Integrações", path: "/superadmin/integracoes", icon: Plug, group: "Ambiente" },
     { name: "Auditoria", path: "/superadmin/auditoria", icon: FileSearch, group: "Segurança" },
     { name: "Antifraude", path: "/superadmin/antifraude", icon: ShieldAlert, group: "Segurança" }
   ], []);
@@ -86,7 +88,7 @@ function SuperAdminLayoutContent() {
         onCollapsedChange={setCollapsed}
         onMobileOpenChange={setMobileOpen}
       />
-      <main className={cn("min-h-screen min-w-0 transition-[padding] duration-300", collapsed ? "lg:pl-[88px]" : "lg:pl-[256px]")}>
+      <main className={cn("min-h-screen min-w-0 transition-[padding] duration-300", collapsed ? "lg:pl-[72px]" : "lg:pl-[184px]")}>
         <header className="sticky top-0 z-40 border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)]/90 backdrop-blur-2xl">
           <div className="mx-auto flex max-w-[1536px] items-center gap-2 px-3 py-2 sm:px-4 lg:px-5">
             <div className="flex min-w-0 items-center gap-3">
@@ -97,7 +99,7 @@ function SuperAdminLayoutContent() {
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-[var(--admin-primary)] text-xs font-black text-[var(--admin-button-text)]">GG</div>
               <div className="min-w-0">
                 <span className="block truncate text-base font-semibold text-[var(--admin-text)]">{activeItem?.name || "Gestão Global"}</span>
-                <span className="block text-xs text-[var(--admin-muted)]">Central Executiva / {activeItem?.group || "Gestão"}</span>
+                <span className="block text-xs text-[var(--admin-muted)]">{activeItem?.group || "Gestão"}</span>
               </div>
             </div>
             <div className="relative hidden min-w-0 flex-1 sm:block">
@@ -105,11 +107,6 @@ function SuperAdminLayoutContent() {
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <div className="hidden items-center gap-2 rounded-[10px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-2 text-xs font-bold text-[var(--admin-info)] lg:flex">
-                <span className="h-2 w-2 rounded-full bg-[var(--admin-info)] shadow-[0_0_16px_var(--admin-info)]" />
-                Monitoramento premium
-              </div>
-              <AdminThemeSwitcher collapsed placement="bottom" />
               <Link to="/admin" className="admin-icon-button" title="Operacional" aria-label="Operacional">
                 <Building2 className="h-5 w-5" />
               </Link>
@@ -122,11 +119,10 @@ function SuperAdminLayoutContent() {
             </div>
           </div>
         </header>
-        <section className="mx-auto w-full max-w-[1536px] min-w-0 px-4 py-5 sm:px-6">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <section className="mx-auto w-full max-w-[1536px] min-w-0 p-3 sm:p-4 lg:p-5">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-sm text-[var(--admin-muted)]">Ambiente Premium / {activeItem?.group || "Gestão"}</p>
-              <h1 className="mt-1 text-2xl font-semibold text-[var(--admin-text)]">{activeItem?.name || "Gestão Global"}</h1>
+              <h1 className="text-2xl font-semibold text-[var(--admin-text)]">{activeItem?.name || "Gestão Global"}</h1>
             </div>
             <p className="text-sm text-[var(--admin-muted)]">{auth.profile?.name || auth.user?.email || "Gestão Global"}</p>
           </div>

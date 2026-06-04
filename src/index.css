@@ -4238,12 +4238,12 @@ html[data-admin-theme="system"] .admin-shell {
 }
 
 .admin-shell .premium-admin-sidebar {
-  width: 256px;
+  width: 224px;
   background: var(--admin-sidebar) !important;
 }
 
 .admin-shell .premium-admin-sidebar[data-collapsed="true"] {
-  width: 88px;
+  width: 80px;
 }
 
 .admin-shell .premium-admin-sidebar nav {
@@ -4300,10 +4300,20 @@ html[data-admin-theme="light"] .admin-shell {
   --admin-control-height: 42px;
 }
 
+.admin-shell main,
+.admin-shell main > section {
+  min-width: 0;
+}
+
+.admin-shell main > section {
+  max-width: min(1760px, 100%) !important;
+}
+
 .admin-shell .admin-card,
 .admin-shell .glass-card,
 .admin-shell .premium-card {
   border-radius: 8px !important;
+  min-width: 0;
 }
 
 .admin-shell input,
@@ -4337,7 +4347,7 @@ html[data-admin-theme="light"] .admin-shell {
 }
 
 .admin-shell .premium-admin-sidebar nav a {
-  min-height: 42px;
+  min-height: 36px;
   border-radius: 8px !important;
 }
 
@@ -4355,6 +4365,23 @@ html[data-admin-theme="light"] .admin-shell {
   max-width: 22rem;
   overflow-wrap: anywhere;
   vertical-align: top;
+}
+
+.admin-shell td > *,
+.admin-shell th > * {
+  min-width: 0;
+}
+
+@media (min-width: 1024px) and (max-width: 1320px) {
+  .admin-shell .xl\:grid-cols-4,
+  .admin-shell .xl\:grid-cols-5,
+  .admin-shell .xl\:grid-cols-6 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .admin-shell .xl\:grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
 }
 
 @media (max-width: 1023px) {

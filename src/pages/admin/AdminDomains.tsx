@@ -76,8 +76,8 @@ export function AdminDomains() {
       </form>
 
       <section className="admin-card p-5">
-        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Orientações de domínio</h2>
-        <p className="mt-2 text-sm text-[var(--admin-muted)]">Adicione o endereço que seus clientes usarão para acessar a operação. A validação confirma se o domínio está pronto para uso público.</p>
+        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Domínios</h2>
+        <p className="mt-2 text-sm text-[var(--admin-muted)]">Endereços públicos vinculados à operação.</p>
       </section>
 
       <AdminDataTable
@@ -94,7 +94,7 @@ export function AdminDomains() {
             <button className="admin-icon-button" onClick={() => void action(`/api/admin/domains/${domain.id}`, "DELETE")}><Trash2 className="h-4 w-4" /></button>
           </div>
         ])}
-        empty="Nenhum domínio configurado ainda. Adicione seu domínio para deixar a experiência mais profissional."
+        empty="Nenhum registro encontrado."
       />
     </div>
   );

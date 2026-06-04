@@ -122,15 +122,15 @@ export function MetricCard({
   }[tone];
 
   return (
-    <motion.article whileHover={{ y: -2 }} className="admin-card group relative min-h-[148px] overflow-hidden p-5">
+    <motion.article whileHover={{ y: -2 }} className="admin-card group relative min-h-[128px] overflow-hidden p-4">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--admin-primary)]/50 to-transparent" />
       <div className="flex h-full items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase text-[var(--admin-muted)]">{label}</p>
-          <div className="mt-3 break-words text-2xl font-semibold text-[var(--admin-text)]">{value}</div>
-          {trend && <p className="mt-2 text-sm leading-snug" style={{ color: toneVar }}>{trend}</p>}
+          <p className="truncate text-[11px] font-bold uppercase text-[var(--admin-muted)]">{label}</p>
+          <div className="mt-2 truncate text-2xl font-semibold text-[var(--admin-text)]">{value}</div>
+          {trend && <p className="mt-2 line-clamp-1 text-sm leading-snug" style={{ color: toneVar }}>{trend}</p>}
         </div>
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" style={{ color: toneVar, background: `${toneVar}18` }}>
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" style={{ color: toneVar, background: `${toneVar}18` }}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -140,11 +140,11 @@ export function MetricCard({
 
 export function ChartCard({ title, description, action, children }: { title: string; description?: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="admin-card p-5">
-      <div className="mb-5 flex items-center justify-between gap-3 border-b border-[var(--admin-border)] pb-4">
+    <section className="admin-card min-w-0 p-4">
+      <div className="mb-4 flex items-center justify-between gap-3 border-b border-[var(--admin-border)] pb-3">
         <div className="min-w-0">
-          <h2 className="mb-0 text-lg font-semibold text-[var(--admin-text)]">{title}</h2>
-          {description && <p className="mt-1 text-sm text-[var(--admin-muted)]">{description}</p>}
+          <h2 className="mb-0 truncate text-base font-semibold text-[var(--admin-text)]">{title}</h2>
+          {description && <p className="mt-1 line-clamp-1 text-sm text-[var(--admin-muted)]">{description}</p>}
         </div>
         {action}
       </div>
@@ -178,7 +178,7 @@ export function AdminLoadingSkeleton() {
 
 export function AdminDataTable({ columns, rows, empty = "Nenhum registro encontrado." }: { columns: string[]; rows: React.ReactNode[][]; empty?: string }) {
   return (
-    <div className="overflow-hidden rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)]">
+    <div className="min-w-0 overflow-hidden rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)]">
       <div className="overflow-x-auto cifher-scrollbar">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)] text-xs text-[var(--admin-muted)]">
@@ -186,7 +186,7 @@ export function AdminDataTable({ columns, rows, empty = "Nenhum registro encontr
           </thead>
           <tbody className="divide-y divide-[var(--admin-border)]">
             {rows.length === 0 ? (
-              <tr><td className="px-4 py-8 text-center text-[var(--admin-muted)]" colSpan={columns.length}><PremiumEmptyState title={empty} description="Os dados aparecem aqui assim que houver movimentação do cliente." /></td></tr>
+              <tr><td className="px-4 py-8 text-center text-[var(--admin-muted)]" colSpan={columns.length}><PremiumEmptyState title={empty} description="" /></td></tr>
             ) : rows.map((row, index) => (
               <tr key={index} className="transition hover:bg-[var(--admin-primary)]/10">
                 {row.map((cell, cellIndex) => <td key={cellIndex} className="px-4 py-2.5 text-[var(--admin-text)]">{cell}</td>)}

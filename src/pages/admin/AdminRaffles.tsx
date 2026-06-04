@@ -590,15 +590,15 @@ export function AdminRaffles() {
             {raffles.length === 0 ? (
               <div className="glass-card rounded-3xl border border-emerald-300/15 bg-emerald-300/[0.04] p-8 text-center">
                 <Ticket className="mx-auto h-10 w-10 text-emerald-300" />
-                <h2 className="mt-4 text-2xl font-display font-bold text-white">Nenhuma campanha criada ainda.</h2>
+                <h2 className="mt-4 text-2xl font-display font-bold text-white">Nenhuma campanha disponível.</h2>
                 <p className="mx-auto mt-2 max-w-xl text-sm text-slate-400">
-                  Configure sua primeira campanha para iniciar sua operação e preparar a experiência de venda.
+                  Nenhum registro encontrado.
                 </p>
                 <button
                   onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, n8nEnabled: false, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
                   className="neon-button mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3"
                 >
-                  <Plus className="h-4 w-4" /> Criar primeira campanha
+                  <Plus className="h-4 w-4" /> Nova campanha
                 </button>
               </div>
             ) : raffles.map(r => (

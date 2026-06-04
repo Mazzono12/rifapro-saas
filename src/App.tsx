@@ -306,10 +306,10 @@ export default function App() {
                 <Route path="integracoes" element={adminSection("Integrações", <AdminIntegrations />)} />
                 <Route path="automacoes" element={adminSection("Automações", <AdminAutomations />)} />
                 <Route path="dominios" element={adminSection("Domínios", <AdminDomains />)} />
-                <Route path="auditoria" element={adminSection("Auditoria", <AdminComplianceCenter />)} />
-                <Route path="compliance" element={adminSection("Compliance", <AdminComplianceCenter />)} />
-                <Route path="antifraude" element={adminSection("Antifraude", <AdminComplianceCenter />)} />
-                <Route path="gerenciar-cotas" element={adminSection("Gerenciar Cotas", <AdminComplianceCenter />)} />
+                <Route path="auditoria" element={adminSection("Auditoria", <AdminComplianceCenter view="audit" />)} />
+                <Route path="compliance" element={adminSection("Compliance", <AdminComplianceCenter view="compliance" />)} />
+                <Route path="antifraude" element={adminSection("Antifraude", <AdminComplianceCenter view="antifraud" />)} />
+                <Route path="gerenciar-cotas" element={adminSection("Gerenciar Cotas", <AdminComplianceCenter view="tickets" />)} />
                 <Route path="meu-plano" element={adminSection("Meu Plano", <AdminMyPlan />)} />
                 <Route path="config" element={adminSection("Configurações", <AdminConfig />)} />
                 <Route path="config/aparencia" element={adminSection("Aparência", <AdminConfig initialTab="branding" />)} />

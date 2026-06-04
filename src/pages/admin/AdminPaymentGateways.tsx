@@ -8,11 +8,11 @@ const defaultGateways = {
     sandbox: true,
     apiKey: "",
     pixKey: "",
-    webhookUrl: "http://127.0.0.1:3000/api/webhooks/payment/sandbox",
+    webhookUrl: "/api/webhooks/mercadopago",
     webhookSecret: "",
     webhookEvents: "payment.created,payment.updated,payment.paid"
   },
-  active: "sandbox",
+  active: "mercadopago",
   mercadopago: {
     enabled: false,
     environment: "sandbox",
@@ -88,13 +88,17 @@ function safeText(value: unknown, fallback = "") {
   return fallback;
 }
 
+function safeRecord(value: unknown): Record<string, any> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {};
+}
+
 function normalizeProviderId(value: unknown) {
-  const normalized = safeText(value, "sandbox").trim().toLowerCase().replace(/[\s_-]+/g, "");
-  return gatewayIds.includes(normalized) ? normalized : "sandbox";
+  const normalized = safeText(value, "mercadopago").trim().toLowerCase().replace(/[\s_-]+/g, "");
+  return gatewayIds.includes(normalized) ? normalized : "mercadopago";
 }
 
 function normalizeGatewaySection<T extends Record<string, unknown>>(defaults: T, input: unknown): T {
-  const source = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {};
+  const source = safeRecord(input);
   const merged = { ...defaults, ...source } as Record<string, unknown>;
   return Object.fromEntries(Object.entries(merged).map(([key, value]) => [
     key,
@@ -102,10 +106,34 @@ function normalizeGatewaySection<T extends Record<string, unknown>>(defaults: T,
   ])) as T;
 }
 
+function getSafeGatewayConfig(provider: string, input?: unknown): Record<string, any> {
+  const providerId = normalizeProviderId(provider);
+  const source = safeRecord(input);
+  const defaults = safeRecord((defaultGateways as Record<string, unknown>)[providerId]);
+  const normalized = normalizeGatewaySection(defaults, source);
+  return {
+    ...normalized,
+    provider: providerId,
+    enabled: Boolean(source.enabled ?? normalized.enabled ?? false),
+    is_default: Boolean(source.is_default ?? source.isDefault ?? false),
+    pix: {
+      enabled: Boolean(safeRecord(source.pix).enabled ?? false),
+      ...safeRecord(source.pix)
+    },
+    credentials: safeRecord(source.credentials),
+    settings: safeRecord(source.settings || source.config_json)
+  };
+}
+
 function normalizeGateways(input: any) {
-  const mercadoPagoConfig = Array.isArray(input?.configs)
-    ? input.configs.find((config: any) => config.provider === "mercadopago")
-    : null;
+  const source = safeRecord(input);
+  const configList = Array.isArray(source.configs)
+    ? source.configs
+    : Array.isArray(source.paymentGatewayConfigs)
+      ? source.paymentGatewayConfigs
+      : [];
+  const findConfig = (provider: string) => configList.find((config: any) => normalizeProviderId(config?.provider) === provider) || null;
+  const mercadoPagoConfig = findConfig("mercadopago");
   const mercadoPagoFromConfig = mercadoPagoConfig ? {
     enabled: Boolean(mercadoPagoConfig.enabled),
     environment: mercadoPagoConfig.environment || "sandbox",
@@ -116,9 +144,7 @@ function normalizeGateways(input: any) {
     expirationMinutes: String(mercadoPagoConfig.config_json?.expirationMinutes || mercadoPagoConfig.credentials?.expirationMinutes || "15"),
     releaseStatus: mercadoPagoConfig.config_json?.releaseStatus || mercadoPagoConfig.credentials?.releaseStatus || "approved"
   } : {};
-  const asaasConfig = Array.isArray(input?.configs)
-    ? input.configs.find((config: any) => config.provider === "asaas")
-    : null;
+  const asaasConfig = findConfig("asaas");
   const asaasFromConfig = asaasConfig ? {
     enabled: Boolean(asaasConfig.enabled),
     environment: asaasConfig.environment || "sandbox",
@@ -130,9 +156,7 @@ function normalizeGateways(input: any) {
     paymentMode: asaasConfig.config_json?.paymentMode || asaasConfig.credentials?.paymentMode || "pix_direct",
     orderExpirationMinutes: String(asaasConfig.config_json?.orderExpirationMinutes || asaasConfig.credentials?.orderExpirationMinutes || "15")
   } : {};
-  const pay2mConfig = Array.isArray(input?.configs)
-    ? input.configs.find((config: any) => config.provider === "pay2m")
-    : null;
+  const pay2mConfig = findConfig("pay2m");
   const pay2mFromConfig = pay2mConfig ? {
     enabled: Boolean(pay2mConfig.enabled),
     environment: pay2mConfig.environment || "production",
@@ -144,9 +168,7 @@ function normalizeGateways(input: any) {
     splitLink: pay2mConfig.config_json?.splitLink || pay2mConfig.credentials?.splitLink || "",
     releaseStatus: pay2mConfig.config_json?.releaseStatus || pay2mConfig.credentials?.releaseStatus || "paid"
   } : {};
-  const pagbankConfig = Array.isArray(input?.configs)
-    ? input.configs.find((config: any) => config.provider === "pagbank")
-    : null;
+  const pagbankConfig = findConfig("pagbank");
   const pagbankFromConfig = pagbankConfig ? {
     enabled: Boolean(pagbankConfig.enabled),
     environment: pagbankConfig.environment || "sandbox",
@@ -157,9 +179,7 @@ function normalizeGateways(input: any) {
     expirationMinutes: String(pagbankConfig.config_json?.expirationMinutes || pagbankConfig.credentials?.expirationMinutes || "15"),
     releaseStatus: pagbankConfig.config_json?.releaseStatus || pagbankConfig.credentials?.releaseStatus || "PAID"
   } : {};
-  const coraConfig = Array.isArray(input?.configs)
-    ? input.configs.find((config: any) => config.provider === "cora")
-    : null;
+  const coraConfig = findConfig("cora");
   const coraFromConfig = coraConfig ? {
     enabled: Boolean(coraConfig.enabled),
     environment: coraConfig.environment || "sandbox",
@@ -171,9 +191,7 @@ function normalizeGateways(input: any) {
     webhookSecret: coraConfig.webhook_secret || "",
     expirationMinutes: String(coraConfig.config_json?.expirationMinutes || coraConfig.credentials?.expirationMinutes || "15")
   } : {};
-  const primepagConfig = Array.isArray(input?.configs)
-    ? input.configs.find((config: any) => config.provider === "primepag")
-    : null;
+  const primepagConfig = findConfig("primepag");
   const primepagFromConfig = primepagConfig ? {
     enabled: Boolean(primepagConfig.enabled),
     environment: primepagConfig.environment || "staging",
@@ -185,24 +203,24 @@ function normalizeGateways(input: any) {
     webhookSecret: primepagConfig.webhook_secret || "",
     expirationTime: String(primepagConfig.config_json?.expirationTime || primepagConfig.credentials?.expirationTime || "1800")
   } : {};
-  const activeProvider = normalizeProviderId(input?.defaultProvider || input?.active || defaultGateways.active);
+  const activeProvider = normalizeProviderId(source.defaultProvider || source.active || defaultGateways.active);
   return {
     ...defaultGateways,
-    ...(input || {}),
+    ...source,
     active: activeProvider,
-    pix: normalizeGatewaySection(defaultGateways.pix, input?.pix),
-    mercadopago: normalizeGatewaySection(defaultGateways.mercadopago, { ...(input?.mercadopago || {}), ...mercadoPagoFromConfig }),
-    pagbank: normalizeGatewaySection(defaultGateways.pagbank, { ...(input?.pagbank || {}), ...pagbankFromConfig }),
-    asaas: normalizeGatewaySection(defaultGateways.asaas, { ...(input?.asaas || {}), ...asaasFromConfig }),
-    infinitypay: normalizeGatewaySection(defaultGateways.infinitypay, input?.infinitypay),
-    pay2m: normalizeGatewaySection(defaultGateways.pay2m, { ...(input?.pay2m || {}), ...pay2mFromConfig }),
-    cora: normalizeGatewaySection(defaultGateways.cora, { ...(input?.cora || {}), ...coraFromConfig }),
-    primepag: normalizeGatewaySection(defaultGateways.primepag, { ...(input?.primepag || {}), ...primepagFromConfig }),
-    paggue: normalizeGatewaySection(defaultGateways.paggue, input?.paggue),
-    cashpay: normalizeGatewaySection(defaultGateways.cashpay, input?.cashpay),
-    fakeprocessor: normalizeGatewaySection(defaultGateways.fakeprocessor, input?.fakeprocessor),
-    sandbox: normalizeGatewaySection(defaultGateways.sandbox, input?.sandbox),
-    mock: normalizeGatewaySection(defaultGateways.mock, input?.mock),
+    pix: normalizeGatewaySection(defaultGateways.pix, source.pix),
+    mercadopago: getSafeGatewayConfig("mercadopago", { ...safeRecord(source.mercadopago), ...mercadoPagoFromConfig }),
+    pagbank: getSafeGatewayConfig("pagbank", { ...safeRecord(source.pagbank), ...pagbankFromConfig }),
+    asaas: getSafeGatewayConfig("asaas", { ...safeRecord(source.asaas), ...asaasFromConfig }),
+    infinitypay: getSafeGatewayConfig("infinitypay", source.infinitypay),
+    pay2m: getSafeGatewayConfig("pay2m", { ...safeRecord(source.pay2m), ...pay2mFromConfig }),
+    cora: getSafeGatewayConfig("cora", { ...safeRecord(source.cora), ...coraFromConfig }),
+    primepag: getSafeGatewayConfig("primepag", { ...safeRecord(source.primepag), ...primepagFromConfig }),
+    paggue: getSafeGatewayConfig("paggue", source.paggue),
+    cashpay: getSafeGatewayConfig("cashpay", source.cashpay),
+    fakeprocessor: getSafeGatewayConfig("fakeprocessor", source.fakeprocessor),
+    sandbox: getSafeGatewayConfig("sandbox", source.sandbox),
+    mock: getSafeGatewayConfig("mock", source.mock),
   };
 }
 
@@ -257,8 +275,10 @@ export function AdminPaymentGateways() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    let attemptedProvider = normalizeProviderId(gateways?.active);
     try {
       const normalized = normalizeGateways(gateways);
+      attemptedProvider = normalized.active;
       const configs = [{
         provider: normalized.active,
         display_name: gatewayLabels[normalized.active] || normalized.active,
@@ -309,7 +329,13 @@ export function AdminPaymentGateways() {
       setHasPendingChanges(false);
       toast.success("Recebimentos salvos com sucesso!");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao salvar recebimentos");
+      console.error("Falha ao salvar gateway PIX", {
+        provider: attemptedProvider,
+        message: error instanceof Error ? error.message : error
+      });
+      toast.error("Não foi possível salvar o gateway. Verifique os dados e tente novamente.", {
+        description: error instanceof Error ? error.message : undefined
+      });
     } finally {
       setSaving(false);
     }
@@ -390,7 +416,7 @@ export function AdminPaymentGateways() {
             <h1 className="text-3xl font-display font-medium text-white flex items-center gap-3">
                <ShieldCheck className="w-8 h-8 text-emerald-400" /> Recebimentos
             </h1>
-            <p className="text-slate-400 mt-2 text-sm">Configure um método de recebimento para iniciar sua operação.</p>
+            <p className="text-slate-400 mt-2 text-sm">Métodos de recebimento disponíveis para a operação.</p>
          </div>
          <button onClick={testAllGateways} className="rounded-xl border border-emerald-400/30 px-4 py-3 text-xs font-mono uppercase text-emerald-200 hover:bg-emerald-400/10">
            Validar recebimentos

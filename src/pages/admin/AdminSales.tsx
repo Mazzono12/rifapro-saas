@@ -609,7 +609,7 @@ export function AdminSales() {
            <div className="max-h-80 overflow-y-auto custom-scrollbar space-y-2 pr-1">
              {filteredCustomers.length === 0 ? (
                <div className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-5 text-sm text-[var(--admin-muted)]">
-                 Os clientes aparecerão aqui conforme sua operação crescer.
+                 Nenhum registro encontrado.
                </div>
              ) : filteredCustomers.map(customer => (
                <button key={customer.id} onClick={() => openCustomerEditor(customer)} className="w-full rounded-xl border border-[var(--admin-border)] bg-white/[0.03] p-3 text-left transition hover:border-[var(--admin-primary)] hover:bg-white/[0.06]">
@@ -1007,7 +1007,7 @@ export function AdminSales() {
                <tbody className="font-mono text-sm">
                   {filteredPurchases.length === 0 ? (
                      <tr>
-                        <td colSpan={7} className="py-8 text-center text-slate-500">Nenhuma venda registrada ainda. Publique sua primeira campanha para iniciar a operação.</td>
+                        <td colSpan={7} className="py-8 text-center text-slate-500">Sem vendas registradas até o momento.</td>
                      </tr>
                   ) : filteredPurchases.map((p, i) => (
                      <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors">

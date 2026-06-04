@@ -55,18 +55,18 @@ export function CollapsibleSidebar({
       <aside
         className={cn(
           "premium-admin-sidebar admin-collapsible-sidebar flex h-dvh flex-col border-r border-[var(--admin-border)] bg-[var(--admin-sidebar)] text-[var(--admin-text)] shadow-[12px_0_36px_rgba(0,0,0,0.18)] transition-[width,transform] duration-300",
-          mobile ? "w-[min(86vw,288px)] px-3" : "fixed left-0 top-0 z-50 hidden px-2.5 lg:flex",
-          !mobile && (minimized ? "w-[88px]" : "w-[256px]")
+          mobile ? "w-[min(86vw,288px)] px-3" : "fixed left-0 top-0 z-50 hidden px-2 lg:flex",
+          !mobile && (minimized ? "w-[72px]" : "w-[184px]")
         )}
         data-collapsed={minimized ? "true" : "false"}
       >
-        <div className={cn("flex min-h-[64px] items-center border-b border-[var(--admin-border)]", minimized ? "justify-center" : "gap-3")}>
+        <div className={cn("flex min-h-[58px] items-center border-b border-[var(--admin-border)]", minimized ? "justify-center" : "gap-2")}>
           <Link to={rootPath} className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-[10px] bg-[var(--admin-primary)] text-[var(--admin-button-text)] shadow-[0_0_28px_var(--admin-glow)]" aria-label={title}>
             {logoUrl ? <ResponsiveMediaFrame src={logoUrl} type="image" alt={title} preferredFit="contain" aspectMode="square" className="h-full w-full rounded-none" /> : <Hexagon className="h-7 w-7" />}
           </Link>
           {!minimized && (
             <Link to={rootPath} className="min-w-0">
-              <h1 className="mb-0 truncate text-lg font-semibold text-[var(--admin-text)]">{title}</h1>
+              <h1 className="mb-0 truncate text-sm font-semibold text-[var(--admin-text)]">{title}</h1>
               <p className="truncate text-xs text-[var(--admin-muted)]">{subtitle}</p>
             </Link>
           )}
@@ -82,10 +82,10 @@ export function CollapsibleSidebar({
           )}
         </div>
 
-        <nav className={cn("flex-1 overflow-y-auto py-4 cifher-scrollbar custom-scrollbar", minimized ? "space-y-4 overflow-x-visible" : "space-y-5")} aria-label="Menu principal">
+        <nav className={cn("flex-1 overflow-y-auto py-3 cifher-scrollbar custom-scrollbar", minimized ? "space-y-3 overflow-x-visible" : "space-y-3")} aria-label="Menu principal">
           {(Object.entries(grouped) as Array<[string, SidebarNavItem[]]>).map(([group, groupItems]) => (
             <div key={group}>
-              {!minimized && <p className="mb-2 px-3 text-xs font-bold uppercase text-[var(--admin-muted)]">{group}</p>}
+              {!minimized && <p className="mb-1.5 px-2.5 text-[10px] font-bold uppercase text-[var(--admin-muted)]">{group}</p>}
               <div className="space-y-1">
                 {groupItems.map(item => {
                   const isActive = location.pathname === item.path || (item.path !== rootPath && location.pathname.startsWith(item.path));
@@ -98,7 +98,7 @@ export function CollapsibleSidebar({
                       title={minimized ? item.name : undefined}
                       onClick={() => onMobileOpenChange(false)}
                       className={cn(
-                        "group/sidebar relative flex min-h-10 items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--admin-primary)]",
+                        "group/sidebar relative flex min-h-9 items-center gap-2 rounded-[10px] px-2 py-1.5 text-[13px] font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--admin-primary)]",
                         minimized && "justify-center px-0",
                         isActive
                           ? "bg-[var(--admin-primary)] text-[var(--admin-button-text)] shadow-[0_10px_28px_var(--admin-glow)]"
@@ -122,7 +122,7 @@ export function CollapsibleSidebar({
           ))}
         </nav>
 
-        <div className="space-y-2 border-t border-[var(--admin-border)] py-4">
+        <div className="space-y-2 border-t border-[var(--admin-border)] py-3">
           {!mobile && (
             <button onClick={() => onCollapsedChange(!collapsed)} className="admin-sidebar-toggle mx-auto" aria-label={minimized ? "Expandir menu" : "Recolher menu"} title={minimized ? "Expandir menu" : "Recolher menu"}>
               {minimized ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}

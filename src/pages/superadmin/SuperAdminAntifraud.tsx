@@ -15,7 +15,7 @@ export function SuperAdminAntifraud() {
   return (
     <div className="space-y-6">
       <section className="admin-card p-5">
-        <p className="text-sm font-bold uppercase tracking-widest text-[var(--admin-primary)]">Visão global por cliente</p>
+        <p className="text-sm font-bold uppercase tracking-widest text-[var(--admin-primary)]">Visão global por tenant</p>
         <h2 className="mt-1 text-2xl font-black text-[var(--admin-text)]">Antifraude avançado</h2>
         <p className="mt-2 text-sm text-[var(--admin-muted)]">Compras, PIX, afiliados, carteira, saques e alterações de cotas com score 0-100.</p>
       </section>

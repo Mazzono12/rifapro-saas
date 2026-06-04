@@ -14618,7 +14618,7 @@ async function startServer() {
   const paymentGatewayConfigs: Record<string, PaymentGatewayConfigRecord[]> = {};
 
   function normalizePaymentProvider(provider: unknown): PixGatewayId {
-    const value = String(provider || "mock").trim().toLowerCase().replace(/[\s_-]+/g, "");
+    const value = String(provider || "mercadopago").trim().toLowerCase().replace(/[\s_-]+/g, "");
     const aliases: Record<string, PixGatewayId> = {
       mercadopago: "mercadopago",
       mp: "mercadopago",
@@ -14636,7 +14636,7 @@ async function startServer() {
       sandbox: "sandbox",
       mock: "mock"
     };
-    return aliases[value] || "mock";
+    return aliases[value] || "mercadopago";
   }
 
   function gatewayCredentialsFromLegacy(provider: PixGatewayId, tenantPixGateways: typeof gateways) {
@@ -15143,6 +15143,7 @@ async function startServer() {
     const defaultConfig = getDefaultPaymentGatewayConfig(tenantId);
     res.json({
       ...maskLegacyGatewaysForResponse(tenantPixGateways),
+      active: defaultConfig.provider,
       configs,
       paymentGatewayConfigs: configs,
       defaultProvider: defaultConfig.provider,
@@ -15329,7 +15330,15 @@ async function startServer() {
     syncLegacyGatewaysFromConfigs(tenantId);
     const configs = getPaymentGatewayConfigs(tenantId).map(sanitizePaymentGatewayConfig);
     recordSecurityEvent({ tenant_id: tenantId, action: "PIX_GATEWAY_CHANGED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "WARN", severity: "medium", actor: getAuthSession(req)?.email, detail: String(getDefaultPaymentGatewayConfig(tenantId).provider || "") });
-    res.json({ ...maskLegacyGatewaysForResponse(getTenantGateways(tenantId)), configs, paymentGatewayConfigs: configs, defaultProvider: getDefaultPaymentGatewayConfig(tenantId).provider });
+    const defaultConfig = getDefaultPaymentGatewayConfig(tenantId);
+    res.json({
+      ...maskLegacyGatewaysForResponse(getTenantGateways(tenantId)),
+      active: defaultConfig.provider,
+      configs,
+      paymentGatewayConfigs: configs,
+      defaultProvider: defaultConfig.provider,
+      environment: defaultConfig.environment
+    });
   });
 
   // Settings

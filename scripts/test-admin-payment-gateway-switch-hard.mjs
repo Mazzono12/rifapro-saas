@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
+import { readFileSync } from "node:fs";
+
+const adminSource = readFileSync("src/pages/admin/AdminPaymentGateways.tsx", "utf8");
+assert.match(adminSource, /function getSafeGatewayConfig/, "Frontend deve ter defaults defensivos por provider.");
+assert.match(adminSource, /Não foi possível salvar o gateway/, "Frontend deve exibir erro amigavel ao falhar o save.");
+assert.match(adminSource, /console\.error\("Falha ao salvar gateway PIX"/, "Frontend deve logar provider/mensagem para debug.");
 
 async function findAvailablePort() {
   if (process.env.PORT) return Number(process.env.PORT);
@@ -133,23 +139,33 @@ function gatewayConfig(provider) {
   return { ...base, credentials: credentials[provider] };
 }
 
-async function saveGateway(headers, provider) {
+async function saveGateway(headers, provider, overrides = {}) {
   const config = gatewayConfig(provider);
   const response = await json("/api/admin/gateways", {
     method: "PUT",
     headers,
     body: JSON.stringify({
       active: provider,
-      pix: {
+      pix: overrides.pix === undefined ? {
         enabled: true,
         sandbox: config.environment !== "production",
         webhookUrl: `/api/webhooks/${provider}`,
         webhookSecret: config.webhook_secret
-      },
-      [provider]: config.credentials,
-      configs: [config],
-      paymentGatewayConfigs: [config]
+      } : overrides.pix,
+      [provider]: overrides.providerSection === undefined ? config.credentials : overrides.providerSection,
+      configs: overrides.configs === undefined ? [config] : overrides.configs,
+      paymentGatewayConfigs: overrides.paymentGatewayConfigs === undefined ? [config] : overrides.paymentGatewayConfigs
     })
+  });
+  assert.equal(response.response.status, 200, response.body?.error);
+  return response.body;
+}
+
+async function saveRawGateway(headers, body) {
+  const response = await json("/api/admin/gateways", {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(body)
   });
   assert.equal(response.response.status, 200, response.body?.error);
   return response.body;
@@ -173,16 +189,30 @@ try {
   const superToken = await login(env.SUPERADMIN_EMAIL, env.SUPERADMIN_PASSWORD);
   const headers = await createTenantAdmin({ Authorization: `Bearer ${superToken}` });
 
-  assertGatewayState(await saveGateway(headers, "mercadopago"), "mercadopago");
+  const initial = await json("/api/admin/gateways", { headers });
+  assert.equal(initial.response.status, 200, initial.body?.error);
+  assertGatewayState(initial.body, "mercadopago");
 
-  for (const provider of ["asaas", "pay2m", "pagbank", "cora", "primepag"]) {
+  for (const provider of ["mercadopago", "asaas", "pay2m", "pagbank", "cora", "primepag"]) {
     assertGatewayState(await saveGateway(headers, provider), provider);
     const afterReload = await json("/api/admin/gateways", { headers });
     assert.equal(afterReload.response.status, 200, afterReload.body?.error);
     assertGatewayState(afterReload.body, provider);
   }
 
-  console.log("PASS: troca admin de gateway PIX persiste active/defaultProvider para Asaas, Pay2M, PagBank, Cora e PrimePag.");
+  assertGatewayState(await saveRawGateway(headers, { active: "asaas" }), "asaas");
+  assertGatewayState(await saveRawGateway(headers, { active: "pay2m", configs: [{ provider: "pay2m", is_default: true }] }), "pay2m");
+  assertGatewayState(await saveRawGateway(headers, { active: "pagbank", configs: [{ provider: "pagbank", enabled: true, is_default: true }] }), "pagbank");
+  assertGatewayState(await saveRawGateway(headers, { active: "cora", cora: {}, configs: [{ provider: "cora", enabled: true, is_default: true }] }), "cora");
+  assertGatewayState(await saveRawGateway(headers, { active: "primepag", configs: [{ provider: "primepag", credentials: {}, enabled: true, is_default: true }] }), "primepag");
+
+  const invalid = await saveRawGateway(headers, { active: "gateway-invalido", configs: [{ provider: "gateway-invalido", is_default: true }] });
+  assertGatewayState(invalid, "mercadopago");
+  const invalidReload = await json("/api/admin/gateways", { headers });
+  assert.equal(invalidReload.response.status, 200, invalidReload.body?.error);
+  assertGatewayState(invalidReload.body, "mercadopago");
+
+  console.log("PASS: troca admin de gateway PIX persiste active/defaultProvider, aceita configs vazias/parciais e trata provider invalido com fallback seguro.");
 } finally {
   server.kill();
 }

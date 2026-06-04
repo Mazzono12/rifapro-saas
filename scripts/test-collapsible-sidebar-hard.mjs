@@ -27,7 +27,7 @@ for (const [file, source, key] of [
   assert.ok(source.includes("CollapsibleSidebar"), `${file} deve usar sidebar compartilhada.`);
   assert.ok(source.includes(key), `${file} deve persistir estado no localStorage.`);
   assert.ok(source.includes("rifapro.") && source.includes("localStorage.getItem"), `${file} deve manter compatibilidade com estado legado.`);
-  assert.ok(source.includes("lg:pl-[88px]") && source.includes("lg:pl-[292px]"), `${file} deve expandir/encolher conteúdo.`);
+  assert.ok(source.includes("lg:pl-[72px]") && source.includes("lg:pl-[184px]"), `${file} deve expandir/encolher conteúdo.`);
   assert.ok(source.includes("mobileOpen") && source.includes("setMobileOpen"), `${file} deve ter drawer mobile.`);
   assert.ok(source.includes("Escape"), `${file} deve fechar drawer com teclado.`);
 }

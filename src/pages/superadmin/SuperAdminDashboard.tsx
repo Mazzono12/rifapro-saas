@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Activity, AlertTriangle, BarChart3, Building2, CreditCard, DollarSign, Download, Eye, LifeBuoy, LogIn, MonitorCheck, Palette, Pencil, Plus, RefreshCw, ShieldAlert, SlidersHorizontal, Sparkles, Ticket, Trophy, X } from "lucide-react";
+import { Building2, CreditCard, Eye, LifeBuoy, LogIn, MonitorCheck, Palette, Pencil, Plus, RefreshCw, SlidersHorizontal, Ticket, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminDataTable, AdminLoadingSkeleton, MetricCard, ChartCard } from "../../components/admin/AdminPremium";
 
@@ -233,31 +233,18 @@ export function SuperAdminDashboard() {
   const recentSales = useMemo(() => sales.slice(0, 12), [sales]);
   const chartMax = (items: ChartPoint[] = []) => Math.max(1, ...items.map(item => item.amount || 0));
   const strategicAlerts = Number(metrics?.suspiciousAlerts || 0) + Number(metrics?.queuedPayments || 0) + Number(metrics?.webhookErrors || 0);
-  const growingOperations = tenants.filter(tenant => tenant.status === "active" && tenant.paidRevenue > 0).length;
   const environmentHealth = strategicAlerts > 0 ? "Monitoramento ativo" : "Ambiente saudável";
   if (loading && !metrics) return <AdminLoadingSkeleton />;
 
   return (
-    <div className="space-y-6">
-      <section className="admin-card overflow-hidden p-0">
-        <div className="grid gap-4 p-4 lg:grid-cols-[1fr_auto] lg:items-end xl:p-5">
-          <div className="space-y-3">
-            <div>
-              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[var(--admin-info)]/25 bg-[var(--admin-info)]/10 px-2.5 py-1 text-xs font-bold text-[var(--admin-info)]">
-                <span className="h-2 w-2 rounded-full bg-[var(--admin-info)]" />
-                Monitoramento premium
-              </div>
-              <h2 className="mt-1 text-2xl font-semibold leading-tight text-[var(--admin-text)]">Visão Executiva</h2>
-              <p className="mt-1 max-w-2xl text-sm text-[var(--admin-muted)]">
-                Clientes, faturamento e saúde geral do ambiente em leitura rápida.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs font-semibold">
-              <span className="rounded-full border border-[var(--admin-border)] bg-white/[0.035] px-3 py-1 text-[var(--admin-text)]">Saúde: {environmentHealth}</span>
-              <span className="rounded-full border border-[var(--admin-border)] bg-white/[0.035] px-3 py-1 text-[var(--admin-muted)]">{growingOperations} operações em crescimento</span>
-            </div>
+    <div className="space-y-5">
+      <section className="admin-card p-4">
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+          <div className="min-w-0">
+            <h2 className="text-2xl font-semibold leading-tight text-[var(--admin-text)]">Gestão Global</h2>
+            <p className="mt-1 text-sm text-[var(--admin-muted)]">Resumo consolidado</p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[460px]">
+          <div className="grid gap-2 sm:grid-cols-2 xl:min-w-[380px]">
             <button type="button" onClick={() => setForm({ ...emptyForm })} className="admin-button-primary">
               <Plus className="h-4 w-4" />
               Novo cliente
@@ -266,17 +253,10 @@ export function SuperAdminDashboard() {
               <RefreshCw className="h-4 w-4" />
               Atualizar visão
             </button>
-            <Link className="admin-button-secondary" to="/superadmin/relatorios"><BarChart3 className="h-4 w-4" /> Relatórios executivos</Link>
-            <Link className="admin-button-secondary" to="/superadmin/aparencia"><Palette className="h-4 w-4" /> Aparência global</Link>
           </div>
         </div>
       </section>
 
-      <SectionHeader
-        eyebrow="Visão Geral"
-        title="Indicadores consolidados"
-        description="Leitura rápida da base de clientes, receita e performance do ambiente."
-      />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Clientes ativos" value={`${metrics?.activeTenants || 0}/${metrics?.tenants || 0}`} icon={Building2} trend="base em operação" tone="primary" />
         <MetricCard label="Faturamento consolidado" value={money(metrics?.paidRevenue || 0)} icon={CreditCard} trend="vendas confirmadas" tone="success" />
@@ -284,43 +264,10 @@ export function SuperAdminDashboard() {
         <MetricCard label="Saúde Geral" value={environmentHealth} icon={MonitorCheck} trend={`${strategicAlerts} alertas estratégicos`} tone={strategicAlerts ? "warning" : "success"} />
       </div>
 
-      <SectionHeader
-        eyebrow="Detalhes"
-        title="Indicadores complementares"
-        description="Métricas secundárias para acompanhamento executivo."
-      />
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard label="Campanhas ativas" value={`${metrics?.activeRaffles || 0}/${metrics?.raffles || 0}`} icon={Ticket} trend="operações publicadas" tone="accent" />
-        <MetricCard label="Receita operacional" value={money(metrics?.platformCommission || 0)} icon={DollarSign} trend="resultado do ambiente" tone="success" />
-        <MetricCard label="Confirmações pendentes" value={metrics?.pendingPix || 0} icon={ShieldAlert} trend="acompanhar para conversão" tone="warning" />
-        <MetricCard label="Faturamento hoje" value={money(metrics?.revenueToday || 0)} icon={DollarSign} trend="resultado do dia" tone="success" />
-        <MetricCard label="Últimos 7 dias" value={money(metrics?.revenueLast7Days || 0)} icon={DollarSign} tone="primary" />
-        <MetricCard label="Mês atual" value={money(metrics?.revenueCurrentMonth || 0)} icon={DollarSign} tone="accent" />
-        <MetricCard label="Crescimento consolidado" value={money(metrics?.revenueCurrentYear || 0)} icon={Sparkles} trend="acumulado anual" tone="success" />
-        <MetricCard label="Ticket médio" value={money(metrics?.averageTicket || 0)} icon={CreditCard} trend="valor médio confirmado" tone="primary" />
-        <MetricCard label="Alertas estratégicos" value={strategicAlerts} icon={AlertTriangle} trend="itens que pedem atenção" tone="warning" />
-        <MetricCard label="Conversão operacional" value={`${metrics?.conversionRate || 0}%`} icon={Activity} trend="performance das contas" tone="primary" />
-      </div>
-
-      <SectionHeader
-        eyebrow="Ações Rápidas"
-        title="Comandos executivos"
-        description="Atalhos para crescimento, acompanhamento e padronização do ambiente."
-      />
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
-        <button type="button" onClick={() => setForm({ ...emptyForm })} className="admin-button-primary"><Plus className="h-4 w-4" /> Novo cliente</button>
-        <Link className="admin-button-secondary" to="/superadmin"><Building2 className="h-4 w-4" /> Ver clientes</Link>
-        <Link className="admin-button-secondary" to="/superadmin/aparencia"><Palette className="h-4 w-4" /> Aparência global</Link>
-        <Link className="admin-button-secondary" to="/superadmin/relatorios"><BarChart3 className="h-4 w-4" /> Relatórios executivos</Link>
-        <Link className="admin-button-secondary" to="/superadmin/auditoria"><MonitorCheck className="h-4 w-4" /> Monitoramento</Link>
-        <a className="admin-button-secondary" href="/api/superadmin/reports/revenue/export"><Download className="h-4 w-4" /> Exportar</a>
-      </div>
-
       <section id="clientes" className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Performance das contas</h2>
-            <p className="text-sm text-[var(--admin-muted)]">Entre no painel profissional de cada cliente com acesso assistido e controle seguro.</p>
+            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Contas</h2>
           </div>
           <button type="button" onClick={() => void loadData()} className="admin-button-secondary" title="Atualizar ambientes">
             <RefreshCw className="h-4 w-4" />
@@ -358,7 +305,7 @@ export function SuperAdminDashboard() {
             </div>
           )) : (
             <div className="admin-card p-5 text-sm text-[var(--admin-muted)] md:col-span-2 xl:col-span-3">
-              Nenhum resultado encontrado neste período. Crie o primeiro cliente para iniciar o acompanhamento executivo.
+              Nenhum registro encontrado.
             </div>
           )}
         </div>
@@ -375,7 +322,7 @@ export function SuperAdminDashboard() {
           const isPaymentPerformance = title === "Performance por meio de pagamento";
           return (
             <div key={title as string}>
-              <ChartCard title={title as string} description="Leitura consolidada para identificar tendência, concentração e oportunidade.">
+              <ChartCard title={title as string}>
                 <div className="space-y-3">
                   {items.slice(0, 8).map(item => (
                     <div key={item.key} className="space-y-1">
@@ -410,7 +357,6 @@ export function SuperAdminDashboard() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-[var(--admin-text)]">Clientes</h2>
-            <p className="text-sm text-[var(--admin-muted)]">Gestão comercial, aparência e acompanhamento por cliente.</p>
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => void loadData()} className="admin-button-secondary" title="Atualizar">
@@ -552,16 +498,6 @@ export function SuperAdminDashboard() {
           </form>
         </div>
       )}
-    </div>
-  );
-}
-
-function SectionHeader({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
-  return (
-    <div>
-      <p className="text-xs font-bold uppercase text-[var(--admin-primary)]">{eyebrow}</p>
-      <h2 className="mt-1 text-xl font-semibold text-[var(--admin-text)]">{title}</h2>
-      <p className="mt-1 text-sm text-[var(--admin-muted)]">{description}</p>
     </div>
   );
 }
