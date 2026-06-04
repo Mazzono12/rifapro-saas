@@ -295,7 +295,7 @@ async function startServer() {
     criado_em: string;
     atualizado_em: string;
   };
-  type SaaSPlanId = "starter" | "pro" | "premium" | "enterprise";
+  type SaaSPlanId = "starter" | "pro" | "premium" | "enterprise" | "white-label";
   type TenantFeatureFlag = "crm" | "automations" | "advanced_affiliates" | "wallet" | "provably_fair" | "reports_pdf" | "public_api" | "pwa" | "custom_theme" | "whatsapp_automation" | "realtime_social_proof";
   type SaaSPlan = {
     id: SaaSPlanId;
@@ -2515,7 +2515,7 @@ async function startServer() {
   const planCatalog: Record<SaaSPlanId, SaaSPlan> = {
     starter: {
       id: "starter",
-      nome: "Starter",
+      nome: "Básico",
       limite_rifas: 1,
       limite_vendas_mes: 500,
       max_campaigns: 1,
@@ -2532,7 +2532,7 @@ async function startServer() {
     },
     pro: {
       id: "pro",
-      nome: "Pro",
+      nome: "Profissional",
       limite_rifas: 25,
       limite_vendas_mes: 10000,
       max_campaigns: 25,
@@ -2566,7 +2566,24 @@ async function startServer() {
     },
     enterprise: {
       id: "enterprise",
-      nome: "Enterprise",
+      nome: "Empresa",
+      limite_rifas: 999999,
+      limite_vendas_mes: 999999,
+      max_campaigns: 999999,
+      max_customers: 999999,
+      max_admin_users: 999999,
+      max_whatsapp_messages_month: 999999,
+      recursos: ["checkout", "pix", "gamificacao", "relatorios_avancados", "afiliados", "integracoes", "webhooks", "white_label", "sla"],
+      dominio_proprio: true,
+      advanced_reports: true,
+      public_api: true,
+      included_features: allTenantFeatureFlags,
+      integracoes_liberadas: ["primepag", "paggue", "smtp", "sendpulse", "metaAds", "googleAds", "wetalkie", "cashPay", "nuvenda", "fkeProcessor"],
+      percentual_comissao: 2.5
+    },
+    "white-label": {
+      id: "white-label",
+      nome: "White Label",
       limite_rifas: 999999,
       limite_vendas_mes: 999999,
       max_campaigns: 999999,
@@ -2582,20 +2599,30 @@ async function startServer() {
       percentual_comissao: 2.5
     }
   };
-  const planAliases: Record<string, SaaSPlanId> = { gratis: "starter", free: "starter", starter: "starter", basico: "starter", basic: "starter", pro: "pro", profissional: "pro", teste: "premium", premium: "premium", enterprise: "enterprise", "white-label": "enterprise", whitelabel: "enterprise", plataforma: "enterprise" };
+  const planAliases: Record<string, SaaSPlanId> = {
+    gratis: "starter",
+    free: "starter",
+    starter: "starter",
+    basico: "starter",
+    "básico": "starter",
+    basic: "starter",
+    pro: "pro",
+    profissional: "pro",
+    teste: "premium",
+    premium: "premium",
+    enterprise: "enterprise",
+    empresa: "enterprise",
+    "white-label": "white-label",
+    whitelabel: "white-label",
+    "white label": "white-label",
+    branca: "white-label",
+    "marca branca": "white-label",
+    plataforma: "enterprise"
+  };
   const operationalTenantStatuses: TenantRecord["status"][] = ["trial", "active", "suspended", "overdue", "maintenance", "blocked", "canceled", "inactive"];
-  const legacyPlanCatalogAliases: Array<Omit<SaaSPlan, "id"> & { id: string; canonical_id: SaaSPlanId }> = [
-    { ...planCatalog.starter, id: "gratis", nome: "Gratis", canonical_id: "starter" },
-    { ...planCatalog.starter, id: "basico", nome: "Basico", canonical_id: "starter" },
-    { ...planCatalog.pro, id: "profissional", nome: "Profissional", canonical_id: "pro" },
-    { ...planCatalog.enterprise, id: "white-label", nome: "White Label", canonical_id: "enterprise" }
-  ];
 
   function getSuperadminPlanCatalog(): Array<Omit<SaaSPlan, "id"> & { id: string; canonical_id?: SaaSPlanId }> {
-    return [
-      ...Object.values(planCatalog).map(plan => ({ ...plan, canonical_id: plan.id })),
-      ...legacyPlanCatalogAliases
-    ];
+    return Object.values(planCatalog).map(plan => ({ ...plan, canonical_id: plan.id }));
   }
   let tenantFeatureOverrides: Record<string, Partial<Record<TenantFeatureFlag, boolean>>> = {};
   const securityLogs: SecurityLog[] = [];
@@ -4205,7 +4232,7 @@ async function startServer() {
       return;
     }
     const now = new Date().toISOString();
-    const requestedPlan = String(req.body.plano || "basico").trim().toLowerCase();
+    const requestedPlan = String(req.body.plano || "starter").trim().toLowerCase();
     const plan = getTenantPlan(requestedPlan);
     const tenant: TenantRecord = {
       id: String(req.body.id || createPublicId("TENANT_")),
@@ -4265,7 +4292,7 @@ async function startServer() {
     });
     res.status(201).json({
       ...tenant,
-      plano: requestedPlan && planAliases[requestedPlan] ? requestedPlan : tenant.plano,
+      plan: getTenantPlan(tenant.id),
       tenant,
       admin: initialAdmin ? { user: initialAdmin, profile: initialAdminProfile, temporaryPassword } : null
     });
@@ -11283,7 +11310,16 @@ async function startServer() {
 
   function isAffiliateOwnerRequest(req: express.Request, affiliate: AffiliateRecord) {
     const customer = affiliateOwnerCustomer(affiliate);
-    return Boolean(customer && requestOwnsCustomer(req, customer));
+    const session = getAuthSession(req);
+    return Boolean(customer && (
+      requestOwnsCustomer(req, customer) ||
+      (
+        session &&
+        normalizeAuthRole(session.role) === "afiliado" &&
+        session.tenant_id === affiliate.tenant_id &&
+        session.sub === customer.id
+      )
+    ));
   }
 
   function monthWindow(date = new Date()) {
@@ -15886,8 +15922,7 @@ async function startServer() {
       enabled: false,
       history: []
     };
-    const customer = affiliate.customerId ? Object.values(customersByPhone).find(item => item.id === affiliate.customerId) : undefined;
-    if (customer && requestOwnsCustomer(req, customer)) {
+    if (isAffiliateOwnerRequest(req, affiliate)) {
       releaseEligiblePendingAffiliateCommissions(affiliate);
       res.json({ ...affiliate, rules: settings.affiliateProgram });
       return;
@@ -16168,8 +16203,7 @@ async function startServer() {
       res.status(404).json({ error: "Affiliate not found" });
       return;
     }
-    const customer = affiliate.customerId ? Object.values(customersByPhone).find(item => item.id === affiliate.customerId) : undefined;
-    if (!customer || !requestOwnsCustomer(req, customer)) {
+    if (!isAffiliateOwnerRequest(req, affiliate)) {
       res.status(403).json({ error: "Acesso negado para este afiliado" });
       return;
     }
@@ -16184,8 +16218,8 @@ async function startServer() {
       res.status(404).json({ error: "Affiliate not found" });
       return;
     }
-    const customer = affiliate.customerId ? Object.values(customersByPhone).find(item => item.id === affiliate.customerId) : undefined;
-    if (!customer || !requestOwnsCustomer(req, customer)) {
+    const customer = affiliateOwnerCustomer(affiliate);
+    if (!customer || !isAffiliateOwnerRequest(req, affiliate)) {
       res.status(403).json({ error: "Acesso negado para este afiliado" });
       return;
     }

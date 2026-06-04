@@ -85,29 +85,31 @@ try {
 
   const plans = await json("/api/superadmin/plans", { headers: superHeaders });
   assert.equal(plans.response.status, 200, "Superadmin deve listar planos.");
-  assert.ok(plans.body.some(plan => plan.id === "gratis"));
+  assert.deepEqual(plans.body.map(plan => plan.nome), ["Básico", "Profissional", "Premium", "Empresa", "White Label"]);
+  assert.ok(!plans.body.some(plan => ["gratis", "basico", "profissional"].includes(plan.id)));
   assert.ok(plans.body.some(plan => plan.id === "white-label"));
 
   const tenantRes = await json("/api/superadmin/tenants", {
     method: "POST",
     headers: superHeaders,
-    body: JSON.stringify({ nome: "Cliente Gratis", slug: "cliente-gratis", plano: "gratis" })
+    body: JSON.stringify({ nome: "Cliente Basico", slug: "cliente-basico", plano: "gratis" })
   });
   assert.equal(tenantRes.response.status, 201);
-  assert.equal(tenantRes.body.plano, "gratis");
+  assert.equal(tenantRes.body.plano, "starter");
+  assert.equal(tenantRes.body.plan.nome, "Básico");
   assert.equal(tenantRes.body.percentual_plataforma, 12);
 
-  const tokenGratis = await createTenantAdmin(superHeaders, tenantRes.body.id, "admin.gratis@test.local");
-  const headersGratis = { Authorization: `Bearer ${tokenGratis}` };
+  const tokenBasico = await createTenantAdmin(superHeaders, tenantRes.body.id, "admin.basico@test.local");
+  const headersBasico = { Authorization: `Bearer ${tokenBasico}` };
 
-  const firstRaffle = await createRaffle(headersGratis, "Primeira rifa gratis");
+  const firstRaffle = await createRaffle(headersBasico, "Primeira rifa basica");
   assert.equal(firstRaffle.response.status, 200, firstRaffle.body?.error);
-  const secondRaffle = await createRaffle(headersGratis, "Segunda rifa bloqueada");
-  assert.equal(secondRaffle.response.status, 403, "Plano gratis deve bloquear segunda rifa.");
+  const secondRaffle = await createRaffle(headersBasico, "Segunda rifa bloqueada");
+  assert.equal(secondRaffle.response.status, 403, "Plano Básico deve bloquear segunda rifa.");
 
   const blockedIntegration = await json("/api/admin/integrations/global", {
     method: "POST",
-    headers: headersGratis,
+    headers: headersBasico,
     body: JSON.stringify({
       provider: "primepag",
       status: "active",
@@ -115,7 +117,7 @@ try {
       settings: { mock: true }
     })
   });
-  assert.equal(blockedIntegration.response.status, 403, "Plano gratis nao deve liberar PrimePag.");
+  assert.equal(blockedIntegration.response.status, 403, "Plano Básico nao deve liberar PrimePag.");
 
   const tokenA = await createTenantAdmin(superHeaders, "tenant-cliente-a", "admin.hardening-a@test.local");
   const headersA = { Authorization: `Bearer ${tokenA}` };

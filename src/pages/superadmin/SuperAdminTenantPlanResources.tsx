@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { formatPlanName } from "../../lib/planLabels";
 
 const tenantStatuses = ["trial", "active", "suspended", "overdue", "maintenance", "blocked", "canceled"];
 const statusLabels: Record<string, string> = {
@@ -67,7 +68,7 @@ export function SuperAdminTenantPlanResources() {
           <label className="space-y-2">
             <span className="text-xs uppercase text-[var(--admin-muted)]">Plano</span>
             <select value={planId} onChange={event => setPlanId(event.target.value)} className="admin-input w-full">
-              {(planData?.plans || []).map((plan: any) => <option key={plan.id} value={plan.id}>{plan.nome}</option>)}
+              {(planData?.plans || []).map((plan: any) => <option key={plan.id} value={plan.id}>{formatPlanName(plan)}</option>)}
             </select>
           </label>
           <label className="space-y-2">

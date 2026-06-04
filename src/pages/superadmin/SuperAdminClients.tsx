@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Building2, CreditCard, Eye, LogIn, Palette, Pencil, Plus, RefreshCw, SlidersHorizontal, Ticket, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminDataTable, AdminLoadingSkeleton, MetricCard } from "../../components/admin/AdminPremium";
+import { formatPlanName } from "../../lib/planLabels";
 
 type TenantStatus = "trial" | "active" | "suspended" | "overdue" | "maintenance" | "blocked" | "canceled" | "inactive";
 type Tenant = {
@@ -13,6 +14,7 @@ type Tenant = {
   status: TenantStatus;
   cor_primaria: string;
   plano: string;
+  plan?: { id: string; nome: string };
   percentual_plataforma: number;
   raffleCount: number;
   purchaseCount: number;
@@ -34,7 +36,7 @@ const emptyForm: TenantForm = {
   nome: "",
   slug: "",
   dominio_customizado: "",
-  plano: "basico",
+  plano: "starter",
   percentual_plataforma: 0,
   cor_primaria: "#06b6d4"
 };
@@ -196,7 +198,7 @@ export function SuperAdminClients() {
               <p className="text-xs text-[var(--admin-muted)]">Conta em gestao individual</p>
             </div>,
             statusBadge(tenant.status),
-            tenant.plano,
+            formatPlanName(tenant.plan || tenant.plano),
             tenant.dominio_customizado || "Sem domínio",
             tenant.raffleCount,
             tenant.purchaseCount,
@@ -231,8 +233,8 @@ export function SuperAdminClients() {
                   const plan = plans.find(item => item.id === event.target.value);
                   setForm({ ...form, plano: event.target.value, percentual_plataforma: plan?.percentual_comissao ?? form.percentual_plataforma });
                 }}>
-                  {(plans.length ? plans : [{ id: "basico", nome: "Basico", percentual_comissao: 10 }]).map(plan => (
-                    <option key={plan.id} value={plan.id}>{plan.nome}</option>
+                  {(plans.length ? plans : [{ id: "starter", nome: "Básico", percentual_comissao: 10 }]).map(plan => (
+                    <option key={plan.id} value={plan.id}>{formatPlanName(plan)}</option>
                   ))}
                 </select>
               </label>

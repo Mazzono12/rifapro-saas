@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Lock, Sparkles } from "lucide-react";
+import { formatPlanName } from "../../lib/planLabels";
 
 const featureLabels: Record<string, string> = {
   crm: "CRM",
@@ -37,7 +38,7 @@ export function AdminMyPlan() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm text-[var(--admin-muted)]">Meu plano</p>
-            <h1 className="text-3xl font-black text-[var(--admin-text)]">{currentPlan?.nome || "Carregando"}</h1>
+            <h1 className="text-3xl font-black text-[var(--admin-text)]">{currentPlan ? formatPlanName(currentPlan) : "Carregando"}</h1>
             <p className="mt-2 text-sm text-[var(--admin-muted)]">Status operacional: {plan?.tenant?.status || "-"}</p>
           </div>
           <span className="inline-flex items-center gap-2 rounded-xl bg-[var(--admin-primary)] px-4 py-3 text-sm font-bold text-[var(--admin-button-text)]">
