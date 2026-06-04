@@ -92,6 +92,7 @@ Data: 2026-06-04
   - `Registrar premio pago`
   - `Zerar saldo total`
 - Incluido aviso visual de seguranca informando que somente Admin/Superadmin acessam configuracoes.
+- Correcao P2 aplicada em `AdminSales.tsx`: o editor "Editar ficha do cliente" deixou de exibir labels crus como `name`, `phone`, `photoUrl`, `purchaseId`, `status` e a expressao "IDs dos grupos". A interface passou a mostrar "Nome do cliente", "WhatsApp / Telefone", "Foto do cliente", "Pedido / Compra", "Situacao" e "Grupos da compra", mantendo os mesmos payloads e endpoints.
 
 ## Seguranca
 
@@ -113,4 +114,3 @@ Data: 2026-06-04
 - `npm run lint`
 - `npm run build`
 - `npm run test:affiliate-access-control`
-

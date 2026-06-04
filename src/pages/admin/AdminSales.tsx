@@ -38,6 +38,32 @@ function eligibilityStatusLabel(status: unknown) {
   return "Sem regra mensal";
 }
 
+function purchaseStatusLabel(status: unknown) {
+  const value = String(status || "").toLowerCase();
+  if (value === "paid") return "Pago";
+  if (value === "pending") return "Reservado";
+  if (value === "reserved") return "Reservado";
+  if (value === "cancelled") return "Cancelado";
+  if (value === "sold") return "Comprado";
+  return "Em análise";
+}
+
+function modeLabel(mode: unknown) {
+  const value = String(mode || "").toLowerCase();
+  if (value === "dezena") return "Dezena";
+  if (value === "centena") return "Centena";
+  if (value === "milhar") return "Milhar";
+  return "Modalidade";
+}
+
+function supportStatusLabel(status: unknown) {
+  const value = String(status || "").toLowerCase();
+  if (value === "open") return "Aberto";
+  if (value === "answered") return "Respondido";
+  if (value === "closed") return "Encerrado";
+  return "Em atendimento";
+}
+
 const manualAffiliateFields = [
   ["name", "Nome completo", "Ex.: Maria Silva"],
   ["phone", "Telefone", "Ex.: (11) 99999-9999"],
@@ -53,6 +79,15 @@ const editableAffiliateFields = [
   ["name", "Nome completo"],
   ["phone", "Telefone"],
   ["cpf", "CPF"],
+  ["city", "Cidade"],
+  ["state", "UF"]
+] as const;
+
+const editableCustomerFields = [
+  ["name", "Nome do cliente"],
+  ["phone", "WhatsApp / Telefone"],
+  ["cpf", "CPF"],
+  ["photoUrl", "Foto do cliente"],
   ["city", "Cidade"],
   ["state", "UF"]
 ] as const;
@@ -686,7 +721,7 @@ export function AdminSales() {
                       <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Cotas compradas em rifas</p>
                       {asArray(customer.purchases).map((purchase: any) => (
                         <div key={purchase.purchaseId} className="rounded-xl border border-white/5 bg-black/20 p-3">
-                          <p className="text-sm font-bold text-white">{purchase.raffleTitle} • {purchase.status}</p>
+                          <p className="text-sm font-bold text-white">{purchase.raffleTitle || "Campanha"} • Situação: {purchaseStatusLabel(purchase.status)}</p>
                           <p className="mt-1 break-all font-mono text-xs text-slate-400">
                             {asArray<number>(purchase.numeros).length ? asArray<number>(purchase.numeros).map((n: number) => String(n).padStart(6, "0")).join(", ") : "Sem cotas alocadas ainda"}
                           </p>
@@ -742,7 +777,7 @@ export function AdminSales() {
                 <div key={ticket.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="mb-3">
                     <p className="font-bold text-white">{ticket.customerName}</p>
-                    <p className="text-xs font-mono text-slate-400">{ticket.customerPhone} • {ticket.status}</p>
+                    <p className="text-xs text-slate-400">{ticket.customerPhone} • Situação: {supportStatusLabel(ticket.status)}</p>
                   </div>
                   <div className="max-h-44 space-y-2 overflow-y-auto rounded-xl bg-black/20 p-3 text-sm">
                     {asArray(ticket.messages).map((message: any) => (
@@ -931,9 +966,9 @@ export function AdminSales() {
          <div className="admin-card border border-[var(--admin-primary)]/25 p-5 space-y-4">
            <h2 className="text-xl font-display font-bold">Editar ficha do cliente</h2>
            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-             {["name", "phone", "cpf", "photoUrl", "city", "state"].map(field => (
+             {editableCustomerFields.map(([field, label]) => (
                <label key={field} className="space-y-1">
-                 <span className="text-[10px] font-mono uppercase text-slate-500">{field}</span>
+                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</span>
                  <input value={editingCustomer[field] || ""} onChange={e => setEditingCustomer({ ...editingCustomer, [field]: e.target.value })} className="w-full p-3" />
                </label>
              ))}
@@ -961,8 +996,13 @@ export function AdminSales() {
                  ) : asArray(editingCustomer.purchases).map((purchase: any, index: number) => (
                    <div key={purchase.purchaseId} className="rounded-xl border border-white/5 bg-black/20 p-3">
                      <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                       <p className="font-bold text-white">{purchase.raffleTitle || purchase.raffleId}</p>
-                       <span className="text-[10px] font-mono uppercase text-slate-500">{purchase.purchaseId} • {purchase.status}</span>
+                       <div>
+                         <p className="font-bold text-white">{purchase.raffleTitle || "Campanha"}</p>
+                         <p className="mt-1 text-xs text-slate-500">Pedido / Compra</p>
+                       </div>
+                       <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-300">
+                         Situação: {purchaseStatusLabel(purchase.status)}
+                       </span>
                      </div>
                      <textarea
                        value={purchase.editableNumbers || ""}
@@ -981,12 +1021,17 @@ export function AdminSales() {
              </div>
              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                <h3 className="font-display text-lg font-bold text-white">Outras modalidades</h3>
-               <p className="mt-1 text-xs text-slate-500">Edite apenas para cotas disponíveis. Fazendinha usa IDs dos grupos: leao, vaca, aguia...</p>
+               <p className="mt-1 text-xs text-slate-500">Edite apenas cotas disponíveis. Informe os grupos da compra por nome, separados por vírgula.</p>
                <div className="mt-4 space-y-3">
                  {asArray(editingCustomer.fazendinhaPurchases).map((purchase: any, index: number) => (
                    <div key={purchase.id} className="rounded-xl border border-emerald-300/10 bg-emerald-300/5 p-3">
-                     <p className="font-bold text-white">Fazendinha • {purchase.nomeBicho}</p>
-                     <p className="font-mono text-xs text-slate-400">{purchase.numeros?.join(", ")} • {purchase.statusPagamento}</p>
+                     <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                       <p className="font-bold text-white">Fazendinha • {purchase.nomeBicho || "Grupo da compra"}</p>
+                       <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-300">
+                         Situação: {purchaseStatusLabel(purchase.statusPagamento)}
+                       </span>
+                     </div>
+                     <p className="mt-2 text-xs text-slate-400">Números da compra: {purchase.numeros?.join(", ") || "não informado"}</p>
                      <textarea
                        value={purchase.editableGroupIds || ""}
                        onChange={e => {
@@ -996,14 +1041,19 @@ export function AdminSales() {
                        }}
                        rows={2}
                        className="mt-3 w-full rounded-xl border border-white/10 bg-cyber-900/50 p-3 font-mono text-sm text-white"
-                       placeholder="Ex: leao, vaca"
+                       placeholder="Grupos da compra. Ex.: Leão, Vaca"
                      />
                    </div>
                  ))}
                  {asArray(editingCustomer.modalidadePurchases).map((purchase: any, index: number) => (
                    <div key={purchase.id} className="rounded-xl border border-cyan-300/10 bg-cyan-300/5 p-3">
-                     <p className="font-bold text-white">{purchase.mode}</p>
-                     <p className="font-mono text-xs text-slate-400">{purchase.numbers?.join(", ")} • {purchase.status}</p>
+                     <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                       <p className="font-bold text-white">{modeLabel(purchase.mode)}</p>
+                       <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-300">
+                         Situação: {purchaseStatusLabel(purchase.status)}
+                       </span>
+                     </div>
+                     <p className="mt-2 text-xs text-slate-400">Números da compra: {purchase.numbers?.join(", ") || "não informado"}</p>
                      <textarea
                        value={purchase.editableNumbers || ""}
                        onChange={e => {
@@ -1067,7 +1117,7 @@ export function AdminSales() {
                             p.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
                             'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
                           )}>
-                            {p.status}
+                            {purchaseStatusLabel(p.status)}
                           </span>
                         </td>
                         <td className="py-4 px-6 text-slate-300">
