@@ -3044,6 +3044,42 @@ async function startServer() {
     return tenants.find(item => item.id === tenant.id) || tenant;
   }
 
+  async function persistTenantPlanRecord(tenant: TenantRecord, reason: string) {
+    if (supabaseAdmin) {
+      const payloads = [
+        { plano: tenant.plano, status: tenant.status, atualizado_em: tenant.atualizado_em },
+        { plano: tenant.plano, status: tenant.status },
+        { plano: tenant.plano }
+      ];
+      let persistedInTenantsTable = false;
+      let lastErrorMessage = "";
+      for (const payload of payloads) {
+        try {
+          const { data, error } = await supabaseAdmin.from("tenants").update(payload).eq("id", tenant.id).select("id").maybeSingle();
+          if (!error && data?.id) {
+            persistedInTenantsTable = true;
+            break;
+          }
+          lastErrorMessage = error?.message || "tenant nao encontrado na tabela tenants";
+        } catch (error) {
+          lastErrorMessage = error instanceof Error ? error.message : "erro desconhecido";
+        }
+      }
+      if (!persistedInTenantsTable && !process.env.RIFAPRO_TEST_MODE) {
+        throw new Error(`Falha ao persistir plano do tenant: ${lastErrorMessage || "erro desconhecido"}`);
+      }
+      if (!persistedInTenantsTable) {
+        console.warn(`Falha ao persistir plano em tenants (${reason}): ${lastErrorMessage || "erro desconhecido"}`);
+      }
+    }
+    try {
+      await persistAllState(reason);
+    } catch (error) {
+      if (!process.env.RIFAPRO_TEST_MODE) throw error;
+      console.warn(`Falha ao persistir estado apos plano (${reason}): ${error instanceof Error ? error.message : "erro desconhecido"}`);
+    }
+  }
+
   function upsertTenantDomainRecord(row: Record<string, any>, host: string) {
     const normalizedDomain = normalizeDomainName(row.domain || host);
     if (!normalizedDomain) return;
@@ -4346,12 +4382,13 @@ async function startServer() {
     res.json({ user: publicAuthUser(user), profile: publicAuthProfile(user), temporaryPassword });
   });
 
-  app.put("/api/superadmin/tenants/:id", (req, res) => {
+  app.put("/api/superadmin/tenants/:id", async (req, res) => {
     const tenant = tenants.find(item => item.id === req.params.id);
     if (!tenant) {
       res.status(404).json({ error: "Tenant nao encontrado" });
       return;
     }
+    const before = deepClone(tenant);
     const nome = req.body.nome !== undefined ? String(req.body.nome).trim() : tenant.nome;
     const slug = req.body.slug !== undefined
       ? String(req.body.slug).trim().toLowerCase().replace(/[^a-z0-9-]/g, "")
@@ -4389,6 +4426,15 @@ async function startServer() {
     }
     if (oldPlan !== tenant.plano) {
       recordSecurityEvent({ tenant_id: tenant.id, action: "PLAN_CHANGED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email, detail: `${oldPlan} -> ${tenant.plano}` });
+    }
+    if (oldPlan !== tenant.plano) {
+      try {
+        await persistTenantPlanRecord(tenant, "superadmin-tenant-edit-plan");
+      } catch (error) {
+        Object.assign(tenant, before);
+        res.status(500).json({ error: error instanceof Error ? error.message : "Falha ao persistir plano do cliente" });
+        return;
+      }
     }
     res.json(tenant);
   });
@@ -5301,13 +5347,20 @@ async function startServer() {
     res.json({ tenant: buildTenantSummary(tenant), plan: getTenantPlan(tenant.id), plans: getSuperadminPlanCatalog() });
   });
 
-  app.put("/api/superadmin/tenants/:tenantId/plan", (req, res) => {
+  app.put("/api/superadmin/tenants/:tenantId/plan", async (req, res) => {
     const tenant = tenants.find(item => item.id === req.params.tenantId);
     if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
     const before = deepClone(tenant);
     tenant.plano = getTenantPlan(String(req.body.planId || req.body.plano || tenant.plano)).id;
     if (req.body.status) tenant.status = String(req.body.status) as TenantRecord["status"];
     tenant.atualizado_em = new Date().toISOString();
+    try {
+      await persistTenantPlanRecord(tenant, "superadmin-tenant-plan-updated");
+    } catch (error) {
+      Object.assign(tenant, before);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Falha ao persistir plano do cliente" });
+      return;
+    }
     recordSuperadminAudit(req, "TENANT_PLAN_UPDATED", { tenant_id: tenant.id, resource_type: "tenant", resource_id: tenant.id, metadata: { plan: tenant.plano, status: tenant.status } });
     recordAuditLedger(req, { tenant_id: tenant.id, action: "TENANT_PLAN_UPDATED", resource_type: "tenant", resource_id: tenant.id, before_data: before, after_data: tenant, reason: String(req.body.reason || "Alteracao de plano e governanca pelo superadmin") });
     res.json({ tenant: buildTenantSummary(tenant), plan: getTenantPlan(tenant.id) });
