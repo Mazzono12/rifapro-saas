@@ -1,16 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ElementType, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   Activity,
   ArrowRight,
   BadgeDollarSign,
   Box,
+  CheckCircle2,
   CreditCard,
   Download,
   Gift,
+  LineChart,
+  Palette,
+  PlusCircle,
   RefreshCw,
+  ShieldCheck,
   Sprout,
-  Ticket,
   Trophy,
   Users
 } from "lucide-react";
@@ -188,6 +192,11 @@ export function AdminDashboard() {
     return [...map.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 8);
   }, [paid]);
 
+  const operationHealth = pending.length > paid.length && filteredPurchases.length > 0 ? "Atenção comercial" : "Operação saudável";
+  const dailyHighlight = salesByDay[salesByDay.length - 1];
+  const growthSignal = totalRevenue > 0 ? "Crescimento do período em acompanhamento" : "Sua operação está pronta para receber novas vendas.";
+  const primaryRaffle = revenueByRaffle[0];
+
   const exportCSV = () => {
     const rows = [
       ["nome_completo", "telefone", "cidade", "data_compra", "codigo_sorteio", "quantidade_cotas"].map(csvEscape).join(","),
@@ -212,14 +221,32 @@ export function AdminDashboard() {
   if (!stats) return <AdminLoadingSkeleton />;
 
   return (
-    <div className="space-y-5 pb-10">
-      <section className="admin-card p-4">
-        <div className="grid gap-3 xl:grid-cols-[1fr_auto] xl:items-center">
-          <div className="min-w-0">
-            <h2 className="mb-0 text-base font-semibold text-[var(--admin-text)]">Filtros executivos</h2>
+    <div className="space-y-6 pb-10">
+      <section className="admin-card overflow-hidden p-0">
+        <div className="grid gap-5 p-5 lg:grid-cols-[1fr_auto] lg:items-end xl:p-6">
+          <div className="min-w-0 space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--admin-success)]/30 bg-[var(--admin-success)]/10 px-3 py-1 text-xs font-bold text-[var(--admin-success)]">
+              <span className="h-2 w-2 rounded-full bg-[var(--admin-success)] shadow-[0_0_18px_var(--admin-success)]" />
+              Operação em tempo real
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[var(--admin-muted)]">Visão executiva premium</p>
+              <h2 className="mt-1 text-3xl font-semibold leading-tight text-[var(--admin-text)] sm:text-4xl">Desempenho da Operação</h2>
+              <p className="mt-2 max-w-3xl text-sm text-[var(--admin-muted)] sm:text-base">
+                Acompanhe faturamento confirmado, vendas, clientes ativos e ações recomendadas para acelerar os resultados do período.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <ExecutiveSignal icon={ShieldCheck} label="Saúde da Operação" value={operationHealth} tone="success" />
+              <ExecutiveSignal icon={LineChart} label="Crescimento do Período" value={growthSignal} tone="accent" />
+              <ExecutiveSignal icon={Trophy} label="Destaque do Dia" value={primaryRaffle?.name || "Configure suas primeiras campanhas"} tone="warning" />
+            </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[620px] lg:grid-cols-5">
+            <Link to="/admin/rifas" className="admin-button-primary lg:col-span-2">
+              <PlusCircle className="h-4 w-4" /> Criar campanha
+            </Link>
             <select value={period} onChange={event => setPeriod(event.target.value)} className="admin-input h-11 rounded-2xl px-3 text-sm outline-none">
               <option value="7">7 dias</option>
               <option value="30">30 dias</option>
@@ -236,26 +263,36 @@ export function AdminDashboard() {
               <option value="all">Todas as ações</option>
               {raffles.map(raffle => <option key={raffle.id} value={raffle.id}>{raffle.title}</option>)}
             </select>
-            <button onClick={fetchAdminData} className="admin-button-secondary">
+            <button onClick={fetchAdminData} className="admin-button-secondary lg:col-span-3">
               <RefreshCw className="h-4 w-4" /> Atualizar
             </button>
           </div>
         </div>
       </section>
 
+      <SectionHeader
+        eyebrow="Visão Geral"
+        title="Indicadores executivos"
+        description="Métricas comerciais para leitura rápida da operação."
+      />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={BadgeDollarSign} label="Faturamento confirmado" value={currency.format(totalRevenue)} trend={`${paid.length} vendas confirmadas`} tone="success" />
-        <MetricCard icon={CreditCard} label="Faturamento pendente" value={currency.format(pendingRevenue)} trend={`${pending.length} aguardando confirmação`} tone="warning" />
-        <MetricCard icon={Ticket} label="Números vendidos" value={totalTickets} trend="somente vendas confirmadas" tone="accent" />
-        <MetricCard icon={Users} label="Compradores únicos" value={uniqueBuyers} trend={`${customers.length || stats.users || 0} clientes cadastrados`} />
-        <MetricCard icon={Activity} label="Ticket médio" value={currency.format(averageTicket)} trend="faturamento / vendas confirmadas" />
-        <MetricCard icon={Box} label="Conversão operacional" value={`${conversionRate.toFixed(1)}%`} trend="vendas confirmadas / total filtrado" tone="success" />
-        <MetricCard icon={Gift} label="Caixinhas abertas" value={stats.lootboxesOpened || 0} trend={`${stats.lootboxesWon || 0} premiadas`} tone="warning" />
-        <MetricCard icon={Trophy} label="Ação em destaque" value={revenueByRaffle[0]?.name || "-"} trend={revenueByRaffle[0] ? currency.format(revenueByRaffle[0].receita) : "sem vendas"} tone="accent" />
+        <MetricCard icon={BadgeDollarSign} label="Faturamento Confirmado" value={currency.format(totalRevenue)} trend={`${paid.length} vendas confirmadas`} tone="success" />
+        <MetricCard icon={CheckCircle2} label="Vendas Confirmadas" value={paid.length} trend={`${totalTickets} números vendidos`} tone="accent" />
+        <MetricCard icon={Users} label="Clientes Ativos" value={uniqueBuyers} trend={`${customers.length || stats.users || 0} clientes cadastrados`} />
+        <MetricCard icon={Box} label="Conversão Operacional" value={`${conversionRate.toFixed(1)}%`} trend="Eficiência do período filtrado" tone="success" />
+        <MetricCard icon={CreditCard} label="Faturamento em Análise" value={currency.format(pendingRevenue)} trend={`${pending.length} aguardando confirmação`} tone="warning" />
+        <MetricCard icon={Activity} label="Ticket Médio" value={currency.format(averageTicket)} trend="Valor médio por venda confirmada" />
+        <MetricCard icon={Gift} label="Experiências Ativadas" value={stats.lootboxesOpened || 0} trend={`${stats.lootboxesWon || 0} prêmios entregues`} tone="warning" />
+        <MetricCard icon={Trophy} label="Campanha em Destaque" value={primaryRaffle?.name || "Sem dados no período"} trend={primaryRaffle ? currency.format(primaryRaffle.receita) : "Configure suas primeiras campanhas"} tone="accent" />
       </div>
 
+      <SectionHeader
+        eyebrow="Desempenho"
+        title="Evolução de Vendas"
+        description="Leitura visual do faturamento confirmado, volume de vendas e distribuição da operação."
+      />
       <div className="grid gap-5 xl:grid-cols-[1.35fr_.65fr]">
-        <ChartCard title="Faturamento e vendas por dia">
+        <ChartCard title="Faturamento Confirmado e Vendas" description="Evolução diária para comparar receita, volume e ritmo comercial.">
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={salesByDay}>
@@ -276,7 +313,7 @@ export function AdminDashboard() {
           </div>
         </ChartCard>
 
-        <ChartCard title="Status das vendas">
+        <ChartCard title="Saúde das Vendas" description="Distribuição das confirmações para acompanhar a conversão operacional.">
           <div className="h-80">
             {statusData.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -288,14 +325,19 @@ export function AdminDashboard() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyVisual label="Sem vendas no filtro selecionado" />
+              <EmptyVisual label="Nenhum resultado encontrado neste período." />
             )}
           </div>
         </ChartCard>
       </div>
 
+      <SectionHeader
+        eyebrow="Operação"
+        title="Ranking e clientes"
+        description="Destaques comerciais para identificar campanhas, compradores e oportunidades de crescimento."
+      />
       <div className="grid gap-5 xl:grid-cols-[.9fr_1.1fr]">
-        <ChartCard title="Faturamento por ação">
+        <ChartCard title="Ranking de Campanhas" description="Campanhas com maior contribuição para o faturamento confirmado.">
           <div className="h-80">
             {revenueByRaffle.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -308,12 +350,12 @@ export function AdminDashboard() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyVisual label="Sem faturamento confirmado" />
+              <EmptyVisual label="Configure suas primeiras campanhas para iniciar a operação." />
             )}
           </div>
         </ChartCard>
 
-        <ChartCard title="Top compradores">
+        <ChartCard title="Ranking de Vendas" description="Clientes que mais contribuíram para o desempenho do período.">
           <AdminDataTable
             columns={["Cliente", "Cidade", "Compras", "Cotas", "Receita"]}
             rows={topBuyers.map(buyer => [
@@ -323,14 +365,15 @@ export function AdminDashboard() {
               buyer.tickets,
               currency.format(buyer.revenue)
             ])}
-            empty="Nenhum comprador aprovado no filtro."
+            empty="Nenhum resultado encontrado neste período."
           />
         </ChartCard>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_.42fr]">
         <ChartCard
-          title="Vendas recentes filtradas"
+          title="Vendas Recentes"
+          description="Últimas movimentações filtradas para acompanhamento rápido da operação."
           action={
             <div className="flex gap-2">
               <button onClick={exportCSV} className="admin-button-secondary"><Download className="h-4 w-4" /> CSV</button>
@@ -340,8 +383,8 @@ export function AdminDashboard() {
         >
           <AdminDataTable
             columns={["Venda", "Ação", "Cliente", "Status", "Números", "Valor", "Data"]}
-            rows={filteredPurchases.slice(0, 12).map(item => [
-              item.purchaseId,
+            rows={filteredPurchases.slice(0, 12).map((item, index) => [
+              `Venda ${index + 1}`,
               raffleNames.get(String(item.raffleId)) || item.raffleId,
               item.customer?.name || "-",
               statusLabel(item.status),
@@ -352,13 +395,16 @@ export function AdminDashboard() {
           />
         </ChartCard>
 
-        <ChartCard title="Atalhos operacionais">
+        <ChartCard title="Ações Rápidas" description="Atalhos para as rotinas que mais aceleram a operação.">
           <div className="grid gap-3">
             {[
-              { title: "Rifas", path: "/admin/rifas", icon: Ticket },
+              { title: "Criar nova campanha", path: "/admin/rifas", icon: PlusCircle },
+              { title: "Ver vendas", path: "/admin/vendas", icon: CreditCard },
+              { title: "Configurar pagamentos", path: "/admin/pagamentos", icon: ShieldCheck },
+              { title: "Personalizar aparência", path: "/admin/config/aparencia", icon: Palette },
+              { title: "Ver relatórios", path: "/admin/relatorios", icon: LineChart },
               { title: "A Fazendinha", path: "/admin/fazendinha", icon: Sprout },
-              { title: "Roleta Premiada", path: "/admin/caixinhas", icon: Gift },
-              { title: "Pagamentos PIX", path: "/admin/pagamentos", icon: CreditCard }
+              { title: "Roleta Premiada", path: "/admin/caixinhas", icon: Gift }
             ].map(item => (
               <Link key={item.path} to={item.path} className="flex items-center gap-3 rounded-2xl border border-[var(--admin-border)] bg-white/[0.035] p-4 transition hover:border-[var(--admin-primary)]">
                 <item.icon className="h-5 w-5 text-[var(--admin-primary)]" />
@@ -372,6 +418,18 @@ export function AdminDashboard() {
           </div>
         </ChartCard>
       </div>
+
+      <section className="grid gap-4 lg:grid-cols-3">
+        <InsightCard title="Destaques do Dia" icon={Trophy} tone="accent">
+          {dailyHighlight?.vendas ? `${dailyHighlight.vendas} vendas confirmadas hoje com ${currency.format(dailyHighlight.receita)} em faturamento.` : "Sua operação está pronta para receber novas vendas."}
+        </InsightCard>
+        <InsightCard title="Alertas" icon={ShieldCheck} tone={pending.length ? "warning" : "success"}>
+          {pending.length ? `${pending.length} venda(s) aguardam confirmação. Acompanhe para manter a saúde da operação.` : "Nenhum alerta crítico no período selecionado."}
+        </InsightCard>
+        <InsightCard title="Ações Recomendadas" icon={LineChart} tone="primary">
+          {primaryRaffle ? "Use o ranking de campanhas para reforçar os canais com melhor desempenho." : "Configure suas primeiras campanhas para iniciar a operação."}
+        </InsightCard>
+      </section>
     </div>
   );
 }
@@ -395,6 +453,51 @@ function EmptyVisual({ label }: { label: string }) {
     <div className="grid h-full place-items-center rounded-3xl border border-[var(--admin-border)] bg-white/[0.025] text-center text-sm text-[var(--admin-muted)]">
       {label}
     </div>
+  );
+}
+
+function SectionHeader({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <p className="text-xs font-bold uppercase text-[var(--admin-primary)]">{eyebrow}</p>
+        <h2 className="mt-1 text-xl font-semibold text-[var(--admin-text)]">{title}</h2>
+        <p className="mt-1 text-sm text-[var(--admin-muted)]">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function ExecutiveSignal({ icon: Icon, label, value, tone }: { icon: ElementType; label: string; value: string; tone: "success" | "warning" | "accent" }) {
+  const color = tone === "success" ? "var(--admin-success)" : tone === "warning" ? "var(--admin-warning)" : "var(--admin-accent)";
+  return (
+    <div className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.035] p-3">
+      <div className="mb-2 flex items-center gap-2 text-xs font-bold" style={{ color }}>
+        <Icon className="h-4 w-4" />
+        {label}
+      </div>
+      <p className="line-clamp-2 text-sm font-semibold text-[var(--admin-text)]">{value}</p>
+    </div>
+  );
+}
+
+function InsightCard({ title, icon: Icon, tone, children }: { title: string; icon: ElementType; tone: "primary" | "success" | "warning" | "accent"; children: ReactNode }) {
+  const color = {
+    primary: "var(--admin-primary)",
+    success: "var(--admin-success)",
+    warning: "var(--admin-warning)",
+    accent: "var(--admin-accent)"
+  }[tone];
+  return (
+    <article className="admin-card p-5">
+      <div className="mb-3 flex items-center gap-3">
+        <div className="grid h-10 w-10 place-items-center rounded-xl" style={{ color, background: `${color}18` }}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <h3 className="text-base font-semibold text-[var(--admin-text)]">{title}</h3>
+      </div>
+      <p className="text-sm leading-relaxed text-[var(--admin-muted)]">{children}</p>
+    </article>
   );
 }
 

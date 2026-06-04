@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, type ElementType } from "react";
 import { Link } from "react-router-dom";
-import { Activity, AlertTriangle, Building2, CreditCard, DollarSign, Download, Eye, LifeBuoy, LogIn, Palette, Pencil, Plus, RefreshCw, ShieldAlert, SlidersHorizontal, Ticket, Trophy, X } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Building2, CreditCard, DollarSign, Download, Eye, LifeBuoy, LogIn, MonitorCheck, Palette, Pencil, Plus, RefreshCw, ShieldAlert, SlidersHorizontal, Sparkles, Ticket, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminDataTable, AdminLoadingSkeleton, MetricCard, ChartCard } from "../../components/admin/AdminPremium";
 
@@ -80,6 +80,21 @@ function dateTime(value: string) {
   return new Date(value).toLocaleString("pt-BR");
 }
 
+function paymentMethodLabel(value: string) {
+  const normalized = String(value || "").toLowerCase();
+  const labels: Record<string, string> = {
+    asaas: "PIX Asaas",
+    pay2m: "PIX Pay2M",
+    pagbank: "PIX PagBank",
+    mercadopago: "PIX Mercado Pago",
+    mercado_pago: "PIX Mercado Pago",
+    cora: "PIX Cora",
+    primepag: "PIX Primepag",
+    pix: "PIX"
+  };
+  return labels[normalized] || value || "Meio de pagamento";
+}
+
 function statusBadge(status: string) {
   const className = status === "active" || status === "paid"
     ? "bg-emerald-100 text-emerald-800"
@@ -118,7 +133,7 @@ export function SuperAdminDashboard() {
         fetch("/api/superadmin/payments/pix")
       ]);
       if (![overviewRes, rafflesRes, salesRes, commissionsRes, paymentsRes].every(response => response.ok)) {
-        throw new Error("Nao foi possivel carregar os dados globais.");
+        throw new Error("Nao foi possivel carregar os dados da Gestão Global.");
       }
       const overview = await overviewRes.json();
       const commissionData = await commissionsRes.json();
@@ -217,44 +232,96 @@ export function SuperAdminDashboard() {
 
   const recentSales = useMemo(() => sales.slice(0, 12), [sales]);
   const chartMax = (items: ChartPoint[] = []) => Math.max(1, ...items.map(item => item.amount || 0));
+  const strategicAlerts = Number(metrics?.suspiciousAlerts || 0) + Number(metrics?.queuedPayments || 0) + Number(metrics?.webhookErrors || 0);
+  const growingOperations = tenants.filter(tenant => tenant.status === "active" && tenant.paidRevenue > 0).length;
+  const environmentHealth = strategicAlerts > 0 ? "Monitoramento ativo" : "Ambiente saudável";
+  const topClient = ranking[0]?.tenant || tenants.find(tenant => tenant.status === "active")?.nome || "Nenhum cliente ativo no período";
 
   if (loading && !metrics) return <AdminLoadingSkeleton />;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      <section className="admin-card overflow-hidden p-0">
+        <div className="grid gap-5 p-5 lg:grid-cols-[1fr_auto] lg:items-end xl:p-6">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--admin-info)]/30 bg-[var(--admin-info)]/10 px-3 py-1 text-xs font-bold text-[var(--admin-info)]">
+              <span className="h-2 w-2 rounded-full bg-[var(--admin-info)] shadow-[0_0_18px_var(--admin-info)]" />
+              Monitoramento premium
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[var(--admin-muted)]">Central Executiva Premium</p>
+              <h2 className="mt-1 text-3xl font-semibold leading-tight text-[var(--admin-text)] sm:text-4xl">Visão Executiva</h2>
+              <p className="mt-2 max-w-3xl text-sm text-[var(--admin-muted)] sm:text-base">
+                Controle consolidado de clientes, faturamento, crescimento e saúde geral do Ambiente Premium.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <ExecutiveSignal icon={MonitorCheck} label="Saúde geral do ambiente" value={environmentHealth} tone={strategicAlerts ? "warning" : "success"} />
+              <ExecutiveSignal icon={BarChart3} label="Operações em crescimento" value={`${growingOperations} contas com faturamento confirmado`} tone="accent" />
+              <ExecutiveSignal icon={Trophy} label="Cliente em destaque" value={topClient} tone="primary" />
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[520px]">
+            <button type="button" onClick={() => setForm({ ...emptyForm })} className="admin-button-primary">
+              <Plus className="h-4 w-4" />
+              Novo cliente
+            </button>
+            <button type="button" onClick={() => void loadData()} className="admin-button-secondary">
+              <RefreshCw className="h-4 w-4" />
+              Atualizar visão
+            </button>
+            <Link className="admin-button-secondary" to="/superadmin/relatorios"><BarChart3 className="h-4 w-4" /> Relatórios executivos</Link>
+            <Link className="admin-button-secondary" to="/superadmin/aparencia"><Palette className="h-4 w-4" /> Aparência global</Link>
+          </div>
+        </div>
+      </section>
+
+      <SectionHeader
+        eyebrow="Visão Geral"
+        title="Indicadores consolidados"
+        description="Leitura rápida da base de clientes, receita e performance do ambiente."
+      />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard label="Clientes ativos" value={`${metrics?.activeTenants || 0}/${metrics?.tenants || 0}`} icon={Building2} tone="primary" />
-        <MetricCard label="Rifas ativas" value={`${metrics?.activeRaffles || 0}/${metrics?.raffles || 0}`} icon={Ticket} tone="accent" />
-        <MetricCard label="Faturamento confirmado" value={money(metrics?.paidRevenue || 0)} icon={CreditCard} tone="success" />
-        <MetricCard label="Receita operacional" value={money(metrics?.platformCommission || 0)} icon={DollarSign} tone="success" />
-        <MetricCard label="PIX pendentes" value={metrics?.pendingPix || 0} icon={ShieldAlert} tone="warning" />
+        <MetricCard label="Clientes ativos" value={`${metrics?.activeTenants || 0}/${metrics?.tenants || 0}`} icon={Building2} trend="base em operação" tone="primary" />
+        <MetricCard label="Campanhas ativas" value={`${metrics?.activeRaffles || 0}/${metrics?.raffles || 0}`} icon={Ticket} trend="operações publicadas" tone="accent" />
+        <MetricCard label="Faturamento consolidado" value={money(metrics?.paidRevenue || 0)} icon={CreditCard} trend="vendas confirmadas" tone="success" />
+        <MetricCard label="Receita operacional" value={money(metrics?.platformCommission || 0)} icon={DollarSign} trend="resultado do ambiente" tone="success" />
+        <MetricCard label="Confirmações pendentes" value={metrics?.pendingPix || 0} icon={ShieldAlert} trend="acompanhar para conversão" tone="warning" />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard label="Faturamento hoje" value={money(metrics?.revenueToday || 0)} icon={DollarSign} tone="success" />
+        <MetricCard label="Faturamento hoje" value={money(metrics?.revenueToday || 0)} icon={DollarSign} trend="resultado do dia" tone="success" />
         <MetricCard label="Últimos 7 dias" value={money(metrics?.revenueLast7Days || 0)} icon={DollarSign} tone="primary" />
         <MetricCard label="Mês atual" value={money(metrics?.revenueCurrentMonth || 0)} icon={DollarSign} tone="accent" />
-        <MetricCard label="Ano atual" value={money(metrics?.revenueCurrentYear || 0)} icon={DollarSign} tone="success" />
-        <MetricCard label="Ticket médio" value={money(metrics?.averageTicket || 0)} icon={CreditCard} tone="primary" />
+        <MetricCard label="Crescimento consolidado" value={money(metrics?.revenueCurrentYear || 0)} icon={Sparkles} trend="acumulado anual" tone="success" />
+        <MetricCard label="Ticket médio" value={money(metrics?.averageTicket || 0)} icon={CreditCard} trend="valor médio confirmado" tone="primary" />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <MetricCard label="Alertas de integração" value={metrics?.webhookErrors || 0} icon={AlertTriangle} tone="warning" />
-        <MetricCard label="Alertas antifraude" value={metrics?.suspiciousAlerts || 0} icon={ShieldAlert} tone="warning" />
-        <MetricCard label="Conversão operacional" value={`${metrics?.conversionRate || 0}%`} icon={Activity} tone="primary" />
+        <MetricCard label="Alertas estratégicos" value={strategicAlerts} icon={AlertTriangle} trend="itens que pedem atenção" tone="warning" />
+        <MetricCard label="Monitoramento premium" value={environmentHealth} icon={MonitorCheck} trend="saúde geral do ambiente" tone={strategicAlerts ? "warning" : "success"} />
+        <MetricCard label="Conversão operacional" value={`${metrics?.conversionRate || 0}%`} icon={Activity} trend="performance das contas" tone="primary" />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <a className="admin-button-secondary" href="/api/superadmin/reports/revenue/export"><Download className="h-4 w-4" /> Exportar CSV global</a>
-        <Link className="admin-button-secondary" to="/superadmin/dominios">Gerenciar domínios</Link>
-        <Link className="admin-button-secondary" to="/superadmin/auditoria">Auditoria segura</Link>
+      <SectionHeader
+        eyebrow="Ações Rápidas"
+        title="Comandos executivos"
+        description="Atalhos para crescimento, acompanhamento e padronização do ambiente."
+      />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <button type="button" onClick={() => setForm({ ...emptyForm })} className="admin-button-primary"><Plus className="h-4 w-4" /> Novo cliente</button>
+        <Link className="admin-button-secondary" to="/superadmin"><Building2 className="h-4 w-4" /> Ver clientes</Link>
+        <Link className="admin-button-secondary" to="/superadmin/aparencia"><Palette className="h-4 w-4" /> Aparência global</Link>
+        <Link className="admin-button-secondary" to="/superadmin/relatorios"><BarChart3 className="h-4 w-4" /> Relatórios executivos</Link>
+        <Link className="admin-button-secondary" to="/superadmin/auditoria"><MonitorCheck className="h-4 w-4" /> Monitoramento</Link>
+        <a className="admin-button-secondary sm:col-span-2 xl:col-span-5" href="/api/superadmin/reports/revenue/export"><Download className="h-4 w-4" /> Exportar visão consolidada</a>
       </div>
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Ambientes dos clientes</h2>
-            <p className="text-sm text-[var(--admin-muted)]">Entre no painel profissional de cada cliente com sessão auditada e controle seguro.</p>
+            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Performance das contas</h2>
+            <p className="text-sm text-[var(--admin-muted)]">Entre no painel profissional de cada cliente com acesso assistido e controle seguro.</p>
           </div>
           <button type="button" onClick={() => void loadData()} className="admin-button-secondary" title="Atualizar ambientes">
             <RefreshCw className="h-4 w-4" />
@@ -262,7 +329,7 @@ export function SuperAdminDashboard() {
           </button>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {tenants.map(tenant => (
+          {tenants.length ? tenants.map(tenant => (
             <div key={tenant.id} className="admin-card flex min-h-[172px] flex-col justify-between p-4">
               <div className="flex items-start gap-3">
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] text-sm font-black text-white" style={{ backgroundColor: tenant.cor_primaria || "#06b6d4" }}>
@@ -278,7 +345,7 @@ export function SuperAdminDashboard() {
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-[var(--admin-muted)]">
-                <span><strong className="block text-sm text-[var(--admin-text)]">{tenant.raffleCount}</strong>Ações</span>
+                <span><strong className="block text-sm text-[var(--admin-text)]">{tenant.raffleCount}</strong>Campanhas</span>
                 <span><strong className="block text-sm text-[var(--admin-text)]">{tenant.purchaseCount}</strong>Vendas</span>
                 <span><strong className="block text-sm text-[var(--admin-text)]">{money(tenant.paidRevenue)}</strong>Faturamento</span>
               </div>
@@ -290,26 +357,31 @@ export function SuperAdminDashboard() {
                 <Link className="admin-icon-button" title="Financeiro do cliente" to={`/superadmin/tenants/${tenant.id}/financeiro`}><Eye className="h-4 w-4" /></Link>
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="admin-card p-5 text-sm text-[var(--admin-muted)] md:col-span-2 xl:col-span-3">
+              Nenhum resultado encontrado neste período. Crie o primeiro cliente para iniciar o acompanhamento executivo.
+            </div>
+          )}
         </div>
       </section>
 
       <div className="grid gap-5 xl:grid-cols-3">
         {[
-          ["Faturamento por dia", charts.byDay || []],
-          ["Faturamento por gateway", charts.byGateway || []],
-          ["Top ações por faturamento", charts.topRaffles || []]
+          ["Crescimento consolidado", charts.byDay || []],
+          ["Performance por meio de pagamento", charts.byGateway || []],
+          ["Top campanhas por faturamento", charts.topRaffles || []]
         ].map(([title, raw]) => {
           const items = raw as ChartPoint[];
           const max = chartMax(items);
+          const isPaymentPerformance = title === "Performance por meio de pagamento";
           return (
             <div key={title as string}>
-              <ChartCard title={title as string}>
+              <ChartCard title={title as string} description="Leitura consolidada para identificar tendência, concentração e oportunidade.">
                 <div className="space-y-3">
                   {items.slice(0, 8).map(item => (
                     <div key={item.key} className="space-y-1">
                       <div className="flex justify-between gap-3 text-xs text-[var(--admin-muted)]">
-                        <span className="truncate">{item.key}</span>
+                        <span className="truncate">{isPaymentPerformance ? paymentMethodLabel(item.key) : item.key}</span>
                         <span>{money(item.amount)}</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-white/10">
@@ -317,7 +389,7 @@ export function SuperAdminDashboard() {
                       </div>
                     </div>
                   ))}
-                  {!items.length && <p className="text-sm text-[var(--admin-muted)]">Sem dados no período.</p>}
+                  {!items.length && <p className="text-sm text-[var(--admin-muted)]">Nenhum resultado encontrado neste período.</p>}
                 </div>
               </ChartCard>
             </div>
@@ -326,20 +398,20 @@ export function SuperAdminDashboard() {
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Ranking de clientes por vendas</h2>
+        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Ranking de clientes</h2>
         <AdminDataTable columns={["Posição", "Cliente", "Faturamento", "Receita operacional"]} rows={ranking.map(item => [
           <span key={item.tenant_id} className="inline-flex items-center gap-2"><Trophy className="h-4 w-4 text-amber-500" />#{item.position}</span>,
           item.tenant,
           money(item.paidRevenue),
           money(item.platformCommission)
-        ])} empty="Nenhuma venda paga registrada." />
+        ])} empty="Nenhum resultado encontrado neste período." />
       </section>
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-[var(--admin-text)]">Clientes</h2>
-            <p className="text-sm text-[var(--admin-muted)]">Controle de acesso e operação por cliente.</p>
+            <p className="text-sm text-[var(--admin-muted)]">Gestão comercial, aparência e acompanhamento por cliente.</p>
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => void loadData()} className="admin-button-secondary" title="Atualizar">
@@ -348,12 +420,12 @@ export function SuperAdminDashboard() {
             </button>
             <button type="button" onClick={() => setForm({ ...emptyForm })} className="admin-button-primary">
               <Plus className="h-4 w-4" />
-              Novo Cliente
+              Novo cliente
             </button>
           </div>
         </div>
         <AdminDataTable
-          columns={["Cliente", "Status", "Plano", "Operações", "Vendas", "Faturamento", "Receita operacional", "Comandos"]}
+          columns={["Cliente", "Status", "Plano", "Campanhas", "Vendas", "Faturamento", "Receita operacional", "Ações"]}
           rows={tenants.map(tenant => [
             <div key={tenant.id}><p className="font-semibold">{tenant.nome}</p><p className="text-xs text-[var(--admin-muted)]">Ambiente profissional</p></div>,
             statusBadge(tenant.status),
@@ -379,8 +451,8 @@ export function SuperAdminDashboard() {
 
       <div className="grid gap-5 xl:grid-cols-2">
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-[var(--admin-text)]">Ações ativas</h2>
-          <AdminDataTable columns={["Cliente", "Ação", "Status", "Números", "Ações"]} rows={raffles.map(raffle => [
+          <h2 className="text-lg font-semibold text-[var(--admin-text)]">Campanhas ativas</h2>
+          <AdminDataTable columns={["Cliente", "Campanha", "Status", "Números", "Ações"]} rows={raffles.map(raffle => [
             raffle.tenant,
             raffle.title,
             statusBadge(raffle.status),
@@ -403,31 +475,31 @@ export function SuperAdminDashboard() {
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Vendas globais</h2>
+        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Vendas consolidadas</h2>
         <AdminDataTable columns={["Data", "Cliente", "Produto", "Comprador", "Canal", "Valor", "Status"]} rows={recentSales.map(sale => [
           dateTime(sale.createdAt), sale.tenant, sale.product, sale.customer, sale.channel, money(sale.amount), statusBadge(sale.status)
-        ])} empty="Nenhuma venda registrada." />
+        ])} empty="Nenhum resultado encontrado neste período." />
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Pagamentos PIX</h2>
-        <AdminDataTable columns={["Data", "Cliente", "Comprador", "Gateway", "Valor", "Status"]} rows={payments.map(payment => [
-          dateTime(payment.createdAt), payment.tenant, payment.customer, payment.gateway, money(payment.amount), statusBadge(payment.status)
-        ])} empty="Nenhum pagamento PIX registrado." />
+        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Confirmações de pagamento</h2>
+        <AdminDataTable columns={["Data", "Cliente", "Comprador", "Meio", "Valor", "Status"]} rows={payments.map(payment => [
+          dateTime(payment.createdAt), payment.tenant, payment.customer, paymentMethodLabel(payment.gateway), money(payment.amount), statusBadge(payment.status)
+        ])} empty="Nenhum resultado encontrado neste período." />
       </section>
 
       {form && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
           <form onSubmit={submitTenant} className="admin-card w-full max-w-2xl space-y-4 p-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-[var(--admin-text)]">{form.id ? "Editar Cliente" : "Novo Cliente"}</h2>
+              <h2 className="text-lg font-semibold text-[var(--admin-text)]">{form.id ? "Editar cliente" : "Novo cliente"}</h2>
               <button type="button" onClick={() => setForm(null)} className="admin-icon-button" aria-label="Fechar"><X className="h-4 w-4" /></button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-1 text-sm text-[var(--admin-muted)]">Nome
                 <input className="admin-input w-full" value={form.nome} onChange={event => setForm({ ...form, nome: event.target.value })} required />
               </label>
-              <label className="space-y-1 text-sm text-[var(--admin-muted)]">Dominio customizado
+              <label className="space-y-1 text-sm text-[var(--admin-muted)]">Domínio personalizado
                 <input className="admin-input w-full" value={form.dominio_customizado} onChange={event => setForm({ ...form, dominio_customizado: event.target.value })} />
               </label>
               <label className="space-y-1 text-sm text-[var(--admin-muted)]">Plano
@@ -451,14 +523,14 @@ export function SuperAdminDashboard() {
               </label>
             </div>
             <details className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
-              <summary className="cursor-pointer text-sm font-semibold text-[var(--admin-text)]">Configurações Avançadas</summary>
-              <label className="mt-4 block space-y-1 text-sm text-[var(--admin-muted)]">Código interno do ambiente
+              <summary className="cursor-pointer text-sm font-semibold text-[var(--admin-text)]">Identificação comercial</summary>
+              <label className="mt-4 block space-y-1 text-sm text-[var(--admin-muted)]">Endereço comercial
                 <input className="admin-input w-full" value={form.slug} onChange={event => setForm({ ...form, slug: event.target.value })} required />
               </label>
             </details>
             <div className="flex justify-end gap-2 border-t border-[var(--admin-border)] pt-4">
               <button type="button" onClick={() => setForm(null)} className="admin-button-secondary">Cancelar</button>
-              <button type="submit" disabled={saving} className="admin-button-primary">{saving ? "Salvando..." : "Salvar Cliente"}</button>
+              <button type="submit" disabled={saving} className="admin-button-primary">{saving ? "Salvando..." : "Salvar cliente"}</button>
             </div>
           </form>
         </div>
@@ -467,20 +539,48 @@ export function SuperAdminDashboard() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">
           <form onSubmit={startSupport} className="admin-card w-full max-w-xl space-y-4 p-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-[var(--admin-text)]">Acesso assistido com auditoria segura</h2>
+              <h2 className="text-lg font-semibold text-[var(--admin-text)]">Acesso assistido seguro</h2>
               <button type="button" className="admin-icon-button" onClick={() => setImpersonatingTenant(null)}><X className="h-4 w-4" /></button>
             </div>
-            <p className="text-sm text-[var(--admin-muted)]">Você acessará o painel de {impersonatingTenant.nome}. O motivo, horário, IP e encerramento serão registrados para auditoria interna.</p>
+            <p className="text-sm text-[var(--admin-muted)]">Você acessará o painel de {impersonatingTenant.nome}. O motivo, horário e encerramento serão registrados para acompanhamento interno.</p>
             <label className="space-y-1 text-sm text-[var(--admin-muted)]">Motivo obrigatório
               <textarea className="admin-input min-h-28 w-full" value={supportReason} onChange={event => setSupportReason(event.target.value)} required />
             </label>
             <div className="flex justify-end gap-2">
               <button type="button" className="admin-button-secondary" onClick={() => setImpersonatingTenant(null)}>Cancelar</button>
-              <button type="submit" className="admin-button-primary">Entrar como suporte</button>
+              <button type="submit" className="admin-button-primary">Iniciar acesso assistido</button>
             </div>
           </form>
         </div>
       )}
+    </div>
+  );
+}
+
+function SectionHeader({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase text-[var(--admin-primary)]">{eyebrow}</p>
+      <h2 className="mt-1 text-xl font-semibold text-[var(--admin-text)]">{title}</h2>
+      <p className="mt-1 text-sm text-[var(--admin-muted)]">{description}</p>
+    </div>
+  );
+}
+
+function ExecutiveSignal({ icon: Icon, label, value, tone }: { icon: ElementType; label: string; value: string; tone: "primary" | "success" | "warning" | "accent" }) {
+  const color = {
+    primary: "var(--admin-primary)",
+    success: "var(--admin-success)",
+    warning: "var(--admin-warning)",
+    accent: "var(--admin-accent)"
+  }[tone];
+  return (
+    <div className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.035] p-3">
+      <div className="mb-2 flex items-center gap-2 text-xs font-bold" style={{ color }}>
+        <Icon className="h-4 w-4" />
+        {label}
+      </div>
+      <p className="line-clamp-2 text-sm font-semibold text-[var(--admin-text)]">{value}</p>
     </div>
   );
 }

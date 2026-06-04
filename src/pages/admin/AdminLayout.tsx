@@ -159,7 +159,7 @@ function AdminLayoutContent() {
         rootPath="/admin"
         logoUrl={logo}
         title={companyName}
-        subtitle="Gestão"
+        subtitle="Operação Premium"
         collapsed={collapsed}
         mobileOpen={mobileOpen}
         onCollapsedChange={setCollapsed}
@@ -181,12 +181,12 @@ function AdminLayoutContent() {
               </div>
             </div>
             <div className="relative hidden min-w-0 flex-1 sm:block">
-              <input className="admin-input h-10 w-full max-w-[430px] pl-10" placeholder="Buscar no painel..." />
+              <input className="admin-input h-10 w-full max-w-[430px] pl-10" placeholder="Buscar campanhas, clientes ou vendas..." />
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
             </div>
             <div className="hidden items-center gap-2 rounded-[10px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-2 text-xs font-bold text-[var(--admin-success)] lg:flex">
               <span className="h-2 w-2 rounded-full bg-[var(--admin-success)] shadow-[0_0_16px_var(--admin-success)]" />
-              Operacional
+              Operação saudável
             </div>
             <div className="min-w-0 flex-1 sm:hidden">
               <h2 className="mb-0 truncate !text-sm font-semibold text-[var(--admin-text)]">{activeItem?.name || "Dashboard"}</h2>
@@ -206,7 +206,7 @@ function AdminLayoutContent() {
             <div className="hidden items-center gap-3 rounded-[10px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-1.5 xl:flex">
               <div className="grid h-8 w-8 place-items-center rounded-[8px] bg-[var(--admin-primary)] text-xs font-semibold text-[var(--admin-button-text)]">AD</div>
               <div className="text-right">
-                <p className="text-sm font-medium text-[var(--admin-text)]">Administrador</p>
+                <p className="text-sm font-medium text-[var(--admin-text)]">Gestor da operação</p>
                 <p className="text-xs text-[var(--admin-muted)]">{theme.name}</p>
               </div>
             </div>
@@ -215,7 +215,7 @@ function AdminLayoutContent() {
 
         <section className="mx-auto w-full max-w-[1536px] min-w-0 p-3 sm:p-4">
           <div className="mb-3">
-            <p className="text-sm text-[var(--admin-muted)]">Painel profissional / {activeItem?.group || "Visão Geral"}</p>
+            <p className="text-sm text-[var(--admin-muted)]">Central executiva / {activeItem?.group || "Visão Geral"}</p>
             <h1 className="mt-1 text-[27px] font-semibold leading-[1.1] text-[var(--admin-text)]">{activeItem?.name || "Dashboard"}</h1>
           </div>
           <AdminPageTransition>

@@ -122,14 +122,15 @@ export function MetricCard({
   }[tone];
 
   return (
-    <motion.article whileHover={{ y: -2 }} className="admin-card group overflow-hidden p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-[var(--admin-muted)]">{label}</p>
-          <div className="mt-2 text-2xl font-semibold text-[var(--admin-text)]">{value}</div>
-          {trend && <p className="mt-1 text-sm" style={{ color: toneVar }}>{trend}</p>}
+    <motion.article whileHover={{ y: -2 }} className="admin-card group relative min-h-[148px] overflow-hidden p-5">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--admin-primary)]/50 to-transparent" />
+      <div className="flex h-full items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase text-[var(--admin-muted)]">{label}</p>
+          <div className="mt-3 break-words text-2xl font-semibold text-[var(--admin-text)]">{value}</div>
+          {trend && <p className="mt-2 text-sm leading-snug" style={{ color: toneVar }}>{trend}</p>}
         </div>
-        <div className="grid h-12 w-12 place-items-center rounded-xl" style={{ color: toneVar, background: `${toneVar}18` }}>
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" style={{ color: toneVar, background: `${toneVar}18` }}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -137,11 +138,14 @@ export function MetricCard({
   );
 }
 
-export function ChartCard({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+export function ChartCard({ title, description, action, children }: { title: string; description?: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="admin-card p-5">
       <div className="mb-5 flex items-center justify-between gap-3 border-b border-[var(--admin-border)] pb-4">
-        <h2 className="mb-0 text-lg font-semibold text-[var(--admin-text)]">{title}</h2>
+        <div className="min-w-0">
+          <h2 className="mb-0 text-lg font-semibold text-[var(--admin-text)]">{title}</h2>
+          {description && <p className="mt-1 text-sm text-[var(--admin-muted)]">{description}</p>}
+        </div>
         {action}
       </div>
       {children}
@@ -174,7 +178,7 @@ export function AdminLoadingSkeleton() {
 
 export function AdminDataTable({ columns, rows, empty = "Nenhum registro encontrado." }: { columns: string[]; rows: React.ReactNode[][]; empty?: string }) {
   return (
-    <div className="admin-card overflow-hidden">
+    <div className="overflow-hidden rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)]">
       <div className="overflow-x-auto cifher-scrollbar">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)] text-xs text-[var(--admin-muted)]">

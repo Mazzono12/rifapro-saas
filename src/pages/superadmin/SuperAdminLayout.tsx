@@ -57,8 +57,8 @@ function SuperAdminLayoutContent() {
   }, [mobileOpen]);
 
   const navItems = useMemo<SidebarNavItem[]>(() => [
-    { name: "Gestão Global", path: "/superadmin", icon: Crown, group: "Global" },
-    { name: "Aparência global", path: "/superadmin/aparencia", icon: Palette, group: "Global" },
+    { name: "Gestão Global", path: "/superadmin", icon: Crown, group: "Gestão" },
+    { name: "Aparência global", path: "/superadmin/aparencia", icon: Palette, group: "Gestão" },
     { name: "Financeiro executivo", path: "/superadmin/relatorios", icon: FileText, group: "Financeiro" },
     { name: "Integrações", path: "/superadmin/integracoes", icon: Plug, group: "Operação" },
     { name: "Domínios", path: "/superadmin/dominios", icon: Globe2, group: "Ambiente" },
@@ -96,17 +96,17 @@ function SuperAdminLayoutContent() {
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-[var(--admin-primary)] text-xs font-black text-[var(--admin-button-text)]">GG</div>
               <div className="min-w-0">
                 <span className="block truncate text-base font-semibold text-[var(--admin-text)]">{activeItem?.name || "Gestão Global"}</span>
-                <span className="block text-xs text-[var(--admin-muted)]">Gestão Global / {activeItem?.group || "Global"}</span>
+                <span className="block text-xs text-[var(--admin-muted)]">Central Executiva / {activeItem?.group || "Gestão"}</span>
               </div>
             </div>
             <div className="relative hidden min-w-0 flex-1 sm:block">
-              <input className="admin-input h-10 w-full max-w-[430px] pl-10" placeholder="Buscar cliente, domínio ou auditoria..." />
+              <input className="admin-input h-10 w-full max-w-[430px] pl-10" placeholder="Buscar cliente, domínio ou relatório..." />
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
             </div>
             <div className="ml-auto flex items-center gap-2">
               <div className="hidden items-center gap-2 rounded-[10px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-2 text-xs font-bold text-[var(--admin-info)] lg:flex">
                 <span className="h-2 w-2 rounded-full bg-[var(--admin-info)] shadow-[0_0_16px_var(--admin-info)]" />
-                Ambiente Premium
+                Monitoramento premium
               </div>
               <AdminThemeSwitcher collapsed placement="bottom" />
               <Link to="/admin" className="admin-icon-button" title="Operacional" aria-label="Operacional">
@@ -124,7 +124,7 @@ function SuperAdminLayoutContent() {
         <section className="mx-auto w-full max-w-[1536px] min-w-0 px-4 py-5 sm:px-6">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-sm text-[var(--admin-muted)]">Ambiente Premium / {activeItem?.group || "Global"}</p>
+              <p className="text-sm text-[var(--admin-muted)]">Ambiente Premium / {activeItem?.group || "Gestão"}</p>
               <h1 className="mt-1 text-2xl font-semibold text-[var(--admin-text)]">{activeItem?.name || "Gestão Global"}</h1>
             </div>
             <p className="text-sm text-[var(--admin-muted)]">{auth.profile?.name || auth.user?.email || "Gestão Global"}</p>
