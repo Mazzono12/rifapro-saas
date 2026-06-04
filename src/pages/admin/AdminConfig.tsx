@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Settings, Save, Layout, Package, Users } from "lucide-react";
+import { Settings, Save, Layout, Package, Users, Banknote, BadgeHelp, CheckCircle2, Gift, HandCoins, Link2, Medal, Percent, ShieldCheck, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import { useTheme } from "../../context/theme/ThemeContext";
@@ -20,6 +20,65 @@ const paletteFields = [
   ["--theme-text", "Texto", "#f8fbff"],
   ["--theme-button-text", "Texto botão", "#030712"],
 ] as const;
+
+function AffiliateHelp({ text }: { text: string }) {
+  return (
+    <span className="group relative inline-flex">
+      <BadgeHelp className="h-4 w-4 text-slate-500 transition-colors group-hover:text-emerald-200" />
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-64 -translate-x-1/2 rounded-lg border border-white/10 bg-slate-950 p-3 text-xs normal-case leading-5 tracking-normal text-slate-200 shadow-2xl group-hover:block">
+        {text}
+      </span>
+    </span>
+  );
+}
+
+function AffiliateField({
+  label,
+  help,
+  children
+}: {
+  label: string;
+  help: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="space-y-2">
+      <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-300">
+        {label}
+        <AffiliateHelp text={help} />
+      </span>
+      {children}
+      <span className="block text-[11px] leading-5 text-slate-500">{help}</span>
+    </label>
+  );
+}
+
+function AffiliateSection({
+  icon: Icon,
+  title,
+  description,
+  children
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+      <div className="mb-4 flex items-start gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/10">
+          <Icon className="h-5 w-5 text-emerald-200" />
+        </div>
+        <div>
+          <h3 className="font-display text-lg font-bold text-white">{title}</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export function AdminConfig({ initialTab = "settings" }: { initialTab?: "settings" | "branding" }) {
   const { themeId, setThemeId, previewTheme, clearPreview, applyPaletteOverrides } = useTheme();
@@ -319,6 +378,16 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     });
   };
 
+  const updateAffiliateProgram = (patch: Record<string, any>) => {
+    setSettings({
+      ...settings,
+      affiliateProgram: {
+        ...(settings.affiliateProgram || {}),
+        ...patch
+      }
+    });
+  };
+
   if (initialTab === "branding") {
     return (
       <div className="space-y-6 fade-in">
@@ -355,6 +424,14 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
   }
 
   if (loading) return null;
+
+  const affiliateProgram = settings.affiliateProgram || {};
+  const commissionRate = Math.max(0, Number(affiliateProgram.commissionRate || 0));
+  const minTicketsToJoin = Math.max(0, Number(affiliateProgram.minTicketsToJoin || 0));
+  const minWithdrawAmount = Math.max(0, Number(affiliateProgram.minWithdrawAmount || 0));
+  const monthlyActivationAmount = Math.max(0, Number(affiliateProgram.monthlyActivationAmount || 0));
+  const previewTicketValue = 100;
+  const previewCommission = Number((previewTicketValue * (commissionRate / 100)).toFixed(2));
 
   return (
     <div className="space-y-8 fade-in">
@@ -553,42 +630,146 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                </div>
             </div>
 
-            <div className="glass-card p-6 border border-white/5 rounded-3xl space-y-6">
+            <div className="glass-card p-6 border border-white/5 rounded-3xl space-y-6 md:col-span-2">
                <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
-                  <Settings className="w-5 h-5 text-emerald-400" />
-                  <h2 className="text-xl font-display font-medium text-white">Afiliados & Social</h2>
+                  <HandCoins className="w-5 h-5 text-emerald-400" />
+                  <div>
+                    <h2 className="text-xl font-display font-medium text-white">Programa de Afiliados</h2>
+                    <p className="mt-1 text-xs text-slate-500">Configure comissões, prêmios, saques e indicação sem mexer em campos técnicos.</p>
+                  </div>
                </div>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                 <label className="space-y-2">
-                   <span className="block text-xs font-mono text-slate-400 uppercase tracking-widest">Comissão (%)</span>
-                   <input type="number" min="0" value={settings.affiliateProgram?.commissionRate || 0} onChange={e => setSettings({...settings, affiliateProgram: {...settings.affiliateProgram, commissionRate: Number(e.target.value)}})} className="w-full p-3" />
-                 </label>
-                 <label className="space-y-2">
-                   <span className="block text-xs font-mono text-slate-400 uppercase tracking-widest">Cotas mínimas</span>
-                   <input type="number" min="0" value={settings.affiliateProgram?.minTicketsToJoin || 0} onChange={e => setSettings({...settings, affiliateProgram: {...settings.affiliateProgram, minTicketsToJoin: Number(e.target.value)}})} className="w-full p-3" />
-                 </label>
-                 <label className="space-y-2">
-                   <span className="block text-xs font-mono text-slate-400 uppercase tracking-widest">Saque mínimo</span>
-                   <input type="number" min="0" value={settings.affiliateProgram?.minWithdrawAmount || 0} onChange={e => setSettings({...settings, affiliateProgram: {...settings.affiliateProgram, minWithdrawAmount: Number(e.target.value)}})} className="w-full p-3" />
-                 </label>
+               <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+                 <div className="grid gap-4">
+                   <AffiliateSection icon={Percent} title="Comissão" description="Defina quanto o afiliado recebe por cada venda aprovada.">
+                     <div className="grid gap-4 md:grid-cols-3">
+                       <AffiliateField label="Comissão padrão (%)" help="Percentual pago ao afiliado em cada venda confirmada.">
+                         <input type="number" min="0" max="100" step="0.01" value={commissionRate} onChange={e => updateAffiliateProgram({ commissionRate: Math.min(100, Math.max(0, Number(e.target.value))) })} placeholder="Ex.: 10" className="w-full p-3" />
+                       </AffiliateField>
+                       <AffiliateField label="Comissão vitalícia" help="As indicações continuam vinculadas ao afiliado pelo código de convite.">
+                         <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-3 text-sm font-bold text-emerald-100">Ativa pelo código de indicação</div>
+                       </AffiliateField>
+                       <AffiliateField label="Comissão recorrente" help="Quando houver pagamentos recorrentes, a regra comercial segue a comissão padrão.">
+                         <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm font-bold text-slate-200">Preparada para recorrência</div>
+                       </AffiliateField>
+                     </div>
+                   </AffiliateSection>
+
+                   <AffiliateSection icon={Gift} title="Premiações" description="Use metas simples para explicar quando o afiliado ganha bônus.">
+                     <div className="grid gap-4 md:grid-cols-2">
+                       <AffiliateField label="Bônus por cadastro" help="O cadastro manual habilita o afiliado no programa; valores extras podem ser adicionados na carteira.">
+                         <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-300">Cadastro habilitado no painel operacional</div>
+                       </AffiliateField>
+                       <AffiliateField label="Bônus por venda" help="A comissão padrão funciona como bônus por venda aprovada.">
+                         <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-300">{commissionRate.toFixed(2)}% por venda paga</div>
+                       </AffiliateField>
+                       <AffiliateField label="Meta mensal" help="Valor que o afiliado precisa comprar no mês para liberar comissões pendentes. Use zero para não exigir meta.">
+                         <input type="number" min="0" step="0.01" value={monthlyActivationAmount} onChange={e => updateAffiliateProgram({ monthlyActivationAmount: Math.max(0, Number(e.target.value)) })} className="w-full p-3" placeholder="Ex.: 50.00" />
+                       </AffiliateField>
+                       <AffiliateField label="Meta anual" help="Acompanhe a meta anual pelos relatórios de ranking e receita do afiliado.">
+                         <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-300">Acompanhamento no ranking anual</div>
+                       </AffiliateField>
+                     </div>
+                   </AffiliateSection>
+
+                   <AffiliateSection icon={Banknote} title="Saques" description="Controle quanto pode ser sacado e como a carteira aparece para o afiliado.">
+                     <div className="grid gap-4 md:grid-cols-3">
+                       <AffiliateField label="Valor mínimo" help="Menor saldo permitido para o afiliado solicitar transferência PIX.">
+                         <input type="number" min="0" step="0.01" value={minWithdrawAmount} onChange={e => updateAffiliateProgram({ minWithdrawAmount: Math.max(0, Number(e.target.value)) })} className="w-full p-3" placeholder="Ex.: 50.00" />
+                       </AffiliateField>
+                       <AffiliateField label="Aprovação automática" help="Saques continuam com aprovação manual para reduzir risco financeiro.">
+                         <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-3 text-sm font-bold text-amber-100">Manual e auditável</div>
+                       </AffiliateField>
+                       <AffiliateField label="Prazo para pagamento" help="O painel do afiliado mostra a próxima data útil prevista para pagamento.">
+                         <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-300">Próximo dia útil configurado pela operação</div>
+                       </AffiliateField>
+                     </div>
+                   </AffiliateSection>
+                 </div>
+
+                 <div className="grid gap-4">
+                   <AffiliateSection icon={Medal} title="Níveis" description="Modelo comercial pronto para segmentar afiliados por desempenho.">
+                     <div className="grid gap-2">
+                       {[
+                         ["Bronze", "Entrada no programa"],
+                         ["Prata", "Afiliado em crescimento"],
+                         ["Ouro", "Alta conversão"],
+                         ["Diamante", "Parceiro estratégico"]
+                       ].map(([name, description]) => (
+                         <div key={name} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+                           <span className="text-sm font-bold text-white">{name}</span>
+                           <span className="text-xs text-slate-500">{description}</span>
+                         </div>
+                       ))}
+                     </div>
+                   </AffiliateSection>
+
+                   <AffiliateSection icon={Link2} title="Programa de Indicação" description="Configure as regras que o afiliado entende no painel dele.">
+                     <div className="grid gap-4">
+                       <AffiliateField label="Código de indicação" help="Cada afiliado recebe um código comercial para divulgar. IDs internos nunca aparecem nesta configuração.">
+                         <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-300">Gerado automaticamente</div>
+                       </AffiliateField>
+                       <AffiliateField label="Link de indicação" help="O link público é criado a partir do código do afiliado e pode ser copiado pelo painel.">
+                         <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-300">Disponível para o afiliado</div>
+                       </AffiliateField>
+                       <AffiliateField label="Cotas para entrar" help="Quantidade mínima de cotas compradas para liberar o afiliado no programa. Use zero para liberar todos.">
+                         <input type="number" min="0" value={minTicketsToJoin} onChange={e => updateAffiliateProgram({ minTicketsToJoin: Math.max(0, Number(e.target.value)) })} className="w-full p-3" placeholder="Ex.: 5" />
+                       </AffiliateField>
+                       <AffiliateField label="Validade da indicação" help="A indicação fica vinculada ao código usado na compra ou no cadastro do cliente.">
+                         <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-300">Vínculo pelo código de convite</div>
+                       </AffiliateField>
+                     </div>
+                   </AffiliateSection>
+                 </div>
                </div>
-               <label className="block space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                 <span className="block text-xs font-mono text-slate-400 uppercase tracking-widest">Compra mínima mensal para ativação do afiliado</span>
-                 <input
-                   type="number"
-                   min="0"
-                   step="0.01"
-                   value={settings.affiliateProgram?.monthlyActivationAmount || 0}
-                   onChange={e => setSettings({...settings, affiliateProgram: {...settings.affiliateProgram, monthlyActivationAmount: Math.max(0, Number(e.target.value))}})}
-                   className="w-full p-3"
-                   placeholder="50.00"
-                 />
-                 <span className="block text-xs leading-5 text-slate-500">Defina o valor mínimo mensal em cotas que o afiliado precisa comprar para estar elegível a receber comissões. Use 0 para desativar a exigência.</span>
-               </label>
-               <label className="flex items-center gap-2 text-xs font-mono text-slate-300">
-                 <input type="checkbox" checked={Boolean(settings.affiliateProgram?.allowBalancePayments)} onChange={e => setSettings({...settings, affiliateProgram: {...settings.affiliateProgram, allowBalancePayments: e.target.checked}})} />
-                 Permitir usar saldo de afiliado para comprar cotas
-               </label>
+
+               <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4">
+                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                   <div>
+                     <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-200">
+                       <ShieldCheck className="h-4 w-4" />
+                       Resumo comercial
+                     </p>
+                     <p className="mt-1 text-xs leading-5 text-slate-400">Prévia das regras como o administrador entende, sem IDs, enums ou JSON.</p>
+                   </div>
+                   <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-2 lg:min-w-[560px]">
+                     <div className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2">
+                       <span>Venda de R$ {previewTicketValue.toFixed(2)}</span>
+                       <strong className="text-white">Comissão R$ {previewCommission.toFixed(2)}</strong>
+                     </div>
+                     <div className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2">
+                       <span>Entrada no programa</span>
+                       <strong className="text-white">{minTicketsToJoin || "liberada"}</strong>
+                     </div>
+                     <div className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2">
+                       <span>Meta mensal</span>
+                       <strong className="text-white">{monthlyActivationAmount > 0 ? `R$ ${monthlyActivationAmount.toFixed(2)}` : "sem exigência"}</strong>
+                     </div>
+                     <div className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2">
+                       <span>Carteira em compras</span>
+                       <strong className={Boolean(affiliateProgram.allowBalancePayments) ? "text-emerald-200" : "text-slate-400"}>
+                         {Boolean(affiliateProgram.allowBalancePayments) ? "permitida" : "bloqueada"}
+                       </strong>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+
+               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                 <label className="flex items-start gap-3 text-sm text-slate-300">
+                   <input type="checkbox" checked={Boolean(affiliateProgram.allowBalancePayments)} onChange={e => updateAffiliateProgram({ allowBalancePayments: e.target.checked })} className="mt-1" />
+                   <span>
+                     <strong className="flex items-center gap-2 text-white">
+                       <Wallet className="h-4 w-4 text-emerald-200" />
+                       Permitir compra com saldo disponível
+                     </strong>
+                     <span className="mt-1 block text-xs leading-5 text-slate-500">Quando ativo, o afiliado pode usar saldo liberado para participar de novas campanhas.</span>
+                   </span>
+                 </label>
+                 <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-slate-500">
+                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                   Somente administradores e superadministradores acessam esta configuração. O painel do afiliado mostra apenas regras comerciais e saldo, sem estruturas internas.
+                 </p>
+               </div>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <input value={settings.socialLinks?.whatsapp || ""} onChange={e => setSettings({...settings, socialLinks: {...settings.socialLinks, whatsapp: e.target.value}})} placeholder="Link WhatsApp" className="w-full p-3" />
                  <input value={settings.socialLinks?.instagram || ""} onChange={e => setSettings({...settings, socialLinks: {...settings.socialLinks, instagram: e.target.value}})} placeholder="Link Instagram" className="w-full p-3" />

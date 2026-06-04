@@ -21,6 +21,42 @@ function safeMoney(value: unknown) {
   return safeNumber(value).toFixed(2);
 }
 
+function affiliateStatusLabel(status: unknown) {
+  const value = String(status || "").toLowerCase();
+  if (value === "paid") return "Pago";
+  if (value === "rejected") return "Recusado";
+  if (value === "pending") return "Aguardando aprovação";
+  if (value === "active") return "Ativo";
+  if (value === "registered") return "Cadastrado";
+  return "Em análise";
+}
+
+function eligibilityStatusLabel(status: unknown) {
+  const value = String(status || "").toLowerCase();
+  if (value === "active") return "Liberado neste mês";
+  if (value === "pending") return "Aguardando meta mensal";
+  return "Sem regra mensal";
+}
+
+const manualAffiliateFields = [
+  ["name", "Nome completo", "Ex.: Maria Silva"],
+  ["phone", "Telefone", "Ex.: (11) 99999-9999"],
+  ["cpf", "CPF", "Somente números"],
+  ["city", "Cidade", "Ex.: São Paulo"],
+  ["state", "UF", "Ex.: SP"],
+  ["refCode", "Código de indicação", "Ex.: MARIA10"],
+  ["pixKey", "Chave PIX", "CPF, telefone, e-mail ou aleatória"],
+  ["accessPassword", "Senha de acesso", "6 dígitos"]
+] as const;
+
+const editableAffiliateFields = [
+  ["name", "Nome completo"],
+  ["phone", "Telefone"],
+  ["cpf", "CPF"],
+  ["city", "Cidade"],
+  ["state", "UF"]
+] as const;
+
 function normalizeAdminRaffle(raffle: Partial<Raffle> | null | undefined): Raffle | null {
   if (!raffle?.id) return null;
   return {
@@ -634,7 +670,7 @@ export function AdminSales() {
                     <div>
                       <p className="font-bold text-white">{customer.name}</p>
                       <p className="text-xs font-mono text-slate-400">{customer.phone} • CPF {customer.cpf} • {customer.city || "Nao informado"} / {customer.state || "UF"}</p>
-                      <p className="mt-1 text-xs font-mono text-cyan-300">Afiliado: {customer.affiliate?.refCode || "sem codigo"} • Saldo total R$ {safeMoney(customer.affiliate?.commission)}</p>
+                      <p className="mt-1 text-xs text-cyan-300">Código de indicação: {customer.affiliate?.refCode || "não definido"} • Saldo total R$ {safeMoney(customer.affiliate?.commission)}</p>
                     </div>
                     <button onClick={() => openCustomerEditor(customer)} className="admin-button-secondary">
                       Editar ficha
@@ -675,17 +711,17 @@ export function AdminSales() {
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
                       <p className="font-bold text-white">{withdrawal.customerName || "Cliente"} • R$ {safeMoney(withdrawal.amount)}</p>
-                      <p className="text-xs font-mono text-slate-400">{withdrawal.customerPhone} • {withdrawal.refCode}</p>
-                      <p className="mt-1 break-all text-xs font-mono text-emerald-300">PIX: {withdrawal.pixKey}</p>
-                      <p className="mt-1 text-xs text-slate-500">Status: {withdrawal.status}</p>
+                      <p className="text-xs text-slate-400">{withdrawal.customerPhone} • Código de indicação {withdrawal.refCode}</p>
+                      <p className="mt-1 break-all text-xs text-emerald-300">Chave PIX: {withdrawal.pixKey}</p>
+                      <p className="mt-1 text-xs text-slate-500">Situação: {affiliateStatusLabel(withdrawal.status)}</p>
                     </div>
                     {withdrawal.status === "pending" && (
                       <div className="flex flex-wrap gap-2">
                         <button onClick={() => updateWithdrawalStatus(withdrawal.id, "paid")} className="rounded-xl bg-emerald-400 px-3 py-2 text-xs font-bold text-slate-950">
-                          Pago
+                          Marcar como pago
                         </button>
                         <button onClick={() => updateWithdrawalStatus(withdrawal.id, "rejected")} className="rounded-xl border border-rose-400/30 px-3 py-2 text-xs font-bold text-rose-200">
-                          Recusar
+                          Recusar saque
                         </button>
                       </div>
                     )}
@@ -733,29 +769,24 @@ export function AdminSales() {
           <div className="admin-card p-5 space-y-4">
             <div className="flex items-center gap-3">
               <Wallet className="w-5 h-5 text-emerald-300" />
-              <h2 className="text-xl font-display font-bold">Afiliados, comissões e prêmios</h2>
+              <h2 className="text-xl font-display font-bold">Programa de afiliados</h2>
             </div>
+            <p className="text-sm leading-6 text-slate-400">
+              Cadastre afiliados, ajuste bônus e acompanhe saques em linguagem operacional. Campos internos ficam restritos ao sistema.
+            </p>
             <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
               <div className="mb-3 flex items-center gap-2">
                 <UserPlus className="h-5 w-5 text-[var(--admin-primary)]" />
                 <h3 className="font-semibold text-[var(--admin-text)]">Cadastrar afiliado manualmente</h3>
               </div>
               <div className="grid gap-3 md:grid-cols-4">
-                {[
-                  ["name", "Nome"],
-                  ["phone", "Telefone"],
-                  ["cpf", "CPF"],
-                  ["city", "Cidade"],
-                  ["state", "UF"],
-                  ["refCode", "Código afiliado"],
-                  ["pixKey", "Chave PIX"],
-                  ["accessPassword", "Senha 6 dígitos"]
-                ].map(([field, label]) => (
+                {manualAffiliateFields.map(([field, label, placeholder]) => (
                   <label key={field} className="space-y-1">
-                    <span className="text-[10px] font-mono uppercase text-[var(--admin-muted)]">{label}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--admin-muted)]">{label}</span>
                     <input
                       value={(manualAffiliate as any)[field] || ""}
                       onChange={e => setManualAffiliate({ ...manualAffiliate, [field]: e.target.value })}
+                      placeholder={placeholder}
                       className="w-full p-3 text-sm"
                     />
                   </label>
@@ -768,7 +799,7 @@ export function AdminSales() {
               </div>
             </div>
             <div className="grid grid-cols-[1fr_auto] gap-3">
-              <input value={affiliateQuery} onChange={e => setAffiliateQuery(e.target.value)} placeholder="Buscar afiliado por CPF, telefone ou código" className="p-3" />
+              <input value={affiliateQuery} onChange={e => setAffiliateQuery(e.target.value)} placeholder="Buscar por nome, telefone, CPF ou código de indicação" className="p-3" />
               <button onClick={searchAffiliate} className="admin-button">Buscar</button>
             </div>
             <div className="grid gap-3 md:grid-cols-[0.85fr_1.15fr]">
@@ -776,17 +807,17 @@ export function AdminSales() {
                 {affiliateResults.map((item, index) => (
                   <button key={item.affiliate?.refCode || item.customer?.id || index} onClick={() => setSelectedAffiliate(normalizeAffiliateResult(item))} className={cn("w-full rounded-xl border p-3 text-left", selectedAffiliate?.affiliate?.refCode === item.affiliate?.refCode ? "border-emerald-300/30 bg-emerald-300/10" : "border-white/5 bg-white/[0.03]")}>
                     <p className="font-semibold text-white">{item.customer?.name || "Cliente"}</p>
-                    <p className="text-xs font-mono text-slate-500">{item.customer?.phone || "sem telefone"} • CPF {item.customer?.cpf || "nao informado"}</p>
-                    <p className="text-xs font-mono text-emerald-300">{item.affiliate?.refCode || "sem codigo"}</p>
+                    <p className="text-xs text-slate-500">{item.customer?.phone || "sem telefone"} • CPF {item.customer?.cpf || "não informado"}</p>
+                    <p className="text-xs text-emerald-300">Código de indicação: {item.affiliate?.refCode || "não definido"}</p>
                   </button>
                 ))}
               </div>
               {selectedAffiliate && (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="grid gap-3 md:grid-cols-2">
-                    {["name", "phone", "cpf", "city", "state"].map(field => (
+                    {editableAffiliateFields.map(([field, label]) => (
                       <label key={field} className="space-y-1">
-                        <span className="text-[10px] font-mono uppercase text-slate-500">{field}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</span>
                         <input
                           value={selectedAffiliate.customer?.[field] || ""}
                           onChange={e => setSelectedAffiliate({
@@ -798,7 +829,7 @@ export function AdminSales() {
                       </label>
                     ))}
                     <label className="space-y-1 md:col-span-2">
-                      <span className="text-[10px] font-mono uppercase text-slate-500">Chave PIX</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Chave PIX para saque</span>
                       <input
                         value={selectedAffiliate.affiliate?.pixKey || ""}
                         onChange={e => setSelectedAffiliate({
@@ -810,9 +841,9 @@ export function AdminSales() {
                     </label>
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-2">
-                    <MiniWallet label="Comissões" value={selectedAffiliate.affiliate?.commissionBalance} />
-                    <MiniWallet label="Prêmios" value={selectedAffiliate.affiliate?.prizeBalance} />
-                    <MiniWallet label="Total" value={selectedAffiliate.affiliate?.commission} />
+                    <MiniWallet label="Comissões liberadas" value={selectedAffiliate.affiliate?.commissionBalance} />
+                    <MiniWallet label="Prêmios disponíveis" value={selectedAffiliate.affiliate?.prizeBalance} />
+                    <MiniWallet label="Saldo total" value={selectedAffiliate.affiliate?.commission} />
                   </div>
                   {selectedAffiliate.affiliate?.eligibility && (
                     <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3">
@@ -820,19 +851,19 @@ export function AdminSales() {
                         <p className="text-sm font-bold text-white">
                           {selectedAffiliate.affiliate.eligibility.isEligibleThisMonth ? "Ativo para comissões" : "Pendente de ativação mensal"}
                         </p>
-                        <p className="text-xs font-mono text-slate-400">{selectedAffiliate.affiliate.eligibility.eligibilityStatus}</p>
+                        <p className="text-xs text-slate-400">{eligibilityStatusLabel(selectedAffiliate.affiliate.eligibility.eligibilityStatus)}</p>
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
-                        <MiniWallet label="Mínimo mês" value={selectedAffiliate.affiliate.eligibility.monthlyRequiredAmount} />
-                        <MiniWallet label="Comprado mês" value={selectedAffiliate.affiliate.eligibility.monthlyPurchasedAmount} />
-                        <MiniWallet label="Falta" value={selectedAffiliate.affiliate.eligibility.remainingAmount} />
-                        <MiniWallet label="Comissão bloqueada" value={selectedAffiliate.affiliate.eligibility.blockedCommissionAmount} />
+                        <MiniWallet label="Meta mensal" value={selectedAffiliate.affiliate.eligibility.monthlyRequiredAmount} />
+                        <MiniWallet label="Comprado no mês" value={selectedAffiliate.affiliate.eligibility.monthlyPurchasedAmount} />
+                        <MiniWallet label="Falta para liberar" value={selectedAffiliate.affiliate.eligibility.remainingAmount} />
+                        <MiniWallet label="Comissão aguardando meta" value={selectedAffiliate.affiliate.eligibility.blockedCommissionAmount} />
                       </div>
                     </div>
                   )}
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <label className="space-y-1">
-                      <span className="text-[10px] font-mono uppercase text-slate-500">Saldo comissões</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Comissões liberadas</span>
                       <input
                         type="number"
                         value={selectedAffiliate.affiliate?.commissionBalance || 0}
@@ -848,7 +879,7 @@ export function AdminSales() {
                       />
                     </label>
                     <label className="space-y-1">
-                      <span className="text-[10px] font-mono uppercase text-slate-500">Saldo prêmios</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Prêmios disponíveis</span>
                       <input
                         type="number"
                         value={selectedAffiliate.affiliate?.prizeBalance || 0}
@@ -864,7 +895,7 @@ export function AdminSales() {
                       />
                     </label>
                     <label className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 p-3 md:col-span-2">
-                      <span className="text-sm text-white">Usar saldo para compras</span>
+                      <span className="text-sm text-white">Permitir compra com saldo disponível</span>
                       <input
                         type="checkbox"
                         checked={Boolean(selectedAffiliate.affiliate?.useBalanceForPurchases)}
@@ -876,18 +907,18 @@ export function AdminSales() {
                     </label>
                   </div>
                   <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <input type="number" min="0" value={walletForm.amount} onChange={e => setWalletForm({ ...walletForm, amount: e.target.value })} placeholder="Valor" className="p-3" />
-                    <input value={walletForm.note} onChange={e => setWalletForm({ ...walletForm, note: e.target.value })} placeholder="Observação" className="p-3" />
+                    <input type="number" min="0" value={walletForm.amount} onChange={e => setWalletForm({ ...walletForm, amount: e.target.value })} placeholder="Valor do ajuste" className="p-3" />
+                    <input value={walletForm.note} onChange={e => setWalletForm({ ...walletForm, note: e.target.value })} placeholder="Motivo do ajuste" className="p-3" />
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <WalletButton label="salvar ficha" onClick={saveAffiliateFull} />
-                    <WalletButton label="+ comissão" onClick={() => updateAffiliateWallet("add_commission")} />
-                    <WalletButton label="+ prêmio" onClick={() => updateAffiliateWallet("add_prize")} />
-                    <WalletButton label="pagar comissão" onClick={() => updateAffiliateWallet("pay_commission")} />
-                    <WalletButton label="pagar prêmio" onClick={() => updateAffiliateWallet("pay_prize")} />
-                    <WalletButton label="zerar comissão" danger onClick={() => updateAffiliateWallet("zero_commission")} />
-                    <WalletButton label="zerar prêmio" danger onClick={() => updateAffiliateWallet("zero_prize")} />
-                    <WalletButton label="zerar tudo" danger onClick={() => updateAffiliateWallet("zero_all")} />
+                    <WalletButton label="Salvar afiliado" onClick={saveAffiliateFull} />
+                    <WalletButton label="Adicionar comissão" onClick={() => updateAffiliateWallet("add_commission")} />
+                    <WalletButton label="Adicionar prêmio" onClick={() => updateAffiliateWallet("add_prize")} />
+                    <WalletButton label="Registrar comissão paga" onClick={() => updateAffiliateWallet("pay_commission")} />
+                    <WalletButton label="Registrar prêmio pago" onClick={() => updateAffiliateWallet("pay_prize")} />
+                    <WalletButton label="Zerar comissões" danger onClick={() => updateAffiliateWallet("zero_commission")} />
+                    <WalletButton label="Zerar prêmios" danger onClick={() => updateAffiliateWallet("zero_prize")} />
+                    <WalletButton label="Zerar saldo total" danger onClick={() => updateAffiliateWallet("zero_all")} />
                   </div>
                 </div>
               )}
