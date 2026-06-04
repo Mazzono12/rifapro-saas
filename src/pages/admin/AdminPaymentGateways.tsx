@@ -81,6 +81,27 @@ const gatewayLabels: Record<string, string> = {
   cora: "Cora"
 };
 
+function safeText(value: unknown, fallback = "") {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return fallback;
+}
+
+function normalizeProviderId(value: unknown) {
+  const normalized = safeText(value, "sandbox").trim().toLowerCase().replace(/[\s_-]+/g, "");
+  return gatewayIds.includes(normalized) ? normalized : "sandbox";
+}
+
+function normalizeGatewaySection<T extends Record<string, unknown>>(defaults: T, input: unknown): T {
+  const source = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {};
+  const merged = { ...defaults, ...source } as Record<string, unknown>;
+  return Object.fromEntries(Object.entries(merged).map(([key, value]) => [
+    key,
+    typeof value === "boolean" ? value : safeText(value, safeText((defaults as Record<string, unknown>)[key]))
+  ])) as T;
+}
+
 function normalizeGateways(input: any) {
   const mercadoPagoConfig = Array.isArray(input?.configs)
     ? input.configs.find((config: any) => config.provider === "mercadopago")
@@ -164,22 +185,24 @@ function normalizeGateways(input: any) {
     webhookSecret: primepagConfig.webhook_secret || "",
     expirationTime: String(primepagConfig.config_json?.expirationTime || primepagConfig.credentials?.expirationTime || "1800")
   } : {};
+  const activeProvider = normalizeProviderId(input?.defaultProvider || input?.active || defaultGateways.active);
   return {
     ...defaultGateways,
     ...(input || {}),
-    pix: { ...defaultGateways.pix, ...(input?.pix || {}) },
-    mercadopago: { ...defaultGateways.mercadopago, ...(input?.mercadopago || {}), ...mercadoPagoFromConfig },
-    pagbank: { ...defaultGateways.pagbank, ...(input?.pagbank || {}), ...pagbankFromConfig },
-    asaas: { ...defaultGateways.asaas, ...(input?.asaas || {}), ...asaasFromConfig },
-    infinitypay: { ...defaultGateways.infinitypay, ...(input?.infinitypay || {}) },
-    pay2m: { ...defaultGateways.pay2m, ...(input?.pay2m || {}), ...pay2mFromConfig },
-    cora: { ...defaultGateways.cora, ...(input?.cora || {}), ...coraFromConfig },
-    primepag: { ...defaultGateways.primepag, ...(input?.primepag || {}), ...primepagFromConfig },
-    paggue: { ...defaultGateways.paggue, ...(input?.paggue || {}) },
-    cashpay: { ...defaultGateways.cashpay, ...(input?.cashpay || {}) },
-    fakeprocessor: { ...defaultGateways.fakeprocessor, ...(input?.fakeprocessor || {}) },
-    sandbox: { ...defaultGateways.sandbox, ...(input?.sandbox || {}) },
-    mock: { ...defaultGateways.mock, ...(input?.mock || {}) },
+    active: activeProvider,
+    pix: normalizeGatewaySection(defaultGateways.pix, input?.pix),
+    mercadopago: normalizeGatewaySection(defaultGateways.mercadopago, { ...(input?.mercadopago || {}), ...mercadoPagoFromConfig }),
+    pagbank: normalizeGatewaySection(defaultGateways.pagbank, { ...(input?.pagbank || {}), ...pagbankFromConfig }),
+    asaas: normalizeGatewaySection(defaultGateways.asaas, { ...(input?.asaas || {}), ...asaasFromConfig }),
+    infinitypay: normalizeGatewaySection(defaultGateways.infinitypay, input?.infinitypay),
+    pay2m: normalizeGatewaySection(defaultGateways.pay2m, { ...(input?.pay2m || {}), ...pay2mFromConfig }),
+    cora: normalizeGatewaySection(defaultGateways.cora, { ...(input?.cora || {}), ...coraFromConfig }),
+    primepag: normalizeGatewaySection(defaultGateways.primepag, { ...(input?.primepag || {}), ...primepagFromConfig }),
+    paggue: normalizeGatewaySection(defaultGateways.paggue, input?.paggue),
+    cashpay: normalizeGatewaySection(defaultGateways.cashpay, input?.cashpay),
+    fakeprocessor: normalizeGatewaySection(defaultGateways.fakeprocessor, input?.fakeprocessor),
+    sandbox: normalizeGatewaySection(defaultGateways.sandbox, input?.sandbox),
+    mock: normalizeGatewaySection(defaultGateways.mock, input?.mock),
   };
 }
 
@@ -190,6 +213,8 @@ export function AdminPaymentGateways() {
   const [gateways, setGateways] = useState<any>(defaultGateways);
   const [queueDashboard, setQueueDashboard] = useState<any>(null);
   const [processingQueues, setProcessingQueues] = useState(false);
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/gateways")
@@ -197,6 +222,7 @@ export function AdminPaymentGateways() {
       .then(data => {
         if(data && Object.keys(data).length > 0) {
             setGateways(normalizeGateways(data));
+            setHasPendingChanges(false);
         }
         setLoading(false);
       })
@@ -230,6 +256,7 @@ export function AdminPaymentGateways() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
     try {
       const normalized = normalizeGateways(gateways);
       const configs = [{
@@ -267,14 +294,24 @@ export function AdminPaymentGateways() {
             ? { expirationMinutes: Math.max(1, Number(normalized.pagbank.expirationMinutes || 15)), releaseStatus: normalized.pagbank.releaseStatus }
           : {}
       }];
-      await fetch("/api/admin/gateways", {
+      const res = await fetch("/api/admin/gateways", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...normalized, configs, paymentGatewayConfigs: configs })
       });
+      const contentType = res.headers.get("content-type") || "";
+      const data = contentType.includes("application/json") ? await res.json().catch(() => null) : await res.text().catch(() => "");
+      if (!res.ok) {
+        const message = typeof data === "string" ? data : data?.error || data?.message;
+        throw new Error(message || "Erro ao salvar recebimentos");
+      }
+      setGateways(normalizeGateways(data));
+      setHasPendingChanges(false);
       toast.success("Recebimentos salvos com sucesso!");
-    } catch (e) {
-      toast.error("Erro ao salvar recebimentos");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao salvar recebimentos");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -287,6 +324,7 @@ export function AdminPaymentGateways() {
         [field]: value
       }
     });
+    setHasPendingChanges(true);
   };
 
   const setActiveGateway = (gateway: string) => {
@@ -300,6 +338,7 @@ export function AdminPaymentGateways() {
         webhookUrl: gateway === "primepag" ? "/api/webhooks/primepag" : gateway === "cora" ? "/api/webhooks/cora" : gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`
       }
     });
+    setHasPendingChanges(true);
   };
 
   const updatePix = (field: string, value: string | boolean) => {
@@ -311,6 +350,7 @@ export function AdminPaymentGateways() {
         [field]: value
       }
     });
+    setHasPendingChanges(true);
   };
 
   const testGateway = async (gateway: string) => {
@@ -358,6 +398,11 @@ export function AdminPaymentGateways() {
        </div>
 
        <form onSubmit={handleSave} className="space-y-8">
+         {hasPendingChanges && (
+           <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
+             Alterações pendentes — clique em Salvar para aplicar.
+           </div>
+         )}
          
          <div className="glass-card p-6 border border-emerald-500/20 rounded-3xl space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr] gap-6 border-b border-white/5 pb-6">
@@ -447,6 +492,7 @@ export function AdminPaymentGateways() {
                               active: "mercadopago",
                               pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.mercadopago.environment !== "production", webhookUrl: "/api/webhooks/mercadopago" }
                             });
+                            setHasPendingChanges(true);
                           }} />
                         </label>
                         <div>
@@ -492,6 +538,7 @@ export function AdminPaymentGateways() {
                               active: "pagbank",
                               pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.pagbank.environment !== "production", webhookUrl: "/api/webhooks/pagbank" }
                             });
+                            setHasPendingChanges(true);
                           }} />
                         </label>
                         <div>
@@ -504,6 +551,7 @@ export function AdminPaymentGateways() {
                         <GatewayInput label="Bearer token/API token" type="password" value={gateways.pagbank?.token || gateways.pagbank?.apiKey || ''} onChange={value => {
                           const normalized = normalizeGateways(gateways);
                           setGateways({ ...normalized, pagbank: { ...normalized.pagbank, token: value, apiKey: value } });
+                          setHasPendingChanges(true);
                         }} />
                         <GatewayInput label="Token do canal seguro" type="password" value={gateways.pagbank?.webhookSecret || ''} onChange={value => updateGateway('pagbank', 'webhookSecret', value)} />
                         <GatewayInput label="URL do canal seguro" value={gateways.pagbank?.webhookUrl || '/api/webhooks/pagbank'} onChange={value => updateGateway('pagbank', 'webhookUrl', value)} />
@@ -544,6 +592,7 @@ export function AdminPaymentGateways() {
                               active: "asaas",
                               pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.asaas.environment !== "production", webhookUrl: "/api/webhooks/asaas" }
                             });
+                            setHasPendingChanges(true);
                           }} />
                         </label>
                         <div>
@@ -613,6 +662,7 @@ export function AdminPaymentGateways() {
                               active: "pay2m",
                               pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.pay2m.environment !== "production", webhookUrl: "/api/webhooks/pay2m" }
                             });
+                            setHasPendingChanges(true);
                           }} />
                         </label>
                         <div>
@@ -659,6 +709,7 @@ export function AdminPaymentGateways() {
                               active: "primepag",
                               pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.primepag.environment !== "production", webhookUrl: "/api/webhooks/primepag" }
                             });
+                            setHasPendingChanges(true);
                           }} />
                         </label>
                         <p className="rounded-xl border border-sky-400/20 bg-sky-400/10 p-3 text-xs text-sky-100">
@@ -677,6 +728,7 @@ export function AdminPaymentGateways() {
                         <GatewayInput label="Token de acesso" type="password" value={gateways.primepag?.accessToken || gateways.primepag?.apiKey || ''} onChange={value => {
                           const normalized = normalizeGateways(gateways);
                           setGateways({ ...normalized, primepag: { ...normalized.primepag, accessToken: value, apiKey: value } });
+                          setHasPendingChanges(true);
                         }} />
                         <GatewayInput label="Token de autorização do canal seguro" type="password" value={gateways.primepag?.webhookSecret || ''} onChange={value => updateGateway('primepag', 'webhookSecret', value)} />
                         <GatewayInput label="URL do canal seguro" value={gateways.primepag?.webhookUrl || '/api/webhooks/primepag'} onChange={value => updateGateway('primepag', 'webhookUrl', value)} />
@@ -706,6 +758,7 @@ export function AdminPaymentGateways() {
                               active: "cora",
                               pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.cora.environment !== "production", webhookUrl: "/api/webhooks/cora" }
                             });
+                            setHasPendingChanges(true);
                           }} />
                         </label>
                         <p className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-xs text-amber-100">
@@ -733,8 +786,8 @@ export function AdminPaymentGateways() {
          </div>
          
          <div className="flex justify-end pt-4">
-           <button type="submit" className="neon-button px-8 py-4 rounded-xl flex items-center gap-2 text-sm uppercase tracking-widest font-bold !shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:!shadow-[0_0_30px_rgba(16,185,129,0.5)] !border-emerald-500/50">
-              <Save className="w-4 h-4" /> Salvar recebimentos
+           <button type="submit" disabled={saving} className="neon-button px-8 py-4 rounded-xl flex items-center gap-2 text-sm uppercase tracking-widest font-bold !shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:!shadow-[0_0_30px_rgba(16,185,129,0.5)] !border-emerald-500/50 disabled:opacity-60">
+              <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar recebimentos"}
            </button>
          </div>
        </form>
@@ -877,13 +930,13 @@ function GatewayTest({ gateway, result, testing, onTest }: { gateway: string; re
   );
 }
 
-function GatewayInput({ label, value, onChange, type = "text" }: { key?: React.Key; label: string; value: string; onChange: (value: string) => void; type?: string }) {
+function GatewayInput({ label, value, onChange, type = "text" }: { key?: React.Key; label: string; value: unknown; onChange: (value: string) => void; type?: string }) {
   return (
     <div>
       <label className="block text-xs font-mono text-slate-400 mb-1">{label}</label>
       <input
         type={type}
-        value={value}
+        value={safeText(value)}
         onChange={e => onChange(e.target.value)}
         className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none"
       />

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "rifapro-public-v1";
+const CACHE_VERSION = "rifapro-public-v2";
 const PUBLIC_ASSET_CACHE = `${CACHE_VERSION}:assets`;
 const OFFLINE_URL = "/offline.html";
 
@@ -31,8 +31,9 @@ function isNeverCacheUrl(url) {
 
 function isPublicAsset(url, request) {
   if (isNeverCacheUrl(url)) return false;
+  if (/^\/assets\/.*\.(?:js|css)$/i.test(url.pathname)) return false;
   if (PUBLIC_STATIC_PATTERNS.some(pattern => pattern.test(url.pathname))) return true;
-  return ["style", "script", "image", "font", "manifest"].includes(request.destination || "");
+  return ["image", "font", "manifest"].includes(request.destination || "");
 }
 
 self.addEventListener("install", event => {

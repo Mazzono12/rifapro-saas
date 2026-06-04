@@ -37,6 +37,8 @@ includesAll(html, [
 
 includesAll(server, [
   "app.get(\"/manifest.webmanifest\"",
+  "app.get(\"/sw.js\"",
+  "no-store, no-cache, must-revalidate",
   "application/manifest+json",
   "theme_color",
   "publicTenantBranding",
@@ -60,6 +62,12 @@ includesAll(sw, [
 
 if (/cache\.put\(request/.test(sw) && !/isPublicAsset\(url, request\)/.test(sw)) {
   throw new Error("Service worker precisa limitar cache a assets publicos");
+}
+if (!sw.includes("rifapro-public-v2")) {
+  throw new Error("Service worker precisa invalidar o cache v1 para remover bundles antigos do Admin");
+}
+if (!sw.includes('/^\\/assets\\/.*\\.(?:js|css)$/i.test(url.pathname)') || sw.includes('["style", "script"')) {
+  throw new Error("Service worker nao pode servir JS/CSS de /assets em cache-first");
 }
 if (/localStorage|sessionStorage|Authorization|Bearer|access_token|refresh_token/i.test(sw)) {
   throw new Error("Service worker nao pode manipular tokens ou autorizacao");

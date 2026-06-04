@@ -1535,7 +1535,7 @@ async function startServer() {
         return [key, maskGatewayCredentials(value as Record<string, unknown>)];
       }
       if (!value) return [key, ""];
-      return [key, gatewaySensitiveFieldPattern.test(key) || isEncryptedGatewayValue(value) ? maskGatewaySecret(value) : String(value)];
+      return [key, gatewaySensitiveFieldPattern.test(key) ? maskGatewaySecret(value) : decryptGatewaySecret(value)];
     }));
   }
 
@@ -14745,11 +14745,27 @@ async function startServer() {
     };
   }
 
-  function enforcePaymentGatewayPolicy(tenantId: string) {
+  function enforcePaymentGatewayPolicy(tenantId: string, preferredProvider?: PixGatewayId | string) {
     const configs = paymentGatewayConfigs[tenantId] || [];
+    const preferred = preferredProvider ? normalizePaymentProvider(preferredProvider) : "";
+    if (preferred) {
+      configs.forEach(config => {
+        if (normalizePaymentProvider(config.provider) === preferred) {
+          config.enabled = true;
+          config.priority = 0;
+        }
+      });
+    }
     const enabled = configs
       .filter(config => config.enabled)
-      .sort((a, b) => Number(a.priority || 0) - Number(b.priority || 0));
+      .sort((a, b) => {
+        if (preferred) {
+          const aPreferred = normalizePaymentProvider(a.provider) === preferred;
+          const bPreferred = normalizePaymentProvider(b.provider) === preferred;
+          if (aPreferred !== bPreferred) return aPreferred ? -1 : 1;
+        }
+        return Number(a.priority || 0) - Number(b.priority || 0);
+      });
     configs.forEach(config => {
       config.is_default = false;
       config.config_json = { ...(config.config_json || {}) };
@@ -15121,6 +15137,7 @@ async function startServer() {
 
   app.get("/api/admin/gateways", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
+    syncLegacyGatewaysFromConfigs(tenantId);
     const tenantPixGateways = getTenantGateways(tenantId);
     const configs = getPaymentGatewayConfigs(tenantId).map(sanitizePaymentGatewayConfig);
     const defaultConfig = getDefaultPaymentGatewayConfig(tenantId);
@@ -15237,14 +15254,40 @@ async function startServer() {
       : Array.isArray(req.body?.paymentGatewayConfigs)
         ? req.body.paymentGatewayConfigs
         : [];
+    const requestedProvider = normalizePaymentProvider(
+      req.body?.active ||
+      incomingConfigs.find((config: Partial<PaymentGatewayConfigRecord>) => config?.is_default)?.provider ||
+      incomingConfigs[0]?.provider ||
+      req.body?.pix?.gateway ||
+      currentGateways.active ||
+      "mercadopago"
+    );
     if (incomingConfigs.length) {
       const currentConfigs = getPaymentGatewayConfigs(tenantId);
       paymentGatewayConfigs[tenantId] = incomingConfigs.map((config: Partial<PaymentGatewayConfigRecord>, index: number) => {
         const provider = normalizePaymentProvider(config.provider);
         const current = currentConfigs.find(item => item.id === config.id || normalizePaymentProvider(item.provider) === provider);
-        return normalizePaymentGatewayConfig(tenantId, config, index === 0, current);
+        const isRequestedProvider = provider === requestedProvider;
+        return normalizePaymentGatewayConfig(tenantId, {
+          ...config,
+          enabled: isRequestedProvider ? true : config.enabled,
+          is_default: isRequestedProvider,
+          priority: isRequestedProvider ? 0 : config.priority
+        }, index === 0 && !requestedProvider, current);
       });
-      enforcePaymentGatewayPolicy(tenantId);
+      if (!paymentGatewayConfigs[tenantId].some(config => normalizePaymentProvider(config.provider) === requestedProvider)) {
+        paymentGatewayConfigs[tenantId].unshift(normalizePaymentGatewayConfig(tenantId, {
+          provider: requestedProvider,
+          enabled: true,
+          environment: req.body?.pix?.sandbox ? "sandbox" : "production",
+          credentials: gatewayCredentialsFromLegacy(requestedProvider, currentGateways),
+          webhook_secret: String(req.body?.pix?.webhookSecret || currentGateways.pix?.webhookSecret || ""),
+          pix_key: String(req.body?.pix?.apiKey || currentGateways.pix?.apiKey || ""),
+          is_default: true,
+          priority: 0
+        }, true));
+      }
+      enforcePaymentGatewayPolicy(tenantId, requestedProvider);
     }
     const updatedGateways = {
       ...currentGateways,
@@ -15263,7 +15306,7 @@ async function startServer() {
       sandbox: mergeGatewaySectionPreservingSecrets(currentGateways.sandbox, req.body.sandbox || {}),
       mock: mergeGatewaySectionPreservingSecrets(currentGateways.mock, req.body.mock || {})
     };
-    updatedGateways.active = normalizePaymentProvider(req.body.active || req.body.pix?.gateway || updatedGateways.active);
+    updatedGateways.active = requestedProvider;
     updatedGateways.pix = {
       ...updatedGateways.pix,
       sandbox: updatedGateways.active === "primepag" ? updatedGateways.primepag?.environment !== "production" : updatedGateways.active === "cora" ? updatedGateways.cora?.environment !== "production" : updatedGateways.active === "mercadopago" ? updatedGateways.mercadopago?.environment !== "production" : updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.active === "pay2m" ? updatedGateways.pay2m?.environment !== "production" : updatedGateways.active === "pagbank" ? updatedGateways.pagbank?.environment !== "production" : updatedGateways.pix?.sandbox,
@@ -15282,6 +15325,7 @@ async function startServer() {
         is_default: true
       }, true)];
     }
+    enforcePaymentGatewayPolicy(tenantId, requestedProvider);
     syncLegacyGatewaysFromConfigs(tenantId);
     const configs = getPaymentGatewayConfigs(tenantId).map(sanitizePaymentGatewayConfig);
     recordSecurityEvent({ tenant_id: tenantId, action: "PIX_GATEWAY_CHANGED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "WARN", severity: "medium", actor: getAuthSession(req)?.email, detail: String(getDefaultPaymentGatewayConfig(tenantId).provider || "") });
@@ -16050,6 +16094,10 @@ async function startServer() {
     const indexHtmlPath = path.join(staticRoot, "index.html");
     console.info(`[spa] build dir detectado: ${staticRoot}`);
     console.info(`[spa] index path detectado: ${indexHtmlPath}`);
+    app.get("/sw.js", (_req, res, next) => {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      next();
+    });
     app.use(express.static(staticRoot));
     app.get("*", (req, res) => {
       if (req.path.startsWith("/api/")) {
