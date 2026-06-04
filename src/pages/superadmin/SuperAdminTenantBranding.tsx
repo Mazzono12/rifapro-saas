@@ -6,28 +6,29 @@ import { BrandingSettingsForm } from "../../components/branding/BrandingSettings
 export function SuperAdminTenantBranding() {
   const { tenantId = "" } = useParams();
   const [branding, setBranding] = useState<any>(null);
+  const isGlobal = !tenantId;
+  const baseEndpoint = isGlobal ? "/api/superadmin/branding" : `/api/superadmin/tenants/${tenantId}/branding`;
 
   useEffect(() => {
-    if (!tenantId) return;
-    fetch(`/api/superadmin/tenants/${tenantId}/branding`)
+    fetch(baseEndpoint)
       .then(res => res.json())
       .then(setBranding)
-      .catch(() => toast.error("Nao foi possivel carregar aparencia do tenant"));
-  }, [tenantId]);
+      .catch(() => toast.error("Nao foi possivel carregar aparencia"));
+  }, [baseEndpoint]);
 
   const save = async () => {
-    const res = await fetch(`/api/superadmin/tenants/${tenantId}/branding`, {
+    const res = await fetch(baseEndpoint, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(branding)
     });
     if (!res.ok) throw new Error("Nao foi possivel salvar aparencia");
     setBranding(await res.json());
-    toast.success("Aparencia do tenant salva");
+    toast.success("Aparencia salva");
   };
 
   const reset = async () => {
-    const res = await fetch(`/api/superadmin/tenants/${tenantId}/branding/reset`, { method: "POST" });
+    const res = await fetch(`${baseEndpoint}/reset`, { method: "POST" });
     if (!res.ok) throw new Error("Nao foi possivel resetar aparencia");
     setBranding(await res.json());
     toast.success("Aparencia resetada");
@@ -36,9 +37,9 @@ export function SuperAdminTenantBranding() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="premium-eyebrow">Superadmin</p>
-        <h1 className="text-3xl font-black text-white">Aparencia do tenant</h1>
-        <p className="mt-2 text-sm text-slate-400">Configure nome, logo, GIF animado, favicon e cores para qualquer tenant.</p>
+        <p className="premium-eyebrow">{isGlobal ? "Global" : "Conta"}</p>
+        <h1 className="text-3xl font-black text-white">{isGlobal ? "Aparencia global" : "Aparencia da conta"}</h1>
+        <p className="mt-2 text-sm text-slate-400">Configure nome, logo, GIF animado, favicon, cores e a tela de login premium.</p>
       </div>
       {branding ? (
         <BrandingSettingsForm
@@ -46,8 +47,8 @@ export function SuperAdminTenantBranding() {
           onChange={setBranding}
           onSave={() => save().catch(error => toast.error(error.message))}
           onReset={() => reset().catch(error => toast.error(error.message))}
-          logoEndpoint={`/api/superadmin/tenants/${tenantId}/branding/logo`}
-          faviconEndpoint={`/api/superadmin/tenants/${tenantId}/branding/favicon`}
+          logoEndpoint={`${baseEndpoint}/logo`}
+          faviconEndpoint={`${baseEndpoint}/favicon`}
         />
       ) : (
         <div className="premium-card p-8 text-slate-400">Carregando aparencia...</div>

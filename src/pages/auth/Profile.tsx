@@ -18,7 +18,7 @@ export function Profile() {
       <div className="mx-auto max-w-4xl">
         <div className="mb-8">
           <p className="text-xs uppercase tracking-[0.24em] text-cyan-200">Perfil</p>
-          <h1 className="mt-2 text-3xl font-semibold text-white">Minha sessao</h1>
+          <h1 className="mt-2 text-3xl font-semibold text-white">Meu acesso</h1>
         </div>
         <section className="rounded-3xl border border-white/10 bg-white/[0.045] p-6 shadow-2xl backdrop-blur-2xl">
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -38,12 +38,12 @@ export function Profile() {
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs text-slate-500">Role</p>
+              <p className="text-xs text-slate-500">Permissao</p>
               <p className="mt-2 flex items-center gap-2 font-medium text-white"><ShieldCheck className="h-4 w-4 text-cyan-200" />{auth.role}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs text-slate-500">Tenant</p>
-              <p className="mt-2 font-medium text-white">{auth.tenant_id || "platform"}</p>
+              <p className="text-xs text-slate-500">Ambiente</p>
+              <p className="mt-2 font-medium text-white">Principal</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
               <p className="text-xs text-slate-500">Sessao</p>

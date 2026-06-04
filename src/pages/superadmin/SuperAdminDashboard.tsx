@@ -46,7 +46,7 @@ type Metrics = {
   suspiciousAlerts: number;
   queuedPayments: number;
 };
-type Raffle = { id: string; tenant: string; title: string; status: string; soldTickets: number; totalTickets: number; price: number };
+type Raffle = { id: string; tenant_id: string; tenant: string; title: string; status: string; soldTickets: number; totalTickets: number; price: number };
 type Sale = { id: string; tenant: string; product: string; channel: string; customer: string; amount: number; status: string; createdAt: string };
 type PixPayment = { id: string; tenant: string; customer: string; gateway: string; amount: number; status: string; createdAt: string };
 type Commission = { tenant_id: string; tenant: string; percentual: number; paidRevenue: number; platformCommission: number };
@@ -380,11 +380,15 @@ export function SuperAdminDashboard() {
       <div className="grid gap-5 xl:grid-cols-2">
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-[var(--admin-text)]">Todas as rifas</h2>
-          <AdminDataTable columns={["Tenant", "Rifa", "Status", "Cotas"]} rows={raffles.map(raffle => [
+          <AdminDataTable columns={["Tenant", "Rifa", "Status", "Cotas", "Acoes"]} rows={raffles.map(raffle => [
             raffle.tenant,
             raffle.title,
             statusBadge(raffle.status),
-            `${raffle.soldTickets}/${raffle.totalTickets}`
+            `${raffle.soldTickets}/${raffle.totalTickets}`,
+            <div key={`${raffle.id}-actions`} className="flex gap-2">
+              <a className="admin-icon-button" title="Abrir rifa publica" href={`/raffle/${raffle.id}`} target="_blank" rel="noreferrer"><Eye className="h-4 w-4" /></a>
+              <Link className="admin-icon-button" title="Ver tenant" to={`/superadmin/tenants/${raffle.tenant_id}/financeiro`}><Building2 className="h-4 w-4" /></Link>
+            </div>
           ])} />
         </section>
         <section className="space-y-3">

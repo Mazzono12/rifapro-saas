@@ -321,6 +321,7 @@ export default function App() {
                 <Route path="auditoria" element={<SuperAdminAudit />} />
                 <Route path="relatorios" element={<SuperAdminReports />} />
                 <Route path="antifraude" element={<SuperAdminAntifraud />} />
+                <Route path="aparencia" element={<SuperAdminTenantBranding />} />
                 <Route path="tenants/:tenantId/financeiro" element={<SuperAdminTenantDetail />} />
                 <Route path="tenants/:tenantId/aparencia" element={<SuperAdminTenantBranding />} />
                 <Route path="tenants/:tenantId/plano" element={<SuperAdminTenantPlanResources />} />

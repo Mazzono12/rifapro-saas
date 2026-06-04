@@ -20,7 +20,7 @@ export function RecoverPassword() {
   };
 
   return (
-    <AuthShell title="Recuperar senha" subtitle="Enviaremos um link seguro pelo Supabase Auth para redefinir seu acesso.">
+    <AuthShell title="Recuperar senha" subtitle="Informe seu email e enviaremos as instrucoes para redefinir seu acesso com seguranca.">
       <form onSubmit={onSubmit} className="space-y-5">
         <label className="block">
           <span className="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Email</span>
@@ -30,7 +30,7 @@ export function RecoverPassword() {
           </span>
         </label>
         <button disabled={auth.loading} className="w-full rounded-2xl bg-cyan-300 px-5 py-4 font-semibold text-black shadow-[0_0_36px_rgba(34,211,238,0.28)] transition hover:bg-cyan-200 disabled:opacity-60">
-          Enviar recuperacao
+          Enviar instrucoes
         </button>
         <p className="text-center text-sm text-slate-400"><Link to="/login" className="text-cyan-200">Voltar para login</Link></p>
       </form>

@@ -1,10 +1,12 @@
 import React from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { BarChart3, Building2, ChevronDown, LayoutDashboard, LogOut, Shield, Sparkles, UserRound } from "lucide-react";
+import { BarChart3, Building2, ChevronDown, LayoutDashboard, LogOut, Shield, UserRound } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { useAuth } from "../../context/auth/AuthContext";
 import { usePermissions } from "../../hooks/usePermissions";
+import { TenantHeaderName } from "../branding/TenantHeaderName";
+import { TenantLogo } from "../branding/TenantLogo";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -29,12 +31,10 @@ export function SaaSLayout({ children }: { children?: React.ReactNode }) {
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_18%_10%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_80%_0%,rgba(20,184,166,0.14),transparent_28%),linear-gradient(180deg,#05070d,#090d16_55%,#04060a)]" />
       <aside className="fixed left-0 top-0 z-30 hidden h-screen w-72 border-r border-white/10 bg-black/30 p-5 backdrop-blur-2xl lg:block">
         <Link to="/dashboard" className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-cyan-300 text-black shadow-[0_0_28px_rgba(34,211,238,0.35)]">
-            <Sparkles className="h-5 w-5" />
-          </div>
+          <TenantLogo className="h-11 w-11 rounded-xl bg-white/5 shadow-[0_0_28px_var(--theme-glow)]" eager />
           <div>
-            <p className="text-sm font-semibold text-white">RifaPro SaaS</p>
-            <p className="text-xs text-slate-400">Console multitenant</p>
+            <p className="text-sm font-semibold text-white"><TenantHeaderName /></p>
+            <p className="text-xs text-slate-400">Painel administrativo</p>
           </div>
         </Link>
 
@@ -65,7 +65,7 @@ export function SaaSLayout({ children }: { children?: React.ReactNode }) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{auth.profile?.name || auth.user?.email}</p>
-              <p className="truncate text-xs text-slate-400">{auth.role} · {auth.tenant_id || "platform"}</p>
+              <p className="truncate text-xs text-slate-400">{auth.role} · ambiente principal</p>
             </div>
           </div>
         </div>
@@ -75,12 +75,12 @@ export function SaaSLayout({ children }: { children?: React.ReactNode }) {
         <header className="sticky top-0 z-20 border-b border-white/10 bg-[#05070d]/70 px-4 py-3 backdrop-blur-2xl md:px-8">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-cyan-200/80">Workspace</p>
-              <h1 className="text-lg font-semibold text-white">Operacao SaaS</h1>
+              <p className="text-xs uppercase tracking-[0.22em] text-cyan-200/80">Area de gestao</p>
+              <h1 className="text-lg font-semibold text-white">Operacao de campanhas</h1>
             </div>
             <div className="flex items-center gap-3">
               <div className="hidden rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-slate-300 md:block">
-                Tenant: {auth.tenant_id || "global"}
+                Ambiente ativo
               </div>
               <button className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-sm text-white">
                 <span className="grid h-7 w-7 place-items-center rounded-full bg-cyan-300 text-xs font-bold text-black">

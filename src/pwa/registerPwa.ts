@@ -1,4 +1,4 @@
-export async function registerRifaProServiceWorker() {
+export async function registerCifherServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   if (window.location.protocol !== "https:" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") return;
 

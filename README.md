@@ -1,4 +1,4 @@
-# NexusDraw / RifaPro SaaS
+# CIFHER Plataforma
 
 Plataforma premium de rifas online com React, TypeScript, Vite, TailwindCSS, React Query, Zustand, Supabase e um servidor mock Express para desenvolvimento local.
 

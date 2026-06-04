@@ -1,7 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity,
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -12,11 +11,10 @@ import {
   Globe2,
   LogOut,
   Menu,
+  Palette,
   Plug,
   Search,
-  ShieldAlert,
-  ShieldCheck,
-  SlidersHorizontal
+  ShieldAlert
 } from "lucide-react";
 import { AdminThemeProvider } from "../../context/admin/AdminThemeContext";
 import { AdminPageTransition, AdminThemeSwitcher } from "../../components/admin/AdminPremium";
@@ -28,11 +26,11 @@ function SuperAdminLayoutContent() {
   const auth = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("rifapro.superadmin.sidebar") === "collapsed");
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("cifher.superadmin.sidebar") === "collapsed" || localStorage.getItem("rifapro.superadmin.sidebar") === "collapsed");
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem("rifapro.superadmin.sidebar", collapsed ? "collapsed" : "expanded");
+    localStorage.setItem("cifher.superadmin.sidebar", collapsed ? "collapsed" : "expanded");
   }, [collapsed]);
 
   useEffect(() => {
@@ -41,7 +39,7 @@ function SuperAdminLayoutContent() {
 
   useEffect(() => {
     const tabletQuery = window.matchMedia("(min-width: 768px) and (max-width: 1180px)");
-    if (tabletQuery.matches && !localStorage.getItem("rifapro.superadmin.sidebar")) setCollapsed(true);
+    if (tabletQuery.matches && !localStorage.getItem("cifher.superadmin.sidebar") && !localStorage.getItem("rifapro.superadmin.sidebar")) setCollapsed(true);
   }, []);
 
   useEffect(() => {
@@ -60,19 +58,12 @@ function SuperAdminLayoutContent() {
 
   const navItems = useMemo<SidebarNavItem[]>(() => [
     { name: "Dashboard global", path: "/superadmin", icon: Crown, group: "Global" },
-    { name: "Tenants", path: "/superadmin", icon: Building2, group: "Tenants" },
+    { name: "Aparência global", path: "/superadmin/aparencia", icon: Palette, group: "Global" },
     { name: "Financeiro global", path: "/superadmin/relatorios", icon: FileText, group: "Financeiro" },
-    { name: "Relatórios", path: "/superadmin/relatorios", icon: FileText, group: "Financeiro" },
     { name: "Integrações globais", path: "/superadmin/integracoes", icon: Plug, group: "Operação" },
-    { name: "Gateways globais", path: "/superadmin/integracoes", icon: Activity, group: "Operação" },
-    { name: "WhatsApp global", path: "/superadmin/integracoes", icon: Activity, group: "Operação" },
     { name: "Domínios", path: "/superadmin/dominios", icon: Globe2, group: "Sistema" },
-    { name: "Healthcheck", path: "/superadmin/integracoes", icon: ShieldCheck, group: "Sistema" },
-    { name: "Planos", path: "/superadmin", icon: SlidersHorizontal, group: "Configurações" },
     { name: "Auditoria global", path: "/superadmin/auditoria", icon: FileSearch, group: "Compliance" },
-    { name: "Acesso assistido", path: "/superadmin/auditoria", icon: ShieldCheck, group: "Compliance" },
-    { name: "Antifraude", path: "/superadmin/antifraude", icon: ShieldAlert, group: "Compliance" },
-    { name: "Configurações", path: "/superadmin", icon: SlidersHorizontal, group: "Configurações" }
+    { name: "Antifraude", path: "/superadmin/antifraude", icon: ShieldAlert, group: "Compliance" }
   ], []);
 
   const activeItem = navItems.find(item => location.pathname === item.path || (item.path !== "/superadmin" && location.pathname.startsWith(item.path)));
@@ -87,7 +78,7 @@ function SuperAdminLayoutContent() {
       <CollapsibleSidebar
         items={navItems}
         rootPath="/superadmin"
-        title="RifaPro Control"
+        title="CIFHER Plataforma"
         subtitle="Superadmin"
         collapsed={collapsed}
         mobileOpen={mobileOpen}

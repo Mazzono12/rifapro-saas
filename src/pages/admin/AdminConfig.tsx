@@ -29,16 +29,16 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
   const [builder, setBuilder] = useState<any>(null);
   const [settings, setSettings] = useState<any>({
     branding: {
-      companyName: "NexusDraw",
+      companyName: "CIFHER Prime",
       logoUrl: "",
-      logoAlt: "NexusDraw"
+      logoAlt: "CIFHER Prime"
     },
     theme: {
       defaultTheme: "vimeu_dark",
       paletteOverrides: {}
     },
     footer: {
-      companyName: "NexusDraw",
+      companyName: "CIFHER Prime",
       cnpj: "",
       email: "",
       mission: "",
@@ -325,7 +325,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
           <h1 className="text-3xl font-display font-medium text-white flex items-center gap-3">
             <Settings className="w-8 h-8 text-emerald-300" /> Configuracoes de Aparencia
           </h1>
-          <p className="mt-2 text-sm text-slate-400">Nome, logo, GIF animado, favicon, cores, slogan, WhatsApp e rodape do tenant.</p>
+          <p className="mt-2 text-sm text-slate-400">Nome, logo, GIF animado, favicon, cores, frase institucional, WhatsApp e rodape da empresa.</p>
         </div>
         {branding ? (
           <BrandingSettingsForm

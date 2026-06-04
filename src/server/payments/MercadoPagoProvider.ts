@@ -47,7 +47,7 @@ function splitName(value: string) {
   const parts = String(value || "Cliente").trim().split(/\s+/).filter(Boolean);
   return {
     firstName: parts[0] || "Cliente",
-    lastName: parts.slice(1).join(" ") || "RifaPro"
+    lastName: parts.slice(1).join(" ") || "CIFHER"
   };
 }
 

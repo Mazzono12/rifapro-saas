@@ -46,7 +46,7 @@ function AdminLayoutContent() {
   const [settingsData, setSettingsData] = useState<any>(null);
   const { branding } = useTenantBranding();
   const [notificationCount, setNotificationCount] = useState(0);
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("rifapro.admin.sidebar") === "collapsed");
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("cifher.admin.sidebar") === "collapsed" || localStorage.getItem("rifapro.admin.sidebar") === "collapsed");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [supportSessionId, setSupportSessionId] = useState(() => localStorage.getItem(supportSessionStorageKey) || "");
 
@@ -77,7 +77,7 @@ function AdminLayoutContent() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("rifapro.admin.sidebar", collapsed ? "collapsed" : "expanded");
+    localStorage.setItem("cifher.admin.sidebar", collapsed ? "collapsed" : "expanded");
   }, [collapsed]);
 
   useEffect(() => {
@@ -86,7 +86,7 @@ function AdminLayoutContent() {
 
   useEffect(() => {
     const tabletQuery = window.matchMedia("(min-width: 768px) and (max-width: 1180px)");
-    if (tabletQuery.matches && !localStorage.getItem("rifapro.admin.sidebar")) setCollapsed(true);
+    if (tabletQuery.matches && !localStorage.getItem("cifher.admin.sidebar") && !localStorage.getItem("rifapro.admin.sidebar")) setCollapsed(true);
   }, []);
 
   useEffect(() => {
@@ -134,16 +134,12 @@ function AdminLayoutContent() {
     { name: "Stories", path: "/admin/stories", icon: PlaySquare, group: "Marketing" },
     { name: "Ganhadores", path: "/admin/ganhadores", icon: Trophy, group: "Marketing" },
     { name: "Mensagens", path: "/admin/mensagens", icon: MessageSquare, group: "Marketing" },
-    { name: "Relatórios", path: "/admin/relatorios", icon: FileBarChart, group: "Financeiro" },
-    { name: "Afiliados", path: "/admin/relatorios", icon: Users, group: "Financeiro" },
-    { name: "Carteira/Wallet", path: "/admin/relatorios", icon: CreditCard, group: "Financeiro" },
+    { name: "Relatórios e Afiliados", path: "/admin/relatorios", icon: FileBarChart, group: "Financeiro" },
     { name: "Pagamentos PIX", path: "/admin/pagamentos", icon: CreditCard, group: "Financeiro" },
     { name: "Meu Plano", path: "/admin/meu-plano", icon: ShieldCheck, group: "Financeiro" },
-    { name: "WhatsApp", path: "/admin/mensagens", icon: MessageSquare, group: "Configurações" },
     { name: "Integrações", path: "/admin/integracoes", icon: Plug, group: "Configurações" },
     { name: "Automações", path: "/admin/automacoes", icon: Bot, group: "Configurações" },
     { name: "Domínios", path: "/admin/dominios", icon: Globe2, group: "Configurações" },
-    { name: "Branding", path: "/admin/config/aparencia", icon: Palette, group: "Configurações" },
     { name: "Aparência", path: "/admin/config/aparencia", icon: Palette, group: "Configurações" },
     { name: "Configurações", path: "/admin/config", icon: Settings, group: "Configurações" },
     { name: "Auditoria", path: "/admin/auditoria", icon: FileSearch, group: "Segurança" },
@@ -153,7 +149,7 @@ function AdminLayoutContent() {
   ], []);
 
   const activeItem = navItems.find(item => location.pathname === item.path || (item.path !== "/admin" && location.pathname.startsWith(item.path)));
-  const companyName = branding.header_name || settingsData?.branding?.companyName || "RifaPro";
+  const companyName = branding.header_name || settingsData?.branding?.companyName || "CIFHER Plataforma";
   const logo = branding.logo_url || settingsData?.branding?.logoUrl;
 
   return (
@@ -163,7 +159,7 @@ function AdminLayoutContent() {
         rootPath="/admin"
         logoUrl={logo}
         title={companyName}
-        subtitle="Enterprise Admin"
+        subtitle="Admin"
         collapsed={collapsed}
         mobileOpen={mobileOpen}
         onCollapsedChange={setCollapsed}

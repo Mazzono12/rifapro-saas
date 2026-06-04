@@ -57,7 +57,7 @@ export function PwaInstallPrompt() {
             <Download className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold">Instalar {branding.header_name || "RifaPro"}</p>
+            <p className="font-bold">Instalar {branding.header_name || "CIFHER Plataforma"}</p>
             <p className="text-xs text-slate-300">Acesso rapido para rifas, bilhetes, afiliado e painel.</p>
           </div>
           <button onClick={install} className="min-h-10 rounded-xl bg-[var(--tenant-cta)] px-3 text-xs font-black text-[var(--tenant-cta-text)]">

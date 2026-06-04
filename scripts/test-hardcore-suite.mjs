@@ -99,7 +99,7 @@ function buildSystemMap() {
 
 function writeSystemMap(map) {
   const markdown = [
-    "# RifaPro SaaS - Mapa Hardcore do Sistema",
+    "# CIFHER Plataforma - Mapa Hardcore do Sistema",
     "",
     `Gerado em: ${map.generatedAt}`,
     "",
@@ -189,7 +189,7 @@ function writeRouteReports(routeResults) {
     return acc;
   }, {});
   const markdown = [
-    "# RifaPro SaaS - Resumo Hardcore de Rotas",
+    "# CIFHER Plataforma - Resumo Hardcore de Rotas",
     "",
     `Gerado em: ${routeResults.generatedAt}`,
     "",
@@ -434,7 +434,7 @@ function writeFinalReport(success) {
   const failed = results.filter(item => item.status === "failed");
   const passed = results.filter(item => item.status === "passed");
   const markdown = [
-    "# RifaPro SaaS - Relatorio Final Hardcore",
+    "# CIFHER Plataforma - Relatorio Final Hardcore",
     "",
     `Gerado em: ${new Date().toISOString()}`,
     `Status: ${success && failed.length === 0 ? "aprovado com ressalvas para homologacao controlada" : "reprovado ate corrigir falhas"}`,

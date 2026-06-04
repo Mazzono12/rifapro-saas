@@ -110,7 +110,7 @@ export function ThemeBuilder({
             <section key={block.id} className="border-b border-white/10 p-4">
               <p className="text-xs font-black uppercase" style={{ color: colors.primary || "#00d66b" }}>{blockLabels[block.id] || block.id}</p>
               <h3 className="mt-1 text-lg font-black text-white">{block.title || blockLabels[block.id]}</h3>
-              <p className="mt-1 text-sm text-slate-300">{block.subtitle || "Conteudo configuravel do tenant."}</p>
+              <p className="mt-1 text-sm text-slate-300">{block.subtitle || "Conteudo configuravel da empresa."}</p>
               {block.imageUrl && (
                 <ResponsiveMediaFrame
                   src={block.imageUrl}

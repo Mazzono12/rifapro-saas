@@ -2,5 +2,5 @@ import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingC
 
 export function TenantHeaderName({ className }: { className?: string }) {
   const { branding } = useTenantBranding();
-  return <span className={className}>{branding.header_name || "RifaPro"}</span>;
+  return <span className={className}>{branding.header_name || "CIFHER Prime"}</span>;
 }

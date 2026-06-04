@@ -339,6 +339,15 @@ async function startServer() {
     slogan: string;
     support_whatsapp: string;
     footer_text: string;
+    login_logo_url: string;
+    login_title: string;
+    login_subtitle: string;
+    login_support_text: string;
+    login_background_url: string;
+    login_primary_color: string;
+    login_accent_color: string;
+    login_button_text: string;
+    login_footer_text: string;
     metadata: Record<string, unknown>;
     created_at: string;
     updated_at: string;
@@ -389,7 +398,7 @@ async function startServer() {
   const tenants: TenantRecord[] = [
     {
       id: legacyTenantId,
-      nome: "Plataforma Principal",
+      nome: "CIFHER Prime",
       slug: "principal",
       dominio_customizado: "",
       status: "active",
@@ -458,16 +467,16 @@ async function startServer() {
   // === Mock DB ===
   let settings = {
     branding: {
-      companyName: "NexusDraw",
+      companyName: "CIFHER Prime",
       logoUrl: "",
-      logoAlt: "NexusDraw"
+      logoAlt: "CIFHER Prime"
     },
     theme: {
       defaultTheme: "vimeu_dark",
       paletteOverrides: {}
     },
     footer: {
-      companyName: "NexusDraw",
+      companyName: "CIFHER Prime",
       cnpj: "00.000.000/0001-00",
       email: "contato@nexusdraw.com",
       mission: "Rifas digitais premium com transparencia, velocidade e experiencia cinematografica.",
@@ -508,7 +517,7 @@ async function startServer() {
     smsProvider: {
       enabled: false,
       provider: "local",
-      sender: "NexusDraw",
+      sender: "CIFHER Prime",
       apiKeyConfigured: false
     },
     n8nIntegration: {
@@ -608,6 +617,24 @@ async function startServer() {
   const tenantSettings: Record<string, typeof settings> = {};
   const tenantBrandingSettings: Record<string, TenantBrandingSettings> = {};
   let tenantThemeTemplates: TenantThemeTemplateRecord[] = [];
+  const legacyBrandNames = new Set(["RifaPro", "RifaPro SaaS", "CIFHER Plataforma", "Plataforma Principal", "Tenant Desenvolvimento"]);
+  const legacyBrandFooters = new Set(["RifaPro", "RifaPro SaaS", "CIFHER Plataforma", "Tenant Desenvolvimento"]);
+  const defaultPrimeSlogan = "Tecnologia premium para gestao avancada";
+  const defaultLoginTitle = "CIFHER Prime";
+  const defaultLoginSubtitle = "Acesse seu ambiente exclusivo com segurança, controle e alta performance.";
+  const defaultLoginSupportText = "Tecnologia premium para gestão inteligente, operação avançada e crescimento profissional.";
+  const defaultLoginButtonText = "Entrar com segurança";
+  const defaultLoginFooterText = "Ambiente protegido • Acesso autorizado";
+
+  function normalizeLegacyBrandText(value: unknown, fallback = "CIFHER Prime") {
+    const text = String(value || "").trim();
+    return !text || legacyBrandNames.has(text) ? fallback : text;
+  }
+
+  function normalizeLegacyFooterText(value: unknown, fallback = "CIFHER Prime") {
+    const text = String(value || "").trim();
+    return !text || legacyBrandFooters.has(text) ? fallback : text;
+  }
 
   function defaultTenantBranding(tenantId: string): TenantBrandingSettings {
     const tenant = tenants.find(item => item.id === tenantId);
@@ -616,7 +643,7 @@ async function startServer() {
     return {
       id: createPublicId("BRAND_"),
       tenant_id: tenantId,
-      header_name: tenantScopedSettings.branding?.companyName || tenant?.nome || "RifaPro",
+      header_name: normalizeLegacyBrandText(tenantScopedSettings.branding?.companyName || tenant?.nome),
       logo_url: tenantScopedSettings.branding?.logoUrl || tenant?.logo_url || "",
       logo_mime_type: "",
       favicon_url: "",
@@ -624,9 +651,18 @@ async function startServer() {
       secondary_color: "#0f2d1d",
       cta_color: "#00d66b",
       theme_mode: "vimeu_dark",
-      slogan: "Sorteios premium com PIX automatico",
+      slogan: defaultPrimeSlogan,
       support_whatsapp: tenantScopedSettings.socialLinks?.whatsapp || "",
-      footer_text: tenantScopedSettings.footer?.mission || "RifaPro SaaS",
+      footer_text: normalizeLegacyFooterText(tenantScopedSettings.footer?.mission),
+      login_logo_url: tenantScopedSettings.branding?.logoUrl || tenant?.logo_url || "",
+      login_title: defaultLoginTitle,
+      login_subtitle: defaultLoginSubtitle,
+      login_support_text: defaultLoginSupportText,
+      login_background_url: "",
+      login_primary_color: tenant?.cor_primaria || "#00d66b",
+      login_accent_color: "#f5c451",
+      login_button_text: defaultLoginButtonText,
+      login_footer_text: defaultLoginFooterText,
       metadata: {},
       created_at: now,
       updated_at: now
@@ -635,6 +671,19 @@ async function startServer() {
 
   function getTenantBranding(tenantId: string) {
     tenantBrandingSettings[tenantId] ||= defaultTenantBranding(tenantId);
+    const current = tenantBrandingSettings[tenantId];
+    current.header_name = normalizeLegacyBrandText(current.header_name);
+    current.footer_text = normalizeLegacyFooterText(current.footer_text);
+    if (!String(current.slogan || "").trim() || current.slogan === "Sorteios premium com PIX automatico") current.slogan = defaultPrimeSlogan;
+    current.login_logo_url ||= current.logo_url || "";
+    current.login_title = String(current.login_title || "").trim() || defaultLoginTitle;
+    current.login_subtitle = String(current.login_subtitle || "").trim() || defaultLoginSubtitle;
+    current.login_support_text = String(current.login_support_text || "").trim() || defaultLoginSupportText;
+    current.login_background_url ||= "";
+    current.login_primary_color = isHexColor(current.login_primary_color) ? current.login_primary_color : current.primary_color;
+    current.login_accent_color = isHexColor(current.login_accent_color) ? current.login_accent_color : "#f5c451";
+    current.login_button_text = String(current.login_button_text || "").trim() || defaultLoginButtonText;
+    current.login_footer_text = String(current.login_footer_text || "").trim() || defaultLoginFooterText;
     return tenantBrandingSettings[tenantId];
   }
 
@@ -751,6 +800,15 @@ async function startServer() {
       slogan: String(incoming.slogan ?? current.slogan ?? "").trim().slice(0, 140),
       support_whatsapp: String(incoming.support_whatsapp ?? current.support_whatsapp ?? "").trim().slice(0, 80),
       footer_text: String(incoming.footer_text ?? current.footer_text ?? "").trim().slice(0, 280),
+      login_logo_url: String(incoming.login_logo_url ?? current.login_logo_url ?? current.logo_url ?? "").trim().slice(0, 600),
+      login_title: String(incoming.login_title ?? current.login_title ?? "").trim().slice(0, 80) || defaultLoginTitle,
+      login_subtitle: String(incoming.login_subtitle ?? current.login_subtitle ?? "").trim().slice(0, 180) || defaultLoginSubtitle,
+      login_support_text: String(incoming.login_support_text ?? current.login_support_text ?? "").trim().slice(0, 260) || defaultLoginSupportText,
+      login_background_url: String(incoming.login_background_url ?? current.login_background_url ?? "").trim().slice(0, 600),
+      login_primary_color: isHexColor(incoming.login_primary_color) ? String(incoming.login_primary_color) : current.login_primary_color || current.primary_color,
+      login_accent_color: isHexColor(incoming.login_accent_color) ? String(incoming.login_accent_color) : current.login_accent_color || current.cta_color,
+      login_button_text: String(incoming.login_button_text ?? current.login_button_text ?? "").trim().slice(0, 80) || defaultLoginButtonText,
+      login_footer_text: String(incoming.login_footer_text ?? current.login_footer_text ?? "").trim().slice(0, 140) || defaultLoginFooterText,
       metadata: typeof incoming.metadata === "object" && incoming.metadata ? incoming.metadata as Record<string, unknown> : current.metadata,
       updated_at: new Date().toISOString()
     };
@@ -776,7 +834,16 @@ async function startServer() {
       theme_mode: branding.theme_mode,
       slogan: branding.slogan,
       footer_text: branding.footer_text,
-      support_whatsapp: branding.support_whatsapp
+      support_whatsapp: branding.support_whatsapp,
+      login_logo_url: branding.login_logo_url,
+      login_title: branding.login_title,
+      login_subtitle: branding.login_subtitle,
+      login_support_text: branding.login_support_text,
+      login_background_url: branding.login_background_url,
+      login_primary_color: branding.login_primary_color,
+      login_accent_color: branding.login_accent_color,
+      login_button_text: branding.login_button_text,
+      login_footer_text: branding.login_footer_text
     };
   }
 
@@ -2711,7 +2778,7 @@ async function startServer() {
   }
 
   function generateTemporaryPassword() {
-    return `RifaPro${randomBytes(4).toString("hex")}!`;
+    return `CIFHER${randomBytes(4).toString("hex")}!`;
   }
 
   async function createTenantAdminUser(tenantId: string, payload: Record<string, unknown>) {
@@ -3346,14 +3413,14 @@ async function startServer() {
     const tenant = resolution.tenant || getRequestTenant(req) || tenants.find(item => item.id === legacyTenantId);
     const branding = publicTenantBranding(getTenantBranding(tenant?.id || legacyTenantId));
     const primary = String(branding.colors?.primary || "#00d66b");
-    const name = String(branding.header_name || tenant?.nome || "RifaPro");
+    const name = String(branding.header_name || tenant?.nome || "CIFHER Prime");
     res.setHeader("Content-Type", "application/manifest+json; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
     res.json({
       id: `/${tenant?.slug || "rifapro"}`,
       name,
-      short_name: name.slice(0, 12) || "RifaPro",
-      description: String(branding.slogan || "RifaPro/CIFHER instalavel para rifas, checkout PIX, afiliados e administracao."),
+      short_name: name.slice(0, 12) || "CIFHER",
+      description: String(branding.slogan || "Painel profissional para rifas, pagamentos, clientes e campanhas."),
       start_url: "/?source=pwa",
       scope: "/",
       display: "standalone",
@@ -3368,7 +3435,7 @@ async function startServer() {
         { src: "/icons/pwa-maskable.svg", sizes: "512x512", type: "image/svg+xml", purpose: "maskable" }
       ],
       screenshots: [
-        { src: "/pwa-splash.svg", sizes: "1080x1920", type: "image/svg+xml", form_factor: "narrow", label: "RifaPro mobile" }
+        { src: "/pwa-splash.svg", sizes: "1080x1920", type: "image/svg+xml", form_factor: "narrow", label: "CIFHER mobile" }
       ]
     });
   });
@@ -4567,7 +4634,7 @@ async function startServer() {
     const validationPath = `/api/public/reports/validate/${input.requestId}`;
     const validationUrl = `${input.baseUrl}${validationPath}`;
     const baseLines = [
-      "RifaPro/CIFHER - Relatorio oficial auditavel",
+      "CIFHER Plataforma - Relatorio oficial auditavel",
       `Tipo: ${payload.title}`,
       `Tenant: ${tenantName}`,
       `CNPJ: ${(payload.tenant as any)?.cnpj || "Nao informado"}`,
@@ -5276,6 +5343,53 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  app.get("/api/superadmin/branding", (req, res) => {
+    recordSuperadminAudit(req, "GLOBAL_BRANDING_VIEW", { tenant_id: legacyTenantId, resource_type: "tenant_branding_settings", resource_id: legacyTenantId });
+    res.json(getTenantBranding(legacyTenantId));
+  });
+
+  app.put("/api/superadmin/branding", (req, res) => {
+    const branding = normalizeTenantBranding(legacyTenantId, req.body || {});
+    const tenant = tenants.find(item => item.id === legacyTenantId);
+    if (tenant) {
+      tenant.logo_url = branding.logo_url;
+      tenant.cor_primaria = branding.primary_color;
+    }
+    recordSuperadminAudit(req, "GLOBAL_BRANDING_UPDATED", { tenant_id: legacyTenantId, resource_type: "tenant_branding_settings", resource_id: branding.id });
+    res.json(branding);
+  });
+
+  app.post("/api/superadmin/branding/logo", express.raw({ type: "*/*", limit: "5mb" }), async (req, res) => {
+    try {
+      const asset = await saveBrandingAsset(req, legacyTenantId, "logo");
+      const current = getTenantBranding(legacyTenantId);
+      const branding = normalizeTenantBranding(legacyTenantId, { logo_url: asset.url, login_logo_url: current.login_logo_url || asset.url, logo_mime_type: asset.mimeType, metadata: { ...current.metadata, logoAsset: asset } });
+      const tenant = tenants.find(item => item.id === legacyTenantId);
+      if (tenant) tenant.logo_url = branding.logo_url;
+      recordSuperadminAudit(req, "GLOBAL_BRANDING_LOGO_UPLOADED", { tenant_id: legacyTenantId, resource_type: "tenant_branding_settings", resource_id: branding.id, metadata: { mimeType: asset.mimeType, size: asset.size } });
+      res.status(201).json({ branding, asset });
+    } catch (error) {
+      res.status((error as Error & { statusCode?: number }).statusCode || 400).json({ error: error instanceof Error ? error.message : "Erro ao enviar logo" });
+    }
+  });
+
+  app.post("/api/superadmin/branding/favicon", express.raw({ type: "*/*", limit: "5mb" }), async (req, res) => {
+    try {
+      const asset = await saveBrandingAsset(req, legacyTenantId, "favicon");
+      const branding = normalizeTenantBranding(legacyTenantId, { favicon_url: asset.url, metadata: { ...getTenantBranding(legacyTenantId).metadata, faviconAsset: asset } });
+      recordSuperadminAudit(req, "GLOBAL_BRANDING_FAVICON_UPLOADED", { tenant_id: legacyTenantId, resource_type: "tenant_branding_settings", resource_id: branding.id, metadata: { mimeType: asset.mimeType, size: asset.size } });
+      res.status(201).json({ branding, asset });
+    } catch (error) {
+      res.status((error as Error & { statusCode?: number }).statusCode || 400).json({ error: error instanceof Error ? error.message : "Erro ao enviar favicon" });
+    }
+  });
+
+  app.post("/api/superadmin/branding/reset", (req, res) => {
+    tenantBrandingSettings[legacyTenantId] = defaultTenantBranding(legacyTenantId);
+    recordSuperadminAudit(req, "GLOBAL_BRANDING_RESET", { tenant_id: legacyTenantId, resource_type: "tenant_branding_settings", resource_id: tenantBrandingSettings[legacyTenantId].id });
+    res.json(tenantBrandingSettings[legacyTenantId]);
+  });
+
   app.get("/api/superadmin/tenants/:tenantId/branding", (req, res) => {
     const tenant = tenants.find(item => item.id === req.params.tenantId);
     if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
@@ -5298,7 +5412,8 @@ async function startServer() {
       const tenant = tenants.find(item => item.id === req.params.tenantId);
       if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
       const asset = await saveBrandingAsset(req, tenant.id, "logo");
-      const branding = normalizeTenantBranding(tenant.id, { logo_url: asset.url, logo_mime_type: asset.mimeType, metadata: { ...getTenantBranding(tenant.id).metadata, logoAsset: asset } });
+      const current = getTenantBranding(tenant.id);
+      const branding = normalizeTenantBranding(tenant.id, { logo_url: asset.url, login_logo_url: current.login_logo_url || asset.url, logo_mime_type: asset.mimeType, metadata: { ...current.metadata, logoAsset: asset } });
       tenant.logo_url = branding.logo_url;
       recordSuperadminAudit(req, "TENANT_BRANDING_LOGO_UPLOADED", { tenant_id: tenant.id, resource_type: "tenant_branding_settings", resource_id: branding.id, metadata: { mimeType: asset.mimeType, size: asset.size } });
       res.status(201).json({ branding, asset });
@@ -5875,7 +5990,7 @@ async function startServer() {
     try {
       log.attempts += 1;
       const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (config.secret) headers["X-RifaPro-Secret"] = config.secret;
+      if (config.secret) headers["X-CIFHER-Secret"] = config.secret;
       const response = await fetch(config.webhookUrl, {
         method: "POST",
         headers,
@@ -6332,7 +6447,7 @@ async function startServer() {
       environment: config.environment === "production" ? "production" as const : "sandbox" as const,
       apiKey,
       webhookToken: String(config.webhook_secret || ""),
-      userAgent: String(configJson.userAgent || credentials.userAgent || "RifaPro SaaS"),
+      userAgent: String(configJson.userAgent || credentials.userAgent || "CIFHER Plataforma"),
       releaseMode: String(configJson.releaseMode || credentials.releaseMode || "PAYMENT_RECEIVED") === "PAYMENT_CONFIRMED" ? "PAYMENT_CONFIRMED" as const : "PAYMENT_RECEIVED" as const,
       paymentMode: String(configJson.paymentMode || credentials.paymentMode || "pix_direct"),
       orderExpirationMinutes: Math.max(1, Number(configJson.orderExpirationMinutes || credentials.orderExpirationMinutes || 15))
@@ -8271,7 +8386,7 @@ async function startServer() {
 
   app.post("/api/integrations/n8n/inbound", (req, res) => {
     const secret = settings.n8nIntegration?.secret || "";
-    const receivedSecret = String(req.headers["x-rifapro-secret"] || req.body.secret || "");
+    const receivedSecret = String(req.headers["x-cifher-secret"] || req.headers["x-rifapro-secret"] || req.body.secret || "");
     if (secret && receivedSecret !== secret) {
       res.status(401).json({ error: "Secret inválido" });
       return;
@@ -10631,7 +10746,7 @@ async function startServer() {
       vip_customer_offer: `${name}, voce e VIP por aqui. Confira uma condicao especial nas campanhas ativas.`,
       failed_payment_retry: `${name}, nao conseguimos confirmar seu pagamento. Gere um novo PIX e tente novamente.`
     };
-    return messages[template] || `Automacao RifaPro/CIFHER para ${name}.`;
+    return messages[template] || `Automacao CIFHER Plataforma para ${name}.`;
   }
 
   function enqueueAutomationWhatsApp(flow: AutomationFlowRecord, run: AutomationRunRecord, purchase?: PurchaseRecord, customer?: CustomerRecord) {
@@ -11943,7 +12058,7 @@ async function startServer() {
   app.post("/api/webhooks/asaas", async (req, res) => {
     const gateway = "asaas";
     const payload = (req.body || {}) as Record<string, unknown>;
-    const preParsed = new AsaasProvider({ apiKey: "webhook", environment: "sandbox", userAgent: "RifaPro Webhook" }).handleWebhook(payload as Record<string, any>);
+    const preParsed = new AsaasProvider({ apiKey: "webhook", environment: "sandbox", userAgent: "CIFHER Webhook" }).handleWebhook(payload as Record<string, any>);
     const paymentPayload = payload.payment && typeof payload.payment === "object" && !Array.isArray(payload.payment)
       ? payload.payment as Record<string, unknown>
       : {};
@@ -11977,7 +12092,7 @@ async function startServer() {
       res.status(401).json({ error: "Webhook token Asaas obrigatorio em producao" });
       return;
     }
-    const parsed = new AsaasProvider({ apiKey: "webhook", environment: "sandbox", userAgent: "RifaPro Webhook" }).handleWebhook(payload as Record<string, any>, asaasConfig?.releaseMode || "PAYMENT_RECEIVED");
+    const parsed = new AsaasProvider({ apiKey: "webhook", environment: "sandbox", userAgent: "CIFHER Webhook" }).handleWebhook(payload as Record<string, any>, asaasConfig?.releaseMode || "PAYMENT_RECEIVED");
     const rawStatus = parsed.eventType || parsed.status || extractPaymentStatus(payload as Record<string, any>);
     const purchaseIdToConfirm = resolved.orderId || parseAsaasExternalReference(parsed.externalReference).orderId || extractPaymentReference(gateway, payload as Record<string, any>);
     const eventKey = buildPaymentIdempotencyKey({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, eventStatus: rawStatus, payload });
@@ -13208,7 +13323,7 @@ async function startServer() {
       tenant_id: tenantId,
       phone,
       message_type: "test",
-      message_body: "Mensagem de teste RifaPro/CIFHER via WhatsApp sandbox.",
+      message_body: "Mensagem de teste CIFHER Plataforma via WhatsApp sandbox.",
       provider: config.provider,
       status: "pending",
       attempts: 0,
@@ -13841,7 +13956,7 @@ async function startServer() {
 
   function buildDrawCertificate(audit: RaffleDrawAuditRecord) {
     const certificate = [
-      "RifaPro/CIFHER - Certificado de Sorteio Auditavel",
+      "CIFHER Plataforma - Certificado de Sorteio Auditavel",
       `raffle_id=${audit.raffle_id}`,
       `server_seed_hash=${audit.server_seed_hash}`,
       `server_seed_revealed=${audit.server_seed_revealed || "nao_revelada"}`,
@@ -14588,7 +14703,7 @@ async function startServer() {
       priority: 0,
       is_default: true,
       config_json: {
-        userAgent: gatewayConfig.userAgent || "RifaPro SaaS",
+        userAgent: gatewayConfig.userAgent || "CIFHER Plataforma",
         releaseMode: gatewayConfig.releaseMode || "PAYMENT_RECEIVED",
         paymentMode: gatewayConfig.paymentMode || "pix_direct",
         orderExpirationMinutes: Number(gatewayConfig.orderExpirationMinutes || 15)
@@ -15228,7 +15343,8 @@ async function startServer() {
     try {
       const tenantId = resolveRequestTenantId(req);
       const asset = await saveBrandingAsset(req, tenantId, "logo");
-      const branding = normalizeTenantBranding(tenantId, { logo_url: asset.url, logo_mime_type: asset.mimeType, metadata: { ...getTenantBranding(tenantId).metadata, logoAsset: asset } });
+      const current = getTenantBranding(tenantId);
+      const branding = normalizeTenantBranding(tenantId, { logo_url: asset.url, login_logo_url: current.login_logo_url || asset.url, logo_mime_type: asset.mimeType, metadata: { ...current.metadata, logoAsset: asset } });
       const tenant = tenants.find(item => item.id === tenantId);
       if (tenant) tenant.logo_url = branding.logo_url;
       recordSecurityEvent({ tenant_id: tenantId, action: "TENANT_BRANDING_LOGO_UPLOADED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email, detail: asset.mimeType });

@@ -226,7 +226,7 @@ export function WalletBalanceCard({ balance, label = "Saldo disponivel" }: { bal
 }
 
 export function PremiumHeader({
-  title = "RifaPro",
+  title = "CIFHER Plataforma",
   subtitle = "Premiacoes",
   right,
 }: {

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Bell, Instagram, MessageCircle, MoreVertical, User, Users, Ticket } from "lucide-react";
+import { Bell, Instagram, MessageCircle, User, Users, Ticket } from "lucide-react";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { TenantLogo } from "./branding/TenantLogo";
 import { TenantHeaderName } from "./branding/TenantHeaderName";
@@ -119,9 +119,10 @@ export function Navbar() {
             <button
               onClick={() => setOpen(!open)}
               className="touch-target w-10 h-10 rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface)] hover:bg-[var(--theme-surface-strong)] flex items-center justify-center text-[var(--theme-text)] transition-colors active:scale-95"
-              aria-label="Abrir menu"
+              aria-label="Abrir menu da conta"
+              title="Menu da conta"
             >
-              <MoreVertical className="w-5 h-5" />
+              <User className="w-5 h-5" />
               {unreadMessages > 0 && !isAdmin && (
                 <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-amber-300 px-1 text-[10px] font-black text-black">
                   {unreadMessages}

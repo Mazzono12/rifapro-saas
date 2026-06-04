@@ -23,7 +23,7 @@ create unique index if not exists tenants_dominio_unique_idx on public.tenants (
 create index if not exists tenants_ativo_idx on public.tenants (ativo);
 
 insert into public.tenants (id, nome, slug, dominio, ativo, plano)
-values ('00000000-0000-0000-0000-000000000001', 'Tenant Desenvolvimento', 'dev', null, true, 'starter')
+values ('00000000-0000-0000-0000-000000000001', 'CIFHER Prime', 'dev', null, true, 'starter')
 on conflict (id) do update set
   nome = excluded.nome,
   slug = excluded.slug,

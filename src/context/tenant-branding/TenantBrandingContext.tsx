@@ -15,10 +15,19 @@ export type PublicTenantBranding = {
   slogan: string;
   footer_text: string;
   support_whatsapp: string;
+  login_logo_url: string;
+  login_title: string;
+  login_subtitle: string;
+  login_support_text: string;
+  login_background_url: string;
+  login_primary_color: string;
+  login_accent_color: string;
+  login_button_text: string;
+  login_footer_text: string;
 };
 
 const fallbackBranding: PublicTenantBranding = {
-  header_name: "RifaPro",
+  header_name: "CIFHER Prime",
   logo_url: "",
   favicon_url: "",
   colors: {
@@ -27,9 +36,18 @@ const fallbackBranding: PublicTenantBranding = {
     cta: "#00d66b"
   },
   theme_mode: "vimeu_dark",
-  slogan: "Sorteios premium com PIX automatico",
-  footer_text: "RifaPro SaaS",
-  support_whatsapp: ""
+  slogan: "Tecnologia premium para gestao avancada",
+  footer_text: "CIFHER Prime",
+  support_whatsapp: "",
+  login_logo_url: "",
+  login_title: "CIFHER Prime",
+  login_subtitle: "Acesse seu ambiente exclusivo com segurança, controle e alta performance.",
+  login_support_text: "Tecnologia premium para gestão inteligente, operação avançada e crescimento profissional.",
+  login_background_url: "",
+  login_primary_color: "#00d66b",
+  login_accent_color: "#f5c451",
+  login_button_text: "Entrar com segurança",
+  login_footer_text: "Ambiente protegido • Acesso autorizado"
 };
 
 const TenantBrandingContext = createContext<{
@@ -73,6 +91,8 @@ function applyBranding(branding: PublicTenantBranding) {
   root.style.setProperty("--tenant-primary-text", getReadableTextColor(primary));
   root.style.setProperty("--tenant-secondary-text", getReadableTextColor(secondary));
   root.style.setProperty("--tenant-cta-text", getReadableTextColor(cta));
+  root.style.setProperty("--login-primary", normalizeReadableColor(branding.login_primary_color, primary));
+  root.style.setProperty("--login-accent", normalizeReadableColor(branding.login_accent_color, cta));
   root.style.setProperty("--theme-primary", primary);
   root.style.setProperty("--theme-glow", `${primary}55`);
   root.dataset.tenantTheme = branding.theme_mode || fallbackBranding.theme_mode;
@@ -83,7 +103,7 @@ function applyBranding(branding: PublicTenantBranding) {
     document.head.appendChild(themeColor);
   }
   themeColor.content = primary;
-  document.title = branding.header_name ? `${branding.header_name} | RifaPro` : "RifaPro";
+  document.title = branding.header_name ? `${branding.header_name} | Painel profissional` : "CIFHER Prime";
   const existingFavicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]') || document.createElement("link");
   existingFavicon.rel = "icon";
   existingFavicon.href = branding.favicon_url || "/favicon.ico";

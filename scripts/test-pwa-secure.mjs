@@ -67,7 +67,7 @@ if (/localStorage|sessionStorage|Authorization|Bearer|access_token|refresh_token
 
 includesAll(app, ["PwaInstallPrompt"], "App PWA");
 includesAll(installPrompt, ["beforeinstallprompt", "Voce esta offline", "Instalar", "navigator.onLine"], "UI PWA");
-includesAll(main, ["registerRifaProServiceWorker"], "bootstrap service worker");
+includesAll(main, ["registerCifherServiceWorker"], "bootstrap service worker");
 includesAll(register, ["navigator.serviceWorker.register(\"/sw.js\"", "window.location.protocol !== \"https:\"", "localhost"], "registro service worker");
 includesAll(branding, ["meta[name=\"theme-color\"]", "themeColor.content = primary"], "theme color por tenant");
 

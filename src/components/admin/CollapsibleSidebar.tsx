@@ -95,6 +95,7 @@ export function CollapsibleSidebar({
                       to={item.path}
                       aria-current={isActive ? "page" : undefined}
                       aria-label={minimized ? item.name : undefined}
+                      title={minimized ? item.name : undefined}
                       onClick={() => onMobileOpenChange(false)}
                       className={cn(
                         "group/sidebar relative flex min-h-10 items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--admin-primary)]",

@@ -7,7 +7,6 @@ import {
   Box,
   CreditCard,
   Download,
-  Filter,
   Gift,
   RefreshCw,
   Sprout,
@@ -214,15 +213,10 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-5 pb-10">
-      <section className="admin-card overflow-hidden p-5">
-        <div className="absolute right-[-8rem] top-[-8rem] h-80 w-80 rounded-full bg-[var(--admin-primary)]/15 blur-3xl" />
-        <div className="relative grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
-          <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[var(--admin-border)] bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-[var(--admin-primary)]">
-              <Filter className="h-3.5 w-3.5" /> Dashboard Power BI
-            </div>
-            <h1 className="mb-1 text-3xl font-black tracking-tight text-[var(--admin-text)]">Visão Executiva</h1>
-            <p className="text-sm text-[var(--admin-muted)]">Todos os cartões, gráficos e rankings abaixo respeitam os filtros selecionados.</p>
+      <section className="admin-card p-4">
+        <div className="grid gap-3 xl:grid-cols-[1fr_auto] xl:items-center">
+          <div className="min-w-0">
+            <h2 className="mb-0 text-base font-semibold text-[var(--admin-text)]">Filtros do dashboard</h2>
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">

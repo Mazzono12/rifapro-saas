@@ -45,7 +45,7 @@ export class AsaasProvider {
 
   constructor(config: AsaasProviderConfig) {
     this.apiKey = config.apiKey;
-    this.userAgent = config.userAgent || "RifaPro SaaS";
+    this.userAgent = config.userAgent || "CIFHER Plataforma";
     this.timeoutMs = Math.max(1000, Number(config.timeoutMs || 15000));
     this.baseUrl = ASAAS_BASE_URLS[config.environment] || ASAAS_BASE_URLS.sandbox;
   }

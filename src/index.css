@@ -4294,3 +4294,113 @@ html[data-admin-theme="light"] .admin-shell {
     width: min(88vw, 304px) !important;
   }
 }
+
+/* Admin and superadmin final audit pass: compact, predictable controls and calmer mobile sidebar. */
+.admin-shell {
+  --admin-control-height: 42px;
+}
+
+.admin-shell .admin-card,
+.admin-shell .glass-card,
+.admin-shell .premium-card {
+  border-radius: 8px !important;
+}
+
+.admin-shell input,
+.admin-shell select,
+.admin-shell textarea,
+.admin-shell .admin-input {
+  min-height: var(--admin-control-height) !important;
+  max-width: 100%;
+  border-radius: 8px !important;
+  line-height: 1.35 !important;
+}
+
+.admin-shell textarea,
+.admin-shell textarea.admin-input {
+  min-height: 112px !important;
+}
+
+.admin-button,
+.admin-button-primary,
+.admin-button-secondary,
+.admin-shell .neon-button {
+  min-height: var(--admin-control-height) !important;
+  border-radius: 8px !important;
+  gap: .5rem;
+  line-height: 1.2 !important;
+}
+
+.admin-icon-button,
+.admin-sidebar-toggle {
+  border-radius: 8px !important;
+}
+
+.admin-shell .premium-admin-sidebar nav a {
+  min-height: 42px;
+  border-radius: 8px !important;
+}
+
+.admin-shell .premium-admin-sidebar[data-collapsed="true"] .sidebar-tooltip {
+  border-radius: 8px !important;
+  box-shadow: 0 16px 34px rgba(0,0,0,.26);
+}
+
+.admin-shell table {
+  table-layout: auto;
+}
+
+.admin-shell th,
+.admin-shell td {
+  max-width: 22rem;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+@media (max-width: 1023px) {
+  .admin-shell .premium-admin-sidebar,
+  .admin-shell .premium-admin-sidebar[data-collapsed="true"] {
+    width: min(92vw, 320px) !important;
+    max-width: calc(100vw - 1rem);
+    padding-inline: 1rem !important;
+  }
+
+  .admin-shell .premium-admin-sidebar nav {
+    padding-block: .75rem !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-shell {
+    --admin-control-height: 44px;
+  }
+
+  .admin-shell header > div {
+    min-height: 56px;
+  }
+
+  .admin-shell main > section {
+    padding: .75rem !important;
+  }
+
+  .admin-shell .admin-card,
+  .admin-shell .glass-card,
+  .admin-shell .premium-card {
+    padding: .875rem !important;
+  }
+
+  .admin-shell .admin-button,
+  .admin-shell .admin-button-primary,
+  .admin-shell .admin-button-secondary {
+    width: 100%;
+    justify-content: center;
+    white-space: normal;
+  }
+
+  .admin-shell input,
+  .admin-shell select,
+  .admin-shell textarea,
+  .admin-shell .admin-input {
+    font-size: 14px !important;
+  }
+}

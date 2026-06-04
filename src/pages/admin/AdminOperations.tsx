@@ -338,7 +338,7 @@ export function AdminOperations() {
               Secret de segurança
               <input
                 className="admin-input w-full"
-                placeholder="Opcional para X-RifaPro-Secret"
+                placeholder="Opcional para o segredo do webhook"
                 value={settings?.n8nIntegration?.secret || ""}
                 onChange={e => setSettings((current: any) => ({ ...current, n8nIntegration: { ...(current?.n8nIntegration || {}), secret: e.target.value } }))}
               />
