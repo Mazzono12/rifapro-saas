@@ -171,7 +171,7 @@ export function NumberModePage() {
     try {
       const status = await checkoutService.checkPixPaymentStatus(pendingPix.purchase.id);
       if (!status.paid) {
-        toast.info(status.message || "Aguardando pagamento", { description: "Assim que o webhook confirmar, seu bilhete sera liberado." });
+        toast.info(status.message || "Aguardando pagamento", { description: "Assim que o pagamento for confirmado, seu bilhete sera liberado." });
         return;
       }
       const paidPurchase = status.purchase || pendingPix.purchase;

@@ -113,7 +113,7 @@ function PublicHomeFallback({ mode, onRetry }: { mode: "error" | "empty"; onRetr
           ) : (
             <PremiumEmptyState
               title="Nenhuma campanha ativa no momento"
-              description="Este tenant ainda nao possui uma campanha ativa publicada. Assim que uma rifa for ativada, ela aparece aqui automaticamente."
+              description="Nenhuma campanha ativa foi publicada no momento. Assim que uma nova campanha estiver disponível, ela aparece aqui automaticamente."
               action={<PremiumButton onClick={onRetry || (() => window.location.reload())} className="mt-4 px-5">Tentar novamente</PremiumButton>}
             />
           )}
@@ -356,7 +356,7 @@ function HomeContent() {
         <FazendinhaSection />
       </HomeSectionBoundary>
 
-      <section aria-label="Beneficios da plataforma" className="home-benefit-chips grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
+      <section aria-label="Beneficios do ambiente" className="home-benefit-chips grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
         {[
           { title: "PIX automatico", icon: QrCode, tone: "border-cyan-300/25 bg-cyan-400/10 text-cyan-100 shadow-cyan-950/20" },
           { title: "WhatsApp", icon: MessageCircle, tone: "border-emerald-300/25 bg-emerald-400/10 text-emerald-100 shadow-emerald-950/20" },

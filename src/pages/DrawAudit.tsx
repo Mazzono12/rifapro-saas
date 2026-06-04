@@ -98,7 +98,7 @@ export function DrawAudit() {
               <div className="md:col-span-2 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
                 <p className="text-xs font-bold uppercase text-emerald-100">Como verificar</p>
                 <p className="mt-2 text-sm leading-6 text-slate-200">
-                  Antes do sorteio a plataforma publica apenas o hash da seed secreta e o hash das cotas elegiveis. Depois do sorteio a seed e revelada. O botao abaixo recalcula o hash da seed e o resultado deterministico usando seed publica, raffle_id, timestamp, nonce e a lista travada.
+                  Antes do sorteio o ambiente publica apenas a verificação protegida da seed secreta e das cotas elegiveis. Depois do sorteio a seed e revelada. O botao abaixo recalcula a conferência da seed e o resultado deterministico usando seed publica, raffle_id, timestamp, nonce e a lista travada.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <button onClick={verifyResult} disabled={verifying || !audit.server_seed_revealed} className="premium-button min-h-12 px-5 disabled:opacity-50">

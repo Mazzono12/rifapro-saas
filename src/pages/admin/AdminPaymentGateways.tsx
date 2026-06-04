@@ -388,9 +388,9 @@ export function AdminPaymentGateways() {
                     </label>
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <GatewayInput label="Chave PIX" type="password" value={gateways.pix?.apiKey || ""} onChange={value => updatePix("apiKey", value)} />
-                        <GatewayInput label="Chave secreta de webhook" type="password" value={gateways.pix?.webhookSecret || ""} onChange={value => updatePix("webhookSecret", value)} />
-                        <GatewayInput label="URL de webhook" value={gateways.pix?.webhookUrl || ""} onChange={value => updatePix("webhookUrl", value)} />
-                        <GatewayInput label="Eventos de webhook" value={gateways.pix?.webhookEvents || ""} onChange={value => updatePix("webhookEvents", value)} />
+                        <GatewayInput label="Chave do canal seguro" type="password" value={gateways.pix?.webhookSecret || ""} onChange={value => updatePix("webhookSecret", value)} />
+                        <GatewayInput label="URL do canal seguro" value={gateways.pix?.webhookUrl || ""} onChange={value => updatePix("webhookUrl", value)} />
+                        <GatewayInput label="Eventos do canal seguro" value={gateways.pix?.webhookEvents || ""} onChange={value => updatePix("webhookEvents", value)} />
                     </div>
                 </details>
             </div>
@@ -458,8 +458,8 @@ export function AdminPaymentGateways() {
                         </div>
                         <GatewayInput label="Access Token" type="password" value={gateways.mercadopago?.accessToken || ''} onChange={value => updateGateway('mercadopago', 'accessToken', value)} />
                         <GatewayInput label="Public Key" value={gateways.mercadopago?.publicKey || ''} onChange={value => updateGateway('mercadopago', 'publicKey', value)} />
-                        <GatewayInput label="Webhook token opcional" type="password" value={gateways.mercadopago?.webhookSecret || ''} onChange={value => updateGateway('mercadopago', 'webhookSecret', value)} />
-                        <GatewayInput label="Webhook URL" value={gateways.mercadopago?.webhookUrl || '/api/webhooks/mercadopago'} onChange={value => updateGateway('mercadopago', 'webhookUrl', value)} />
+                        <GatewayInput label="Token do canal seguro" type="password" value={gateways.mercadopago?.webhookSecret || ''} onChange={value => updateGateway('mercadopago', 'webhookSecret', value)} />
+                        <GatewayInput label="URL do canal seguro" value={gateways.mercadopago?.webhookUrl || '/api/webhooks/mercadopago'} onChange={value => updateGateway('mercadopago', 'webhookUrl', value)} />
                         <GatewayInput label="Expiração PIX (minutos)" value={gateways.mercadopago?.expirationMinutes || '15'} onChange={value => updateGateway('mercadopago', 'expirationMinutes', value)} />
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Liberar pedido quando</label>
@@ -505,8 +505,8 @@ export function AdminPaymentGateways() {
                           const normalized = normalizeGateways(gateways);
                           setGateways({ ...normalized, pagbank: { ...normalized.pagbank, token: value, apiKey: value } });
                         }} />
-                        <GatewayInput label="Webhook token opcional" type="password" value={gateways.pagbank?.webhookSecret || ''} onChange={value => updateGateway('pagbank', 'webhookSecret', value)} />
-                        <GatewayInput label="Webhook URL" value={gateways.pagbank?.webhookUrl || '/api/webhooks/pagbank'} onChange={value => updateGateway('pagbank', 'webhookUrl', value)} />
+                        <GatewayInput label="Token do canal seguro" type="password" value={gateways.pagbank?.webhookSecret || ''} onChange={value => updateGateway('pagbank', 'webhookSecret', value)} />
+                        <GatewayInput label="URL do canal seguro" value={gateways.pagbank?.webhookUrl || '/api/webhooks/pagbank'} onChange={value => updateGateway('pagbank', 'webhookUrl', value)} />
                         <GatewayInput label="Tempo de expiração padrão (minutos)" value={gateways.pagbank?.expirationMinutes || '15'} onChange={value => updateGateway('pagbank', 'expirationMinutes', value)} />
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Liberar pedido quando</label>
@@ -553,10 +553,10 @@ export function AdminPaymentGateways() {
                             <option value="production">Produção</option>
                           </select>
                         </div>
-                        <GatewayInput label="API Key Asaas" type="password" value={gateways.asaas?.apiKey || ''} onChange={value => updateGateway('asaas', 'apiKey', value)} />
+                        <GatewayInput label="Chave protegida Asaas" type="password" value={gateways.asaas?.apiKey || ''} onChange={value => updateGateway('asaas', 'apiKey', value)} />
                         <GatewayInput label="Nome da aplicação / User-Agent" value={gateways.asaas?.userAgent || ''} onChange={value => updateGateway('asaas', 'userAgent', value)} />
-                        <GatewayInput label="Webhook token secreto" type="password" value={gateways.asaas?.webhookSecret || ''} onChange={value => updateGateway('asaas', 'webhookSecret', value)} />
-                        <GatewayInput label="Webhook URL" value={gateways.asaas?.webhookUrl || '/api/webhooks/asaas'} onChange={value => updateGateway('asaas', 'webhookUrl', value)} />
+                        <GatewayInput label="Token do canal seguro" type="password" value={gateways.asaas?.webhookSecret || ''} onChange={value => updateGateway('asaas', 'webhookSecret', value)} />
+                        <GatewayInput label="URL do canal seguro" value={gateways.asaas?.webhookUrl || '/api/webhooks/asaas'} onChange={value => updateGateway('asaas', 'webhookUrl', value)} />
                         <GatewayInput label="Prazo de expiração do pedido (min)" value={gateways.asaas?.orderExpirationMinutes || '15'} onChange={value => updateGateway('asaas', 'orderExpirationMinutes', value)} />
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Liberar cotas em</label>
@@ -585,9 +585,9 @@ export function AdminPaymentGateways() {
                     </h3>
                     <div className="space-y-4">
                         <GatewayInput label="Token" type="password" value={gateways.infinitypay?.token || ''} onChange={value => updateGateway('infinitypay', 'token', value)} />
-                        <GatewayInput label="API Key" type="password" value={gateways.infinitypay?.apiKey || ''} onChange={value => updateGateway('infinitypay', 'apiKey', value)} />
-                        <GatewayInput label="Webhook URL" value={gateways.infinitypay?.webhookUrl || ''} onChange={value => updateGateway('infinitypay', 'webhookUrl', value)} />
-                        <GatewayInput label="Webhook Secret" type="password" value={gateways.infinitypay?.webhookSecret || ''} onChange={value => updateGateway('infinitypay', 'webhookSecret', value)} />
+                        <GatewayInput label="Chave protegida" type="password" value={gateways.infinitypay?.apiKey || ''} onChange={value => updateGateway('infinitypay', 'apiKey', value)} />
+                        <GatewayInput label="URL do canal seguro" value={gateways.infinitypay?.webhookUrl || ''} onChange={value => updateGateway('infinitypay', 'webhookUrl', value)} />
+                        <GatewayInput label="Chave do canal seguro" type="password" value={gateways.infinitypay?.webhookSecret || ''} onChange={value => updateGateway('infinitypay', 'webhookSecret', value)} />
                     </div>
                     <GatewayTest gateway="infinitypay" result={testResults.infinitypay} testing={testingGateway === "infinitypay"} onTest={testGateway} />
                 </div>
@@ -622,10 +622,10 @@ export function AdminPaymentGateways() {
                             <option value="production">Produção</option>
                           </select>
                         </div>
-                        <GatewayInput label="CLIENT_ID" value={gateways.pay2m?.clientId || ''} onChange={value => updateGateway('pay2m', 'clientId', value)} />
-                        <GatewayInput label="CLIENT_SECRET" type="password" value={gateways.pay2m?.clientSecret || ''} onChange={value => updateGateway('pay2m', 'clientSecret', value)} />
-                        <GatewayInput label="Webhook token opcional" type="password" value={gateways.pay2m?.webhookSecret || ''} onChange={value => updateGateway('pay2m', 'webhookSecret', value)} />
-                        <GatewayInput label="Webhook URL" value={gateways.pay2m?.webhookUrl || '/api/webhooks/pay2m'} onChange={value => updateGateway('pay2m', 'webhookUrl', value)} />
+                        <GatewayInput label="Identificador técnico" value={gateways.pay2m?.clientId || ''} onChange={value => updateGateway('pay2m', 'clientId', value)} />
+                        <GatewayInput label="Chave técnica protegida" type="password" value={gateways.pay2m?.clientSecret || ''} onChange={value => updateGateway('pay2m', 'clientSecret', value)} />
+                        <GatewayInput label="Token do canal seguro" type="password" value={gateways.pay2m?.webhookSecret || ''} onChange={value => updateGateway('pay2m', 'webhookSecret', value)} />
+                        <GatewayInput label="URL do canal seguro" value={gateways.pay2m?.webhookUrl || '/api/webhooks/pay2m'} onChange={value => updateGateway('pay2m', 'webhookUrl', value)} />
                         <GatewayInput label="Expiration time (segundos, max 3600)" value={gateways.pay2m?.expirationTime || '1800'} onChange={value => updateGateway('pay2m', 'expirationTime', value)} />
                         <GatewayInput label="Split link opcional" value={gateways.pay2m?.splitLink || ''} onChange={value => updateGateway('pay2m', 'splitLink', value)} />
                         <div>
@@ -672,14 +672,14 @@ export function AdminPaymentGateways() {
                             <option value="production">Produção</option>
                           </select>
                         </div>
-                        <GatewayInput label="client_id" value={gateways.primepag?.clientId || ''} onChange={value => updateGateway('primepag', 'clientId', value)} />
-                        <GatewayInput label="client_secret" type="password" value={gateways.primepag?.clientSecret || ''} onChange={value => updateGateway('primepag', 'clientSecret', value)} />
+                        <GatewayInput label="Identificador técnico" value={gateways.primepag?.clientId || ''} onChange={value => updateGateway('primepag', 'clientId', value)} />
+                        <GatewayInput label="Chave técnica protegida" type="password" value={gateways.primepag?.clientSecret || ''} onChange={value => updateGateway('primepag', 'clientSecret', value)} />
                         <GatewayInput label="Access token/API token" type="password" value={gateways.primepag?.accessToken || gateways.primepag?.apiKey || ''} onChange={value => {
                           const normalized = normalizeGateways(gateways);
                           setGateways({ ...normalized, primepag: { ...normalized.primepag, accessToken: value, apiKey: value } });
                         }} />
-                        <GatewayInput label="Webhook authorization token" type="password" value={gateways.primepag?.webhookSecret || ''} onChange={value => updateGateway('primepag', 'webhookSecret', value)} />
-                        <GatewayInput label="Webhook URL" value={gateways.primepag?.webhookUrl || '/api/webhooks/primepag'} onChange={value => updateGateway('primepag', 'webhookUrl', value)} />
+                        <GatewayInput label="Token de autorização do canal seguro" type="password" value={gateways.primepag?.webhookSecret || ''} onChange={value => updateGateway('primepag', 'webhookSecret', value)} />
+                        <GatewayInput label="URL do canal seguro" value={gateways.primepag?.webhookUrl || '/api/webhooks/primepag'} onChange={value => updateGateway('primepag', 'webhookUrl', value)} />
                         <GatewayInput label="expiration_time padrão (segundos)" value={gateways.primepag?.expirationTime || '1800'} onChange={value => updateGateway('primepag', 'expirationTime', value)} />
                     </div>
                     <GatewayTest gateway="primepag" result={testResults.primepag} testing={testingGateway === "primepag"} onTest={testGateway} />
@@ -718,12 +718,12 @@ export function AdminPaymentGateways() {
                             <option value="production">Produção</option>
                           </select>
                         </div>
-                        <GatewayInput label="client_id" value={gateways.cora?.clientId || ''} onChange={value => updateGateway('cora', 'clientId', value)} />
-                        <GatewayInput label="client_secret" type="password" value={gateways.cora?.clientSecret || ''} onChange={value => updateGateway('cora', 'clientSecret', value)} />
+                        <GatewayInput label="Identificador técnico" value={gateways.cora?.clientId || ''} onChange={value => updateGateway('cora', 'clientId', value)} />
+                        <GatewayInput label="Chave técnica protegida" type="password" value={gateways.cora?.clientSecret || ''} onChange={value => updateGateway('cora', 'clientSecret', value)} />
                         <GatewayInput label="Certificado PEM" type="password" value={gateways.cora?.certificate || ''} onChange={value => updateGateway('cora', 'certificate', value)} />
                         <GatewayInput label="Chave privada PEM" type="password" value={gateways.cora?.privateKey || ''} onChange={value => updateGateway('cora', 'privateKey', value)} />
-                        <GatewayInput label="Webhook token opcional" type="password" value={gateways.cora?.webhookSecret || ''} onChange={value => updateGateway('cora', 'webhookSecret', value)} />
-                        <GatewayInput label="Webhook URL" value={gateways.cora?.webhookUrl || '/api/webhooks/cora'} onChange={value => updateGateway('cora', 'webhookUrl', value)} />
+                        <GatewayInput label="Token do canal seguro" type="password" value={gateways.cora?.webhookSecret || ''} onChange={value => updateGateway('cora', 'webhookSecret', value)} />
+                        <GatewayInput label="URL do canal seguro" value={gateways.cora?.webhookUrl || '/api/webhooks/cora'} onChange={value => updateGateway('cora', 'webhookUrl', value)} />
                         <GatewayInput label="Tempo de expiração PIX (min)" value={gateways.cora?.expirationMinutes || '15'} onChange={value => updateGateway('cora', 'expirationMinutes', value)} />
                     </div>
                     <GatewayTest gateway="cora" result={testResults.cora} testing={testingGateway === "cora"} onTest={testGateway} />
@@ -746,7 +746,7 @@ export function AdminPaymentGateways() {
 function PaymentQueuesDashboard({ dashboard, processing, onRefresh, onProcess }: { dashboard: any; processing: boolean; onRefresh: () => void; onProcess: () => void }) {
   const counts = dashboard?.counts || {};
   const cards = [
-    ["Webhook", counts.webhook],
+    ["Canal seguro", counts.webhook],
     ["Baixa", counts.settlement],
     ["Liberação", counts.release],
     ["Conciliação", counts.reconciliation],
@@ -759,7 +759,7 @@ function PaymentQueuesDashboard({ dashboard, processing, onRefresh, onProcess }:
           <h2 className="flex items-center gap-2 text-xl font-display font-semibold text-white">
             <Activity className="h-5 w-5 text-cyan-300" /> Filas resilientes de pagamento
           </h2>
-          <p className="mt-1 text-xs font-mono uppercase tracking-widest text-slate-400">Webhooks respondem rápido; baixa, conciliação e liberação rodam em workers separados.</p>
+          <p className="mt-1 text-xs font-mono uppercase tracking-widest text-slate-400">Canais seguros respondem rápido; baixa, conciliação e liberação rodam em workers separados.</p>
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={onRefresh} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-mono uppercase text-slate-200 hover:border-cyan-300/40">
@@ -843,14 +843,14 @@ function GenericGatewayCard({
         {credentialFields.map(field => (
           <GatewayInput
             key={field}
-            label={field === "apiKey" ? "API Key" : field === "clientId" ? "Client ID" : "Client Secret"}
+            label={field === "apiKey" ? "Chave protegida" : field === "clientId" ? "Identificador técnico" : "Chave técnica protegida"}
             type={field.toLowerCase().includes("secret") || field.toLowerCase().includes("key") ? "password" : "text"}
             value={config[field] || ""}
             onChange={value => onUpdate(gateway, field, value)}
           />
         ))}
-        <GatewayInput label="Webhook URL" value={config.webhookUrl || ""} onChange={value => onUpdate(gateway, "webhookUrl", value)} />
-        <GatewayInput label="Webhook Secret" type="password" value={config.webhookSecret || ""} onChange={value => onUpdate(gateway, "webhookSecret", value)} />
+        <GatewayInput label="URL do canal seguro" value={config.webhookUrl || ""} onChange={value => onUpdate(gateway, "webhookUrl", value)} />
+        <GatewayInput label="Chave do canal seguro" type="password" value={config.webhookSecret || ""} onChange={value => onUpdate(gateway, "webhookSecret", value)} />
       </div>
       <GatewayTest gateway={gateway} result={result} testing={testing} onTest={onTest} />
     </div>
@@ -869,7 +869,7 @@ function GatewayTest({ gateway, result, testing, onTest }: { gateway: string; re
       {result && (
         <div className="mt-3 space-y-2 text-xs">
           <p className={result.ok ? "text-emerald-300" : "text-amber-300"}>{result.ok ? "Configuração coerente" : "Ajustes necessários"}</p>
-          <p className="break-all font-mono text-slate-500">Webhook: {result.webhookUrl}</p>
+          <p className="break-all font-mono text-slate-500">Canal seguro: {result.webhookUrl}</p>
           {!!result.issues?.length && <p className="text-amber-200">{result.issues.join(" • ")}</p>}
         </div>
       )}

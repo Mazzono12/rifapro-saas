@@ -5,7 +5,7 @@ export function useTenant() {
   return {
     tenant_id,
     tenantId: tenant_id,
-    tenantName: profile?.tenantId ? `Tenant ${profile.tenantId}` : "Plataforma",
+    tenantName: profile?.tenantId ? `Cliente ${profile.tenantId}` : "Ambiente Premium",
     futureTenantSwitchEnabled: false
   };
 }

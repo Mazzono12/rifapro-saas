@@ -214,9 +214,9 @@ export function AdminRaffles() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <MiniStat label="Status PIX" value={raffleAdmin.pix.enabled ? "Habilitado" : "Desabilitado"} />
-                    <MiniStat label="Gateway" value={raffleAdmin.pix.gateway} />
-                    <MiniStat label="Ambiente" value={raffleAdmin.pix.sandbox ? "Validação" : "Produção"} />
-                    <MiniStat label="Webhook" value={raffleAdmin.pix.webhookUrl || "Não configurado"} />
+                    <MiniStat label="Conexão" value={raffleAdmin.pix.gateway ? "Protegida" : "Pendente"} />
+                    <MiniStat label="Status da conexão" value={raffleAdmin.pix.sandbox ? "Validação interna" : "Produção"} />
+                    <MiniStat label="Canal seguro" value={raffleAdmin.pix.webhookUrl ? "Configurado" : "Não configurado"} />
                   </div>
                 </div>
 
@@ -510,7 +510,7 @@ export function AdminRaffles() {
                     <span>
                       <span className="block text-sm font-bold text-white">Ligar integração n8n neste sorteio</span>
                       <span className="mt-1 block text-xs text-slate-400">
-                        Quando ligado, compras confirmadas deste sorteio podem enviar cotas ao WhatsApp/e-mail pelo webhook global configurado em Operações.
+                        Quando ligado, compras confirmadas deste sorteio podem enviar cotas ao WhatsApp/e-mail pelo canal seguro configurado em Operações.
                       </span>
                     </span>
                   </label>
@@ -534,7 +534,7 @@ export function AdminRaffles() {
                     <CreditCard className="w-5 h-5 text-cyan-300" />
                     <div>
                       <h3 className="font-display text-lg font-bold text-white">PIX individual do sorteio</h3>
-                      <p className="text-xs text-slate-400">Configure gateway, API e webhooks específicos para esta rifa.</p>
+                      <p className="text-xs text-slate-400">Configure a conexão de pagamento e os canais seguros específicos para esta rifa.</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -557,18 +557,23 @@ export function AdminRaffles() {
                         <option value="cora">Cora</option>
                       </select>
                     </label>
-                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                      <input type="checkbox" checked={(currentRaffle.pixConfig || defaultPixConfig).sandbox} onChange={e => updatePixConfig({ sandbox: e.target.checked })} />
-                      <span className="text-sm text-white">Modo de validação</span>
-                    </label>
-                    <PixField label="Chave PIX" value={(currentRaffle.pixConfig || defaultPixConfig).pixKey || (currentRaffle.pixConfig || defaultPixConfig).apiKey || ""} onChange={value => updatePixConfig({ pixKey: value, apiKey: value })} />
-                    <PixField label="Access token" value={(currentRaffle.pixConfig || defaultPixConfig).accessToken || ""} onChange={value => updatePixConfig({ accessToken: value })} />
-                    <PixField label="Public key" value={(currentRaffle.pixConfig || defaultPixConfig).publicKey || ""} onChange={value => updatePixConfig({ publicKey: value })} />
-                    <PixField label="Client ID" value={(currentRaffle.pixConfig || defaultPixConfig).clientId || ""} onChange={value => updatePixConfig({ clientId: value })} />
-                    <PixField label="Client secret" value={(currentRaffle.pixConfig || defaultPixConfig).clientSecret || ""} onChange={value => updatePixConfig({ clientSecret: value })} />
-                    <PixField label="Webhook URL" value={(currentRaffle.pixConfig || defaultPixConfig).webhookUrl || ""} onChange={value => updatePixConfig({ webhookUrl: value })} />
-                    <PixField label="Webhook secret" value={(currentRaffle.pixConfig || defaultPixConfig).webhookSecret || ""} onChange={value => updatePixConfig({ webhookSecret: value })} />
-                    <PixField label="Eventos do webhook" value={(currentRaffle.pixConfig || defaultPixConfig).webhookEvents || ""} onChange={value => updatePixConfig({ webhookEvents: value })} />
+                    <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:col-span-2">
+                      <summary className="cursor-pointer text-sm font-semibold text-slate-200">Configurações Avançadas</summary>
+                      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                          <input type="checkbox" checked={(currentRaffle.pixConfig || defaultPixConfig).sandbox} onChange={e => updatePixConfig({ sandbox: e.target.checked })} />
+                          <span className="text-sm text-white">Validação interna</span>
+                        </label>
+                        <PixField label="Chave PIX" value={(currentRaffle.pixConfig || defaultPixConfig).pixKey || (currentRaffle.pixConfig || defaultPixConfig).apiKey || ""} onChange={value => updatePixConfig({ pixKey: value, apiKey: value })} />
+                        <PixField label="Token de acesso" value={(currentRaffle.pixConfig || defaultPixConfig).accessToken || ""} onChange={value => updatePixConfig({ accessToken: value })} />
+                        <PixField label="Chave pública" value={(currentRaffle.pixConfig || defaultPixConfig).publicKey || ""} onChange={value => updatePixConfig({ publicKey: value })} />
+                        <PixField label="Identificador técnico" value={(currentRaffle.pixConfig || defaultPixConfig).clientId || ""} onChange={value => updatePixConfig({ clientId: value })} />
+                        <PixField label="Chave técnica protegida" value={(currentRaffle.pixConfig || defaultPixConfig).clientSecret || ""} onChange={value => updatePixConfig({ clientSecret: value })} />
+                        <PixField label="URL do canal seguro" value={(currentRaffle.pixConfig || defaultPixConfig).webhookUrl || ""} onChange={value => updatePixConfig({ webhookUrl: value })} />
+                        <PixField label="Chave do canal seguro" value={(currentRaffle.pixConfig || defaultPixConfig).webhookSecret || ""} onChange={value => updatePixConfig({ webhookSecret: value })} />
+                        <PixField label="Eventos do canal seguro" value={(currentRaffle.pixConfig || defaultPixConfig).webhookEvents || ""} onChange={value => updatePixConfig({ webhookEvents: value })} />
+                      </div>
+                    </details>
                   </div>
                 </div>
                

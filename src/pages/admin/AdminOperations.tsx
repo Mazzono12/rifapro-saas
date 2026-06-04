@@ -147,7 +147,7 @@ export function AdminOperations() {
     if (!res.ok) {
       toast.error(data.error || data.log?.error || "Falha no teste n8n");
     } else {
-      toast.success("Webhook n8n respondeu com sucesso");
+      toast.success("Canal seguro respondeu com sucesso");
     }
     load().catch(() => null);
   };
@@ -307,10 +307,10 @@ export function AdminOperations() {
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-xl font-black text-[var(--admin-text)]">Integração n8n</h2>
-            <p className="text-sm text-[var(--admin-muted)]">Conecte webhooks para WhatsApp, e-mail, automações e campanhas externas.</p>
+            <p className="text-sm text-[var(--admin-muted)]">Gerencie o canal seguro para WhatsApp, e-mail, automações e campanhas externas.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={testN8nIntegration} className="admin-button-secondary">Testar webhook</button>
+            <button onClick={testN8nIntegration} className="admin-button-secondary">Validar conexão</button>
             <button onClick={saveN8nIntegration} className="admin-button">Salvar n8n</button>
           </div>
         </div>
@@ -325,24 +325,29 @@ export function AdminOperations() {
                 onChange={e => setSettings((current: any) => ({ ...current, n8nIntegration: { ...(current?.n8nIntegration || {}), enabled: e.target.checked } }))}
               />
             </label>
-            <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
-              Webhook URL
-              <input
-                className="admin-input w-full"
-                placeholder="https://seu-n8n/webhook/..."
-                value={settings?.n8nIntegration?.webhookUrl || ""}
-                onChange={e => setSettings((current: any) => ({ ...current, n8nIntegration: { ...(current?.n8nIntegration || {}), webhookUrl: e.target.value } }))}
-              />
-            </label>
-            <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
-              Secret de segurança
-              <input
-                className="admin-input w-full"
-                placeholder="Opcional para o segredo do webhook"
-                value={settings?.n8nIntegration?.secret || ""}
-                onChange={e => setSettings((current: any) => ({ ...current, n8nIntegration: { ...(current?.n8nIntegration || {}), secret: e.target.value } }))}
-              />
-            </label>
+            <details className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-4">
+              <summary className="cursor-pointer text-sm font-semibold text-[var(--admin-text)]">Configurações Avançadas</summary>
+              <div className="mt-4 grid gap-3">
+                <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
+                  URL do canal seguro
+                  <input
+                    className="admin-input w-full"
+                    placeholder="Endpoint técnico da automação"
+                    value={settings?.n8nIntegration?.webhookUrl || ""}
+                    onChange={e => setSettings((current: any) => ({ ...current, n8nIntegration: { ...(current?.n8nIntegration || {}), webhookUrl: e.target.value } }))}
+                  />
+                </label>
+                <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
+                  Chave de segurança
+                  <input
+                    className="admin-input w-full"
+                    placeholder="Opcional para validação protegida"
+                    value={settings?.n8nIntegration?.secret || ""}
+                    onChange={e => setSettings((current: any) => ({ ...current, n8nIntegration: { ...(current?.n8nIntegration || {}), secret: e.target.value } }))}
+                  />
+                </label>
+              </div>
+            </details>
             <div className="grid gap-2 sm:grid-cols-2">
               {[
                 ["sendPurchaseTickets", "Enviar cotas confirmadas"],

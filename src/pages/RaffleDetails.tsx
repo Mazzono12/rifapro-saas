@@ -368,7 +368,7 @@ export function RaffleDetails() {
         toast.success("Pagamento confirmado", { description: "Bilhete liberado pelo status seguro do pedido." });
         return;
       }
-      toast.info(status.message || "Pagamento ainda pendente", { description: "O sistema vai atualizar quando o webhook confirmar." });
+      toast.info(status.message || "Pagamento ainda pendente", { description: "O sistema vai atualizar quando o pagamento for confirmado." });
     } catch (err: any) {
       toast.error("Nao foi possivel consultar o PIX", { description: err.message || "Tente novamente em instantes." });
     } finally {
@@ -920,12 +920,12 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
           <QRCodeSVG value={props.purchase.pixPayload} className="h-auto w-full sm:h-[250px] sm:w-[250px]" bgColor="#ffffff" fgColor="#0f172a" level="M" />
         </div>
       ) : (
-        <div className="rounded-2xl border border-red-300/20 bg-red-500/10 p-4 text-sm text-red-100">PIX indisponivel. Revise o gateway do tenant.</div>
+        <div className="rounded-2xl border border-red-300/20 bg-red-500/10 p-4 text-sm text-red-100">Pagamento indisponível no momento. Tente novamente em instantes.</div>
       )}
       <div className="rounded-3xl border border-white/10 bg-white/[0.045] p-4">
         <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Tempo para pagar</p>
         <p className="mt-1 text-2xl font-black text-[var(--theme-primary)]">{String(expiresIn.minutes).padStart(2, "0")}:{String(expiresIn.seconds).padStart(2, "0")}</p>
-        <p className="mt-2 text-xs text-slate-400">A tela atualiza sozinha quando o webhook confirmar o pagamento.</p>
+        <p className="mt-2 text-xs text-slate-400">A tela atualiza sozinha quando o pagamento for confirmado.</p>
       </div>
       <button type="button" onClick={props.onCopyPix} className={cn("checkout-primary-button flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-black transition", props.copied ? "premium-button" : "border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]")}>
         <Copy className="h-5 w-5" /> {props.copied ? "PIX copiado" : "Copiar PIX copia e cola"}

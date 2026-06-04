@@ -226,7 +226,7 @@ export function WalletBalanceCard({ balance, label = "Saldo disponivel" }: { bal
 }
 
 export function PremiumHeader({
-  title = "CIFHER Plataforma",
+  title = "CIFHER Ambiente Premium",
   subtitle = "Premiacoes",
   right,
 }: {

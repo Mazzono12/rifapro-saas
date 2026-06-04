@@ -317,16 +317,16 @@ export function AdminReports() {
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-[var(--admin-text)]">Exportações oficiais</h2>
-            <p className="text-sm text-[var(--admin-muted)]">PDF/CSV com código de verificação e validação pública por QR Code.</p>
+            <p className="text-sm text-[var(--admin-muted)]">PDF/CSV com verificação protegida e validação pública por QR Code.</p>
           </div>
           <Download className="h-5 w-5 text-[var(--admin-primary)]" />
         </div>
         <AdminDataTable
-          columns={["Tipo", "Formato", "Verificação", "Gerado em", "Download"]}
+          columns={["Tipo", "Formato", "Validação", "Gerado em", "Download"]}
           rows={officialExports.slice(0, 8).map(item => [
             item.report_type,
             String(item.format).toUpperCase(),
-            <span className="font-mono text-xs">{String(item.file_hash || item.request_id || item.id).slice(0, 12)}...</span>,
+            <span className="text-xs font-semibold text-[var(--admin-success)]">Registro validado</span>,
             item.created_at ? new Date(item.created_at).toLocaleString("pt-BR") : "-",
             <button onClick={() => void downloadOfficial(item.id)} className="admin-button-secondary py-2 text-xs"><Download className="h-4 w-4" /> Baixar</button>
           ])}

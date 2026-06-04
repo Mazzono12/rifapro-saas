@@ -19,7 +19,7 @@ export function Transparency() {
         </div>
         <h1 className="text-3xl font-black text-[var(--theme-text)] sm:text-5xl">Sorteios, ganhadores e cotas premiadas</h1>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--theme-muted)] sm:text-base">
-          Acompanhe os principais indicadores públicos da plataforma: campanhas ativas, participação confirmada, ganhadores e prêmios instantâneos.
+          Acompanhe os principais indicadores públicos do ambiente: campanhas ativas, participação confirmada, ganhadores e prêmios instantâneos.
         </p>
       </section>
 

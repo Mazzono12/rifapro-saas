@@ -3,7 +3,7 @@ import { Download, FileText, ShieldCheck } from "lucide-react";
 import { AdminDataTable, MetricCard } from "../../components/admin/AdminPremium";
 
 const reportTypes = [
-  ["financial_global", "Financeiro global"],
+  ["financial_global", "Financeiro executivo"],
   ["financial_tenant", "Financeiro por cliente"],
   ["draw_report", "Relatório de sorteio"],
   ["draw_certificate", "Certificado do sorteio"],
@@ -62,7 +62,7 @@ export function SuperAdminReports() {
           <div>
             <p className="text-sm font-bold uppercase tracking-widest text-[var(--admin-primary)]">Exportações oficiais</p>
             <h2 className="mt-1 text-2xl font-black text-[var(--admin-text)]">Relatórios verificados do ambiente premium</h2>
-            <p className="mt-2 text-sm text-[var(--admin-muted)]">PDF/CSV com código de verificação, assinatura digital e validação pública por QR Code.</p>
+            <p className="mt-2 text-sm text-[var(--admin-muted)]">PDF/CSV com verificação protegida, assinatura digital e validação pública por QR Code.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <select value={reportType} onChange={event => setReportType(event.target.value)} className="admin-input h-11 min-w-56 rounded-2xl px-4">
@@ -90,12 +90,12 @@ export function SuperAdminReports() {
       </div>
 
       <AdminDataTable
-        columns={["Tipo", "Cliente", "Formato", "Verificação", "Gerado por", "Download"]}
+        columns={["Tipo", "Cliente", "Formato", "Validação", "Gerado por", "Download"]}
         rows={exportsList.map(item => [
           item.report_type,
           item.tenant || item.client || "Global",
           String(item.format).toUpperCase(),
-          <span className="font-mono text-xs">{String(item.file_hash || item.request_id || item.id).slice(0, 12)}...</span>,
+          <span className="text-xs font-semibold text-[var(--admin-success)]">Auditoria disponível</span>,
           item.generated_by || "-",
           <button onClick={() => void downloadOfficial(item.id)} className="admin-button-secondary py-2 text-xs"><Download className="h-4 w-4" /> Baixar</button>
         ])}

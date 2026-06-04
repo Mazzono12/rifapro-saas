@@ -157,7 +157,7 @@ export function AdminIntegrations() {
         <form onSubmit={save} className="admin-card space-y-4">
           <h2 className="text-lg font-semibold text-[var(--admin-text)]">Configurar</h2>
           <label className="block text-sm font-medium text-[var(--admin-muted)]">
-            Provedor
+            Canal de envio
             <select value={selected} onChange={event => {
               const provider = providers.find(item => item.provider === event.target.value);
               setSelected(event.target.value);
@@ -225,9 +225,9 @@ export function AdminIntegrations() {
             </select>
           </label>
           <label className="block text-sm font-medium text-[var(--admin-muted)]">
-            Ambiente
+            Status do ambiente
             <select value={whatsappConfig.environment || "sandbox"} onChange={event => setWhatsappConfig((current: any) => ({ ...current, environment: event.target.value }))} className="admin-input mt-1 w-full">
-              <option value="sandbox">Validação</option>
+              <option value="sandbox">Validação interna</option>
               <option value="production">Produção</option>
             </select>
           </label>
@@ -236,8 +236,8 @@ export function AdminIntegrations() {
             <div className="mt-4 grid gap-4 lg:grid-cols-3">
               <GatewayField label="Phone number ID" value={whatsappConfig.phone_number_id || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, phone_number_id: value }))} />
               <GatewayField label="Business account ID" value={whatsappConfig.business_account_id || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, business_account_id: value }))} />
-              <GatewayField label="Access token" type="password" value={whatsappConfig.access_token || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, access_token: value }))} />
-              <GatewayField label="Verify token" type="password" value={whatsappConfig.webhook_verify_token || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, webhook_verify_token: value }))} />
+              <GatewayField label="Token de acesso" type="password" value={whatsappConfig.access_token || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, access_token: value }))} />
+              <GatewayField label="Token de verificação" type="password" value={whatsappConfig.webhook_verify_token || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, webhook_verify_token: value }))} />
               <GatewayField label="Template padrão" value={whatsappConfig.template_namespace || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, template_namespace: value }))} />
             </div>
           </details>
@@ -250,7 +250,7 @@ export function AdminIntegrations() {
         </form>
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="text-xs uppercase text-[var(--admin-muted)]"><tr><th className="py-2">Pedido</th><th>Telefone</th><th>Tipo</th><th>Provider</th><th>Status</th><th>Erro</th></tr></thead>
+            <thead className="text-xs uppercase text-[var(--admin-muted)]"><tr><th className="py-2">Pedido</th><th>Telefone</th><th>Tipo</th><th>Canal</th><th>Status</th><th>Erro</th></tr></thead>
             <tbody>
               {whatsappMessages.slice(0, 10).map(message => (
                 <tr key={message.id} className="border-t border-[var(--admin-border)]">

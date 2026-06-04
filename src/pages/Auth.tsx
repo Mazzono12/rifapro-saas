@@ -53,7 +53,7 @@ export function Auth() {
               {isLogin ? 'Bem-vindo de volta' : 'Criar nova conta'}
             </h1>
             <p className="text-slate-400 text-sm">
-              {isLogin ? 'Acesse suas rifas e prêmios.' : 'Junte-se à plataforma mais avançada.'}
+              {isLogin ? 'Acesse suas rifas e prêmios.' : 'Entre no ambiente mais avançado.'}
             </p>
           </div>
 

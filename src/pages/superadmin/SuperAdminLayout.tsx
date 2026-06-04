@@ -59,10 +59,10 @@ function SuperAdminLayoutContent() {
   const navItems = useMemo<SidebarNavItem[]>(() => [
     { name: "Gestão Global", path: "/superadmin", icon: Crown, group: "Global" },
     { name: "Aparência global", path: "/superadmin/aparencia", icon: Palette, group: "Global" },
-    { name: "Financeiro global", path: "/superadmin/relatorios", icon: FileText, group: "Financeiro" },
-    { name: "Integrações globais", path: "/superadmin/integracoes", icon: Plug, group: "Operação" },
+    { name: "Financeiro executivo", path: "/superadmin/relatorios", icon: FileText, group: "Financeiro" },
+    { name: "Integrações", path: "/superadmin/integracoes", icon: Plug, group: "Operação" },
     { name: "Domínios", path: "/superadmin/dominios", icon: Globe2, group: "Ambiente" },
-    { name: "Auditoria global", path: "/superadmin/auditoria", icon: FileSearch, group: "Compliance" },
+    { name: "Auditoria", path: "/superadmin/auditoria", icon: FileSearch, group: "Compliance" },
     { name: "Antifraude", path: "/superadmin/antifraude", icon: ShieldAlert, group: "Compliance" }
   ], []);
 

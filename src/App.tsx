@@ -183,10 +183,10 @@ function TenantOperationalGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (governance?.maintenance || governance?.blocked) {
-    const title = governance.maintenance ? "Plataforma em manutenção" : "Plataforma temporariamente indisponível";
+    const title = governance.maintenance ? "Ambiente Premium em manutenção" : "Ambiente Premium temporariamente indisponível";
     const message = governance.maintenance
       ? "Estamos realizando ajustes operacionais. Tente novamente em instantes."
-      : "Este tenant está com checkout e acesso público bloqueados pelo status operacional.";
+      : "Este ambiente está com checkout e acesso público temporariamente indisponíveis pelo status operacional.";
     return (
       <div className="grid min-h-[70vh] place-items-center px-4">
         <div className="glass-card max-w-xl rounded-3xl p-8 text-center">

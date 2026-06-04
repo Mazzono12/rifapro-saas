@@ -61,7 +61,7 @@ export function CinematicHero() {
           transition={{ duration: 1, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-12 font-sans tracking-wide leading-relaxed font-light"
         >
-          A plataforma definitiva para participar de campanhas exclusivas. <br className="hidden md:block" />
+          O ambiente definitivo para participar de campanhas exclusivas. <br className="hidden md:block" />
           Auditoria completa e sorteios gerados com precisão impecável.
         </motion.p>
         
