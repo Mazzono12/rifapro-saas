@@ -56,7 +56,7 @@ export function CollapsibleSidebar({
         className={cn(
           "premium-admin-sidebar admin-collapsible-sidebar flex h-dvh flex-col border-r border-[var(--admin-border)] bg-[var(--admin-sidebar)] text-[var(--admin-text)] shadow-[12px_0_36px_rgba(0,0,0,0.18)] transition-[width,transform] duration-300",
           mobile ? "w-[min(86vw,288px)] px-3" : "fixed left-0 top-0 z-50 hidden px-2 lg:flex",
-          !mobile && (minimized ? "w-[72px]" : "w-[184px]")
+          !mobile && (minimized ? "w-[80px]" : "w-[224px]")
         )}
         data-collapsed={minimized ? "true" : "false"}
       >
