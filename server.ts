@@ -134,8 +134,6 @@ async function startServer() {
     "STORAGE_DRIVER",
     "SUPABASE_URL",
     "SUPABASE_SERVICE_ROLE_KEY",
-    "ASAAS_API_KEY",
-    "ASAAS_WEBHOOK_TOKEN",
     "PUBLIC_BASE_URL",
     "ADMIN_BASE_URL",
     "JWT_SECRET",
@@ -15041,11 +15039,12 @@ async function startServer() {
     };
     const fields = credentialFields[gateway] || [];
     const presentCredentials = fields.filter(field => Boolean(gatewayConfig[field]));
+    const hasGatewayCredentials = presentCredentials.length > 0 || (gateway !== "asaas" && Boolean(pixConfig.apiKey));
     const webhookUrl = gatewayConfig.webhookUrl || String(pixConfig.webhookUrl || "") || `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`;
     const recommendedWebhookPath = gateway === "primepag" ? "/api/webhooks/primepag" : gateway === "cora" ? "/api/webhooks/cora" : gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `/api/webhooks/payment/${gateway}`;
     const issues = [
       ...(!pixConfig.enabled ? ["PIX global está desabilitado"] : []),
-      ...(presentCredentials.length === 0 && !pixConfig.apiKey ? ["Nenhuma credencial/API key configurada para este gateway"] : []),
+      ...(!hasGatewayCredentials ? ["Nenhuma credencial/API key configurada para este gateway"] : []),
       ...(!webhookUrl.includes(recommendedWebhookPath) ? [`Webhook recomendado deve apontar para ${recommendedWebhookPath}`] : []),
     ];
     if (gateway === "asaas" && issues.length === 0) {
@@ -15099,6 +15098,7 @@ async function startServer() {
     res.json({
       gateway,
       ok: issues.length === 0,
+      status: !hasGatewayCredentials ? "not_configured" : issues.length === 0 ? "configured" : "needs_attention",
       mode: pixConfig.sandbox ? "sandbox" : "production",
       webhookUrl,
       credentials: presentCredentials,

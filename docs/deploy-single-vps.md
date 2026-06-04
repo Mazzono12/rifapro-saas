@@ -54,13 +54,18 @@ Obrigatorio em producao:
 - `STORAGE_DRIVER=postgres` ou `STORAGE_DRIVER=persistent`
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `ASAAS_API_KEY`
-- `ASAAS_WEBHOOK_TOKEN`
 - `PUBLIC_BASE_URL`
 - `ADMIN_BASE_URL`
 - `JWT_SECRET` forte
 - `SESSION_SECRET` forte
 - `ENABLE_PUBLIC_DEBUG=false`
+
+Opcionais no boot:
+
+- `ASAAS_API_KEY`
+- `ASAAS_WEBHOOK_TOKEN`
+
+Sem Asaas configurado, o sistema inicia normalmente e o gateway aparece como nao configurado. Somente operacoes Asaas ficam bloqueadas ate o Admin salvar as credenciais do gateway.
 
 ## 6. Build
 
@@ -149,7 +154,7 @@ No painel Asaas, configure a URL:
 https://rifas.seudominio.com.br/api/webhooks/asaas
 ```
 
-Use o mesmo token configurado em:
+Use o mesmo token configurado no Admin do gateway Asaas ou, se estiver usando configuracao por ambiente, em:
 
 ```text
 ASAAS_WEBHOOK_TOKEN

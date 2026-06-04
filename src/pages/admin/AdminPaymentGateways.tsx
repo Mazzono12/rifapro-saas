@@ -339,6 +339,8 @@ export function AdminPaymentGateways() {
     }
   };
 
+  const asaasConfigured = Boolean(String(gateways.asaas?.apiKey || "").trim());
+
   if (loading) return null;
 
   return (
@@ -518,9 +520,14 @@ export function AdminPaymentGateways() {
                             {gateways.active === 'asaas' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
                             Asaas Pix plug and play
                         </h3>
-                        <button type="button" onClick={() => setActiveGateway("asaas")} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-mono uppercase text-slate-300 hover:border-emerald-400/40 hover:text-emerald-200">
-                          Usar
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <span className={`rounded-lg border px-2 py-1 text-[10px] font-mono uppercase ${asaasConfigured ? "border-emerald-400/30 text-emerald-200" : "border-amber-400/30 text-amber-200"}`}>
+                            {asaasConfigured ? "Configurado" : "Não configurado"}
+                          </span>
+                          <button type="button" onClick={() => setActiveGateway("asaas")} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-mono uppercase text-slate-300 hover:border-emerald-400/40 hover:text-emerald-200">
+                            Usar
+                          </button>
+                        </div>
                     </div>
                     <div className="space-y-4">
                         <label className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-slate-200">

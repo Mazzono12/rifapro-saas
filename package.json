@@ -148,6 +148,7 @@
     ,"test:asaas-pix-hard": "node scripts/test-asaas-pix-hard.mjs"
     ,"test:asaas-multitenant-isolation-hard": "node scripts/test-asaas-multitenant-isolation-hard.mjs"
     ,"test:asaas-production-readiness-hard": "node scripts/test-asaas-production-readiness-hard.mjs"
+    ,"test:asaas-optional-production-env": "node scripts/test-asaas-optional-production-env.mjs"
     ,"test:asaas-webhook-tenant-resolution": "node scripts/test-asaas-webhook-tenant-resolution.mjs"
     ,"test:tenant-branding": "node scripts/test-tenant-branding.mjs"
     ,"test:branding-assets": "node scripts/test-branding-assets.mjs"
