@@ -114,18 +114,18 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(branding)
     });
-    if (!res.ok) throw new Error("Nao foi possivel salvar aparencia");
+    if (!res.ok) throw new Error("Não foi possível salvar aparência");
     setBranding(await res.json());
     await refreshTenantBranding();
-    toast.success("Aparencia salva");
+    toast.success("Aparência salva");
   };
 
   const resetBranding = async () => {
     const res = await fetch("/api/admin/branding/reset", { method: "POST" });
-    if (!res.ok) throw new Error("Nao foi possivel resetar aparencia");
+    if (!res.ok) throw new Error("Não foi possível resetar aparência");
     setBranding(await res.json());
     await refreshTenantBranding();
-    toast.success("Aparencia resetada");
+    toast.success("Aparência resetada");
   };
 
   const saveThemeBuilder = async () => {
@@ -323,7 +323,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
       <div className="space-y-6 fade-in">
         <div>
           <h1 className="text-3xl font-display font-medium text-white flex items-center gap-3">
-            <Settings className="w-8 h-8 text-emerald-300" /> Configuracoes de Aparencia
+            <Settings className="w-8 h-8 text-emerald-300" /> Configurações de Aparência
           </h1>
           <p className="mt-2 text-sm text-slate-400">Nome, logo, GIF animado, favicon, cores, frase institucional, WhatsApp e rodape da empresa.</p>
         </div>
@@ -360,7 +360,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
        <div className="flex justify-between items-center">
          <div>
             <h1 className="text-3xl font-display font-medium text-white flex items-center gap-3">
-               <Settings className="w-8 h-8 text-slate-400" /> Configurações Globais
+               <Settings className="w-8 h-8 text-slate-400" /> Configurações do Ambiente
             </h1>
          </div>
        </div>
@@ -603,9 +603,9 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                    ["companyName", "Nome da empresa"],
                    ["cnpj", "CNPJ"],
                    ["email", "E-mail"],
-                   ["ownerName", "Dona do sistema"],
-                   ["ownerContact", "Contato da dona do sistema"],
-                   ["ownerSocial", "Rede social da dona do sistema"],
+                   ["ownerName", "Marca responsável"],
+                   ["ownerContact", "Contato institucional"],
+                   ["ownerSocial", "Rede social institucional"],
                  ].map(([field, label]) => (
                    <label key={field} className="space-y-2">
                      <span className="block text-xs font-mono text-slate-400 uppercase tracking-widest">{label}</span>
@@ -614,7 +614,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                  ))}
                </div>
                <MediaPicker
-                 label="Logo da dona do sistema"
+                 label="Logo institucional"
                  value={settings.footer?.ownerLogoUrl || ""}
                  mediaType="image"
                   onChange={mediaUrl => setSettings({...settings, footer: {...settings.footer, ownerLogoUrl: mediaUrl}})}
@@ -639,7 +639,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
             <div className="glass-card p-6 border border-white/5 rounded-3xl space-y-6">
                <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
                   <Package className="w-5 h-5 text-amber-400" />
-                  <h2 className="text-xl font-display font-medium text-white">Economia Caixinha Oculta</h2>
+                  <h2 className="text-xl font-display font-medium text-white">Regras de Experiência Premiada</h2>
                </div>
                
                <div>

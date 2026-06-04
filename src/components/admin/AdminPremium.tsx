@@ -182,7 +182,7 @@ export function AdminDataTable({ columns, rows, empty = "Nenhum registro encontr
           </thead>
           <tbody className="divide-y divide-[var(--admin-border)]">
             {rows.length === 0 ? (
-              <tr><td className="px-4 py-8 text-center text-[var(--admin-muted)]" colSpan={columns.length}><PremiumEmptyState title={empty} description="Os dados aparecem aqui assim que houver movimentacao no tenant." /></td></tr>
+              <tr><td className="px-4 py-8 text-center text-[var(--admin-muted)]" colSpan={columns.length}><PremiumEmptyState title={empty} description="Os dados aparecem aqui assim que houver movimentação do cliente." /></td></tr>
             ) : rows.map((row, index) => (
               <tr key={index} className="transition hover:bg-[var(--admin-primary)]/10">
                 {row.map((cell, cellIndex) => <td key={cellIndex} className="px-4 py-2.5 text-[var(--admin-text)]">{cell}</td>)}

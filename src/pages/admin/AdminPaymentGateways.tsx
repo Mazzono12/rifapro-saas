@@ -37,7 +37,7 @@ const defaultGateways = {
     enabled: false,
     environment: "sandbox",
     apiKey: "",
-    userAgent: "CIFHER Plataforma",
+    userAgent: "CIFHER Prime",
     webhookUrl: "/api/webhooks/asaas",
     webhookSecret: "",
     releaseMode: "PAYMENT_RECEIVED",
@@ -67,8 +67,8 @@ const defaultGateways = {
 
 const gatewayIds = ["sandbox", "mock", "primepag", "paggue", "cashpay", "fakeprocessor", "mercadopago", "pagbank", "asaas", "infinitypay", "pay2m", "cora"];
 const gatewayLabels: Record<string, string> = {
-  sandbox: "Sandbox PIX",
-  mock: "Mock local",
+  sandbox: "Validação interna PIX",
+  mock: "Simulação protegida",
   primepag: "PrimePag",
   paggue: "Paggue",
   cashpay: "Cash Pay",
@@ -102,7 +102,7 @@ function normalizeGateways(input: any) {
     enabled: Boolean(asaasConfig.enabled),
     environment: asaasConfig.environment || "sandbox",
     apiKey: asaasConfig.credentials?.apiKey || "",
-    userAgent: asaasConfig.config_json?.userAgent || asaasConfig.credentials?.userAgent || "CIFHER Plataforma",
+    userAgent: asaasConfig.config_json?.userAgent || asaasConfig.credentials?.userAgent || "CIFHER Prime",
     webhookUrl: "/api/webhooks/asaas",
     webhookSecret: asaasConfig.webhook_secret || "",
     releaseMode: asaasConfig.config_json?.releaseMode || asaasConfig.credentials?.releaseMode || "PAYMENT_RECEIVED",
@@ -374,22 +374,25 @@ export function AdminPaymentGateways() {
                             className="h-5 w-5"
                         />
                     </label>
+                </div>
+
+                <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                    <summary className="cursor-pointer text-sm font-bold text-white">Configurações Avançadas</summary>
                     <label className="mt-4 flex items-center justify-between gap-4 text-sm text-slate-300">
-                        Ambiente sandbox/teste
+                        Modo de validação
                         <input
                             type="checkbox"
                             checked={Boolean(gateways.pix?.sandbox)}
                             onChange={e => updatePix("sandbox", e.target.checked)}
                         />
                     </label>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <GatewayInput label="Chave PIX global" type="password" value={gateways.pix?.apiKey || ""} onChange={value => updatePix("apiKey", value)} />
-                    <GatewayInput label="Webhook Secret global" type="password" value={gateways.pix?.webhookSecret || ""} onChange={value => updatePix("webhookSecret", value)} />
-                    <GatewayInput label="Webhook URL global" value={gateways.pix?.webhookUrl || ""} onChange={value => updatePix("webhookUrl", value)} />
-                    <GatewayInput label="Eventos do webhook" value={gateways.pix?.webhookEvents || ""} onChange={value => updatePix("webhookEvents", value)} />
-                </div>
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <GatewayInput label="Chave PIX" type="password" value={gateways.pix?.apiKey || ""} onChange={value => updatePix("apiKey", value)} />
+                        <GatewayInput label="Chave secreta de webhook" type="password" value={gateways.pix?.webhookSecret || ""} onChange={value => updatePix("webhookSecret", value)} />
+                        <GatewayInput label="URL de webhook" value={gateways.pix?.webhookUrl || ""} onChange={value => updatePix("webhookUrl", value)} />
+                        <GatewayInput label="Eventos de webhook" value={gateways.pix?.webhookEvents || ""} onChange={value => updatePix("webhookEvents", value)} />
+                    </div>
+                </details>
             </div>
 
             <div className="flex flex-col gap-2 border-b border-white/5 pb-4 mb-4">
@@ -405,7 +408,9 @@ export function AdminPaymentGateways() {
                 </select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <details className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <summary className="cursor-pointer text-sm font-bold text-white">Configurações Avançadas</summary>
+              <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-8">
                 {["sandbox", "mock", "paggue", "cashpay", "fakeprocessor"].map(gateway => (
                     <GenericGatewayCard
                         key={gateway}
@@ -447,7 +452,7 @@ export function AdminPaymentGateways() {
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
                           <select value={gateways.mercadopago?.environment || "sandbox"} onChange={e => updateGateway("mercadopago", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="sandbox">Sandbox</option>
+                            <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
                         </div>
@@ -492,7 +497,7 @@ export function AdminPaymentGateways() {
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
                           <select value={gateways.pagbank?.environment || "sandbox"} onChange={e => updateGateway("pagbank", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="sandbox">Sandbox</option>
+                            <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
                         </div>
@@ -544,7 +549,7 @@ export function AdminPaymentGateways() {
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
                           <select value={gateways.asaas?.environment || "sandbox"} onChange={e => updateGateway("asaas", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="sandbox">Sandbox</option>
+                            <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
                         </div>
@@ -613,7 +618,7 @@ export function AdminPaymentGateways() {
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
                           <select value={gateways.pay2m?.environment || "production"} onChange={e => updateGateway("pay2m", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="sandbox">Sandbox</option>
+                            <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
                         </div>
@@ -663,7 +668,7 @@ export function AdminPaymentGateways() {
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
                           <select value={gateways.primepag?.environment || "staging"} onChange={e => updateGateway("primepag", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
                             <option value="staging">Staging</option>
-                            <option value="sandbox">Sandbox</option>
+                            <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
                         </div>
@@ -709,7 +714,7 @@ export function AdminPaymentGateways() {
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
                           <select value={gateways.cora?.environment || "sandbox"} onChange={e => updateGateway("cora", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="sandbox">Sandbox</option>
+                            <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
                         </div>
@@ -723,7 +728,8 @@ export function AdminPaymentGateways() {
                     </div>
                     <GatewayTest gateway="cora" result={testResults.cora} testing={testingGateway === "cora"} onTest={testGateway} />
                 </div>
-            </div>
+              </div>
+            </details>
          </div>
          
          <div className="flex justify-end pt-4">

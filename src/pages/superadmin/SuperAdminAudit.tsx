@@ -21,16 +21,16 @@ export function SuperAdminAudit() {
 
   return (
     <AdminDataTable
-      columns={["Data", "Ação", "Tenant", "Recurso", "IP", "Metadados"]}
+      columns={["Data", "Ação", "Cliente", "Recurso", "IP", "Verificação"]}
       rows={logs.map(log => [
         new Date(log.created_at).toLocaleString("pt-BR"),
         log.action,
-        log.tenant_id || "global",
-        `${log.resource_type || "-"} ${log.resource_id || ""}`,
+        log.tenant || log.client || "Global",
+        log.resource_type || "-",
         log.ip_address,
-        <code key={log.id} className="text-xs">{JSON.stringify(log.metadata || {})}</code>
+        <span key={log.id} className="text-xs text-[var(--admin-muted)]">Protegida</span>
       ])}
-      empty="Nenhum log de auditoria superadmin."
+      empty="Nenhum registro de auditoria."
     />
   );
 }

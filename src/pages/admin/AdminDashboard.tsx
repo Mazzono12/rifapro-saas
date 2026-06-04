@@ -216,7 +216,7 @@ export function AdminDashboard() {
       <section className="admin-card p-4">
         <div className="grid gap-3 xl:grid-cols-[1fr_auto] xl:items-center">
           <div className="min-w-0">
-            <h2 className="mb-0 text-base font-semibold text-[var(--admin-text)]">Filtros do dashboard</h2>
+            <h2 className="mb-0 text-base font-semibold text-[var(--admin-text)]">Filtros executivos</h2>
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
@@ -233,7 +233,7 @@ export function AdminDashboard() {
               <option value="cancelled">Canceladas</option>
             </select>
             <select value={raffleId} onChange={event => setRaffleId(event.target.value)} className="admin-input h-11 rounded-2xl px-3 text-sm outline-none lg:col-span-2">
-              <option value="all">Todos sorteios</option>
+              <option value="all">Todas as ações</option>
               {raffles.map(raffle => <option key={raffle.id} value={raffle.id}>{raffle.title}</option>)}
             </select>
             <button onClick={fetchAdminData} className="admin-button-secondary">
@@ -244,18 +244,18 @@ export function AdminDashboard() {
       </section>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={BadgeDollarSign} label="Receita aprovada" value={currency.format(totalRevenue)} trend={`${paid.length} compras pagas`} tone="success" />
-        <MetricCard icon={CreditCard} label="Receita pendente" value={currency.format(pendingRevenue)} trend={`${pending.length} pendentes`} tone="warning" />
-        <MetricCard icon={Ticket} label="Cotas vendidas" value={totalTickets} trend="somente pagamentos aprovados" tone="accent" />
+        <MetricCard icon={BadgeDollarSign} label="Faturamento confirmado" value={currency.format(totalRevenue)} trend={`${paid.length} vendas confirmadas`} tone="success" />
+        <MetricCard icon={CreditCard} label="Faturamento pendente" value={currency.format(pendingRevenue)} trend={`${pending.length} aguardando confirmação`} tone="warning" />
+        <MetricCard icon={Ticket} label="Números vendidos" value={totalTickets} trend="somente vendas confirmadas" tone="accent" />
         <MetricCard icon={Users} label="Compradores únicos" value={uniqueBuyers} trend={`${customers.length || stats.users || 0} clientes cadastrados`} />
-        <MetricCard icon={Activity} label="Ticket médio" value={currency.format(averageTicket)} trend="receita / compras pagas" />
-        <MetricCard icon={Box} label="Conversão" value={`${conversionRate.toFixed(1)}%`} trend="pagas / total filtrado" tone="success" />
+        <MetricCard icon={Activity} label="Ticket médio" value={currency.format(averageTicket)} trend="faturamento / vendas confirmadas" />
+        <MetricCard icon={Box} label="Conversão operacional" value={`${conversionRate.toFixed(1)}%`} trend="vendas confirmadas / total filtrado" tone="success" />
         <MetricCard icon={Gift} label="Caixinhas abertas" value={stats.lootboxesOpened || 0} trend={`${stats.lootboxesWon || 0} premiadas`} tone="warning" />
-        <MetricCard icon={Trophy} label="Top sorteio" value={revenueByRaffle[0]?.name || "-"} trend={revenueByRaffle[0] ? currency.format(revenueByRaffle[0].receita) : "sem vendas"} tone="accent" />
+        <MetricCard icon={Trophy} label="Ação em destaque" value={revenueByRaffle[0]?.name || "-"} trend={revenueByRaffle[0] ? currency.format(revenueByRaffle[0].receita) : "sem vendas"} tone="accent" />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.35fr_.65fr]">
-        <ChartCard title="Receita e vendas por dia">
+        <ChartCard title="Faturamento e vendas por dia">
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={salesByDay}>
@@ -276,7 +276,7 @@ export function AdminDashboard() {
           </div>
         </ChartCard>
 
-        <ChartCard title="Status das compras">
+        <ChartCard title="Status das vendas">
           <div className="h-80">
             {statusData.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -288,14 +288,14 @@ export function AdminDashboard() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyVisual label="Sem compras no filtro selecionado" />
+              <EmptyVisual label="Sem vendas no filtro selecionado" />
             )}
           </div>
         </ChartCard>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[.9fr_1.1fr]">
-        <ChartCard title="Receita por sorteio">
+        <ChartCard title="Faturamento por ação">
           <div className="h-80">
             {revenueByRaffle.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -308,7 +308,7 @@ export function AdminDashboard() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyVisual label="Sem receita aprovada" />
+              <EmptyVisual label="Sem faturamento confirmado" />
             )}
           </div>
         </ChartCard>
@@ -330,16 +330,16 @@ export function AdminDashboard() {
 
       <div className="grid gap-5 xl:grid-cols-[1fr_.42fr]">
         <ChartCard
-          title="Compras recentes filtradas"
+          title="Vendas recentes filtradas"
           action={
             <div className="flex gap-2">
               <button onClick={exportCSV} className="admin-button-secondary"><Download className="h-4 w-4" /> CSV</button>
-              <button onClick={exportJSON} className="admin-button-secondary">{"{ }"} JSON</button>
+              <button onClick={exportJSON} className="admin-button-secondary">Exportar dados</button>
             </div>
           }
         >
           <AdminDataTable
-            columns={["Compra", "Sorteio", "Cliente", "Status", "Cotas", "Valor", "Data"]}
+            columns={["Venda", "Ação", "Cliente", "Status", "Números", "Valor", "Data"]}
             rows={filteredPurchases.slice(0, 12).map(item => [
               item.purchaseId,
               raffleNames.get(String(item.raffleId)) || item.raffleId,

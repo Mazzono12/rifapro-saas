@@ -3,6 +3,15 @@ import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 const tenantStatuses = ["trial", "active", "suspended", "overdue", "maintenance", "blocked", "canceled"];
+const statusLabels: Record<string, string> = {
+  trial: "Avaliação",
+  active: "Ativo",
+  suspended: "Suspenso",
+  overdue: "Pendente",
+  maintenance: "Manutenção",
+  blocked: "Bloqueado",
+  canceled: "Cancelado"
+};
 
 export function SuperAdminTenantPlanResources() {
   const { tenantId = "" } = useParams();
@@ -10,7 +19,7 @@ export function SuperAdminTenantPlanResources() {
   const [featureData, setFeatureData] = useState<any>(null);
   const [planId, setPlanId] = useState("");
   const [status, setStatus] = useState("active");
-  const [reason, setReason] = useState("Ajuste de governanca SaaS");
+  const [reason, setReason] = useState("Ajuste de governança do cliente");
 
   const load = () => {
     Promise.all([
@@ -53,7 +62,7 @@ export function SuperAdminTenantPlanResources() {
     <div className="space-y-6">
       <section className="admin-card p-5">
         <h1 className="text-2xl font-black text-[var(--admin-text)]">Plano e Recursos</h1>
-        <p className="mt-1 text-sm text-[var(--admin-muted)]">{planData?.tenant?.nome || tenantId}</p>
+        <p className="mt-1 text-sm text-[var(--admin-muted)]">{planData?.tenant?.nome || "Cliente"}</p>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           <label className="space-y-2">
             <span className="text-xs uppercase text-[var(--admin-muted)]">Plano</span>
@@ -64,7 +73,7 @@ export function SuperAdminTenantPlanResources() {
           <label className="space-y-2">
             <span className="text-xs uppercase text-[var(--admin-muted)]">Status</span>
             <select value={status} onChange={event => setStatus(event.target.value)} className="admin-input w-full">
-              {tenantStatuses.map(item => <option key={item} value={item}>{item}</option>)}
+              {tenantStatuses.map(item => <option key={item} value={item}>{statusLabels[item] || item}</option>)}
             </select>
           </label>
           <label className="space-y-2">

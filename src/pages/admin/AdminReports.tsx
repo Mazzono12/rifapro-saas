@@ -20,8 +20,8 @@ type ReportRow = {
 };
 
 const reportOptions: Array<{ id: ReportType; label: string; description: string }> = [
-  { id: "global", label: "Global", description: "Todas as vendas da plataforma" },
-  { id: "raffle", label: "Rifa especifica", description: "Compras de um sorteio selecionado" },
+  { id: "global", label: "Global", description: "Todas as vendas do ambiente premium" },
+  { id: "raffle", label: "Ação específica", description: "Vendas de uma ação selecionada" },
   { id: "fazendinha", label: "Fazendinha", description: "Grupos vendidos na Fazendinha" },
   { id: "milhar", label: "Milhar", description: "Relatorio da modalidade Milhar" },
   { id: "centena", label: "Centena", description: "Relatorio da modalidade Centena" },
@@ -217,8 +217,8 @@ export function AdminReports() {
       <section className="admin-card p-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="mb-1 text-2xl font-black text-[var(--admin-text)]">Relatorios completos</h1>
-            <p className="text-sm text-[var(--admin-muted)]">Escolha entre relatorio global, rifa especifica, Fazendinha, Milhar, Centena ou Dezena.</p>
+            <h1 className="mb-1 text-2xl font-black text-[var(--admin-text)]">Relatórios completos</h1>
+            <p className="text-sm text-[var(--admin-muted)]">Escolha entre visão global, ação específica, Fazendinha, Milhar, Centena ou Dezena.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <select value={reportType} onChange={event => setReportType(event.target.value as ReportType)} className="admin-input h-11 min-w-48 rounded-2xl px-4 outline-none">
@@ -240,7 +240,7 @@ export function AdminReports() {
               <FileText className="h-4 w-4" /> {exportingOfficial === "pdf" ? "Gerando..." : "PDF oficial"}
             </button>
             <button onClick={() => void exportOfficial("csv")} disabled={Boolean(exportingOfficial)} className="admin-button-secondary">
-              <ShieldCheck className="h-4 w-4" /> CSV auditavel
+              <ShieldCheck className="h-4 w-4" /> CSV verificado
             </button>
           </div>
         </div>
@@ -265,10 +265,10 @@ export function AdminReports() {
       </section>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <MetricCard icon={BadgeDollarSign} label="Faturamento" value={`R$ ${summary.revenue.toFixed(2)}`} trend={`Relatorio ${reportTitle}`} tone="success" />
-        <MetricCard icon={Ticket} label="Quantidade de cotas" value={summary.tickets} trend="somente cotas confirmadas" />
-        <MetricCard icon={Users} label="Compradores" value={summary.buyers} trend="clientes unicos no filtro" tone="accent" />
-        <MetricCard icon={ListChecks} label="Registros" value={summary.records} trend={`Periodo ${period}`} tone="warning" />
+        <MetricCard icon={BadgeDollarSign} label="Faturamento" value={`R$ ${summary.revenue.toFixed(2)}`} trend={`Relatório ${reportTitle}`} tone="success" />
+        <MetricCard icon={Ticket} label="Números confirmados" value={summary.tickets} trend="somente vendas confirmadas" />
+        <MetricCard icon={Users} label="Compradores" value={summary.buyers} trend="clientes únicos no filtro" tone="accent" />
+        <MetricCard icon={ListChecks} label="Registros" value={summary.records} trend={`Período ${period}`} tone="warning" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -303,8 +303,8 @@ export function AdminReports() {
       <section className="admin-card p-5">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="mb-1 flex items-center gap-2 text-lg font-bold text-[var(--admin-text)]"><FileBarChart className="h-5 w-5 text-[var(--admin-primary)]" /> Relatorio selecionado</h2>
-            <p className="text-sm text-[var(--admin-muted)]">Exportacao completa com nome, telefone, cidade, data, codigo do sorteio e quantidade de cotas.</p>
+            <h2 className="mb-1 flex items-center gap-2 text-lg font-bold text-[var(--admin-text)]"><FileBarChart className="h-5 w-5 text-[var(--admin-primary)]" /> Relatório selecionado</h2>
+            <p className="text-sm text-[var(--admin-muted)]">Exportação completa com nome, telefone, cidade, data, código da ação e quantidade de números.</p>
           </div>
           <div className="flex items-center gap-2 rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] px-4 py-2 text-sm text-[var(--admin-muted)]">
             <Filter className="h-4 w-4" />
@@ -316,27 +316,26 @@ export function AdminReports() {
       <section className="admin-card p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-[var(--admin-text)]">Exportacoes oficiais auditaveis</h2>
-            <p className="text-sm text-[var(--admin-muted)]">PDF/CSV com hash, request_id, assinatura e URL de validacao por QR Code.</p>
+            <h2 className="text-lg font-bold text-[var(--admin-text)]">Exportações oficiais</h2>
+            <p className="text-sm text-[var(--admin-muted)]">PDF/CSV com código de verificação e validação pública por QR Code.</p>
           </div>
           <Download className="h-5 w-5 text-[var(--admin-primary)]" />
         </div>
         <AdminDataTable
-          columns={["Tipo", "Formato", "Hash", "Request ID", "Gerado em", "Download"]}
+          columns={["Tipo", "Formato", "Verificação", "Gerado em", "Download"]}
           rows={officialExports.slice(0, 8).map(item => [
             item.report_type,
             String(item.format).toUpperCase(),
-            <span className="font-mono text-xs">{String(item.file_hash).slice(0, 18)}...</span>,
-            <span className="font-mono text-xs">{item.request_id}</span>,
+            <span className="font-mono text-xs">{String(item.file_hash || item.request_id || item.id).slice(0, 12)}...</span>,
             item.created_at ? new Date(item.created_at).toLocaleString("pt-BR") : "-",
             <button onClick={() => void downloadOfficial(item.id)} className="admin-button-secondary py-2 text-xs"><Download className="h-4 w-4" /> Baixar</button>
           ])}
-          empty="Nenhuma exportacao oficial gerada ainda."
+          empty="Nenhuma exportação oficial gerada ainda."
         />
       </section>
 
       <AdminDataTable
-        columns={["Tipo", "Origem", "Cliente", "Telefone", "Cidade", "Data", "Codigo sorteio", "Qtd. cotas", "Status", "Valor"]}
+        columns={["Tipo", "Origem", "Cliente", "Telefone", "Cidade", "Data", "Código da ação", "Qtd. números", "Status", "Valor"]}
         rows={filteredRows.slice(0, 80).map(item => [
           modalidadeLabel(item.tipo),
           item.origem,
@@ -349,7 +348,7 @@ export function AdminReports() {
           statusLabel(item.status),
           `R$ ${item.valor.toFixed(2)}`
         ])}
-        empty="Nenhum registro encontrado para este relatorio."
+        empty="Nenhum registro encontrado para este relatório."
       />
     </div>
   );
@@ -385,7 +384,7 @@ function isInsidePeriod(value: string, period: string) {
 function modalidadeLabel(value: string) {
   const labels: Record<string, string> = {
     global: "Global",
-    raffle: "Rifa especifica",
+    raffle: "Ação específica",
     rifa: "Rifa",
     fazendinha: "Fazendinha",
     milhar: "Milhar",
@@ -409,10 +408,10 @@ function statusLabel(value: string) {
 
 function periodLabel(value: string) {
   const labels: Record<string, string> = {
-    "24h": "ultimas 24h",
-    "7d": "ultimos 7 dias",
-    "30d": "ultimos 30 dias",
-    all: "todo periodo"
+    "24h": "últimas 24h",
+    "7d": "últimos 7 dias",
+    "30d": "últimos 30 dias",
+    all: "todo período"
   };
   return labels[value] || value;
 }

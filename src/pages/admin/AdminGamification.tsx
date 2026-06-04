@@ -93,7 +93,7 @@ export function AdminGamification() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--admin-text)]"><Sparkles className="h-5 w-5" /> Gamificação e conversão</h1>
-            <p className="text-sm text-[var(--admin-muted)]">Configurações por rifa, com isolamento por tenant e geração de prêmios no backend.</p>
+            <p className="text-sm text-[var(--admin-muted)]">Configurações por ação, com gestão por cliente e geração segura de prêmios.</p>
           </div>
           <div className="flex gap-2">
             <select className="admin-input min-w-64" value={selectedRaffleId} onChange={event => setSelectedRaffleId(event.target.value)}>

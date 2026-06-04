@@ -119,7 +119,7 @@ export function AdminIntegrations() {
     });
     const data = await res.json();
     if (!res.ok) toast.error(data.error || data.message?.last_error || "Falha no teste WhatsApp");
-    else toast.success("Mensagem WhatsApp enviada no sandbox/mock");
+    else toast.success("Mensagem WhatsApp enviada para validação");
     await load();
   };
 
@@ -129,7 +129,7 @@ export function AdminIntegrations() {
         <section className="admin-card">
           <div className="mb-4 flex items-center gap-2">
             <Plug className="h-5 w-5 text-[var(--admin-primary)]" />
-            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Integrações do tenant</h2>
+            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Integrações do cliente</h2>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {integrations.map(item => (
@@ -142,7 +142,7 @@ export function AdminIntegrations() {
                   <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">{item.status}</span>
                 </div>
                 <div className="mt-3 text-xs text-[var(--admin-muted)]">
-                  {Object.entries(item.credentials || {}).map(([key, value]) => <p key={key}>{key}: {String(value)}</p>)}
+                  <p>Credenciais protegidas</p>
                   {item.last_error && <p className="mt-2 text-red-500">{item.last_error}</p>}
                 </div>
                 <button onClick={() => test(item.id)} className="admin-button-secondary mt-4 w-full">
@@ -169,29 +169,34 @@ export function AdminIntegrations() {
           <label className="block text-sm font-medium text-[var(--admin-muted)]">
             Status
             <select value={status} onChange={event => setStatus(event.target.value as Integration["status"])} className="admin-input mt-1 w-full">
-              <option value="active">active</option>
-              <option value="inactive">inactive</option>
-              <option value="pending_config">pending_config</option>
+              <option value="active">Ativa</option>
+              <option value="inactive">Inativa</option>
+              <option value="pending_config">Pendente de configuração</option>
             </select>
           </label>
-          <div className="space-y-2 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
-            <p>Credenciais: {(selectedProvider?.requiredCredentials || []).join(", ")}</p>
-            {Boolean(selectedProvider?.optionalCredentials?.length) && <p>Opcionais: {selectedProvider?.optionalCredentials?.join(", ")}</p>}
-            <p>Homologação: {selectedProvider?.homologationStatus} / docs: {selectedProvider?.documentationStatus}</p>
-            <p>Webhook: {selectedProvider?.webhookValidation}</p>
-            <p>{selectedProvider?.notes}</p>
-            <div className="flex flex-wrap gap-2">
-              {selectedProvider?.docs.map(doc => <a key={doc} href={doc} target="_blank" rel="noreferrer" className="text-[var(--admin-primary)] underline">doc</a>)}
+          <details className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
+            <summary className="cursor-pointer text-sm font-semibold text-[var(--admin-text)]">Configurações Avançadas</summary>
+            <div className="mt-4 space-y-4">
+              <div className="space-y-2 rounded-lg border border-[var(--admin-border)] p-3 text-xs text-[var(--admin-muted)]">
+                <p>Credenciais necessárias: {(selectedProvider?.requiredCredentials || []).join(", ") || "nenhuma"}</p>
+                {Boolean(selectedProvider?.optionalCredentials?.length) && <p>Opcionais: {selectedProvider?.optionalCredentials?.join(", ")}</p>}
+                <p>Homologação: {selectedProvider?.homologationStatus} / documentação: {selectedProvider?.documentationStatus}</p>
+                <p>Validação de conexão: {selectedProvider?.webhookValidation}</p>
+                <p>{selectedProvider?.notes}</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedProvider?.docs.map(doc => <a key={doc} href={doc} target="_blank" rel="noreferrer" className="text-[var(--admin-primary)] underline">documentação</a>)}
+                </div>
+              </div>
+              <label className="block text-sm font-medium text-[var(--admin-muted)]">
+                Credenciais JSON
+                <textarea value={credentials} onChange={event => setCredentials(event.target.value)} className="admin-input mt-1 min-h-32 w-full font-mono text-xs" />
+              </label>
+              <label className="block text-sm font-medium text-[var(--admin-muted)]">
+                Configurações JSON
+                <textarea value={settings} onChange={event => setSettings(event.target.value)} className="admin-input mt-1 min-h-24 w-full font-mono text-xs" />
+              </label>
             </div>
-          </div>
-          <label className="block text-sm font-medium text-[var(--admin-muted)]">
-            Credenciais JSON
-            <textarea value={credentials} onChange={event => setCredentials(event.target.value)} className="admin-input mt-1 min-h-32 w-full font-mono text-xs" />
-          </label>
-          <label className="block text-sm font-medium text-[var(--admin-muted)]">
-            Settings JSON
-            <textarea value={settings} onChange={event => setSettings(event.target.value)} className="admin-input mt-1 min-h-24 w-full font-mono text-xs" />
-          </label>
+          </details>
           <button className="admin-button-primary w-full">
             <Save className="h-4 w-4" />
             Salvar
@@ -213,28 +218,33 @@ export function AdminIntegrations() {
             </select>
           </label>
           <label className="block text-sm font-medium text-[var(--admin-muted)]">
-            Provider
+            Provedor
             <select value={whatsappConfig.provider || "mock"} onChange={event => setWhatsappConfig((current: any) => ({ ...current, provider: event.target.value }))} className="admin-input mt-1 w-full">
-              <option value="mock">Mock/Sandbox</option>
+              <option value="mock">Validação interna</option>
               <option value="meta_cloud">Meta WhatsApp Cloud API</option>
             </select>
           </label>
           <label className="block text-sm font-medium text-[var(--admin-muted)]">
             Ambiente
             <select value={whatsappConfig.environment || "sandbox"} onChange={event => setWhatsappConfig((current: any) => ({ ...current, environment: event.target.value }))} className="admin-input mt-1 w-full">
-              <option value="sandbox">Sandbox</option>
+              <option value="sandbox">Validação</option>
               <option value="production">Produção</option>
             </select>
           </label>
-          <GatewayField label="Phone number ID" value={whatsappConfig.phone_number_id || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, phone_number_id: value }))} />
-          <GatewayField label="Business account ID" value={whatsappConfig.business_account_id || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, business_account_id: value }))} />
-          <GatewayField label="Access token" type="password" value={whatsappConfig.access_token || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, access_token: value }))} />
-          <GatewayField label="Verify token" type="password" value={whatsappConfig.webhook_verify_token || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, webhook_verify_token: value }))} />
-          <GatewayField label="Template padrão" value={whatsappConfig.template_namespace || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, template_namespace: value }))} />
+          <details className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4 lg:col-span-3">
+            <summary className="cursor-pointer text-sm font-semibold text-[var(--admin-text)]">Configurações Avançadas</summary>
+            <div className="mt-4 grid gap-4 lg:grid-cols-3">
+              <GatewayField label="Phone number ID" value={whatsappConfig.phone_number_id || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, phone_number_id: value }))} />
+              <GatewayField label="Business account ID" value={whatsappConfig.business_account_id || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, business_account_id: value }))} />
+              <GatewayField label="Access token" type="password" value={whatsappConfig.access_token || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, access_token: value }))} />
+              <GatewayField label="Verify token" type="password" value={whatsappConfig.webhook_verify_token || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, webhook_verify_token: value }))} />
+              <GatewayField label="Template padrão" value={whatsappConfig.template_namespace || ""} onChange={value => setWhatsappConfig((current: any) => ({ ...current, template_namespace: value }))} />
+            </div>
+          </details>
           <GatewayField label="Idioma" value={whatsappConfig.default_language || "pt_BR"} onChange={value => setWhatsappConfig((current: any) => ({ ...current, default_language: value }))} />
           <div className="flex gap-2 lg:col-span-3">
             <button className="admin-button-primary"><Save className="h-4 w-4" />Salvar WhatsApp</button>
-            <input value={testPhone} onChange={event => setTestPhone(event.target.value)} className="admin-input flex-1" placeholder="Telefone para teste sandbox/mock" />
+            <input value={testPhone} onChange={event => setTestPhone(event.target.value)} className="admin-input flex-1" placeholder="Telefone para validação" />
             <button type="button" onClick={testWhatsApp} className="admin-button-secondary"><Send className="h-4 w-4" />Testar envio</button>
           </div>
         </form>
@@ -265,7 +275,7 @@ export function AdminIntegrations() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="text-xs uppercase text-[var(--admin-muted)]">
-              <tr><th className="py-2">Provedor</th><th>Ação</th><th>Status</th><th>Erro</th><th>Data</th></tr>
+              <tr><th className="py-2">Provedor</th><th>Ação</th><th>Status</th><th>Observação</th><th>Data</th></tr>
             </thead>
             <tbody>
               {logs.slice(0, 12).map(log => (
@@ -282,7 +292,7 @@ export function AdminIntegrations() {
         </div>
         <button onClick={() => integrations[0] && void fetch(`/api/admin/integrations/global/${integrations[0].id}/action/sendConversionEvent`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventName: "Lead" }) }).then(load)} className="admin-button-secondary mt-4">
           <Send className="h-4 w-4" />
-          Enviar evento teste
+          Enviar evento de validação
         </button>
       </section>
     </div>

@@ -12,7 +12,7 @@ const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/perfil-saas", label: "Perfil", icon: UserRound },
   { to: "/admin", label: "Admin", icon: BarChart3, admin: true },
-  { to: "/superadmin", label: "Superadmin", icon: Shield, superadmin: true }
+  { to: "/superadmin", label: "Gestão Global", icon: Shield, superadmin: true }
 ];
 
 export function SaaSLayout({ children }: { children?: React.ReactNode }) {

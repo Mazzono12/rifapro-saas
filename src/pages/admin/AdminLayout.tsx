@@ -149,7 +149,7 @@ function AdminLayoutContent() {
   ], []);
 
   const activeItem = navItems.find(item => location.pathname === item.path || (item.path !== "/admin" && location.pathname.startsWith(item.path)));
-  const companyName = branding.header_name || settingsData?.branding?.companyName || "CIFHER Plataforma";
+  const companyName = branding.header_name || settingsData?.branding?.companyName || "CIFHER Prime";
   const logo = branding.logo_url || settingsData?.branding?.logoUrl;
 
   return (
@@ -159,7 +159,7 @@ function AdminLayoutContent() {
         rootPath="/admin"
         logoUrl={logo}
         title={companyName}
-        subtitle="Admin"
+        subtitle="Gestão"
         collapsed={collapsed}
         mobileOpen={mobileOpen}
         onCollapsedChange={setCollapsed}
@@ -215,13 +215,13 @@ function AdminLayoutContent() {
 
         <section className="mx-auto w-full max-w-[1536px] min-w-0 p-3 sm:p-4">
           <div className="mb-3">
-            <p className="text-sm text-[var(--admin-muted)]">Admin / {activeItem?.group || "Visão Geral"}</p>
+            <p className="text-sm text-[var(--admin-muted)]">Painel profissional / {activeItem?.group || "Visão Geral"}</p>
             <h1 className="mt-1 text-[27px] font-semibold leading-[1.1] text-[var(--admin-text)]">{activeItem?.name || "Dashboard"}</h1>
           </div>
           <AdminPageTransition>
             {supportSessionId && (
               <div className="admin-card mb-4 flex flex-wrap items-center justify-between gap-3 border-amber-400/40 bg-amber-400/10 p-4 text-sm text-[var(--admin-text)]">
-                <span className="font-semibold">Modo suporte ativo — você está acessando como Superadmin com auditoria segura.</span>
+                <span className="font-semibold">Modo suporte ativo — acesso assistido com auditoria segura.</span>
                 <button type="button" onClick={() => void endSupportMode()} className="admin-button-secondary">Sair do modo suporte</button>
               </div>
             )}

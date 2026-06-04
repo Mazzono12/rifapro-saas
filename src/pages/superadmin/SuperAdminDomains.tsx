@@ -81,7 +81,7 @@ export function SuperAdminDomains() {
       </form>
 
       <AdminDataTable
-        columns={["Tenant", "Domínio", "Status", "DNS/SSL", "Principal", "Ações"]}
+        columns={["Cliente", "Domínio", "Status", "DNS/SSL", "Principal", "Ações"]}
         rows={domains.map(domain => [
           domain.tenant,
           <div key={domain.id}><p className="font-semibold">{domain.domain}</p><p className="text-xs text-[var(--admin-muted)]">{domain.type}</p></div>,

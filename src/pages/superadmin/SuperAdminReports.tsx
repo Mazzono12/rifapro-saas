@@ -4,8 +4,8 @@ import { AdminDataTable, MetricCard } from "../../components/admin/AdminPremium"
 
 const reportTypes = [
   ["financial_global", "Financeiro global"],
-  ["financial_tenant", "Financeiro por tenant"],
-  ["draw_report", "Relatorio de sorteio"],
+  ["financial_tenant", "Financeiro por cliente"],
+  ["draw_report", "Relatório de sorteio"],
   ["draw_certificate", "Certificado do sorteio"],
   ["sold_tickets", "Cotas vendidas"],
   ["ticket_adjustments", "Alteracoes de cotas"],
@@ -60,15 +60,18 @@ export function SuperAdminReports() {
       <section className="admin-card p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase tracking-widest text-[var(--admin-primary)]">Exportacoes oficiais</p>
-            <h2 className="mt-1 text-2xl font-black text-[var(--admin-text)]">Relatorios auditaveis da plataforma</h2>
-            <p className="mt-2 text-sm text-[var(--admin-muted)]">PDF/CSV com hash, request_id, assinatura digital e validacao publica por QR Code.</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-[var(--admin-primary)]">Exportações oficiais</p>
+            <h2 className="mt-1 text-2xl font-black text-[var(--admin-text)]">Relatórios verificados do ambiente premium</h2>
+            <p className="mt-2 text-sm text-[var(--admin-muted)]">PDF/CSV com código de verificação, assinatura digital e validação pública por QR Code.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <select value={reportType} onChange={event => setReportType(event.target.value)} className="admin-input h-11 min-w-56 rounded-2xl px-4">
               {reportTypes.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
             </select>
-            <input value={tenantId} onChange={event => setTenantId(event.target.value)} className="admin-input h-11 min-w-56 rounded-2xl px-4" placeholder="tenant_id opcional" />
+            <details className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] px-4 py-2">
+              <summary className="cursor-pointer text-sm font-semibold text-[var(--admin-text)]">Configurações Avançadas</summary>
+              <input value={tenantId} onChange={event => setTenantId(event.target.value)} className="admin-input mt-3 h-11 min-w-56 rounded-2xl px-4" placeholder="Código interno opcional" />
+            </details>
             <select value={format} onChange={event => setFormat(event.target.value as "pdf" | "csv")} className="admin-input h-11 rounded-2xl px-4">
               <option value="pdf">PDF</option>
               <option value="csv">CSV</option>
@@ -81,23 +84,22 @@ export function SuperAdminReports() {
       </section>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard icon={ShieldCheck} label="Relatorios gerados" value={exportsList.length} trend="com hash auditavel" />
+        <MetricCard icon={ShieldCheck} label="Relatórios gerados" value={exportsList.length} trend="com verificação oficial" />
         <MetricCard icon={FileText} label="PDFs" value={exportsList.filter(item => item.format === "pdf").length} trend="certificados formais" tone="success" />
         <MetricCard icon={Download} label="Downloads" value="Autorizado" trend="URLs privadas protegidas" tone="accent" />
       </div>
 
       <AdminDataTable
-        columns={["Tipo", "Tenant", "Formato", "Hash", "Request ID", "Gerado por", "Download"]}
+        columns={["Tipo", "Cliente", "Formato", "Verificação", "Gerado por", "Download"]}
         rows={exportsList.map(item => [
           item.report_type,
-          item.tenant_id || "global",
+          item.tenant || item.client || "Global",
           String(item.format).toUpperCase(),
-          <span className="font-mono text-xs">{String(item.file_hash).slice(0, 22)}...</span>,
-          <span className="font-mono text-xs">{item.request_id}</span>,
+          <span className="font-mono text-xs">{String(item.file_hash || item.request_id || item.id).slice(0, 12)}...</span>,
           item.generated_by || "-",
           <button onClick={() => void downloadOfficial(item.id)} className="admin-button-secondary py-2 text-xs"><Download className="h-4 w-4" /> Baixar</button>
         ])}
-        empty="Nenhum relatorio oficial gerado."
+        empty="Nenhum relatório oficial gerado."
       />
     </div>
   );

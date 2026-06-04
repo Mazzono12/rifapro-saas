@@ -132,7 +132,7 @@ export function SuperAdminDashboard() {
       setCommissions(commissionData.byTenant);
       setPayments(await paymentsRes.json());
     } catch (error) {
-      toast.error("Falha ao carregar superadmin", { description: error instanceof Error ? error.message : "Tente novamente." });
+      toast.error("Falha ao carregar Gestão Global", { description: error instanceof Error ? error.message : "Tente novamente." });
     } finally {
       setLoading(false);
     }
@@ -154,7 +154,7 @@ export function SuperAdminDashboard() {
         body: JSON.stringify(form)
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || "Falha ao salvar tenant.");
+      if (!response.ok) throw new Error(result.error || "Falha ao salvar cliente.");
       toast.success(form.id ? "Cliente atualizado" : "Cliente criado");
       setForm(null);
       await loadData();
@@ -176,7 +176,7 @@ export function SuperAdminDashboard() {
       toast.error("Nao foi possivel alterar o status.");
       return;
     }
-    toast.success(status === "suspended" ? "Tenant suspenso" : "Tenant reativado");
+    toast.success(status === "suspended" ? "Cliente suspenso" : "Cliente reativado");
     await loadData();
   }
 
@@ -202,11 +202,11 @@ export function SuperAdminDashboard() {
       const response = await fetch(`/api/superadmin/tenants/${tenant.id}/impersonate/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: `Entrada no ambiente do inquilino ${tenant.nome} via Superadmin` })
+        body: JSON.stringify({ reason: `Entrada no ambiente do cliente ${tenant.nome} via Gestão Global` })
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        toast.error(body.error || "Nao foi possivel entrar no ambiente do inquilino.");
+        toast.error(body.error || "Não foi possível entrar no ambiente do cliente.");
         return;
       }
       window.location.href = body.redirectUrl;
@@ -223,10 +223,10 @@ export function SuperAdminDashboard() {
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard label="Tenants ativos" value={`${metrics?.activeTenants || 0}/${metrics?.tenants || 0}`} icon={Building2} tone="primary" />
+        <MetricCard label="Clientes ativos" value={`${metrics?.activeTenants || 0}/${metrics?.tenants || 0}`} icon={Building2} tone="primary" />
         <MetricCard label="Rifas ativas" value={`${metrics?.activeRaffles || 0}/${metrics?.raffles || 0}`} icon={Ticket} tone="accent" />
-        <MetricCard label="Total vendido" value={money(metrics?.paidRevenue || 0)} icon={CreditCard} tone="success" />
-        <MetricCard label="Comissao plataforma" value={money(metrics?.platformCommission || 0)} icon={DollarSign} tone="success" />
+        <MetricCard label="Faturamento confirmado" value={money(metrics?.paidRevenue || 0)} icon={CreditCard} tone="success" />
+        <MetricCard label="Receita operacional" value={money(metrics?.platformCommission || 0)} icon={DollarSign} tone="success" />
         <MetricCard label="PIX pendentes" value={metrics?.pendingPix || 0} icon={ShieldAlert} tone="warning" />
       </div>
 
@@ -239,9 +239,9 @@ export function SuperAdminDashboard() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <MetricCard label="Erros de webhook" value={metrics?.webhookErrors || 0} icon={AlertTriangle} tone="warning" />
+        <MetricCard label="Alertas de integração" value={metrics?.webhookErrors || 0} icon={AlertTriangle} tone="warning" />
         <MetricCard label="Alertas antifraude" value={metrics?.suspiciousAlerts || 0} icon={ShieldAlert} tone="warning" />
-        <MetricCard label="Conversão global" value={`${metrics?.conversionRate || 0}%`} icon={Activity} tone="primary" />
+        <MetricCard label="Conversão operacional" value={`${metrics?.conversionRate || 0}%`} icon={Activity} tone="primary" />
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -253,8 +253,8 @@ export function SuperAdminDashboard() {
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Ambientes dos inquilinos</h2>
-            <p className="text-sm text-[var(--admin-muted)]">Entre no painel operacional de cada tenant com sessao auditada e isolamento por inquilino.</p>
+            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Ambientes dos clientes</h2>
+            <p className="text-sm text-[var(--admin-muted)]">Entre no painel profissional de cada cliente com sessão auditada e controle seguro.</p>
           </div>
           <button type="button" onClick={() => void loadData()} className="admin-button-secondary" title="Atualizar ambientes">
             <RefreshCw className="h-4 w-4" />
@@ -270,7 +270,7 @@ export function SuperAdminDashboard() {
                 </div>
                 <div className="min-w-0">
                   <h3 className="truncate text-base font-semibold text-[var(--admin-text)]">{tenant.nome}</h3>
-                  <p className="truncate text-xs text-[var(--admin-muted)]">{tenant.slug} · {tenant.id}</p>
+                  <p className="truncate text-xs text-[var(--admin-muted)]">Plano {tenant.plano}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {statusBadge(tenant.status)}
                     <span className="inline-flex rounded-md bg-white/10 px-2 py-1 text-xs font-semibold text-[var(--admin-muted)]">{tenant.plano}</span>
@@ -278,16 +278,16 @@ export function SuperAdminDashboard() {
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-[var(--admin-muted)]">
-                <span><strong className="block text-sm text-[var(--admin-text)]">{tenant.raffleCount}</strong>Rifas</span>
+                <span><strong className="block text-sm text-[var(--admin-text)]">{tenant.raffleCount}</strong>Ações</span>
                 <span><strong className="block text-sm text-[var(--admin-text)]">{tenant.purchaseCount}</strong>Vendas</span>
-                <span><strong className="block text-sm text-[var(--admin-text)]">{money(tenant.paidRevenue)}</strong>Receita</span>
+                <span><strong className="block text-sm text-[var(--admin-text)]">{money(tenant.paidRevenue)}</strong>Faturamento</span>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button type="button" className="admin-button-primary flex-1 justify-center" disabled={accessingTenantId === tenant.id} onClick={() => void enterTenantEnvironment(tenant)}>
                   <LogIn className="h-4 w-4" />
                   {accessingTenantId === tenant.id ? "Entrando..." : "Entrar no ambiente"}
                 </button>
-                <Link className="admin-icon-button" title="Financeiro do inquilino" to={`/superadmin/tenants/${tenant.id}/financeiro`}><Eye className="h-4 w-4" /></Link>
+                <Link className="admin-icon-button" title="Financeiro do cliente" to={`/superadmin/tenants/${tenant.id}/financeiro`}><Eye className="h-4 w-4" /></Link>
               </div>
             </div>
           ))}
@@ -298,7 +298,7 @@ export function SuperAdminDashboard() {
         {[
           ["Faturamento por dia", charts.byDay || []],
           ["Faturamento por gateway", charts.byGateway || []],
-          ["Top rifas por receita", charts.topRaffles || []]
+          ["Top ações por faturamento", charts.topRaffles || []]
         ].map(([title, raw]) => {
           const items = raw as ChartPoint[];
           const max = chartMax(items);
@@ -326,8 +326,8 @@ export function SuperAdminDashboard() {
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Ranking de tenants por vendas</h2>
-        <AdminDataTable columns={["Posicao", "Tenant", "Total vendido", "Comissao"]} rows={ranking.map(item => [
+        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Ranking de clientes por vendas</h2>
+        <AdminDataTable columns={["Posição", "Cliente", "Faturamento", "Receita operacional"]} rows={ranking.map(item => [
           <span key={item.tenant_id} className="inline-flex items-center gap-2"><Trophy className="h-4 w-4 text-amber-500" />#{item.position}</span>,
           item.tenant,
           money(item.paidRevenue),
@@ -338,8 +338,8 @@ export function SuperAdminDashboard() {
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Clientes e tenants</h2>
-            <p className="text-sm text-[var(--admin-muted)]">Controle de acesso e operacao por cliente.</p>
+            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Clientes</h2>
+            <p className="text-sm text-[var(--admin-muted)]">Controle de acesso e operação por cliente.</p>
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => void loadData()} className="admin-button-secondary" title="Atualizar">
@@ -348,14 +348,14 @@ export function SuperAdminDashboard() {
             </button>
             <button type="button" onClick={() => setForm({ ...emptyForm })} className="admin-button-primary">
               <Plus className="h-4 w-4" />
-              Novo tenant
+              Novo Cliente
             </button>
           </div>
         </div>
         <AdminDataTable
-          columns={["Cliente", "Status", "Plano", "Rifas", "Vendas", "Receita paga", "Comissao", "Acoes"]}
+          columns={["Cliente", "Status", "Plano", "Operações", "Vendas", "Faturamento", "Receita operacional", "Comandos"]}
           rows={tenants.map(tenant => [
-            <div key={tenant.id}><p className="font-semibold">{tenant.nome}</p><p className="text-xs text-[var(--admin-muted)]">{tenant.slug}</p></div>,
+            <div key={tenant.id}><p className="font-semibold">{tenant.nome}</p><p className="text-xs text-[var(--admin-muted)]">Ambiente profissional</p></div>,
             statusBadge(tenant.status),
             tenant.plano,
             tenant.raffleCount,
@@ -368,7 +368,7 @@ export function SuperAdminDashboard() {
               <Link className="admin-icon-button" title="Plano e Recursos" to={`/superadmin/tenants/${tenant.id}/plano`}><SlidersHorizontal className="h-4 w-4" /></Link>
               <button type="button" className="admin-icon-button" title="Entrar no ambiente" disabled={accessingTenantId === tenant.id} onClick={() => void enterTenantEnvironment(tenant)}><LogIn className="h-4 w-4" /></button>
               <button type="button" className="admin-icon-button" title="Acessar como suporte" onClick={() => { setImpersonatingTenant(tenant); setSupportReason(""); }}><LifeBuoy className="h-4 w-4" /></button>
-              <button type="button" className="admin-icon-button" title="Editar tenant" onClick={() => setForm({ ...tenant })}><Pencil className="h-4 w-4" /></button>
+              <button type="button" className="admin-icon-button" title="Editar Cliente" onClick={() => setForm({ ...tenant })}><Pencil className="h-4 w-4" /></button>
               <button type="button" className="admin-button-secondary" onClick={() => void toggleSuspension(tenant)}>
                 {tenant.status === "suspended" ? "Reativar" : "Suspender"}
               </button>
@@ -379,21 +379,21 @@ export function SuperAdminDashboard() {
 
       <div className="grid gap-5 xl:grid-cols-2">
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-[var(--admin-text)]">Todas as rifas</h2>
-          <AdminDataTable columns={["Tenant", "Rifa", "Status", "Cotas", "Acoes"]} rows={raffles.map(raffle => [
+          <h2 className="text-lg font-semibold text-[var(--admin-text)]">Ações ativas</h2>
+          <AdminDataTable columns={["Cliente", "Ação", "Status", "Números", "Ações"]} rows={raffles.map(raffle => [
             raffle.tenant,
             raffle.title,
             statusBadge(raffle.status),
             `${raffle.soldTickets}/${raffle.totalTickets}`,
             <div key={`${raffle.id}-actions`} className="flex gap-2">
-              <a className="admin-icon-button" title="Abrir rifa publica" href={`/raffle/${raffle.id}`} target="_blank" rel="noreferrer"><Eye className="h-4 w-4" /></a>
-              <Link className="admin-icon-button" title="Ver tenant" to={`/superadmin/tenants/${raffle.tenant_id}/financeiro`}><Building2 className="h-4 w-4" /></Link>
+              <a className="admin-icon-button" title="Abrir ação pública" href={`/raffle/${raffle.id}`} target="_blank" rel="noreferrer"><Eye className="h-4 w-4" /></a>
+              <Link className="admin-icon-button" title="Ver cliente" to={`/superadmin/tenants/${raffle.tenant_id}/financeiro`}><Building2 className="h-4 w-4" /></Link>
             </div>
           ])} />
         </section>
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-[var(--admin-text)]">Comissoes da plataforma</h2>
-          <AdminDataTable columns={["Tenant", "Percentual", "Receita paga", "Comissao"]} rows={commissions.map(item => [
+          <h2 className="text-lg font-semibold text-[var(--admin-text)]">Receita operacional</h2>
+          <AdminDataTable columns={["Cliente", "Percentual", "Faturamento", "Receita"]} rows={commissions.map(item => [
             item.tenant,
             `${item.percentual}%`,
             money(item.paidRevenue),
@@ -404,14 +404,14 @@ export function SuperAdminDashboard() {
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-[var(--admin-text)]">Vendas globais</h2>
-        <AdminDataTable columns={["Data", "Tenant", "Produto", "Cliente", "Canal", "Valor", "Status"]} rows={recentSales.map(sale => [
+        <AdminDataTable columns={["Data", "Cliente", "Produto", "Comprador", "Canal", "Valor", "Status"]} rows={recentSales.map(sale => [
           dateTime(sale.createdAt), sale.tenant, sale.product, sale.customer, sale.channel, money(sale.amount), statusBadge(sale.status)
         ])} empty="Nenhuma venda registrada." />
       </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-[var(--admin-text)]">Pagamentos PIX</h2>
-        <AdminDataTable columns={["Data", "Tenant", "Cliente", "Gateway", "Valor", "Status"]} rows={payments.map(payment => [
+        <AdminDataTable columns={["Data", "Cliente", "Comprador", "Gateway", "Valor", "Status"]} rows={payments.map(payment => [
           dateTime(payment.createdAt), payment.tenant, payment.customer, payment.gateway, money(payment.amount), statusBadge(payment.status)
         ])} empty="Nenhum pagamento PIX registrado." />
       </section>
@@ -420,15 +420,12 @@ export function SuperAdminDashboard() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
           <form onSubmit={submitTenant} className="admin-card w-full max-w-2xl space-y-4 p-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-[var(--admin-text)]">{form.id ? "Editar tenant" : "Novo tenant"}</h2>
+              <h2 className="text-lg font-semibold text-[var(--admin-text)]">{form.id ? "Editar Cliente" : "Novo Cliente"}</h2>
               <button type="button" onClick={() => setForm(null)} className="admin-icon-button" aria-label="Fechar"><X className="h-4 w-4" /></button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-1 text-sm text-[var(--admin-muted)]">Nome
                 <input className="admin-input w-full" value={form.nome} onChange={event => setForm({ ...form, nome: event.target.value })} required />
-              </label>
-              <label className="space-y-1 text-sm text-[var(--admin-muted)]">Slug
-                <input className="admin-input w-full" value={form.slug} onChange={event => setForm({ ...form, slug: event.target.value })} required />
               </label>
               <label className="space-y-1 text-sm text-[var(--admin-muted)]">Dominio customizado
                 <input className="admin-input w-full" value={form.dominio_customizado} onChange={event => setForm({ ...form, dominio_customizado: event.target.value })} />
@@ -443,19 +440,25 @@ export function SuperAdminDashboard() {
                   ))}
                 </select>
               </label>
-              <label className="space-y-1 text-sm text-[var(--admin-muted)]">Percentual da plataforma
+              <label className="space-y-1 text-sm text-[var(--admin-muted)]">Percentual operacional
                 <input className="admin-input w-full" type="number" min="0" max="100" step="0.01" value={form.percentual_plataforma} onChange={event => setForm({ ...form, percentual_plataforma: Number(event.target.value) })} />
               </label>
-              <label className="space-y-1 text-sm text-[var(--admin-muted)]">Cor primaria
+              <label className="space-y-1 text-sm text-[var(--admin-muted)]">Cor primária
                 <div className="flex items-center gap-2">
                   <input className="h-11 w-12 cursor-pointer rounded border border-[var(--admin-border)] bg-transparent p-1" type="color" value={form.cor_primaria} onChange={event => setForm({ ...form, cor_primaria: event.target.value })} />
                   <input className="admin-input w-full" value={form.cor_primaria} onChange={event => setForm({ ...form, cor_primaria: event.target.value })} />
                 </div>
               </label>
             </div>
+            <details className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
+              <summary className="cursor-pointer text-sm font-semibold text-[var(--admin-text)]">Configurações Avançadas</summary>
+              <label className="mt-4 block space-y-1 text-sm text-[var(--admin-muted)]">Código interno do ambiente
+                <input className="admin-input w-full" value={form.slug} onChange={event => setForm({ ...form, slug: event.target.value })} required />
+              </label>
+            </details>
             <div className="flex justify-end gap-2 border-t border-[var(--admin-border)] pt-4">
               <button type="button" onClick={() => setForm(null)} className="admin-button-secondary">Cancelar</button>
-              <button type="submit" disabled={saving} className="admin-button-primary">{saving ? "Salvando..." : "Salvar tenant"}</button>
+              <button type="submit" disabled={saving} className="admin-button-primary">{saving ? "Salvando..." : "Salvar Cliente"}</button>
             </div>
           </form>
         </div>

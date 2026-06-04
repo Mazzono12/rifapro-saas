@@ -30,7 +30,7 @@ export function SuperAdminTenantDetail() {
       setRaffles(await rafflesRes.json());
       setOrders(await ordersRes.json());
     } catch (error) {
-      toast.error("Falha no tenant", { description: error instanceof Error ? error.message : "Tente novamente." });
+      toast.error("Falha no cliente", { description: error instanceof Error ? error.message : "Tente novamente." });
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export function SuperAdminTenantDetail() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link to="/superadmin" className="text-sm text-[var(--admin-muted)]">← Voltar para tenants</Link>
+          <Link to="/superadmin" className="text-sm text-[var(--admin-muted)]">← Voltar para clientes</Link>
           <h2 className="mt-1 text-2xl font-semibold text-[var(--admin-text)]">{data.tenant.nome}</h2>
         </div>
         <a className="admin-button-secondary" href={`/api/superadmin/tenants/${tenantId}/reports/revenue/export`}>

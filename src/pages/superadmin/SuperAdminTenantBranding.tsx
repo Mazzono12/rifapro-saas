@@ -13,7 +13,7 @@ export function SuperAdminTenantBranding() {
     fetch(baseEndpoint)
       .then(res => res.json())
       .then(setBranding)
-      .catch(() => toast.error("Nao foi possivel carregar aparencia"));
+      .catch(() => toast.error("Não foi possível carregar aparência"));
   }, [baseEndpoint]);
 
   const save = async () => {
@@ -22,23 +22,23 @@ export function SuperAdminTenantBranding() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(branding)
     });
-    if (!res.ok) throw new Error("Nao foi possivel salvar aparencia");
+    if (!res.ok) throw new Error("Não foi possível salvar aparência");
     setBranding(await res.json());
-    toast.success("Aparencia salva");
+    toast.success("Aparência salva");
   };
 
   const reset = async () => {
     const res = await fetch(`${baseEndpoint}/reset`, { method: "POST" });
-    if (!res.ok) throw new Error("Nao foi possivel resetar aparencia");
+    if (!res.ok) throw new Error("Não foi possível resetar aparência");
     setBranding(await res.json());
-    toast.success("Aparencia resetada");
+    toast.success("Aparência resetada");
   };
 
   return (
     <div className="space-y-6">
       <div>
         <p className="premium-eyebrow">{isGlobal ? "Global" : "Conta"}</p>
-        <h1 className="text-3xl font-black text-white">{isGlobal ? "Aparencia global" : "Aparencia da conta"}</h1>
+        <h1 className="text-3xl font-black text-white">{isGlobal ? "Aparência global" : "Aparência da conta"}</h1>
         <p className="mt-2 text-sm text-slate-400">Configure nome, logo, GIF animado, favicon, cores e a tela de login premium.</p>
       </div>
       {branding ? (

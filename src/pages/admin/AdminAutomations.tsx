@@ -129,7 +129,7 @@ export function AdminAutomations() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-4">
-        <MetricCard icon={Bot} label="Fluxos ativos" value={metrics.enabled || enabledFlows.length} trend="por tenant" />
+        <MetricCard icon={Bot} label="Fluxos ativos" value={metrics.enabled || enabledFlows.length} trend="por cliente" />
         <MetricCard icon={Clock} label="Agendadas" value={metrics.scheduled} trend="aguardando execução" tone="warning" />
         <MetricCard icon={Play} label="Executadas" value={metrics.completed} trend="concluídas" tone="success" />
         <MetricCard icon={RefreshCw} label="Falhas" value={metrics.failed} trend="com retry/log" tone="danger" />
@@ -139,7 +139,7 @@ export function AdminAutomations() {
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-2xl font-black text-[var(--admin-text)]">Automações</h1>
-            <p className="mt-1 text-sm text-[var(--admin-muted)]">WhatsApp, CRM, recuperação de PIX, pós-compra, remarketing e auditoria por tenant.</p>
+            <p className="mt-1 text-sm text-[var(--admin-muted)]">WhatsApp, CRM, recuperação de PIX, pós-compra, remarketing e auditoria por cliente.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <button className="admin-button-secondary inline-flex items-center justify-center gap-2" onClick={() => void processDue()}><RefreshCw className="h-4 w-4" /> Processar fila</button>

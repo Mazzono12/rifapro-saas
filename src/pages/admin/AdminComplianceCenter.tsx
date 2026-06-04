@@ -59,7 +59,7 @@ export function AdminComplianceCenter() {
       <Section title="Ledger financeiro" rows={wallet.map(item => [item.source_type, item.customer_id || item.affiliate_ref || "-", `R$ ${Number(item.amount || 0).toFixed(2)}`, item.reason])} />
       <Section title="Compliance LGPD" rows={(compliance?.requests || []).map((item: any) => [item.request_type, item.customer_id, item.status, item.reason])} />
       <AntifraudCases cases={fraudCases} onReview={reviewCase} />
-      <Section title="Antifraude - eventos de score" rows={fraud.map(item => [item.signal_type, `${item.severity} (${item.score ?? 0})`, item.status, JSON.stringify(item.metadata || {})])} />
+      <Section title="Antifraude - eventos de score" rows={fraud.map(item => [item.signal_type, `${item.severity} (${item.score ?? 0})`, item.status, "Dados protegidos"])} />
     </div>
   );
 }

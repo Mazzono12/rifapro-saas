@@ -165,7 +165,7 @@ export function AdminRaffles() {
             <h1 className="text-3xl font-display font-bold text-white">Gerenciar Rifas</h1>
          </div>
          <button 
-           onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, n8nEnabled: false, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Plataforma de rifas premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
+           onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, n8nEnabled: false, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
            className="bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/50 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
          >
            <Plus className="w-4 h-4" /> Nova Rifa
@@ -215,7 +215,7 @@ export function AdminRaffles() {
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <MiniStat label="Status PIX" value={raffleAdmin.pix.enabled ? "Habilitado" : "Desabilitado"} />
                     <MiniStat label="Gateway" value={raffleAdmin.pix.gateway} />
-                    <MiniStat label="Ambiente" value={raffleAdmin.pix.sandbox ? "Sandbox" : "Produção"} />
+                    <MiniStat label="Ambiente" value={raffleAdmin.pix.sandbox ? "Validação" : "Produção"} />
                     <MiniStat label="Webhook" value={raffleAdmin.pix.webhookUrl || "Não configurado"} />
                   </div>
                 </div>
@@ -425,7 +425,7 @@ export function AdminRaffles() {
                         />
                         <span className="text-sm text-white">Mostrar preço e progresso ao lado do botão</span>
                       </label>
-                      <TextField label="Etiqueta pequena" value={currentRaffle.heroEyebrow || ""} onChange={value => setCurrentRaffle({ ...currentRaffle, heroEyebrow: value })} placeholder="Plataforma de rifas premium" />
+                      <TextField label="Etiqueta pequena" value={currentRaffle.heroEyebrow || ""} onChange={value => setCurrentRaffle({ ...currentRaffle, heroEyebrow: value })} placeholder="Experiência premium" />
                       <TextField label="Texto do botão principal" value={currentRaffle.heroPrimaryButton || ""} onChange={value => setCurrentRaffle({ ...currentRaffle, heroPrimaryButton: value })} placeholder="Participar agora" />
                       <label className="md:col-span-2">
                         <span className="block text-xs font-mono text-slate-400 mb-1">Título principal</span>
@@ -559,7 +559,7 @@ export function AdminRaffles() {
                     </label>
                     <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                       <input type="checkbox" checked={(currentRaffle.pixConfig || defaultPixConfig).sandbox} onChange={e => updatePixConfig({ sandbox: e.target.checked })} />
-                      <span className="text-sm text-white">Modo sandbox</span>
+                      <span className="text-sm text-white">Modo de validação</span>
                     </label>
                     <PixField label="Chave PIX" value={(currentRaffle.pixConfig || defaultPixConfig).pixKey || (currentRaffle.pixConfig || defaultPixConfig).apiKey || ""} onChange={value => updatePixConfig({ pixKey: value, apiKey: value })} />
                     <PixField label="Access token" value={(currentRaffle.pixConfig || defaultPixConfig).accessToken || ""} onChange={value => updatePixConfig({ accessToken: value })} />

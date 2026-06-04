@@ -173,7 +173,7 @@ export function AdminOperations() {
     <div className="admin-ops space-y-6">
       <div className="grid gap-4 md:grid-cols-4">
         <MetricCard icon={Bell} label="Notificações" value={notifications?.total || 0} trend="PIX, saques e suporte" tone="warning" />
-        <MetricCard icon={HeartPulse} label="Saúde do sistema" value={criticalIssues ? "Atenção" : "OK"} trend={`${health?.issues?.length || 0} aviso(s)`} tone={criticalIssues ? "danger" : "success"} />
+        <MetricCard icon={HeartPulse} label="Saúde operacional" value={criticalIssues ? "Atenção" : "OK"} trend={`${health?.issues?.length || 0} aviso(s)`} tone={criticalIssues ? "danger" : "success"} />
         <MetricCard icon={TicketPercent} label="Cupons ativos" value={coupons.filter(item => item.active).length} trend={`${coupons.length} campanha(s)`} tone="accent" />
         <MetricCard icon={ShieldCheck} label="Auditoria" value={auditLogs.length} trend="ações administrativas" />
       </div>
@@ -368,7 +368,7 @@ export function AdminOperations() {
                 value={settings?.n8nIntegration?.defaultAudience || "platform"}
                 onChange={e => setSettings((current: any) => ({ ...current, n8nIntegration: { ...(current?.n8nIntegration || {}), defaultAudience: e.target.value } }))}
               >
-                <option value="platform">Toda a plataforma</option>
+                <option value="platform">Todo o Ambiente Premium</option>
                 <option value="raffle_previous">Clientes da rifa informada/anterior</option>
               </select>
             </label>
@@ -403,7 +403,7 @@ export function AdminOperations() {
               <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
                 Audiência
                 <select className="admin-input" value={broadcast.audience} onChange={e => setBroadcast({ ...broadcast, audience: e.target.value })}>
-                  <option value="platform">Todos os clientes da plataforma</option>
+                  <option value="platform">Todos os clientes</option>
                   <option value="raffle_previous">Clientes de uma rifa específica</option>
                 </select>
               </label>

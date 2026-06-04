@@ -41,13 +41,13 @@ export function SuperAdminIntegrations() {
           <MiniMetric label="Enviadas" value={whatsapp.metrics?.sent || 0} />
           <MiniMetric label="Pendentes" value={whatsapp.metrics?.pending || 0} />
           <MiniMetric label="Falhas" value={whatsapp.metrics?.failed || 0} />
-          <MiniMetric label="Tenants ativos" value={whatsapp.metrics?.activeTenants || 0} />
+          <MiniMetric label="Clientes ativos" value={whatsapp.metrics?.activeTenants || 0} />
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {(whatsapp.tenants || []).map((tenant: any) => (
             <div key={tenant.tenant_id} className="rounded-lg border border-[var(--admin-border)] p-4">
               <p className="font-semibold">{tenant.tenant}</p>
-              <p className="text-sm text-[var(--admin-muted)]">{tenant.provider} / {tenant.environment} / {tenant.enabled ? "ativo" : "inativo"}</p>
+              <p className="text-sm text-[var(--admin-muted)]">{tenant.enabled ? "Ativo" : "Inativo"}</p>
               <p className="mt-3 text-sm">Enviadas: {tenant.sent} | Pendentes: {tenant.pending} | Falhas: {tenant.failed}</p>
             </div>
           ))}
@@ -55,12 +55,11 @@ export function SuperAdminIntegrations() {
       </section>
 
       <section className="admin-card">
-        <h2 className="mb-4 text-lg font-semibold text-[var(--admin-text)]">Integrações por tenant</h2>
+        <h2 className="mb-4 text-lg font-semibold text-[var(--admin-text)]">Integrações por cliente</h2>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {data.summary.map((item: any) => (
             <div key={item.tenant_id} className="rounded-lg border border-[var(--admin-border)] p-4">
               <p className="font-semibold">{item.tenant}</p>
-              <p className="text-sm text-[var(--admin-muted)]">{item.tenant_id}</p>
               <p className="mt-3 text-sm">Ativas: {item.active} | Pendentes: {item.pending} | Erro: {item.errors}</p>
             </div>
           ))}
@@ -70,7 +69,7 @@ export function SuperAdminIntegrations() {
       <section className="admin-card overflow-x-auto">
         <h2 className="mb-4 text-lg font-semibold text-[var(--admin-text)]">Logs globais</h2>
         <table className="w-full min-w-[860px] text-left text-sm">
-          <thead className="text-xs uppercase text-[var(--admin-muted)]"><tr><th className="py-2">Tenant</th><th>Provider</th><th>Ação</th><th>HTTP</th><th>Sucesso</th><th>Erro</th></tr></thead>
+          <thead className="text-xs uppercase text-[var(--admin-muted)]"><tr><th className="py-2">Cliente</th><th>Provedor</th><th>Ação</th><th>Status</th><th>Sucesso</th><th>Observação</th></tr></thead>
           <tbody>
             {logs.slice(0, 20).map(log => (
               <tr key={log.id} className="border-t border-[var(--admin-border)]">
@@ -82,7 +81,7 @@ export function SuperAdminIntegrations() {
       </section>
 
       <section className="admin-card">
-        <h2 className="mb-4 text-lg font-semibold text-[var(--admin-text)]">Webhooks com falha</h2>
+        <h2 className="mb-4 text-lg font-semibold text-[var(--admin-text)]">Eventos com falha</h2>
         <div className="space-y-2">
           {webhooks.events.filter((item: any) => !item.processed).slice(0, 10).map((event: any) => (
             <div key={event.id} className="rounded-lg border border-[var(--admin-border)] p-3 text-sm">
@@ -95,7 +94,7 @@ export function SuperAdminIntegrations() {
       <section className="admin-card overflow-x-auto">
         <h2 className="mb-4 text-lg font-semibold text-[var(--admin-text)]">Fila WhatsApp</h2>
         <table className="w-full min-w-[860px] text-left text-sm">
-          <thead className="text-xs uppercase text-[var(--admin-muted)]"><tr><th className="py-2">Tenant</th><th>Pedido</th><th>Telefone</th><th>Provider</th><th>Status</th><th>Erro</th></tr></thead>
+          <thead className="text-xs uppercase text-[var(--admin-muted)]"><tr><th className="py-2">Cliente</th><th>Pedido</th><th>Telefone</th><th>Provedor</th><th>Status</th><th>Observação</th></tr></thead>
           <tbody>
             {whatsappMessages.slice(0, 20).map(message => (
               <tr key={message.id} className="border-t border-[var(--admin-border)]">

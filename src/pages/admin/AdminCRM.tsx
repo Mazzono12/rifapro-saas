@@ -158,7 +158,7 @@ export function AdminCRM() {
         <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <h1 className="mb-1 text-2xl font-black text-[var(--admin-text)]">CRM</h1>
-            <p className="text-sm text-[var(--admin-muted)]">Contatos, pipeline, segmentos, compras, WhatsApp, afiliados, carteira e auditoria por tenant.</p>
+            <p className="text-sm text-[var(--admin-muted)]">Contatos, pipeline, segmentos, compras, WhatsApp, afiliados, carteira e auditoria por cliente.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <a href="/api/admin/crm/export.csv" className="admin-button-secondary inline-flex items-center justify-center gap-2"><Download className="h-4 w-4" /> CSV</a>

@@ -118,7 +118,7 @@ export function AdminPromotions() {
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--admin-muted)]">Motor comercial</p>
           <h1 className="text-3xl font-black text-[var(--admin-text)]">Promoções</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--admin-muted)]">
-            Configure cotas em dobro, compre e ganhe, upsell pré-PIX, hora premiada, recuperação de PIX abandonado e rankings por tenant/campanha.
+            Configure cotas em dobro, compre e ganhe, upsell pré-PIX, hora premiada, recuperação de PIX abandonado e rankings por cliente/campanha.
           </p>
         </div>
         <button className="admin-button-primary" onClick={() => edit(defaultRule() as PromotionRule)}>
@@ -157,7 +157,7 @@ export function AdminPromotions() {
                     <span className="rounded-full bg-cyan-400/10 px-2.5 py-1 text-xs font-black text-cyan-200">{promotionTypes.find(item => item.value === rule.type)?.label || rule.type}</span>
                   </div>
                   <h3 className="mt-2 text-base font-black text-[var(--admin-text)]">{rule.name}</h3>
-                  <p className="mt-1 text-xs text-[var(--admin-muted)]">Prioridade {rule.priority} • {rule.raffle_id ? "Campanha específica" : "Global do tenant"}</p>
+                  <p className="mt-1 text-xs text-[var(--admin-muted)]">Prioridade {rule.priority} • {rule.raffle_id ? "Campanha específica" : "Global do cliente"}</p>
                 </button>
                 <div className="flex gap-2">
                   <button className="admin-icon-button" onClick={() => duplicate(rule.id)} aria-label="Duplicar"><Copy className="h-4 w-4" /></button>
@@ -185,7 +185,7 @@ export function AdminPromotions() {
             <label className="block text-sm font-bold text-[var(--admin-text)]">
               Campanha
               <select className="admin-input mt-1 w-full" value={selected.raffle_id || selected.raffleId || ""} onChange={event => setSelected(prev => ({ ...prev, raffle_id: event.target.value }))}>
-                <option value="">Todas as campanhas do tenant</option>
+                <option value="">Todas as campanhas do cliente</option>
                 {raffles.map(raffle => <option key={raffle.id} value={raffle.id}>{raffle.title}</option>)}
               </select>
             </label>

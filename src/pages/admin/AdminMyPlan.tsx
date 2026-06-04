@@ -41,7 +41,7 @@ export function AdminMyPlan() {
             <p className="mt-2 text-sm text-[var(--admin-muted)]">Status operacional: {plan?.tenant?.status || "-"}</p>
           </div>
           <span className="inline-flex items-center gap-2 rounded-xl bg-[var(--admin-primary)] px-4 py-3 text-sm font-bold text-[var(--admin-button-text)]">
-            <Sparkles className="h-4 w-4" /> Upgrade via superadmin
+            <Sparkles className="h-4 w-4" /> Solicitar upgrade
           </span>
         </div>
       </section>

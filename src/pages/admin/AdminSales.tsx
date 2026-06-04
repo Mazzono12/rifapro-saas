@@ -204,7 +204,7 @@ export function AdminSales() {
 
   const exportAllCustomers = () => {
     downloadCsv(
-      "clientes-plataforma.csv",
+      "clientes-ambiente-premium.csv",
       ["ID", "Nome", "Telefone", "CPF", "Cidade", "UF", "Cotas", "Afiliado"],
       customers.map(customer => [
         customer.id,
@@ -903,7 +903,7 @@ export function AdminSales() {
            <div className="grid gap-4 xl:grid-cols-2">
              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                <h3 className="font-display text-lg font-bold text-white">Cotas de rifas editáveis</h3>
-               <p className="mt-1 text-xs text-slate-500">Separe números por vírgula ou espaço. Ao salvar, o sistema remove ou acrescenta cotas nesta compra.</p>
+               <p className="mt-1 text-xs text-slate-500">Separe números por vírgula ou espaço. Ao salvar, a operação atualiza as cotas desta compra.</p>
                <div className="mt-4 space-y-3">
                  {asArray(editingCustomer.purchases).length === 0 ? (
                    <p className="text-sm text-slate-500">Nenhuma compra tradicional encontrada.</p>

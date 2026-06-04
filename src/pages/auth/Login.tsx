@@ -21,7 +21,7 @@ export function Login() {
     try {
       const fallback = await auth.login(email, password);
       const from = (location.state as { from?: string } | null)?.from;
-      toast.success("Acesso confirmado", { description: "Bem-vindo ao painel de gestao." });
+      toast.success("Acesso confirmado", { description: "Bem-vindo ao painel de gestão." });
       navigate(from || fallback, { replace: true });
     } catch (error) {
       toast.error("Acesso nao autorizado", { description: error instanceof Error ? error.message : "Confira seus dados e tente novamente." });
@@ -47,7 +47,7 @@ export function Login() {
         </label>
         <div className="flex items-center justify-between text-sm">
           <Link to="/recuperar-senha" className="font-semibold hover:text-white" style={{ color: accentColor }}>Recuperar senha</Link>
-          <Link to="/cadastro" className="text-slate-300 hover:text-white">Criar conta</Link>
+          <Link to="/cadastro" className="text-slate-300 hover:text-white">Solicitar acesso</Link>
         </div>
         <button
           disabled={auth.loading}
