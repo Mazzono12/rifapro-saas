@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { FileSearch, Scale, ShieldAlert, WalletCards } from "lucide-react";
+import { FileSearch, Scale, ShieldAlert, Trash2, WalletCards } from "lucide-react";
 
 type ComplianceView = "audit" | "compliance" | "antifraud" | "tickets";
 
@@ -42,9 +42,22 @@ export function AdminComplianceCenter({ view = "compliance" }: { view?: Complian
     setFraudSummary(data?.summary || {});
   };
 
+  const clearAuditReport = () => {
+    setAudit([]);
+    setAdjustments([]);
+    setWallet([]);
+  };
+
+  const clearAntifraudReport = () => {
+    setFraud([]);
+    setFraudCases([]);
+    setFraudSummary({});
+  };
+
   if (view === "audit") {
     return (
       <div className="space-y-6">
+        <ReportActions onClear={clearAuditReport} />
         <div className="grid gap-4 md:grid-cols-3">
           <Metric icon={FileSearch} label="Eventos imutaveis" value={audit.length} />
           <Metric icon={Scale} label="Ajustes registrados" value={adjustments.length} />
@@ -60,6 +73,7 @@ export function AdminComplianceCenter({ view = "compliance" }: { view?: Complian
   if (view === "antifraud") {
     return (
       <div className="space-y-6">
+        <ReportActions onClear={clearAntifraudReport} />
         <div className="grid gap-4 md:grid-cols-4">
           <Metric icon={ShieldAlert} label="Sinais antifraude" value={fraud.length} />
           <Metric icon={ShieldAlert} label="Casos em revisao" value={fraudSummary.open || fraudCases.length} />
@@ -95,6 +109,17 @@ export function AdminComplianceCenter({ view = "compliance" }: { view?: Complian
 
       <Section title="Compliance LGPD" rows={(compliance?.requests || []).map((item: any) => [item.request_type, item.customer_id, item.status, item.reason])} />
       <Section title="Ledger financeiro" rows={wallet.map(item => [item.source_type, item.customer_id || item.affiliate_ref || "-", `R$ ${Number(item.amount || 0).toFixed(2)}`, item.reason])} />
+    </div>
+  );
+}
+
+function ReportActions({ onClear }: { onClear: () => void }) {
+  return (
+    <div className="flex justify-end">
+      <button onClick={onClear} className="admin-button-secondary inline-flex items-center gap-2">
+        <Trash2 className="h-4 w-4" />
+        Limpar relatorio da tela
+      </button>
     </div>
   );
 }

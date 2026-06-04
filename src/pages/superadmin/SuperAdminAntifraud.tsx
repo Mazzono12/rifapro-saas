@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, Trash2 } from "lucide-react";
 import { AdminDataTable, MetricCard } from "../../components/admin/AdminPremium";
 
 export function SuperAdminAntifraud() {
@@ -11,6 +11,7 @@ export function SuperAdminAntifraud() {
 
   const cases = data.cases || [];
   const signals = data.signals || [];
+  const clearReport = () => setData({ signals: [], cases: [], summary: {} });
 
   return (
     <div className="space-y-6">
@@ -23,6 +24,12 @@ export function SuperAdminAntifraud() {
         <MetricCard icon={ShieldAlert} label="Casos" value={data.summary?.totalCases || cases.length} trend="todos os clientes" />
         <MetricCard icon={ShieldAlert} label="Alto risco" value={data.summary?.highRisk || 0} trend="score 71-100" tone="warning" />
         <MetricCard icon={ShieldAlert} label="Revisão manual" value={data.summary?.manualReview || 0} trend="fila global" tone="accent" />
+      </div>
+      <div className="flex justify-end">
+        <button onClick={clearReport} className="admin-button-secondary inline-flex items-center gap-2">
+          <Trash2 className="h-4 w-4" />
+          Limpar relatorio da tela
+        </button>
       </div>
       <AdminDataTable
         columns={["Cliente", "Sinal", "Score", "Severidade", "Ação", "Status"]}

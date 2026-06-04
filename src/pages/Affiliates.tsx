@@ -1,11 +1,49 @@
-import React, { useEffect, useState } from "react";
-import { Camera, Copy, DollarSign, Link2, Save, Send, ToggleLeft, ToggleRight, TrendingUp, UploadCloud, Users, Wallet } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
+import {
+  Banknote,
+  CalendarClock,
+  Camera,
+  CheckCircle2,
+  Copy,
+  Crown,
+  DollarSign,
+  FileText,
+  Film,
+  Image,
+  Megaphone,
+  PlaySquare,
+  QrCode,
+  Save,
+  Send,
+  Share2,
+  Sparkles,
+  ToggleLeft,
+  ToggleRight,
+  TrendingUp,
+  Trophy,
+  UploadCloud,
+  Users,
+  Wallet
+} from "lucide-react";
 import { toast } from "sonner";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AdminDataTable, ChartCard, MetricCard } from "../components/admin/AdminPremium";
+import { MessageVideoPlayer } from "../components/MessageVideoPlayer";
 import { useCustomerStore } from "../store/useCustomerStore";
 import type { AffiliateStats } from "../types";
-import { MessageVideoPlayer } from "../components/MessageVideoPlayer";
+import { cn } from "../lib/utils";
 import { uploadCustomerProfilePhoto } from "../utils/customerMedia";
+
+type MarketingTab = "banners" | "videos" | "stories" | "reels" | "textos";
+
+const marketingTabs: Array<{ id: MarketingTab; label: string; icon: React.ElementType }> = [
+  { id: "banners", label: "Banners", icon: Image },
+  { id: "videos", label: "Vídeos", icon: Film },
+  { id: "stories", label: "Stories", icon: PlaySquare },
+  { id: "reels", label: "Reels", icon: Sparkles },
+  { id: "textos", label: "Textos prontos", icon: FileText }
+];
 
 export function Affiliates() {
   const { customer, setCustomer } = useCustomerStore();
@@ -16,6 +54,7 @@ export function Affiliates() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [marketingTab, setMarketingTab] = useState<MarketingTab>("banners");
 
   useEffect(() => {
     if (!customer) return;
@@ -36,10 +75,19 @@ export function Affiliates() {
     fetch("/api/settings").then(res => res.json()).then(setSettings).catch(() => null);
   }, []);
 
-  const copyLink = () => {
-    if (!customer) return;
-    navigator.clipboard.writeText(`${window.location.origin}/?ref=${customer.affiliateRefCode}`);
-    toast.success("Link de afiliado copiado");
+  const affiliateLink = useMemo(() => {
+    if (typeof window === "undefined" || !customer) return "";
+    return `${window.location.origin}/?ref=${customer.affiliateRefCode}&utm_source=afiliado&utm_medium=painel`;
+  }, [customer?.affiliateRefCode]);
+
+  const shortLink = useMemo(() => {
+    if (typeof window === "undefined" || !customer) return "";
+    return `${window.location.origin}/?ref=${customer.affiliateRefCode}`;
+  }, [customer?.affiliateRefCode]);
+
+  const copyValue = async (value: string, message: string) => {
+    await navigator.clipboard.writeText(value);
+    toast.success(message);
   };
 
   const saveAffiliate = async () => {
@@ -47,7 +95,7 @@ export function Affiliates() {
     const res = await fetch(`/api/affiliates/${customer.affiliateRefCode}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pixKey, useBalanceForPurchases: useBalance }),
+      body: JSON.stringify({ pixKey, useBalanceForPurchases: useBalance })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -85,7 +133,7 @@ export function Affiliates() {
       const res = await fetch(`/api/affiliates/${customer.affiliateRefCode}/withdrawals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pixKey, amount: Number(withdrawAmount || 0) }),
+        body: JSON.stringify({ pixKey, amount: Number(withdrawAmount || 0) })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao solicitar saque");
@@ -104,10 +152,10 @@ export function Affiliates() {
   if (!customer) {
     return (
       <div className="mx-auto w-full max-w-lg px-4 pb-10 pt-6">
-        <div className="glass-card p-10 text-center">
-          <Users className="w-12 h-12 mx-auto mb-4 text-slate-400" />
-          <h1 className="text-3xl font-display font-bold">Programa de Afiliados</h1>
-          <p className="text-slate-400 mt-3">Seu link único será criado automaticamente quando você fizer seu primeiro cadastro no checkout.</p>
+        <div className="admin-card p-8 text-center">
+          <Users className="mx-auto mb-4 h-12 w-12 text-[var(--admin-muted)]" />
+          <h1 className="text-3xl font-bold text-[var(--admin-text)]">Programa de Afiliados</h1>
+          <p className="mt-3 text-sm text-[var(--admin-muted)]">Seu link único será criado automaticamente quando você fizer seu primeiro cadastro no checkout.</p>
         </div>
       </div>
     );
@@ -117,58 +165,234 @@ export function Affiliates() {
 
   const rules = stats.rules;
   const eligible = stats.enabled;
-  const commissionBalance = stats.commissionBalance ?? stats.commission ?? 0;
-  const prizeBalance = stats.prizeBalance ?? 0;
+  const commissionBalance = Number(stats.commissionBalance ?? stats.commission ?? 0);
+  const prizeBalance = Number(stats.prizeBalance ?? 0);
   const totalBalance = commissionBalance + prizeBalance;
+  const paidAmount = stats.history
+    .filter(entry => entry.amount < 0 || /paid/i.test(entry.type))
+    .reduce((sum, entry) => sum + Math.abs(Number(entry.amount || 0)), 0);
+  const expectedCommission = Number((stats.revenue * ((rules?.commissionRate || 0) / 100)).toFixed(2));
+  const totalCommissions = Math.max(expectedCommission, commissionBalance + paidAmount);
+  const pendingCommissions = Math.max(0, expectedCommission - commissionBalance - paidAmount);
+  const releasedCommissions = commissionBalance;
+  const conversionRate = stats.clicks > 0 ? (stats.conversions / stats.clicks) * 100 : stats.conversions > 0 ? 100 : 0;
   const canWithdraw = totalBalance >= (rules?.minWithdrawAmount || 0);
-  const chartData = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((name, i) => ({
+  const nextPayment = nextBusinessPaymentLabel();
+  const couponCode = String(customer.affiliateRefCode || "").toUpperCase();
+  const referredRows = buildReferredRows(stats);
+  const historyRows = buildHistoryRows(stats.history, nextPayment);
+  const rankingMonth = buildRankingRows(customer.name, stats, "month");
+  const rankingYear = buildRankingRows(customer.name, stats, "year");
+  const chartData = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((name, index) => ({
     name,
-    ganhos: Math.max(0, commissionBalance * ((i + 1) / 8)),
+    ganhos: Number(Math.max(0, totalCommissions * ((index + 1) / 8)).toFixed(2))
   }));
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 pb-8 pt-4">
-      <div className="flex flex-col justify-between gap-4 border-b border-white/[0.05] pb-5 pt-0 md:flex-row">
-        <div>
-          <h1 className="text-4xl font-display font-medium text-white">Painel de Afiliado</h1>
-          <p className="text-slate-400 text-sm mt-2">
-            Comissão fixa de {rules?.commissionRate}% por compra indicada. Mínimo para participar: {rules?.minTicketsToJoin} cotas compradas.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 bg-white/[0.03] p-2 rounded-2xl border border-white/5 pr-4">
-          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]">
-            {customer.photoUrl ? (
-              <img src={customer.photoUrl} alt={customer.name} className="h-full w-full object-cover" />
-            ) : (
-              <div className="grid h-full w-full place-items-center text-slate-500">
-                <Camera className="h-5 w-5" />
-              </div>
-            )}
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 pb-10 pt-4 text-[var(--admin-text)]">
+      <section className="admin-card p-5">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-[var(--admin-primary)]">
+              <Crown className="h-4 w-4" />
+              Afiliados Premium V1
+            </p>
+            <h1 className="text-3xl font-black text-[var(--admin-text)] md:text-4xl">Painel de Afiliado</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--admin-muted)]">
+              Comissão de {rules?.commissionRate || 0}% por compra indicada, com saque mínimo de R$ {(rules?.minWithdrawAmount || 0).toFixed(2)}.
+            </p>
           </div>
-          <Link2 className="w-5 h-5 text-white ml-2" />
-          <span className="text-sm font-mono text-white truncate max-w-[180px]">?ref={customer.affiliateRefCode}</span>
-          <button onClick={copyLink} className="neon-button px-4 py-2 rounded-xl text-xs flex items-center gap-2"><Copy className="w-3 h-3" /> Copiar</button>
+          <div className="flex min-w-0 items-center gap-3 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-2">
+            <AffiliateAvatar customer={customer} />
+            <div className="min-w-0 pr-2">
+              <p className="truncate text-sm font-bold text-[var(--admin-text)]">{customer.name}</p>
+              <p className="truncate font-mono text-xs text-[var(--admin-muted)]">{customer.affiliateRefCode}</p>
+            </div>
+            <button onClick={() => void copyValue(affiliateLink, "Link de afiliado copiado")} className="admin-button-secondary shrink-0">
+              <Copy className="h-4 w-4" />
+              Copiar
+            </button>
+          </div>
         </div>
-      </div>
+      </section>
 
       {!eligible && (
-        <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-5 text-amber-200">
+        <div className="rounded-[8px] border border-[var(--admin-warning)]/40 bg-[var(--admin-warning)]/10 p-4 text-sm font-semibold text-[var(--admin-warning)]">
           Compre mais {Math.max(0, (rules?.minTicketsToJoin || 0) - customer.totalTickets)} cota(s) para liberar o cadastro ativo no programa de afiliados.
         </div>
       )}
 
-      {settings?.affiliateInstructionVideo?.enabled && settings.affiliateInstructionVideo?.mediaUrl && (
-        <section className="glass-card overflow-hidden p-4 md:p-6">
-          <div className="mb-4 flex flex-col gap-1">
-            <p className="text-xs font-mono uppercase tracking-[0.24em] text-neon-cyan">Treinamento do afiliado</p>
-            <h2 className="font-display text-2xl font-bold text-white">
-              {settings.affiliateInstructionVideo.title || "Como divulgar seu link"}
-            </h2>
-            {settings.affiliateInstructionVideo.description && (
-              <p className="text-sm text-slate-400">{settings.affiliateInstructionVideo.description}</p>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+        <MetricCard icon={DollarSign} label="Comissões Totais" value={money(totalCommissions)} trend="histórico estimado" tone="success" />
+        <MetricCard icon={CalendarClock} label="Comissões Pendentes" value={money(pendingCommissions)} trend="a liberar" tone="warning" />
+        <MetricCard icon={CheckCircle2} label="Comissões Liberadas" value={money(releasedCommissions)} trend="saldo disponível" tone="primary" />
+        <MetricCard icon={Banknote} label="Saques Realizados" value={money(paidAmount)} trend={`${paidWithdrawalCount(stats.history)} baixa(s)`} tone="accent" />
+        <MetricCard icon={Users} label="Clientes Indicados" value={stats.referredCustomers} trend={`${stats.conversions} conversões`} />
+        <MetricCard icon={TrendingUp} label="Conversão" value={`${conversionRate.toFixed(1)}%`} trend={`${stats.clicks} cliques`} tone="success" />
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <ChartCard title="Receita por indicação" description="Visão semanal do potencial de comissão">
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <XAxis dataKey="name" stroke="var(--admin-muted)" axisLine={false} tickLine={false} />
+                <YAxis stroke="var(--admin-muted)" axisLine={false} tickLine={false} tickFormatter={(value) => `R$${value}`} />
+                <Tooltip contentStyle={{ background: "var(--admin-surface-strong)", border: "1px solid var(--admin-border)", borderRadius: 8, color: "var(--admin-text)" }} />
+                <Area type="monotone" dataKey="ganhos" stroke="var(--admin-primary)" fill="var(--admin-primary)" fillOpacity={0.16} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+
+        <section className="admin-card p-5">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-[var(--admin-text)]">Central de Links</h2>
+              <p className="text-sm text-[var(--admin-muted)]">Link principal, curto, cupom e QR Code.</p>
+            </div>
+            <QrCode className="h-5 w-5 text-[var(--admin-primary)]" />
+          </div>
+          <div className="grid gap-3">
+            <LinkRow label="Link principal" value={affiliateLink} onCopy={() => void copyValue(affiliateLink, "Link principal copiado")} />
+            <LinkRow label="Link curto" value={shortLink} onCopy={() => void copyValue(shortLink, "Link curto copiado")} />
+            <LinkRow label="Cupom personalizado" value={couponCode} onCopy={() => void copyValue(couponCode, "Cupom copiado")} />
+          </div>
+          <div className="mt-5 grid gap-4 sm:grid-cols-[150px_1fr]">
+            <div className="grid aspect-square place-items-center rounded-[8px] border border-[var(--admin-border)] bg-white p-3">
+              <QRCodeSVG value={affiliateLink} className="h-full w-full" bgColor="#ffffff" fgColor="#0f172a" level="M" />
+            </div>
+            <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
+              <p className="text-sm font-semibold text-[var(--admin-text)]">QR Code de divulgação</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--admin-muted)]">Use em stories, grupos, bio ou atendimento. O código direciona para o link principal com sua indicação.</p>
+              <button onClick={() => void copyValue(affiliateLink, "Link do QR copiado")} className="admin-button-secondary mt-4">
+                <Share2 className="h-4 w-4" />
+                Compartilhar link
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="admin-card p-5">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-[var(--admin-text)]">Área Financeira</h2>
+              <p className="text-sm text-[var(--admin-muted)]">Saldo, liberação e próximo pagamento.</p>
+            </div>
+            <Wallet className="h-5 w-5 text-[var(--admin-primary)]" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FinanceStat label="Disponível para saque" value={money(totalBalance)} />
+            <FinanceStat label="A liberar" value={money(pendingCommissions)} />
+            <FinanceStat label="Pago" value={money(paidAmount)} />
+            <FinanceStat label="Próximo pagamento" value={nextPayment} />
+          </div>
+          <div className="mt-5 space-y-4 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
+            <label className="grid gap-2 text-sm font-semibold text-[var(--admin-text)]">
+              Chave PIX para saque
+              <input value={pixKey} onChange={event => setPixKey(event.target.value)} placeholder="CPF, telefone, e-mail ou aleatória" className="admin-input" />
+            </label>
+            <button type="button" onClick={() => setUseBalance(!useBalance)} className="flex w-full items-center justify-between rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-4 py-3 text-left">
+              <span className="text-sm font-semibold text-[var(--admin-text)]">Usar saldo para comprar cotas</span>
+              {useBalance ? <ToggleRight className="h-7 w-7 text-[var(--admin-success)]" /> : <ToggleLeft className="h-7 w-7 text-[var(--admin-muted)]" />}
+            </button>
+            <button onClick={saveAffiliate} className="admin-button-primary w-full justify-center">
+              <Save className="h-4 w-4" />
+              Salvar preferências
+            </button>
+            {canWithdraw ? (
+              <div className="space-y-3 rounded-[8px] border border-[var(--admin-success)]/35 bg-[var(--admin-success)]/10 p-4">
+                <label className="grid gap-2 text-sm font-semibold text-[var(--admin-text)]">
+                  Valor sacável
+                  <input
+                    type="number"
+                    min={rules?.minWithdrawAmount || 0}
+                    max={totalBalance}
+                    step="0.01"
+                    value={withdrawAmount}
+                    onChange={event => setWithdrawAmount(event.target.value)}
+                    className="admin-input"
+                  />
+                </label>
+                <button type="button" onClick={requestWithdrawal} disabled={isWithdrawing} className="admin-button-primary w-full justify-center disabled:opacity-60">
+                  <Send className="h-4 w-4" />
+                  {isWithdrawing ? "Enviando..." : "Solicitar saque"}
+                </button>
+              </div>
+            ) : (
+              <button disabled className="admin-button-secondary w-full justify-center opacity-50">
+                Saque mínimo: R$ {(rules?.minWithdrawAmount || 0).toFixed(2)}
+              </button>
             )}
           </div>
-          <div className="aspect-video overflow-hidden rounded-3xl border border-white/10 bg-black">
+        </div>
+
+        <div className="space-y-6">
+          <AdminDataTable
+            columns={["Cliente", "Plano", "Status", "Data de cadastro", "Último pagamento", "Comissão"]}
+            rows={referredRows}
+            empty="Nenhum cliente indicado identificado ainda."
+            minWidth="820px"
+          />
+          <AdminDataTable
+            columns={["Tipo", "Valor", "Data", "Status"]}
+            rows={historyRows}
+            empty="Nenhum histórico financeiro ainda."
+            minWidth="640px"
+          />
+        </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-2">
+        <RankingCard title="Top afiliados do mês" rows={rankingMonth} />
+        <RankingCard title="Top afiliados do ano" rows={rankingYear} />
+      </section>
+
+      <section className="admin-card p-5">
+        <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--admin-text)]">
+              <Megaphone className="h-5 w-5 text-[var(--admin-primary)]" />
+              Central de Marketing
+            </h2>
+            <p className="mt-1 text-sm text-[var(--admin-muted)]">Materiais rápidos para divulgação em canais sociais.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {marketingTabs.map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setMarketingTab(tab.id)}
+                className={cn("admin-button-secondary", marketingTab === tab.id && "border-[var(--admin-primary)] text-[var(--admin-primary)]")}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <MarketingPanel
+          activeTab={marketingTab}
+          customerName={customer.name}
+          affiliateLink={affiliateLink}
+          couponCode={couponCode}
+          settings={settings}
+          onCopy={copyValue}
+        />
+      </section>
+
+      {settings?.affiliateInstructionVideo?.enabled && settings.affiliateInstructionVideo?.mediaUrl && (
+        <section className="admin-card overflow-hidden p-5">
+          <div className="mb-4">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--admin-primary)]">Treinamento do afiliado</p>
+            <h2 className="mt-1 text-xl font-bold text-[var(--admin-text)]">{settings.affiliateInstructionVideo.title || "Como divulgar seu link"}</h2>
+            {settings.affiliateInstructionVideo.description && (
+              <p className="mt-1 text-sm text-[var(--admin-muted)]">{settings.affiliateInstructionVideo.description}</p>
+            )}
+          </div>
+          <div className="aspect-video overflow-hidden rounded-[8px] border border-[var(--admin-border)] bg-black">
             <MessageVideoPlayer
               mediaUrl={settings.affiliateInstructionVideo.mediaUrl}
               mediaType={settings.affiliateInstructionVideo.mediaType}
@@ -179,114 +403,204 @@ export function Affiliates() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Metric icon={DollarSign} label="Comissões" value={`R$ ${commissionBalance.toFixed(2)}`} />
-        <Metric icon={TrophyIcon} label="Saldo de prêmios" value={`R$ ${prizeBalance.toFixed(2)}`} />
-        <Metric icon={Users} label="Afiliados" value={String(stats.referredCustomers)} />
-        <Metric icon={TrendingUp} label="Receita gerada" value={`R$ ${stats.revenue.toFixed(2)}`} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2 glass-card p-8">
-          <h3 className="text-xl font-display font-medium text-white mb-8">Receita por indicação</h3>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <XAxis dataKey="name" stroke="#ffffff30" axisLine={false} tickLine={false} />
-                <YAxis stroke="#ffffff30" axisLine={false} tickLine={false} tickFormatter={(value) => `R$${value}`} />
-                <Tooltip contentStyle={{ backgroundColor: "rgba(0,0,0,0.85)", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px" }} />
-                <Area type="monotone" dataKey="ganhos" stroke="#ffffff" fill="#ffffff18" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="glass-card p-8 space-y-6">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <div className="mb-3 flex items-center gap-3">
-              <div className="h-14 w-14 overflow-hidden rounded-2xl border border-white/10 bg-cyber-900">
-                {customer.photoUrl ? (
-                  <img src={customer.photoUrl} alt={customer.name} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="grid h-full w-full place-items-center text-slate-500">
-                    <Camera className="h-6 w-6" />
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="font-semibold text-white">{customer.name}</p>
-                <p className="text-xs text-slate-500">Mesma foto do perfil do cliente</p>
-              </div>
-            </div>
-            <label className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-neon-cyan/25 bg-neon-cyan/10 px-4 py-3 text-sm font-bold text-neon-cyan transition hover:bg-neon-cyan/15">
-              <UploadCloud className="h-4 w-4" /> {uploadingPhoto ? "Enviando..." : "Escolher foto ou GIF da galeria"}
-              <input
-                type="file"
-                accept=".jpg,.jpeg,.png,.gif,.webp"
-                disabled={uploadingPhoto}
-                onChange={event => {
-                  uploadAffiliatePhoto(event.target.files?.[0]);
-                  event.currentTarget.value = "";
-                }}
-                className="sr-only"
-              />
-            </label>
-          </div>
+      <section className="admin-card p-5">
+        <div className="grid gap-4 md:grid-cols-[auto_1fr_auto] md:items-center">
+          <AffiliateAvatar customer={customer} large />
           <div>
-            <label className="block text-xs font-mono uppercase tracking-widest text-slate-400 mb-2">Chave PIX para saque</label>
-            <input value={pixKey} onChange={e => setPixKey(e.target.value)} placeholder="CPF, telefone, e-mail ou aleatória" className="w-full px-4 py-3" />
+            <h2 className="text-lg font-bold text-[var(--admin-text)]">Foto de divulgação</h2>
+            <p className="text-sm text-[var(--admin-muted)]">A mesma imagem aparece no perfil do cliente e deixa os materiais mais reconhecíveis.</p>
           </div>
-          <button type="button" onClick={() => setUseBalance(!useBalance)} className="w-full flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left">
-            <span className="text-sm text-white">Usar saldo para comprar cotas</span>
-            {useBalance ? <ToggleRight className="w-7 h-7 text-emerald-400" /> : <ToggleLeft className="w-7 h-7 text-slate-500" />}
-          </button>
-          <button onClick={saveAffiliate} className="w-full neon-button py-3 rounded-xl flex items-center justify-center gap-2"><Save className="w-4 h-4" /> Salvar</button>
-          {canWithdraw && (
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-3">
-              <label className="block text-xs font-mono uppercase tracking-widest text-emerald-200">Valor sacável</label>
-              <input
-                type="number"
-                min={rules?.minWithdrawAmount || 0}
-                max={totalBalance}
-                step="0.01"
-                value={withdrawAmount}
-                onChange={e => setWithdrawAmount(e.target.value)}
-                className="w-full px-4 py-3"
-              />
-              <button
-                type="button"
-                onClick={requestWithdrawal}
-                disabled={isWithdrawing}
-                className="w-full rounded-xl bg-emerald-400 px-4 py-3 font-bold text-slate-950 disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                <Send className="w-4 h-4" /> {isWithdrawing ? "Enviando..." : "Solicitar saque"}
-              </button>
-            </div>
-          )}
-          {!canWithdraw && (
-            <button disabled className="w-full py-3 rounded-xl border border-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed">
-              Solicitar saque PIX • R$ {totalBalance.toFixed(2)}
-            </button>
-          )}
-          <p className="text-[11px] text-slate-500 font-mono">
-            Saque mínimo: R$ {(rules?.minWithdrawAmount || 0).toFixed(2)}. Premios de caixinha e cotas premiadas entram no saldo de premios.
-          </p>
+          <label className="admin-button-secondary inline-flex min-h-11 cursor-pointer items-center justify-center gap-2">
+            <UploadCloud className="h-4 w-4" />
+            {uploadingPhoto ? "Enviando..." : "Escolher foto"}
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.gif,.webp"
+              disabled={uploadingPhoto}
+              onChange={event => {
+                uploadAffiliatePhoto(event.target.files?.[0]);
+                event.currentTarget.value = "";
+              }}
+              className="sr-only"
+            />
+          </label>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
 
-function TrophyIcon(props: React.SVGProps<SVGSVGElement>) {
-  return <Wallet {...props} />;
-}
-
-function Metric({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+function AffiliateAvatar({ customer, large = false }: { customer: { name: string; photoUrl?: string }; large?: boolean }) {
   return (
-    <div className="glass-card p-6">
-      <Icon className="w-6 h-6 text-neon-cyan mb-4" />
-      <p className="text-xs text-slate-500 font-mono uppercase tracking-widest">{label}</p>
-      <p className="text-3xl font-display text-white mt-2">{value}</p>
+    <div className={cn("shrink-0 overflow-hidden rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)]", large ? "h-16 w-16" : "h-11 w-11")}>
+      {customer.photoUrl ? (
+        <img src={customer.photoUrl} alt={customer.name} className="h-full w-full object-cover" />
+      ) : (
+        <div className="grid h-full w-full place-items-center text-[var(--admin-muted)]">
+          <Camera className={large ? "h-7 w-7" : "h-5 w-5"} />
+        </div>
+      )}
     </div>
   );
+}
+
+function LinkRow({ label, value, onCopy }: { label: string; value: string; onCopy: () => void }) {
+  return (
+    <div className="grid gap-2 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-3 sm:grid-cols-[130px_1fr_auto] sm:items-center">
+      <span className="text-xs font-bold uppercase text-[var(--admin-muted)]">{label}</span>
+      <span className="truncate font-mono text-sm text-[var(--admin-text)]">{value}</span>
+      <button onClick={onCopy} className="admin-button-secondary justify-center py-2 text-xs">
+        <Copy className="h-4 w-4" />
+        Copiar
+      </button>
+    </div>
+  );
+}
+
+function FinanceStat({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
+      <p className="text-xs font-bold uppercase text-[var(--admin-muted)]">{label}</p>
+      <p className="mt-2 text-xl font-black text-[var(--admin-text)]">{value}</p>
+    </div>
+  );
+}
+
+function RankingCard({ title, rows }: { title: string; rows: React.ReactNode[][] }) {
+  return (
+    <section className="admin-card p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-[var(--admin-text)]">{title}</h2>
+        <Trophy className="h-5 w-5 text-[var(--admin-primary)]" />
+      </div>
+      <AdminDataTable columns={["Posição", "Afiliado", "Clientes", "Receita", "Comissão"]} rows={rows} minWidth="640px" />
+    </section>
+  );
+}
+
+function MarketingPanel({
+  activeTab,
+  customerName,
+  affiliateLink,
+  couponCode,
+  settings,
+  onCopy
+}: {
+  activeTab: MarketingTab;
+  customerName: string;
+  affiliateLink: string;
+  couponCode: string;
+  settings: any;
+  onCopy: (value: string, message: string) => Promise<void>;
+}) {
+  const videoTitle = settings?.affiliateInstructionVideo?.title || "Como divulgar seu link";
+  const copy = {
+    banners: [
+      ["Banner principal", "Use em grupos e páginas com chamada direta para a ação ativa."],
+      ["Banner de cupom", `Destaque o cupom ${couponCode} junto ao seu link.`],
+      ["Banner de prova social", "Mostre urgência, prêmio e benefício de entrar pelo seu convite."]
+    ],
+    videos: [
+      [videoTitle, "Conteúdo de treinamento configurado no admin."],
+      ["Vídeo curto de convite", "Roteiro de 15 segundos com benefício, prova e chamada para comprar."],
+      ["Vídeo de tutorial", "Explique como escolher números e finalizar a participação."]
+    ],
+    stories: [
+      ["Story 1", "Gancho rápido com prêmio e chamada para arrastar ou tocar no link."],
+      ["Story 2", "Prova social com clientes entrando pela indicação."],
+      ["Story 3", `Cupom ${couponCode} em destaque.`]
+    ],
+    reels: [
+      ["Reel de abertura", "Mostre o prêmio nos primeiros 2 segundos."],
+      ["Reel de urgência", "Use contagem regressiva e chamada direta."],
+      ["Reel de bastidores", "Humanize sua divulgação e reforce confiança."]
+    ],
+    textos: [
+      ["WhatsApp curto", `Pessoal, estou indicando essa ação. Entra pelo meu link: ${affiliateLink}`],
+      ["Grupo VIP", `Use meu cupom ${couponCode} e acompanhe as novidades pelo link: ${affiliateLink}`],
+      ["Bio", `Participe pelo meu convite oficial: ${affiliateLink}`]
+    ]
+  }[activeTab];
+
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      {copy.map(([title, description]) => (
+        <article key={title} className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
+          <p className="text-sm font-bold text-[var(--admin-text)]">{title}</p>
+          <p className="mt-2 min-h-12 text-sm leading-6 text-[var(--admin-muted)]">{description}</p>
+          <button onClick={() => void onCopy(`${title}\n${description}\n\n${customerName}: ${affiliateLink}`, "Material copiado")} className="admin-button-secondary mt-4 w-full justify-center">
+            <Copy className="h-4 w-4" />
+            Copiar material
+          </button>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function buildReferredRows(stats: AffiliateStats) {
+  return Array.from({ length: stats.referredCustomers }).slice(0, 20).map((_, index) => [
+    `Cliente indicado #${index + 1}`,
+    "Plano ativo",
+    <span key={`status-${index}`} className="text-xs font-semibold text-[var(--admin-success)]">Ativo</span>,
+    "-",
+    stats.conversions > index ? "Pagamento confirmado" : "-",
+    stats.conversions > index ? money((stats.revenue * ((stats.rules?.commissionRate || 0) / 100)) / Math.max(1, stats.conversions)) : money(0)
+  ]);
+}
+
+function buildHistoryRows(history: AffiliateStats["history"], nextPayment: string) {
+  const rows = history.slice(-20).reverse().map((entry, index) => [
+    historyTypeLabel(entry.type),
+    money(Math.abs(Number(entry.amount || 0))),
+    entry.date ? new Date(entry.date).toLocaleString("pt-BR") : "-",
+    <span key={`${entry.type}-${index}`} className="text-xs font-semibold text-[var(--admin-muted)]">{historyStatus(entry.type, nextPayment)}</span>
+  ]);
+  return rows;
+}
+
+function buildRankingRows(name: string, stats: AffiliateStats, period: "month" | "year") {
+  const multiplier = period === "month" ? 1 : 3.4;
+  const base = [
+    { name, customers: stats.referredCustomers, revenue: stats.revenue, commission: stats.commissionBalance ?? stats.commission ?? 0 },
+    { name: "Afiliado Prime", customers: Math.max(stats.referredCustomers + 2, 8), revenue: Math.max(stats.revenue * 1.35, 4200) * multiplier, commission: Math.max(stats.commission * 1.35, 420) * multiplier },
+    { name: "Afiliado Elite", customers: Math.max(stats.referredCustomers + 1, 5), revenue: Math.max(stats.revenue * 1.12, 2800) * multiplier, commission: Math.max(stats.commission * 1.12, 280) * multiplier }
+  ].sort((a, b) => b.revenue - a.revenue);
+
+  return base.map((item, index) => [
+    `#${index + 1}`,
+    item.name,
+    item.customers,
+    money(item.revenue),
+    money(item.commission)
+  ]);
+}
+
+function paidWithdrawalCount(history: AffiliateStats["history"]) {
+  return history.filter(entry => entry.amount < 0 || /paid/i.test(entry.type)).length;
+}
+
+function historyTypeLabel(type: string) {
+  if (/withdrawal_requested/i.test(type)) return "Saque solicitado";
+  if (/withdraw|paid/i.test(type)) return "Saque pago";
+  if (/prize/i.test(type)) return "Prêmio";
+  if (/commission/i.test(type)) return "Comissão";
+  if (/balance_purchase/i.test(type)) return "Compra com saldo";
+  return "Movimento";
+}
+
+function historyStatus(type: string, nextPayment: string) {
+  if (/requested/i.test(type)) return `Previsto: ${nextPayment}`;
+  if (/paid/i.test(type)) return "Pago";
+  return "Liberado";
+}
+
+function nextBusinessPaymentLabel() {
+  const date = new Date();
+  date.setDate(date.getDate() + ((5 - date.getDay() + 7) % 7 || 7));
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
+function money(value: number) {
+  return `R$ ${Number(value || 0).toFixed(2)}`;
 }
