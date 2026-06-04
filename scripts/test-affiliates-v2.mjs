@@ -48,7 +48,7 @@ for (const field of ["pixKey", "history", "commissionBalance", "commission:", "r
   assert(!publicAffiliateBlock.includes(field), `endpoint publico de afiliado nao deve expor ${field}`);
 }
 assert(dashboardBlock.includes("status: \"preparation\""), "recorrencia deve ficar explicitamente em preparacao sem valor financeiro falso");
-assert(dashboardBlock.includes("commissionsPending: pending"), "metricas devem separar comissao pendente");
+assert(dashboardBlock.includes("commissionsPending: Number(pending.toFixed(2))"), "metricas devem separar comissao pendente");
 assert(dashboardBlock.includes("commissionsReleased: released"), "metricas devem separar comissao liberada");
 assert(dashboardBlock.includes("commissionsPaid"), "metricas devem separar comissao paga");
 

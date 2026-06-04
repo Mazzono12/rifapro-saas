@@ -54,6 +54,14 @@ type AffiliateDashboard = {
     prizesBalance: number;
   };
   recurring: { enabled: boolean; status: string; monthlyCommission: number; note: string };
+  eligibility: {
+    monthlyRequiredAmount: number;
+    monthlyPurchasedAmount: number;
+    remainingAmount: number;
+    isEligibleThisMonth: boolean;
+    eligibilityStatus: "active" | "pending";
+    blockedCommissionAmount: number;
+  };
   customers: Array<{ customer: string; plan: string; status: string; registeredAt: string; lastPaymentAt: string; commissionGenerated: number }>;
   commissions: Array<{ id: string; type: string; source: string; amount: number; status: string; createdAt: string }>;
   withdrawals: Array<{ id: string; amount: number; status: string; requestedAt: string; paidAt?: string; adminNote?: string }>;
@@ -215,6 +223,7 @@ export function Affiliates() {
   const historyRows = dashboard ? buildHistoryRowsFromDashboard(dashboard.commissions, dashboard.withdrawals, nextPayment) : buildHistoryRows(stats.history, nextPayment);
   const rankingMonth = dashboard ? buildRankingRowsFromDashboard(dashboard.ranking.month) : buildRankingRows(customer.name, stats, "month");
   const rankingYear = dashboard ? buildRankingRowsFromDashboard(dashboard.ranking.year) : buildRankingRows(customer.name, stats, "year");
+  const eligibility = dashboard?.eligibility;
   const chartData = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((name, index) => ({
     name,
     ganhos: Number(Math.max(0, totalCommissions * ((index + 1) / 8)).toFixed(2))
@@ -262,6 +271,34 @@ export function Affiliates() {
         <MetricCard icon={Users} label="Clientes Indicados" value={dashboard?.metrics.referredCustomers ?? stats.referredCustomers} trend={`${dashboard?.metrics.conversions ?? stats.conversions} conversões`} />
         <MetricCard icon={TrendingUp} label="Conversão" value={`${conversionRate.toFixed(1)}%`} trend={`${dashboard?.metrics.clicks ?? stats.clicks} cliques`} tone="success" />
       </section>
+
+      {eligibility && (
+        <section className={cn("admin-card border p-5", eligibility.isEligibleThisMonth ? "border-[var(--admin-success)]/30" : "border-[var(--admin-warning)]/40")}>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="mb-1 text-xs font-black uppercase tracking-[0.18em] text-[var(--admin-muted)]">Status do Afiliado</p>
+              <h2 className="text-2xl font-black text-[var(--admin-text)]">
+                {eligibility.isEligibleThisMonth ? "Ativo para receber comissões" : "Pendente de ativação mensal"}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--admin-muted)]">
+                {eligibility.isEligibleThisMonth
+                  ? "Você já está ativo para receber comissões neste mês."
+                  : `Faltam ${money(eligibility.remainingAmount)} em cotas para liberar suas comissões deste mês.`}
+              </p>
+            </div>
+            <div className="grid min-w-0 gap-3 sm:grid-cols-3 lg:min-w-[520px]">
+              <FinanceStat label="Mínimo mensal" value={money(eligibility.monthlyRequiredAmount)} />
+              <FinanceStat label="Comprado este mês" value={money(eligibility.monthlyPurchasedAmount)} />
+              <FinanceStat label="Falta para ativar" value={money(eligibility.remainingAmount)} />
+            </div>
+          </div>
+          {!eligibility.isEligibleThisMonth && (
+            <a href="/" className="admin-button-primary mt-4 inline-flex">
+              Comprar cotas
+            </a>
+          )}
+        </section>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <ChartCard title="Receita por indicação" description="Visão semanal do potencial de comissão">
@@ -622,8 +659,8 @@ function buildHistoryRowsFromDashboard(commissions: AffiliateDashboard["commissi
       type: commissionTypeLabel(item.type),
       amount: item.amount,
       date: item.createdAt,
-      status: item.status === "released" ? "Liberado" : item.status,
-      tone: "text-[var(--admin-muted)]"
+      status: item.status === "released" ? "Liberado" : item.status === "pending" ? "Pendente de ativação" : item.status,
+      tone: item.status === "pending" ? "text-[var(--admin-warning)]" : "text-[var(--admin-muted)]"
     }))
   ]
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))

@@ -15,6 +15,7 @@
     "restore:persistent-state": "node scripts/restore-persistent-state.mjs",
     "lint": "tsc --noEmit",
     "test:affiliates": "node scripts/test-affiliates-v2.mjs",
+    "test:affiliate-monthly-quota-eligibility": "node scripts/test-affiliate-monthly-quota-eligibility-hard.mjs",
     "test:superadmin": "node scripts/test-superadmin-access.mjs",
     "test:tenant-scope": "node scripts/test-tenant-admin-scope.mjs",
     "test:saas-multitenant": "node scripts/test-saas-multitenant-foundation.mjs",

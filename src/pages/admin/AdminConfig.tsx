@@ -66,6 +66,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     affiliateProgram: {
       commissionRate: 10,
       minTicketsToJoin: 5,
+      monthlyActivationAmount: 0,
       minWithdrawAmount: 50,
       allowBalancePayments: true
     },
@@ -571,6 +572,19 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                    <input type="number" min="0" value={settings.affiliateProgram?.minWithdrawAmount || 0} onChange={e => setSettings({...settings, affiliateProgram: {...settings.affiliateProgram, minWithdrawAmount: Number(e.target.value)}})} className="w-full p-3" />
                  </label>
                </div>
+               <label className="block space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                 <span className="block text-xs font-mono text-slate-400 uppercase tracking-widest">Compra mínima mensal para ativação do afiliado</span>
+                 <input
+                   type="number"
+                   min="0"
+                   step="0.01"
+                   value={settings.affiliateProgram?.monthlyActivationAmount || 0}
+                   onChange={e => setSettings({...settings, affiliateProgram: {...settings.affiliateProgram, monthlyActivationAmount: Math.max(0, Number(e.target.value))}})}
+                   className="w-full p-3"
+                   placeholder="50.00"
+                 />
+                 <span className="block text-xs leading-5 text-slate-500">Defina o valor mínimo mensal em cotas que o afiliado precisa comprar para estar elegível a receber comissões. Use 0 para desativar a exigência.</span>
+               </label>
                <label className="flex items-center gap-2 text-xs font-mono text-slate-300">
                  <input type="checkbox" checked={Boolean(settings.affiliateProgram?.allowBalancePayments)} onChange={e => setSettings({...settings, affiliateProgram: {...settings.affiliateProgram, allowBalancePayments: e.target.checked}})} />
                  Permitir usar saldo de afiliado para comprar cotas

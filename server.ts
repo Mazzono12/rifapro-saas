@@ -511,6 +511,7 @@ async function startServer() {
     affiliateProgram: {
       commissionRate: 10,
       minTicketsToJoin: 5,
+      monthlyActivationAmount: 0,
       minWithdrawAmount: 50,
       allowBalancePayments: true
     },
@@ -605,6 +606,11 @@ async function startServer() {
   }
 
   function normalizeSettingsShape(sourceSettings: typeof settings) {
+    sourceSettings.affiliateProgram = {
+      ...settings.affiliateProgram,
+      ...(sourceSettings.affiliateProgram || {}),
+      monthlyActivationAmount: Math.max(0, Number(sourceSettings.affiliateProgram?.monthlyActivationAmount || 0))
+    };
     sourceSettings.socialLinks = {
       whatsapp: "",
       instagram: "",
@@ -11229,14 +11235,19 @@ async function startServer() {
     if (!referrer || referrer.customerId === input.buyerCustomerId) return null;
     const affiliate = referrer;
     const purchase = { amount: input.amount };
-    if (affiliate.history.some(entry => entry.type === input.source)) return affiliate;
+    if (affiliate.history.some(entry => entry.type === input.source || entry.type === `pending:${input.source}`)) return affiliate;
     const tenantScopedSettings = getTenantSettings(input.tenantId);
     const comm = Number((purchase.amount * (tenantScopedSettings.affiliateProgram.commissionRate / 100)).toFixed(2));
     affiliate.conversions++;
     affiliate.revenue += purchase.amount;
-    affiliate.commissionBalance += comm;
-    affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
-    affiliate.history.push({ amount: comm, type: input.source, date: new Date().toISOString() });
+    const eligibility = buildAffiliateMonthlyEligibility(affiliate);
+    if (eligibility.isEligibleThisMonth) {
+      affiliate.commissionBalance += comm;
+      affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
+      affiliate.history.push({ amount: comm, type: input.source, date: new Date().toISOString() });
+    } else {
+      affiliate.history.push({ amount: comm, type: `pending:${input.source}`, date: new Date().toISOString() });
+    }
     return affiliate;
   }
 
@@ -11275,15 +11286,70 @@ async function startServer() {
     return Boolean(customer && requestOwnsCustomer(req, customer));
   }
 
+  function monthWindow(date = new Date()) {
+    return {
+      startsAt: new Date(date.getFullYear(), date.getMonth(), 1).getTime(),
+      endsAt: new Date(date.getFullYear(), date.getMonth() + 1, 1).getTime()
+    };
+  }
+
+  function buildAffiliateMonthlyEligibility(affiliate: AffiliateRecord, date = new Date()) {
+    const tenantScopedSettings = getTenantSettings(affiliate.tenant_id);
+    const monthlyRequiredAmount = Math.max(0, Number(tenantScopedSettings.affiliateProgram.monthlyActivationAmount || 0));
+    const owner = affiliateOwnerCustomer(affiliate);
+    const window = monthWindow(date);
+    const monthlyPurchasedAmount = owner
+      ? getCustomerPaidActivity(owner)
+        .filter(purchase => {
+          const createdAt = new Date(purchase.created_at).getTime();
+          return createdAt >= window.startsAt && createdAt < window.endsAt;
+        })
+        .reduce((sum, purchase) => sum + Number(purchase.amount || 0), 0)
+      : 0;
+    const remainingAmount = Math.max(0, monthlyRequiredAmount - monthlyPurchasedAmount);
+    const isEligibleThisMonth = monthlyRequiredAmount <= 0 || monthlyPurchasedAmount >= monthlyRequiredAmount;
+    return {
+      monthlyRequiredAmount: Number(monthlyRequiredAmount.toFixed(2)),
+      monthlyPurchasedAmount: Number(monthlyPurchasedAmount.toFixed(2)),
+      remainingAmount: Number(remainingAmount.toFixed(2)),
+      isEligibleThisMonth,
+      eligibilityStatus: isEligibleThisMonth ? "active" : "pending",
+      blockedCommissionAmount: Number(affiliate.history
+        .filter(entry => entry.type.startsWith("pending:conversion:"))
+        .reduce((sum, entry) => sum + Number(entry.amount || 0), 0)
+        .toFixed(2))
+    };
+  }
+
+  function isPendingAffiliateCommission(entry: AffiliateLedger) {
+    return Number(entry.amount || 0) > 0 && entry.type.startsWith("pending:conversion:");
+  }
+
+  function releaseEligiblePendingAffiliateCommissions(affiliate: AffiliateRecord) {
+    const eligibility = buildAffiliateMonthlyEligibility(affiliate);
+    if (!eligibility.isEligibleThisMonth) return eligibility;
+    let releasedAmount = 0;
+    affiliate.history.forEach(entry => {
+      if (!isPendingAffiliateCommission(entry)) return;
+      releasedAmount += Number(entry.amount || 0);
+      entry.type = entry.type.replace(/^pending:/, "");
+    });
+    if (releasedAmount > 0) {
+      affiliate.commissionBalance += Number(releasedAmount.toFixed(2));
+      affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
+    }
+    return buildAffiliateMonthlyEligibility(affiliate);
+  }
+
   function affiliateCommissionEntries(affiliate: AffiliateRecord) {
     return affiliate.history
       .filter(entry => Number(entry.amount || 0) > 0)
       .map(entry => ({
         id: entry.type,
-        type: entry.type.startsWith("conversion:") ? "sale_commission" : entry.type,
+        type: entry.type.startsWith("conversion:") || entry.type.startsWith("pending:conversion:") ? "sale_commission" : entry.type,
         source: entry.type,
         amount: Number(entry.amount || 0),
-        status: "released",
+        status: isPendingAffiliateCommission(entry) ? "pending" : "released",
         createdAt: entry.date
       }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -11361,13 +11427,16 @@ async function startServer() {
   }
 
   function buildAffiliateDashboard(req: express.Request, affiliate: AffiliateRecord) {
+    const eligibility = releaseEligiblePendingAffiliateCommissions(affiliate);
     const tenantSettings = getTenantSettings(affiliate.tenant_id);
     const orders = getAffiliatePaidOrders(affiliate.tenant_id, affiliate.refCode);
     const commissions = affiliateCommissionEntries(affiliate);
     const generated = commissions.reduce((sum, item) => sum + item.amount, 0);
     const paid = affiliatePaidTotal(affiliate.tenant_id, affiliate.refCode);
     const released = Math.max(0, Number(affiliate.commissionBalance || 0));
-    const pending = 0;
+    const pending = commissions
+      .filter(item => item.status === "pending")
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const referredCustomers = buildAffiliateReferredCustomers(affiliate);
     const withdrawals = buildAffiliateWithdrawals(affiliate);
     const origin = `${req.protocol}://${req.get("host")}`;
@@ -11385,7 +11454,7 @@ async function startServer() {
         revenue: Number(orders.reduce((sum, order) => sum + order.amount, 0).toFixed(2)),
         conversionRate: affiliate.clicks > 0 ? Number(((orders.length / affiliate.clicks) * 100).toFixed(2)) : orders.length > 0 ? 100 : 0,
         commissionsTotal: Number(generated.toFixed(2)),
-        commissionsPending: pending,
+        commissionsPending: Number(pending.toFixed(2)),
         commissionsReleased: released,
         commissionsPaid: Number(paid.toFixed(2)),
         availableToWithdraw: Number(((affiliate.commissionBalance || 0) + (affiliate.prizeBalance || 0)).toFixed(2)),
@@ -11397,6 +11466,7 @@ async function startServer() {
         monthlyCommission: 0,
         note: "Nao ha ledger de recorrencia ativo; valores recorrentes nao sao simulados."
       },
+      eligibility,
       customers: referredCustomers,
       commissions,
       withdrawals,
@@ -15516,7 +15586,7 @@ async function startServer() {
     const incomingN8n = { ...(req.body.n8nIntegration || {}) };
     const incomingAffiliateVideo = { ...(req.body.affiliateInstructionVideo || {}) };
     if (incomingN8n.secret === "********") incomingN8n.secret = currentSettings.n8nIntegration.secret;
-    const updatedSettings = {
+    const updatedSettings = normalizeSettingsShape({
       ...currentSettings,
       ...req.body,
       smsProvider: { ...currentSettings.smsProvider, ...(req.body.smsProvider || {}) },
@@ -15537,7 +15607,7 @@ async function startServer() {
       branding: { ...currentSettings.branding, ...(req.body.branding || {}) },
       theme: { ...currentSettings.theme, ...(req.body.theme || {}) },
       mainVideoPlayer: { ...currentSettings.mainVideoPlayer, ...(req.body.mainVideoPlayer || {}) }
-    };
+    });
     tenantSettings[tenantId] = updatedSettings;
     if (tenantId === legacyTenantId) settings = updatedSettings;
     res.json(updatedSettings);
@@ -15818,6 +15888,7 @@ async function startServer() {
     };
     const customer = affiliate.customerId ? Object.values(customersByPhone).find(item => item.id === affiliate.customerId) : undefined;
     if (customer && requestOwnsCustomer(req, customer)) {
+      releaseEligiblePendingAffiliateCommissions(affiliate);
       res.json({ ...affiliate, rules: settings.affiliateProgram });
       return;
     }
@@ -15857,9 +15928,10 @@ async function startServer() {
       })
       .map(customer => {
         const affiliate = ensureAffiliateForCustomer(customer);
+        const eligibility = releaseEligiblePendingAffiliateCommissions(affiliate);
         return {
           customer,
-          affiliate: { ...affiliate, rules: settings.affiliateProgram }
+          affiliate: { ...affiliate, eligibility, rules: settings.affiliateProgram }
         };
       });
     res.json(results);
@@ -16117,6 +16189,7 @@ async function startServer() {
       res.status(403).json({ error: "Acesso negado para este afiliado" });
       return;
     }
+    releaseEligiblePendingAffiliateCommissions(affiliate);
     const amount = Math.max(0, Number(req.body.amount || affiliate.commissionBalance + affiliate.prizeBalance || 0));
     const totalBalance = (affiliate.commissionBalance || 0) + (affiliate.prizeBalance || 0);
     const pixKey = String(req.body.pixKey || affiliate.pixKey || "").trim();

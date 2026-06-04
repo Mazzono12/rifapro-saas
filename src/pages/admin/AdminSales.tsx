@@ -814,6 +814,22 @@ export function AdminSales() {
                     <MiniWallet label="Prêmios" value={selectedAffiliate.affiliate?.prizeBalance} />
                     <MiniWallet label="Total" value={selectedAffiliate.affiliate?.commission} />
                   </div>
+                  {selectedAffiliate.affiliate?.eligibility && (
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm font-bold text-white">
+                          {selectedAffiliate.affiliate.eligibility.isEligibleThisMonth ? "Ativo para comissões" : "Pendente de ativação mensal"}
+                        </p>
+                        <p className="text-xs font-mono text-slate-400">{selectedAffiliate.affiliate.eligibility.eligibilityStatus}</p>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                        <MiniWallet label="Mínimo mês" value={selectedAffiliate.affiliate.eligibility.monthlyRequiredAmount} />
+                        <MiniWallet label="Comprado mês" value={selectedAffiliate.affiliate.eligibility.monthlyPurchasedAmount} />
+                        <MiniWallet label="Falta" value={selectedAffiliate.affiliate.eligibility.remainingAmount} />
+                        <MiniWallet label="Comissão bloqueada" value={selectedAffiliate.affiliate.eligibility.blockedCommissionAmount} />
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <label className="space-y-1">
                       <span className="text-[10px] font-mono uppercase text-slate-500">Saldo comissões</span>
