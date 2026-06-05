@@ -164,6 +164,8 @@ function normalizeAffiliateResult(item: any) {
       commissionBalance: safeNumber(affiliate.commissionBalance),
       prizeBalance: safeNumber(affiliate.prizeBalance),
       commission: safeNumber(affiliate.commission),
+      useCustomCommission: Boolean(affiliate.useCustomCommission),
+      customCommissionRate: safeNumber(affiliate.customCommissionRate),
       useBalanceForPurchases: Boolean(affiliate.useBalanceForPurchases)
     }
   };
@@ -978,6 +980,7 @@ export function AdminSales() {
                     <p className="font-semibold text-white">{item.customer?.name || "Cliente"}</p>
                     <p className="text-xs text-slate-500">{item.customer?.phone || "sem telefone"} • CPF {item.customer?.cpf || "não informado"}</p>
                     <p className="text-xs text-emerald-300">Código de indicação: {item.affiliate?.refCode || "não definido"}</p>
+                    <p className="text-xs text-slate-400">{item.affiliate?.useCustomCommission ? "Usa comissão personalizada" : "Usa comissão padrão"}</p>
                   </button>
                 ))}
               </div>
@@ -1008,6 +1011,43 @@ export function AdminSales() {
                         className="w-full p-3 text-sm"
                       />
                     </label>
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3 md:col-span-2">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-bold text-white">
+                            {selectedAffiliate.affiliate?.useCustomCommission ? "Usa comissão personalizada" : "Usa comissão padrão"}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-400">Essa alteração vale apenas para novas vendas indicadas.</p>
+                        </div>
+                        <label className="flex items-center gap-2 text-sm text-slate-200">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(selectedAffiliate.affiliate?.useCustomCommission)}
+                            onChange={e => setSelectedAffiliate({
+                              ...selectedAffiliate,
+                              affiliate: { ...selectedAffiliate.affiliate, useCustomCommission: e.target.checked }
+                            })}
+                          />
+                          Comissão personalizada ativa
+                        </label>
+                      </div>
+                      <label className="mt-3 block space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Comissão personalizada (%)</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          disabled={!selectedAffiliate.affiliate?.useCustomCommission}
+                          value={selectedAffiliate.affiliate?.customCommissionRate || 0}
+                          onChange={e => setSelectedAffiliate({
+                            ...selectedAffiliate,
+                            affiliate: { ...selectedAffiliate.affiliate, customCommissionRate: Math.min(100, Math.max(0, Number(e.target.value))) }
+                          })}
+                          className="w-full p-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                        />
+                      </label>
+                    </div>
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-2">
                     <MiniWallet label="Comissões liberadas" value={selectedAffiliate.affiliate?.commissionBalance} />

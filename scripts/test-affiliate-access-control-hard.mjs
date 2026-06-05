@@ -12,6 +12,7 @@ function includesAll(source, tokens, label) {
 const app = read("src/App.tsx");
 const authSession = read("src/lib/authSession.ts");
 const affiliates = read("src/pages/Affiliates.tsx");
+const adminSales = read("src/pages/admin/AdminSales.tsx");
 const server = read("server.ts");
 const pkg = read("package.json");
 
@@ -187,6 +188,58 @@ includesAll(server, [
   'app.post("/api/admin/affiliates/manual"',
   'app.put("/api/admin/affiliates/:refCode/full"'
 ], "admin afiliados preservado");
+
+const findOrCreateCustomerBlock = server.slice(server.indexOf("function findOrCreateCustomer"), server.indexOf("function getDefaultRafflePixConfig"));
+assert(!findOrCreateCustomerBlock.includes("ensureAffiliateForCustomer(customer)"), "cadastro/compra pendente nao deve criar afiliado antes de pagamento confirmado");
+const publicAffiliateRegisterBlock = server.slice(server.indexOf('app.post("/api/affiliates/register"'), server.indexOf('app.get("/api/affiliates/:refCode"'));
+includesAll(publicAffiliateRegisterBlock, [
+  'res.status(409).json({ error: "Afiliado ativado automaticamente apos a primeira compra confirmada" })',
+  "publicAffiliateView(affiliates[key])"
+], "registro publico legado nao cria afiliado sem compra paga");
+assert(!publicAffiliateRegisterBlock.includes("affiliates[key] ="), "registro publico legado nao pode materializar afiliado");
+
+const confirmPurchaseBlock = server.slice(server.indexOf("function confirmPurchase"), server.indexOf("function creditAffiliateCommission"));
+includesAll(confirmPurchaseBlock, [
+  "affiliate_auto_first_paid_purchase",
+  "forceEnable: true",
+  "purchase.status = \"paid\""
+], "compra confirmada cria afiliado automaticamente");
+
+const adminAffiliateSearchBlock = server.slice(server.indexOf('app.get("/api/admin/affiliates/search"'), server.indexOf('app.get("/api/admin/affiliates/withdrawals"'));
+includesAll(adminAffiliateSearchBlock, [
+  "Object.values(affiliates)",
+  "adminCanAccessTenant(req, affiliate.tenant_id)",
+  "releaseEligiblePendingAffiliateCommissions(affiliate)"
+], "lista admin mostra afiliados tenant-scoped sem criar pendentes");
+assert(!adminAffiliateSearchBlock.includes("ensureAffiliateForCustomer"), "busca admin nao pode criar afiliado pendente");
+
+const commissionBlock = server.slice(server.indexOf("function creditAffiliateCommission"), server.indexOf("type AffiliatePaidOrder"));
+includesAll(commissionBlock, [
+  "resolveAffiliateCommissionRate(affiliate)",
+  "affiliate.history.some",
+  "affiliate.commissionBalance += comm"
+], "comissao personalizada/idempotente");
+assert(!commissionBlock.includes("tenantScopedSettings.affiliateProgram.commissionRate"), "comissao deve passar pelo fallback personalizado/padrao");
+
+const adminAffiliateFullBlock = server.slice(server.indexOf('app.put("/api/admin/affiliates/:refCode/full"'), server.indexOf('app.put("/api/affiliates/:refCode"'));
+includesAll(adminAffiliateFullBlock, [
+  "normalizeAffiliateCommissionRate(req.body.affiliate.customCommissionRate)",
+  "affiliate.useCustomCommission",
+  "admin_affiliate_full_update"
+], "admin altera comissao individual");
+
+const publicAffiliateUpdateBlock = server.slice(server.indexOf('app.put("/api/affiliates/:refCode"'), server.indexOf('app.post("/api/affiliates/:refCode/withdrawals"'));
+assert(!publicAffiliateUpdateBlock.includes("customCommissionRate"), "afiliado comum nao altera comissao personalizada");
+assert(!publicAffiliateUpdateBlock.includes("useCustomCommission ="), "afiliado comum nao ativa comissao personalizada");
+
+includesAll(adminSales, [
+  "Usa comissão padrão",
+  "Usa comissão personalizada",
+  "Comissão personalizada (%)",
+  "Essa alteração vale apenas para novas vendas indicadas.",
+  "useCustomCommission",
+  "customCommissionRate"
+], "ui admin comissao personalizada");
 
 assert(pkg.includes('"test:affiliate-access-control"'), "package.json deve expor test:affiliate-access-control");
 

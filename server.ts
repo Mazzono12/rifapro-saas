@@ -1353,6 +1353,8 @@ async function startServer() {
     commissionBalance: number;
     prizeBalance: number;
     pixKey?: string;
+    useCustomCommission: boolean;
+    customCommissionRate?: number;
     useBalanceForPurchases: boolean;
     enabled: boolean;
     history: AffiliateLedger[];
@@ -6332,12 +6334,49 @@ async function startServer() {
     return `${base || "VIP"}${phone.slice(-4)}`;
   }
 
-  function ensureAffiliateForCustomer(customer: CustomerRecord) {
-    const key = tenantCustomerKey(customer.tenant_id, customer.affiliateRefCode);
+  function createUniqueAffiliateCode(customer: CustomerRecord) {
+    const base = createAffiliateCode(customer.name, customer.phone)
+      .replace(/[^a-zA-Z0-9_-]/g, "")
+      .toUpperCase()
+      .slice(0, 20) || "VIP";
+    let candidate = customer.affiliateRefCode || base;
+    let suffix = 1;
+    while (affiliates[tenantCustomerKey(customer.tenant_id, candidate)]?.customerId && affiliates[tenantCustomerKey(customer.tenant_id, candidate)]?.customerId !== customer.id) {
+      candidate = `${base}${suffix}`.slice(0, 24);
+      suffix += 1;
+    }
+    customer.affiliateRefCode = candidate;
+    return candidate;
+  }
+
+  function getAffiliateForCustomer(customer: CustomerRecord) {
+    return affiliates[tenantCustomerKey(customer.tenant_id, customer.affiliateRefCode)];
+  }
+
+  const MAX_CUSTOM_AFFILIATE_COMMISSION_RATE = 100;
+
+  function normalizeAffiliateCommissionRate(value: unknown) {
+    return Math.max(0, Math.min(MAX_CUSTOM_AFFILIATE_COMMISSION_RATE, Number(value || 0)));
+  }
+
+  function resolveAffiliateCommissionRate(affiliate: AffiliateRecord) {
+    if (affiliate.useCustomCommission) return normalizeAffiliateCommissionRate(affiliate.customCommissionRate);
+    return normalizeAffiliateCommissionRate(getTenantSettings(affiliate.tenant_id).affiliateProgram.commissionRate);
+  }
+
+  function publicAffiliateView(affiliate?: AffiliateRecord | null) {
+    if (!affiliate) return undefined;
+    const { useCustomCommission, customCommissionRate, tenant_id, customerId, ...publicAffiliate } = affiliate;
+    return publicAffiliate;
+  }
+
+  function ensureAffiliateForCustomer(customer: CustomerRecord, options: { forceEnable?: boolean; source?: string } = {}) {
+    const refCode = createUniqueAffiliateCode(customer);
+    const key = tenantCustomerKey(customer.tenant_id, refCode);
     if (!affiliates[key]) {
       affiliates[key] = {
         tenant_id: customer.tenant_id,
-        refCode: customer.affiliateRefCode,
+        refCode,
         customerId: customer.id,
         clicks: 0,
         conversions: 0,
@@ -6346,18 +6385,26 @@ async function startServer() {
         commission: 0,
         commissionBalance: 0,
         prizeBalance: 0,
+        useCustomCommission: false,
+        customCommissionRate: undefined,
         useBalanceForPurchases: false,
-        enabled: customer.totalTickets >= settings.affiliateProgram.minTicketsToJoin,
+        enabled: Boolean(options.forceEnable) || customer.totalTickets >= getTenantSettings(customer.tenant_id).affiliateProgram.minTicketsToJoin,
         history: []
       };
+      if (options.source) {
+        affiliates[key].history.push({ amount: 0, type: options.source, date: new Date().toISOString() });
+      }
     }
     affiliates[key].commissionBalance ??= affiliates[key].commission || 0;
     affiliates[key].prizeBalance ??= 0;
+    affiliates[key].useCustomCommission = Boolean(affiliates[key].useCustomCommission);
+    affiliates[key].customCommissionRate = affiliates[key].useCustomCommission ? normalizeAffiliateCommissionRate(affiliates[key].customCommissionRate) : undefined;
     affiliates[key].commission =
       affiliates[key].commissionBalance + affiliates[key].prizeBalance;
     affiliates[key].enabled =
       Boolean(affiliates[key].enabled) ||
-      customer.totalTickets >= settings.affiliateProgram.minTicketsToJoin;
+      Boolean(options.forceEnable) ||
+      customer.totalTickets >= getTenantSettings(customer.tenant_id).affiliateProgram.minTicketsToJoin;
     return affiliates[key];
   }
 
@@ -6430,7 +6477,6 @@ async function startServer() {
 
     customersByPhone[tenantCustomerKey(tenantId, phone)] = customer;
     customersByCpf[tenantCustomerKey(tenantId, cpf)] = customer;
-    ensureAffiliateForCustomer(customer);
     updateCrmAutomationForCustomer(customer);
 
     const referrer = refCode ? affiliates[tenantCustomerKey(tenantId, refCode)] : undefined;
@@ -8266,8 +8312,8 @@ async function startServer() {
       res.status(404).json({ error: "Customer not found" });
       return;
     }
-    const affiliate = ensureAffiliateForCustomer(customer);
-    res.json(stripSensitiveCustomerFields({ ...customer, affiliate }));
+    const affiliate = getAffiliateForCustomer(customer);
+    res.json(stripSensitiveCustomerFields({ ...customer, affiliate: publicAffiliateView(affiliate) }));
   });
 
   app.post("/api/customers/:id/photo", express.raw({ type: "*/*", limit: "20mb" }), async (req, res) => {
@@ -8310,7 +8356,7 @@ async function startServer() {
       success: true,
       mediaUrl: customer.photoUrl,
       mediaType: "image",
-      customer: { ...customer, affiliate: ensureAffiliateForCustomer(customer) }
+      customer: { ...customer, affiliate: publicAffiliateView(getAffiliateForCustomer(customer)) }
     }));
   });
 
@@ -8340,7 +8386,7 @@ async function startServer() {
     }
     if (oldPhone !== customer.phone) delete customersByPhone[tenantCustomerKey(customer.tenant_id, oldPhone)];
     customersByPhone[tenantCustomerKey(customer.tenant_id, customer.phone)] = customer;
-    res.json(stripSensitiveCustomerFields({ ...customer, affiliate: ensureAffiliateForCustomer(customer) }));
+    res.json(stripSensitiveCustomerFields({ ...customer, affiliate: publicAffiliateView(getAffiliateForCustomer(customer)) }));
   });
 
   app.get("/api/customers/:id/purchases", (req, res) => {
@@ -8884,7 +8930,7 @@ async function startServer() {
         ...fazendinhaCompras.filter(purchase => purchase.tenant_id === customer.tenant_id && purchase.usuarioId === customer.id).flatMap(purchase => purchase.numeros.map(number => ({ order_id: purchase.id, number, type: "fazendinha" })))
       ],
       whatsapp: whatsappMessageQueue.filter(message => message.tenant_id === customer.tenant_id && message.customer_id === customer.id).map(message => ({ ...message, phone: maskPhone(message.phone) })),
-      affiliate: ensureAffiliateForCustomer(customer),
+      affiliate: getAffiliateForCustomer(customer) || null,
       wallet: walletLedger.filter(item => item.tenant_id === customer.tenant_id && item.customer_id === customer.id),
       notes: contact.notes ? [{ body: contact.notes, created_at: contact.updated_at }] : [],
       audit: auditEventLedger.filter(event => event.tenant_id === customer.tenant_id && event.resource_id === customer.id)
@@ -8915,13 +8961,13 @@ async function startServer() {
       .filter(purchase => purchase.tenant_id === customer.tenant_id && purchase.customer.id === customer.id && purchase.status === "paid")
       .reduce((sum, purchase) => sum + purchase.numbers.length, 0);
     customer.totalTickets = traditionalTickets + fazendinhaTickets + modalidadeTickets;
-    ensureAffiliateForCustomer(customer);
+    if (customer.totalTickets > 0) ensureAffiliateForCustomer(customer, { forceEnable: true, source: "affiliate_auto_first_paid_purchase" });
   }
 
   function buildAdminCustomerProfile(customer: CustomerRecord) {
     return {
       ...customer,
-      affiliate: ensureAffiliateForCustomer(customer),
+      affiliate: getAffiliateForCustomer(customer) || null,
       purchases: purchases
         .filter(purchase => purchase.tenant_id === customer.tenant_id && (purchase.customer?.id === customer.id || purchase.contact === customer.phone))
         .map(purchase => ({
@@ -9466,11 +9512,13 @@ async function startServer() {
         if (addonRaffle && addonRaffle.soldTickets + addonTickets > addonRaffle.totalTickets) return res.status(409).json({ error: "Cotas adicionais insuficientes" });
 
         if (existingCustomer && req.body.useBalance) {
-          const ownAffiliate = ensureAffiliateForCustomer(existingCustomer);
-          const walletBalance = (ownAffiliate.commissionBalance || 0) + (ownAffiliate.prizeBalance || 0);
-          const tenantScopedSettings = getTenantSettings(tenantId);
-          walletUsage.enabled = Boolean(tenantScopedSettings.affiliateProgram.allowBalancePayments && ownAffiliate.useBalanceForPurchases && walletBalance > 0);
-          walletUsage.amount = walletUsage.enabled ? Math.min(total, walletBalance) : 0;
+          const ownAffiliate = getAffiliateForCustomer(existingCustomer);
+          if (ownAffiliate) {
+            const walletBalance = (ownAffiliate.commissionBalance || 0) + (ownAffiliate.prizeBalance || 0);
+            const tenantScopedSettings = getTenantSettings(tenantId);
+            walletUsage.enabled = Boolean(tenantScopedSettings.affiliateProgram.allowBalancePayments && ownAffiliate.useBalanceForPurchases && walletBalance > 0);
+            walletUsage.amount = walletUsage.enabled ? Math.min(total, walletBalance) : 0;
+          }
         }
 
         if (couponBenefit.bonusTickets || luckyBonusTickets || luckyExtraChance || doubleTicketsBonus || promotionBonusTickets) warnings.push("Bonus recalculado pelo servidor antes da reserva.");
@@ -9712,10 +9760,10 @@ async function startServer() {
     }
     const reservedUntil = reservationExpiresAt(TRADITIONAL_RAFFLE_RESERVATION_TTL_MS);
     
-    const ownAffiliate = ensureAffiliateForCustomer(customer);
-    const walletBalance = (ownAffiliate.commissionBalance || 0) + (ownAffiliate.prizeBalance || 0);
+    const ownAffiliate = getAffiliateForCustomer(customer);
+    const walletBalance = ownAffiliate ? (ownAffiliate.commissionBalance || 0) + (ownAffiliate.prizeBalance || 0) : 0;
     const tenantScopedSettings = getTenantSettings(tenantId);
-    const balancePayment = useBalance && tenantScopedSettings.affiliateProgram.allowBalancePayments && ownAffiliate.useBalanceForPurchases && walletBalance >= amount ? amount : 0;
+    const balancePayment = useBalance && ownAffiliate && tenantScopedSettings.affiliateProgram.allowBalancePayments && ownAffiliate.useBalanceForPurchases && walletBalance >= amount ? amount : 0;
     const payableAmount = amount - balancePayment;
 
     const purchase: PurchaseRecord = {
@@ -9773,7 +9821,7 @@ async function startServer() {
       }];
     }
 
-    if (balancePayment > 0) {
+    if (balancePayment > 0 && ownAffiliate) {
       debitAffiliateWallet(ownAffiliate, balancePayment);
       ownAffiliate.history.push({ amount: -balancePayment, type: "balance_purchase", date: new Date().toISOString() });
     }
@@ -10121,7 +10169,7 @@ async function startServer() {
     purchase.earnedLootboxes = earnedLootboxes;
     if (paid) {
       customer.totalTickets += numbers.length;
-      ensureAffiliateForCustomer(customer);
+      ensureAffiliateForCustomer(customer, { forceEnable: true, source: "affiliate_auto_first_paid_purchase" });
       updateCrmAutomationForCustomer(customer);
       creditAffiliateCommission({
         tenantId,
@@ -10267,7 +10315,7 @@ async function startServer() {
     purchase.earnedLootboxes = earnedLootboxes;
     if (paid) {
       customer.totalTickets += numeros.length;
-      ensureAffiliateForCustomer(customer);
+      ensureAffiliateForCustomer(customer, { forceEnable: true, source: "affiliate_auto_first_paid_purchase" });
       updateCrmAutomationForCustomer(customer);
       creditAffiliateCommission({
         tenantId,
@@ -10316,7 +10364,7 @@ async function startServer() {
         group.compraId = purchase.id;
       });
       purchase.customer.totalTickets += purchase.numeros.length;
-      ensureAffiliateForCustomer(purchase.customer);
+      ensureAffiliateForCustomer(purchase.customer, { forceEnable: true, source: "affiliate_auto_first_paid_purchase" });
       updateCrmAutomationForCustomer(purchase.customer);
       purchase.linkedPurchases?.forEach(confirmPurchase);
       creditAffiliateCommission({
@@ -10354,7 +10402,7 @@ async function startServer() {
       bet.status = "paid";
     });
     purchase.customer.totalTickets += purchase.numbers.length;
-    ensureAffiliateForCustomer(purchase.customer);
+    ensureAffiliateForCustomer(purchase.customer, { forceEnable: true, source: "affiliate_auto_first_paid_purchase" });
     updateCrmAutomationForCustomer(purchase.customer);
     creditAffiliateCommission({
       tenantId: purchase.tenant_id,
@@ -11136,6 +11184,9 @@ async function startServer() {
 
   function confirmPurchase(purchase: PurchaseRecord) {
     if (purchase.status === "paid" && purchase.numeros.length > 0) {
+      if (purchase.customer) {
+        ensureAffiliateForCustomer(purchase.customer, { forceEnable: true, source: "affiliate_auto_first_paid_purchase" });
+      }
       recordPublicActivityEvent({
         tenant_id: purchase.tenant_id,
         raffle_id: purchase.raffleId,
@@ -11262,7 +11313,7 @@ async function startServer() {
 
     if (purchase.customer) {
       purchase.customer.totalTickets += purchase.tickets;
-      const ownAffiliate = ensureAffiliateForCustomer(purchase.customer);
+      const ownAffiliate = ensureAffiliateForCustomer(purchase.customer, { forceEnable: true, source: "affiliate_auto_first_paid_purchase" });
       updateCrmAutomationForCustomer(purchase.customer);
       const prizeBalance = premiosWon.reduce((sum, prize) => sum + prize.valorPremio, 0);
       if (prizeBalance > 0) {
@@ -11316,8 +11367,8 @@ async function startServer() {
     const affiliate = referrer;
     const purchase = { amount: input.amount };
     if (affiliate.history.some(entry => entry.type === input.source || entry.type === `pending:${input.source}`)) return affiliate;
-    const tenantScopedSettings = getTenantSettings(input.tenantId);
-    const comm = Number((purchase.amount * (tenantScopedSettings.affiliateProgram.commissionRate / 100)).toFixed(2));
+    const commissionRate = resolveAffiliateCommissionRate(affiliate);
+    const comm = Number((purchase.amount * (commissionRate / 100)).toFixed(2));
     affiliate.conversions++;
     affiliate.revenue += purchase.amount;
     const eligibility = buildAffiliateMonthlyEligibility(affiliate);
@@ -14769,7 +14820,7 @@ async function startServer() {
 
     if (status === "paid") {
       recalculateCustomerPaidTickets(customer);
-      ensureAffiliateForCustomer(customer);
+      ensureAffiliateForCustomer(customer, { forceEnable: true, source: "affiliate_auto_first_paid_purchase" });
     }
 
     res.json({ status: status === "paid" ? "sold" : "reserved", purchase, customer });
@@ -16076,22 +16127,10 @@ async function startServer() {
     const refCode = req.body.refCode || createAffiliateCode(req.body.name, normalizePhone(req.body.phone || req.body.refCode));
     const key = tenantCustomerKey(tenantId, refCode);
     if (!affiliates[key]) {
-      affiliates[key] = {
-        tenant_id: tenantId,
-        refCode,
-        clicks: 0,
-        conversions: 0,
-        referredCustomers: 0,
-        revenue: 0,
-        commission: 0,
-        commissionBalance: 0,
-        prizeBalance: 0,
-        useBalanceForPurchases: false,
-        enabled: false,
-        history: []
-      };
+      res.status(409).json({ error: "Afiliado ativado automaticamente apos a primeira compra confirmada" });
+      return;
     }
-    res.json({ ...affiliates[key], rules: settings.affiliateProgram });
+    res.json({ ...publicAffiliateView(affiliates[key]), rules: settings.affiliateProgram });
   });
   app.get("/api/affiliates/:refCode", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
@@ -16105,13 +16144,15 @@ async function startServer() {
       commission: 0,
       commissionBalance: 0,
       prizeBalance: 0,
+      useCustomCommission: false,
+      customCommissionRate: undefined,
       useBalanceForPurchases: false,
       enabled: false,
       history: []
     };
     if (isAffiliateOwnerRequest(req, affiliate)) {
       releaseEligiblePendingAffiliateCommissions(affiliate);
-      res.json({ ...affiliate, rules: settings.affiliateProgram });
+      res.json({ ...publicAffiliateView(affiliate), rules: settings.affiliateProgram });
       return;
     }
 
@@ -16155,18 +16196,20 @@ async function startServer() {
     const query = String(req.query.q || "");
     const digits = query.replace(/\D/g, "");
     const normalizedText = query.toLowerCase().trim();
-    const results = Object.values(customersByPhone)
-      .filter(customer => adminCanAccessTenant(req, customer.tenant_id))
-      .filter(customer => {
-        const affiliate = ensureAffiliateForCustomer(customer);
-        const text = `${customer.name} ${customer.phone} ${customer.cpf} ${customer.city || ""} ${customer.state || ""} ${affiliate.refCode}`.toLowerCase();
-        return !query || text.includes(normalizedText) || customer.phone.includes(digits) || customer.cpf.includes(digits);
+    const results = Object.values(affiliates)
+      .filter(affiliate => adminCanAccessTenant(req, affiliate.tenant_id))
+      .map(affiliate => {
+        const customer = affiliateOwnerCustomer(affiliate);
+        return { affiliate, customer };
       })
-      .map(customer => {
-        const affiliate = ensureAffiliateForCustomer(customer);
+      .filter(({ affiliate, customer }) => {
+        const text = `${customer?.name || ""} ${customer?.phone || ""} ${customer?.cpf || ""} ${customer?.city || ""} ${customer?.state || ""} ${affiliate.refCode}`.toLowerCase();
+        return !query || text.includes(normalizedText) || String(customer?.phone || "").includes(digits) || String(customer?.cpf || "").includes(digits);
+      })
+      .map(({ affiliate, customer }) => {
         const eligibility = releaseEligiblePendingAffiliateCommissions(affiliate);
         return {
-          customer,
+          customer: customer || { affiliateRefCode: affiliate.refCode },
           affiliate: { ...affiliate, eligibility, rules: settings.affiliateProgram }
         };
       });
@@ -16391,6 +16434,15 @@ async function startServer() {
     affiliate.pixKey = req.body.affiliate?.pixKey ?? affiliate.pixKey;
     affiliate.useBalanceForPurchases = Boolean(req.body.affiliate?.useBalanceForPurchases);
     affiliate.enabled = req.body.affiliate?.enabled !== undefined ? Boolean(req.body.affiliate.enabled) : affiliate.enabled;
+    if (req.body.affiliate?.useCustomCommission !== undefined) {
+      affiliate.useCustomCommission = Boolean(req.body.affiliate.useCustomCommission);
+    }
+    if (req.body.affiliate?.customCommissionRate !== undefined) {
+      affiliate.customCommissionRate = normalizeAffiliateCommissionRate(req.body.affiliate.customCommissionRate);
+    }
+    if (!affiliate.useCustomCommission) {
+      affiliate.customCommissionRate = undefined;
+    }
     affiliate.commissionBalance = req.body.affiliate?.commissionBalance !== undefined ? Number(req.body.affiliate.commissionBalance) : affiliate.commissionBalance;
     affiliate.prizeBalance = req.body.affiliate?.prizeBalance !== undefined ? Number(req.body.affiliate.prizeBalance) : affiliate.prizeBalance;
     affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
@@ -16410,7 +16462,7 @@ async function startServer() {
     }
     affiliate.pixKey = req.body.pixKey ?? affiliate.pixKey;
     affiliate.useBalanceForPurchases = Boolean(req.body.useBalanceForPurchases);
-    res.json({ ...affiliate, rules: settings.affiliateProgram });
+    res.json({ ...publicAffiliateView(affiliate), rules: settings.affiliateProgram });
   });
 
   app.post("/api/affiliates/:refCode/withdrawals", (req, res) => {

@@ -315,6 +315,8 @@ export interface AffiliateStats {
   commissionBalance?: number;
   prizeBalance?: number;
   pixKey?: string;
+  useCustomCommission?: boolean;
+  customCommissionRate?: number;
   useBalanceForPurchases: boolean;
   enabled: boolean;
   rules?: {
