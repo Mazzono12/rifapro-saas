@@ -9,7 +9,9 @@ import {
   Crown,
   DollarSign,
   ExternalLink,
+  Gift,
   Megaphone,
+  Medal,
   QrCode,
   Save,
   Send,
@@ -72,10 +74,45 @@ type AffiliateDashboard = {
   commissions: Array<{ id: string; type: string; source: string; amount: number; status: string; createdAt: string }>;
   withdrawals: Array<{ id: string; amount: number; status: string; requestedAt: string; paidAt?: string; adminNote?: string }>;
   ranking: {
-    month: Array<{ position: number; affiliate: string; customers: number; conversions: number; revenue: number; commissionGenerated: number; conversion: number }>;
-    year: Array<{ position: number; affiliate: string; customers: number; conversions: number; revenue: number; commissionGenerated: number; conversion: number }>;
+    month: Array<{ position: number; affiliate: string; customers: number; conversions: number; revenue: number; conversion: number }>;
+    year: Array<{ position: number; affiliate: string; customers: number; conversions: number; revenue: number; conversion: number }>;
   };
 };
+
+type AffiliateRankingRow = AffiliateDashboard["ranking"]["month"][number];
+type AffiliateGamificationSummary = {
+  positionLabel: string;
+  revenue: number;
+  monthlyRevenue: number;
+  referredCustomers: number;
+  conversions: number;
+  bestAffiliate: string;
+  bestRevenue: number;
+  nextAffiliate: string;
+  nextRevenue: number;
+  distanceToClimb: number;
+  currentLevel: AffiliateLevel;
+  nextLevel?: AffiliateLevel;
+  levelProgress: number;
+  monthlyGoal: number;
+  monthlyProgress: number;
+  rewardText: string;
+  achievements: Array<{ label: string; unlocked: boolean }>;
+};
+type AffiliateLevel = {
+  name: "Bronze" | "Prata" | "Ouro" | "Diamante";
+  threshold: number;
+  icon: string;
+  tone: string;
+};
+
+const affiliateLevels: AffiliateLevel[] = [
+  { name: "Bronze", threshold: 0, icon: "🥉", tone: "text-amber-300" },
+  { name: "Prata", threshold: 1000, icon: "🥈", tone: "text-slate-200" },
+  { name: "Ouro", threshold: 5000, icon: "🥇", tone: "text-yellow-300" },
+  { name: "Diamante", threshold: 20000, icon: "💎", tone: "text-cyan-300" }
+];
+const monthlySalesGoal = 10000;
 
 export function Affiliates() {
   const { customer, setCustomer } = useCustomerStore();
@@ -276,6 +313,13 @@ export function Affiliates() {
   const historyRows = dashboard ? buildHistoryRowsFromDashboard(dashboard.commissions, dashboard.withdrawals, nextPayment) : buildHistoryRows(stats.history, nextPayment);
   const rankingMonth = dashboard ? buildRankingRowsFromDashboard(dashboard.ranking.month) : buildRankingRows(customer.name, stats, "month");
   const rankingYear = dashboard ? buildRankingRowsFromDashboard(dashboard.ranking.year) : buildRankingRows(customer.name, stats, "year");
+  const gamification = buildAffiliateGamification({
+    affiliateName: customer.name,
+    revenue: Number(dashboard?.metrics.revenue ?? stats.revenue ?? 0),
+    referredCustomers: Number(dashboard?.metrics.referredCustomers ?? stats.referredCustomers ?? 0),
+    conversions: Number(dashboard?.metrics.conversions ?? stats.conversions ?? 0),
+    ranking: dashboard?.ranking.month ?? []
+  });
   const eligibility = dashboard?.eligibility;
   const chartData = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((name, index) => ({
     name,
@@ -324,6 +368,8 @@ export function Affiliates() {
         <MetricCard icon={Users} label="Clientes Indicados" value={dashboard?.metrics.referredCustomers ?? stats.referredCustomers} trend={`${dashboard?.metrics.conversions ?? stats.conversions} conversões`} />
         <MetricCard icon={TrendingUp} label="Conversão" value={`${conversionRate.toFixed(1)}%`} trend={`${dashboard?.metrics.clicks ?? stats.clicks} cliques`} tone="success" />
       </section>
+
+      <AffiliateGamificationPanel summary={gamification} />
 
       {eligibility && (
         <section className={cn("admin-card border p-4 sm:p-5", eligibility.isEligibleThisMonth ? "border-[var(--admin-success)]/30" : "border-[var(--admin-warning)]/40")}>
@@ -527,6 +573,168 @@ export function Affiliates() {
           </label>
         </div>
       </section>
+    </div>
+  );
+}
+
+function AffiliateGamificationPanel({ summary }: { summary: AffiliateGamificationSummary }) {
+  return (
+    <section className="grid min-w-0 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <RankingOverviewCard summary={summary} />
+        <LevelProgressCard summary={summary} />
+        <MonthlyGoalCard summary={summary} />
+        <RewardCard summary={summary} />
+      </div>
+      <AchievementsCard achievements={summary.achievements} />
+    </section>
+  );
+}
+
+function RankingOverviewCard({ summary }: { summary: AffiliateGamificationSummary }) {
+  return (
+    <section className="admin-card min-w-0 p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Ranking de Afiliados</p>
+          <h2 className="mt-2 break-words text-2xl font-black text-[var(--admin-text)]">{summary.positionLabel}</h2>
+        </div>
+        <Trophy className="h-8 w-8 shrink-0 text-[var(--admin-primary)]" />
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <GameStat label="Você vendeu" value={money(summary.monthlyRevenue)} />
+        <GameStat label="Total indicado" value={`${summary.referredCustomers}`} />
+        <GameStat label="Melhor afiliado" value={summary.bestAffiliate} muted={money(summary.bestRevenue)} />
+        <GameStat label="Faltam para subir" value={summary.distanceToClimb > 0 ? money(summary.distanceToClimb) : "Você está no topo"} />
+      </div>
+      <div className="mt-4 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3">
+        <p className="text-xs font-bold uppercase text-[var(--admin-muted)]">Próximo colocado</p>
+        <p className="mt-1 min-w-0 break-words text-sm font-bold text-[var(--admin-text)]">{summary.nextAffiliate}</p>
+        <p className="mt-1 text-sm text-[var(--admin-muted)]">{summary.nextRevenue > 0 ? money(summary.nextRevenue) : "Continue vendendo para entrar na disputa."}</p>
+      </div>
+    </section>
+  );
+}
+
+function LevelProgressCard({ summary }: { summary: AffiliateGamificationSummary }) {
+  return (
+    <section className="admin-card min-w-0 p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Níveis</p>
+          <h2 className={cn("mt-2 break-words text-2xl font-black", summary.currentLevel.tone)}>
+            {summary.currentLevel.icon} {summary.currentLevel.name}
+          </h2>
+        </div>
+        <Medal className="h-8 w-8 shrink-0 text-[var(--admin-primary)]" />
+      </div>
+      <div className="mt-5 grid gap-2">
+        {affiliateLevels.map(level => (
+          <div key={level.name} className="flex min-w-0 items-center justify-between gap-3 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-2">
+            <span className={cn("min-w-0 break-words text-sm font-bold", level.tone)}>{level.icon} {level.name}</span>
+            <span className="shrink-0 text-sm font-semibold text-[var(--admin-muted)]">{money(level.threshold)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5">
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <p className="min-w-0 break-words text-sm font-bold text-[var(--admin-text)]">
+            Próximo nível: {summary.nextLevel ? summary.nextLevel.name : "nível máximo"}
+          </p>
+          <span className="shrink-0 text-sm font-bold text-[var(--admin-primary)]">{summary.levelProgress.toFixed(0)}%</span>
+        </div>
+        <ProgressBar value={summary.levelProgress} className="mt-3" />
+        <p className="mt-3 text-sm leading-6 text-[var(--admin-muted)]">
+          {summary.nextLevel ? `Faltam ${money(Math.max(0, summary.nextLevel.threshold - summary.revenue))} para atingir ${summary.nextLevel.name}.` : "Você alcançou o maior nível comercial."}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function MonthlyGoalCard({ summary }: { summary: AffiliateGamificationSummary }) {
+  return (
+    <section className="admin-card min-w-0 p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Meta do mês</p>
+          <h2 className="mt-2 break-words text-2xl font-black text-[var(--admin-text)]">{money(summary.monthlyGoal)}</h2>
+        </div>
+        <TrendingUp className="h-8 w-8 shrink-0 text-[var(--admin-primary)]" />
+      </div>
+      <div className="mt-5 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
+        <p className="text-xs font-bold uppercase text-[var(--admin-muted)]">Você possui</p>
+        <p className="mt-2 break-words text-2xl font-black text-[var(--admin-text)]">{money(summary.monthlyRevenue)}</p>
+        <p className="mt-1 text-sm font-bold text-[var(--admin-primary)]">{summary.monthlyProgress.toFixed(0)}%</p>
+        <ProgressBar value={summary.monthlyProgress} className="mt-3" animated />
+      </div>
+    </section>
+  );
+}
+
+function AchievementsCard({ achievements }: { achievements: AffiliateGamificationSummary["achievements"] }) {
+  return (
+    <section className="admin-card min-w-0 p-4 sm:p-5">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Conquistas</p>
+          <h2 className="mt-2 break-words text-2xl font-black text-[var(--admin-text)]">Badges premium</h2>
+        </div>
+        <Sparkles className="h-8 w-8 shrink-0 text-[var(--admin-primary)]" />
+      </div>
+      <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+        {achievements.map(item => (
+          <div
+            key={item.label}
+            className={cn(
+              "flex min-w-0 items-center gap-3 rounded-[8px] border p-3",
+              item.unlocked ? "border-[var(--admin-success)]/35 bg-[var(--admin-success)]/10" : "border-[var(--admin-border)] bg-[var(--admin-surface)] opacity-70"
+            )}
+          >
+            <CheckCircle2 className={cn("h-5 w-5 shrink-0", item.unlocked ? "text-[var(--admin-success)]" : "text-[var(--admin-muted)]")} />
+            <span className="min-w-0 break-words text-sm font-bold text-[var(--admin-text)]">{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RewardCard({ summary }: { summary: AffiliateGamificationSummary }) {
+  return (
+    <section className="admin-card min-w-0 p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Próxima recompensa</p>
+          <h2 className="mt-2 break-words text-xl font-black text-[var(--admin-text)]">{summary.rewardText}</h2>
+        </div>
+        <Gift className="h-8 w-8 shrink-0 text-[var(--admin-primary)]" />
+      </div>
+      <div className="mt-5 rounded-[8px] border border-[var(--admin-primary)]/25 bg-[var(--admin-primary)]/10 p-4">
+        <p className="text-xs font-bold uppercase text-[var(--admin-primary)]">Benefício</p>
+        <p className="mt-2 text-sm font-semibold leading-6 text-[var(--admin-text)]">Maior destaque no ranking.</p>
+      </div>
+    </section>
+  );
+}
+
+function GameStat({ label, value, muted }: { label: string; value: React.ReactNode; muted?: React.ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3">
+      <p className="text-xs font-bold uppercase text-[var(--admin-muted)]">{label}</p>
+      <p className="mt-1 min-w-0 break-words text-lg font-black leading-tight text-[var(--admin-text)]">{value}</p>
+      {muted ? <p className="mt-1 min-w-0 break-words text-xs font-semibold text-[var(--admin-muted)]">{muted}</p> : null}
+    </div>
+  );
+}
+
+function ProgressBar({ value, animated = false, className = "" }: { value: number; animated?: boolean; className?: string }) {
+  return (
+    <div className={cn("h-3 overflow-hidden rounded-full border border-[var(--admin-border)] bg-[var(--admin-surface)]", className)}>
+      <div
+        className={cn("h-full rounded-full bg-[var(--admin-primary)] transition-all duration-700", animated && "animate-pulse")}
+        style={{ width: `${clamp(value, 0, 100)}%` }}
+      />
     </div>
   );
 }
@@ -786,13 +994,78 @@ function RankingCard({ title, rows }: { title: string; rows: React.ReactNode[][]
         <Trophy className="h-5 w-5 shrink-0 text-[var(--admin-primary)]" />
       </div>
       <ResponsiveDataTable
-        columns={["Posição", "Afiliado", "Clientes", "Receita", "Comissão"]}
+        columns={["Posição", "Afiliado", "Indicados", "Vendido", "Conversão"]}
         rows={rows}
         empty="O ranking aparecerá quando houver desempenho suficiente para comparar afiliados."
         minWidth="640px"
       />
     </section>
   );
+}
+
+function buildAffiliateGamification({
+  affiliateName,
+  revenue,
+  referredCustomers,
+  conversions,
+  ranking
+}: {
+  affiliateName: string;
+  revenue: number;
+  referredCustomers: number;
+  conversions: number;
+  ranking: AffiliateRankingRow[];
+}): AffiliateGamificationSummary {
+  const maskedName = maskDisplayName(affiliateName);
+  const ownRank = ranking.find(item => item.affiliate === maskedName);
+  const monthlyRevenue = Number(ownRank?.revenue ?? revenue ?? 0);
+  const currentIndex = affiliateLevels.reduce((selected, level, index) => monthlyRevenue >= level.threshold ? index : selected, 0);
+  const currentLevel = affiliateLevels[currentIndex];
+  const nextLevel = affiliateLevels[currentIndex + 1];
+  const previousThreshold = currentLevel.threshold;
+  const nextThreshold = nextLevel?.threshold ?? currentLevel.threshold;
+  const levelProgress = nextLevel ? ((monthlyRevenue - previousThreshold) / Math.max(1, nextThreshold - previousThreshold)) * 100 : 100;
+  const best = ranking[0];
+  const nextPlaced = ownRank && ownRank.position > 1
+    ? ranking.find(item => item.position === ownRank.position - 1)
+    : ownRank?.position === 1
+      ? ownRank
+      : ranking[ranking.length - 1];
+  const distanceToClimb = nextPlaced && (!ownRank || ownRank.position > 1)
+    ? Math.max(0, Number(nextPlaced.revenue || 0) - monthlyRevenue)
+    : 0;
+  const positionLabel = ownRank ? `#${ownRank.position} colocado` : monthlyRevenue > 0 ? "Fora do top 10" : "Aguardando vendas";
+  const topPosition = ownRank?.position ?? 99;
+
+  return {
+    positionLabel,
+    revenue: monthlyRevenue,
+    monthlyRevenue,
+    referredCustomers,
+    conversions,
+    bestAffiliate: best?.affiliate || "Ranking em formação",
+    bestRevenue: Number(best?.revenue || 0),
+    nextAffiliate: ownRank?.position === 1 ? "Você lidera o ranking" : nextPlaced?.affiliate || "Próximo colocado em formação",
+    nextRevenue: ownRank?.position === 1 ? monthlyRevenue : Number(nextPlaced?.revenue || 0),
+    distanceToClimb,
+    currentLevel,
+    nextLevel,
+    levelProgress: clamp(levelProgress, 0, 100),
+    monthlyGoal: monthlySalesGoal,
+    monthlyProgress: clamp((monthlyRevenue / monthlySalesGoal) * 100, 0, 100),
+    rewardText: nextLevel ? `Faltam ${money(Math.max(0, nextLevel.threshold - monthlyRevenue))} para atingir ${nextLevel.name}.` : "Você atingiu Diamante.",
+    achievements: [
+      { label: "Primeira venda", unlocked: conversions >= 1 },
+      { label: "10 vendas", unlocked: conversions >= 10 },
+      { label: "50 vendas", unlocked: conversions >= 50 },
+      { label: "100 vendas", unlocked: conversions >= 100 },
+      { label: "R$ 1.000 vendidos", unlocked: monthlyRevenue >= 1000 },
+      { label: "R$ 10.000 vendidos", unlocked: monthlyRevenue >= 10000 },
+      { label: "Top 10", unlocked: topPosition <= 10 },
+      { label: "Top 3", unlocked: topPosition <= 3 },
+      { label: "Top 1", unlocked: topPosition === 1 }
+    ]
+  };
 }
 
 function buildReferredRows(stats: AffiliateStats) {
@@ -859,9 +1132,9 @@ function buildHistoryRowsFromDashboard(commissions: AffiliateDashboard["commissi
 function buildRankingRows(name: string, stats: AffiliateStats, period: "month" | "year") {
   const multiplier = period === "month" ? 1 : 3.4;
   const base = [
-    { name, customers: stats.referredCustomers, revenue: stats.revenue, commission: stats.commissionBalance ?? stats.commission ?? 0 },
-    { name: "Afiliado Prime", customers: Math.max(stats.referredCustomers + 2, 8), revenue: Math.max(stats.revenue * 1.35, 4200) * multiplier, commission: Math.max(stats.commission * 1.35, 420) * multiplier },
-    { name: "Afiliado Elite", customers: Math.max(stats.referredCustomers + 1, 5), revenue: Math.max(stats.revenue * 1.12, 2800) * multiplier, commission: Math.max(stats.commission * 1.12, 280) * multiplier }
+    { name, customers: stats.referredCustomers, revenue: stats.revenue, conversion: stats.clicks > 0 ? (stats.conversions / stats.clicks) * 100 : stats.conversions > 0 ? 100 : 0 },
+    { name: "Afiliado Prime", customers: Math.max(stats.referredCustomers + 2, 8), revenue: Math.max(stats.revenue * 1.35, 4200) * multiplier, conversion: 18.5 },
+    { name: "Afiliado Elite", customers: Math.max(stats.referredCustomers + 1, 5), revenue: Math.max(stats.revenue * 1.12, 2800) * multiplier, conversion: 14.2 }
   ].sort((a, b) => b.revenue - a.revenue);
 
   return base.map((item, index) => [
@@ -869,7 +1142,7 @@ function buildRankingRows(name: string, stats: AffiliateStats, period: "month" |
     item.name,
     item.customers,
     money(item.revenue),
-    money(item.commission)
+    `${item.conversion.toFixed(1)}%`
   ]);
 }
 
@@ -879,7 +1152,7 @@ function buildRankingRowsFromDashboard(rows: AffiliateDashboard["ranking"]["mont
     item.affiliate,
     item.customers,
     money(item.revenue),
-    <span key={item.position} className="text-[var(--admin-success)]">{money(item.commissionGenerated)} · {item.conversion.toFixed(1)}%</span>
+    <span key={item.position} className="text-[var(--admin-success)]">{item.conversion.toFixed(1)}%</span>
   ]);
 }
 
@@ -917,6 +1190,20 @@ function nextBusinessPaymentLabel() {
   const date = new Date();
   date.setDate(date.getDate() + ((5 - date.getDay() + 7) % 7 || 7));
   return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
+function maskDisplayName(name?: string) {
+  const clean = String(name || "Cliente").trim().replace(/\s+/g, " ");
+  const parts = clean.split(" ").filter(Boolean);
+  if (!parts.length) return "Cliente";
+  const first = parts[0];
+  const safeFirst = first.length <= 2 ? `${first[0] || "C"}***` : `${first.slice(0, 2)}***`;
+  const second = parts[1] ? ` ${parts[1][0]}***` : "";
+  return `${safeFirst}${second}`;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
 }
 
 function money(value: number) {

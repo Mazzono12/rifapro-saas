@@ -11512,7 +11512,14 @@ async function startServer() {
       .filter(item => item.customers > 0 || item.commissionGenerated > 0 || item.revenue > 0)
       .sort((a, b) => b.commissionGenerated - a.commissionGenerated || b.revenue - a.revenue)
       .slice(0, 10)
-      .map((item, index) => ({ position: index + 1, ...item }));
+      .map((item, index) => ({
+        position: index + 1,
+        affiliate: item.affiliate,
+        customers: item.customers,
+        conversions: item.conversions,
+        revenue: item.revenue,
+        conversion: item.conversion
+      }));
   }
 
   function buildAffiliateDashboard(req: express.Request, affiliate: AffiliateRecord) {
