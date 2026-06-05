@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CheckCircle, Eye, MessageCircle, Plug, Save, Send, ShieldCheck } from "lucide-react";
+import { CheckCircle, Copy, Eye, ListChecks, MessageCircle, PhoneCall, Plug, Save, Send, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 type Integration = {
@@ -33,6 +33,10 @@ export function AdminIntegrations() {
   const [providers, setProviders] = useState<ProviderCatalogEntry[]>([]);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const [cloudConfig, setCloudConfig] = useState<any>({ enabled: false, environment: "sandbox", webhook_url: "/api/webhooks/meta/whatsapp" });
+  const [cloudLogs, setCloudLogs] = useState<any[]>([]);
+  const [cloudTemplates, setCloudTemplates] = useState<any[]>([]);
+  const [cloudPhone, setCloudPhone] = useState<any>(null);
   const [whatsappConfig, setWhatsappConfig] = useState<any>({ provider: "mock", enabled: false, environment: "sandbox", default_language: "pt_BR" });
   const [whatsappMessages, setWhatsappMessages] = useState<any[]>([]);
   const [testPhone, setTestPhone] = useState("");
@@ -46,9 +50,10 @@ export function AdminIntegrations() {
   const selectedSettingsValues = useMemo(() => parseConfigText(settings), [settings]);
 
   const load = async () => {
-    const [integrationsRes, logsRes, whatsappConfigRes, whatsappMessagesRes] = await Promise.all([
+    const [integrationsRes, logsRes, whatsappCloudRes, whatsappConfigRes, whatsappMessagesRes] = await Promise.all([
       fetch("/api/admin/integrations/global"),
       fetch("/api/admin/integrations/global/logs"),
+      fetch("/api/admin/whatsapp-cloud/settings"),
       fetch("/api/admin/whatsapp/config"),
       fetch("/api/admin/whatsapp/messages")
     ]);
@@ -56,6 +61,9 @@ export function AdminIntegrations() {
     setProviders(data.providers || []);
     setIntegrations(data.integrations || []);
     setLogs(await logsRes.json());
+    const cloudData = await whatsappCloudRes.json();
+    setCloudConfig(cloudData.settings || { enabled: false, environment: "sandbox", webhook_url: "/api/webhooks/meta/whatsapp" });
+    setCloudLogs(cloudData.logs || []);
     setWhatsappConfig(await whatsappConfigRes.json());
     setWhatsappMessages(await whatsappMessagesRes.json());
   };
@@ -123,6 +131,59 @@ export function AdminIntegrations() {
     if (!res.ok) toast.error(data.error || data.message?.last_error || "Falha no teste WhatsApp");
     else toast.success("Mensagem WhatsApp enviada para validação");
     await load();
+  };
+
+  const saveCloud = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const res = await fetch("/api/admin/whatsapp-cloud/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cloudConfig)
+    });
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Erro ao salvar WhatsApp Cloud");
+    else {
+      toast.success("WhatsApp Cloud salvo");
+      setCloudConfig(data.settings);
+      setCloudLogs(data.logs || []);
+    }
+  };
+
+  const testCloudConnection = async () => {
+    const res = await fetch("/api/admin/whatsapp-cloud/test", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Não foi possível testar a conexão");
+    else toast.success("Conexão validada com a Meta");
+    await load();
+  };
+
+  const validateCloudPhone = async () => {
+    const res = await fetch("/api/admin/whatsapp-cloud/phone");
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Não foi possível validar o número");
+    else {
+      setCloudPhone(data.phone);
+      toast.success("Número validado");
+    }
+    await load();
+  };
+
+  const listCloudTemplates = async () => {
+    const res = await fetch("/api/admin/whatsapp-cloud/templates");
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Não foi possível listar templates");
+    else {
+      setCloudTemplates(data.templates || []);
+      toast.success("Templates carregados");
+    }
+    await load();
+  };
+
+  const copyCloudWebhookUrl = async () => {
+    const path = cloudConfig.webhook_url || "/api/webhooks/meta/whatsapp";
+    const value = path.startsWith("http") ? path : `${window.location.origin}${path}`;
+    await navigator.clipboard.writeText(value);
+    toast.success("URL do webhook copiada");
   };
 
   const updateCredential = (key: string, value: string) => {
@@ -240,6 +301,78 @@ export function AdminIntegrations() {
           </button>
         </form>
       </div>
+
+      <section className="admin-card">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-3">
+            <MessageCircle className="mt-1 h-5 w-5 text-emerald-500" />
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--admin-text)]">WhatsApp Cloud API</h2>
+              <p className="text-sm text-[var(--admin-muted)]">Configure a conexão oficial da Meta, valide o número e prepare o webhook. Nenhuma mensagem é enviada nesta etapa.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={testCloudConnection} className="admin-button-secondary"><ShieldCheck className="h-4 w-4" />Testar conexão</button>
+            <button type="button" onClick={validateCloudPhone} className="admin-button-secondary"><PhoneCall className="h-4 w-4" />Validar número</button>
+            <button type="button" onClick={listCloudTemplates} className="admin-button-secondary"><ListChecks className="h-4 w-4" />Listar templates</button>
+            <button type="button" onClick={copyCloudWebhookUrl} className="admin-button-secondary"><Copy className="h-4 w-4" />Copiar URL do webhook</button>
+          </div>
+        </div>
+
+        <form onSubmit={saveCloud} className="grid gap-4 lg:grid-cols-3">
+          <label className="flex items-center justify-between gap-4 rounded-lg border border-[var(--admin-border)] p-3 text-sm font-medium text-[var(--admin-muted)] lg:col-span-3" title="Ative somente quando as credenciais oficiais estiverem conferidas.">
+            <span>
+              <span className="block text-[var(--admin-text)]">Ativar WhatsApp Cloud</span>
+              <span className="block text-xs text-[var(--admin-muted)]">Permite validar a conta e preparar o canal oficial da Meta.</span>
+            </span>
+            <input type="checkbox" checked={Boolean(cloudConfig.enabled)} onChange={event => setCloudConfig((current: any) => ({ ...current, enabled: event.target.checked }))} />
+          </label>
+          <GatewayField label="Nome da conta" help="Nome comercial para identificar esta conexão no painel." value={cloudConfig.account_name || ""} onChange={value => setCloudConfig((current: any) => ({ ...current, account_name: value }))} />
+          <GatewayField label="ID da Business Manager" help="Identificador da empresa no painel da Meta." value={cloudConfig.business_manager_id || ""} onChange={value => setCloudConfig((current: any) => ({ ...current, business_manager_id: value }))} />
+          <GatewayField label="ID da Conta WhatsApp Business" help="Conta WhatsApp Business usada para listar templates aprovados." value={cloudConfig.whatsapp_business_account_id || ""} onChange={value => setCloudConfig((current: any) => ({ ...current, whatsapp_business_account_id: value }))} />
+          <GatewayField label="ID do Número de Telefone" help="Número aprovado pela Meta para operar o WhatsApp Cloud." value={cloudConfig.phone_number_id || ""} onChange={value => setCloudConfig((current: any) => ({ ...current, phone_number_id: value }))} />
+          <GatewayField label="Token de Acesso" help="Token oficial da Meta. Depois de salvo, será exibido mascarado." type="password" value={cloudConfig.access_token || ""} onChange={value => setCloudConfig((current: any) => ({ ...current, access_token: value }))} />
+          <GatewayField label="Verify Token do Webhook" help="Código usado pela Meta para confirmar o webhook desta loja." type="password" value={cloudConfig.webhook_verify_token || ""} onChange={value => setCloudConfig((current: any) => ({ ...current, webhook_verify_token: value }))} />
+          <GatewayField label="URL do Webhook" help="Endereço informado no painel da Meta para receber eventos." value={cloudConfig.webhook_url || "/api/webhooks/meta/whatsapp"} onChange={value => setCloudConfig((current: any) => ({ ...current, webhook_url: value }))} />
+          <label className="block text-sm font-medium text-[var(--admin-muted)]">
+            Ambiente
+            <select value={cloudConfig.environment || "sandbox"} onChange={event => setCloudConfig((current: any) => ({ ...current, environment: event.target.value }))} className="admin-input mt-1 w-full">
+              <option value="sandbox">Teste</option>
+              <option value="production">Produção</option>
+            </select>
+            <span className="mt-1 block text-xs text-[var(--admin-muted)]">Use teste enquanto valida a configuração inicial.</span>
+          </label>
+          <div className="flex items-end lg:col-span-2">
+            <button className="admin-button-primary"><Save className="h-4 w-4" />Salvar configuração</button>
+          </div>
+        </form>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-lg border border-[var(--admin-border)] p-4">
+            <h3 className="mb-3 font-semibold text-[var(--admin-text)]">Validação e templates</h3>
+            <div className="space-y-2 text-sm text-[var(--admin-muted)]">
+              <p>Número: {cloudPhone?.display_phone_number || cloudPhone?.id || "Ainda não validado"}</p>
+              <p>Nome verificado: {cloudPhone?.verified_name || "Aguardando consulta"}</p>
+              <p>Templates carregados: {cloudTemplates.length}</p>
+              {cloudTemplates.slice(0, 5).map(template => (
+                <p key={`${template.name}-${template.language}`} className="rounded border border-[var(--admin-border)] px-3 py-2 text-[var(--admin-text)]">{template.name} · {template.language} · {template.status}</p>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-lg border border-[var(--admin-border)] p-4">
+            <h3 className="mb-3 font-semibold text-[var(--admin-text)]">Logs da Cloud API</h3>
+            <div className="max-h-64 space-y-2 overflow-y-auto pr-1 text-sm">
+              {cloudLogs.slice(0, 8).map(log => (
+                <div key={log.id} className="rounded border border-[var(--admin-border)] px-3 py-2">
+                  <p className="font-semibold text-[var(--admin-text)]">{friendlyCloudAction(log.action)} · {friendlyCloudStatus(log.status)}</p>
+                  <p className="text-xs text-[var(--admin-muted)]">{log.message || "Evento registrado"} · {new Date(log.created_at).toLocaleString("pt-BR")}</p>
+                </div>
+              ))}
+              {!cloudLogs.length && <p className="text-[var(--admin-muted)]">Nenhum log registrado ainda.</p>}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section className="admin-card">
         <div className="mb-4 flex items-center gap-2">
@@ -475,6 +608,29 @@ function friendlyLogAction(value?: string) {
   if (normalized.includes("conversion")) return "Conversão registrada";
   if (normalized.includes("save")) return "Configuração salva";
   return "Operação registrada";
+}
+
+function friendlyCloudAction(value?: string) {
+  const labels: Record<string, string> = {
+    settings_saved: "Configuração salva",
+    test_connection: "Teste de conexão",
+    phone_info: "Validação do número",
+    list_templates: "Lista de templates",
+    webhook_validate: "Validação do webhook",
+    webhook_received: "Webhook recebido",
+    credential_error: "Credencial incompleta",
+    meta_api_error: "Retorno da Meta"
+  };
+  return labels[String(value || "").toLowerCase()] || "Operação registrada";
+}
+
+function friendlyCloudStatus(value?: string) {
+  const labels: Record<string, string> = {
+    success: "Concluído",
+    error: "Precisa de atenção",
+    skipped: "Não executado"
+  };
+  return labels[String(value || "").toLowerCase()] || "Em análise";
 }
 
 function friendlyOperationalMessage(value?: unknown) {

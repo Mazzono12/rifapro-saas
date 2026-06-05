@@ -51,7 +51,7 @@ import {
   type PromotionUsage
 } from "./src/server/promotions/promotionEngine";
 import { sendMockWhatsAppMessage } from "./src/server/whatsapp/providers/mockWhatsAppProvider";
-import { sendMetaCloudWhatsAppMessage } from "./src/server/whatsapp/providers/metaCloudWhatsAppProvider";
+import { MetaWhatsAppCloudProvider, sendMetaCloudWhatsAppMessage } from "./src/server/whatsapp/providers/metaCloudWhatsAppProvider";
 import { AsaasProvider } from "./src/server/payments/AsaasProvider";
 import { Pay2mProvider } from "./src/server/payments/Pay2mProvider";
 import { PagbankProvider } from "./src/server/payments/PagbankProvider";
@@ -1202,6 +1202,30 @@ async function startServer() {
     default_language: string;
     created_at: string;
     updated_at: string;
+  };
+  type WhatsAppCloudConfigRecord = {
+    id: string;
+    tenant_id: string;
+    enabled: boolean;
+    account_name: string;
+    business_manager_id: string;
+    whatsapp_business_account_id: string;
+    phone_number_id: string;
+    access_token_encrypted: string;
+    webhook_verify_token_encrypted: string;
+    webhook_url: string;
+    environment: "sandbox" | "production";
+    created_at: string;
+    updated_at: string;
+  };
+  type WhatsAppCloudLogRecord = {
+    id: string;
+    tenant_id: string;
+    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
+    status: "success" | "error" | "skipped";
+    message: string;
+    metadata: Record<string, unknown>;
+    created_at: string;
   };
   type WhatsAppMessageQueueRecord = {
     id: string;
@@ -2715,6 +2739,8 @@ async function startServer() {
   let payment_dead_letter_queue: PaymentDeadLetterJob[] = [];
   const paymentReleaseLocks = new Set<string>();
   let whatsappProviderConfigs: WhatsAppProviderConfigRecord[] = [];
+  let whatsappCloudConfigs: WhatsAppCloudConfigRecord[] = [];
+  let whatsappCloudLogs: WhatsAppCloudLogRecord[] = [];
   let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
   let automationFlows: AutomationFlowRecord[] = [];
   let automationRuns: AutomationRunRecord[] = [];
@@ -11115,6 +11141,161 @@ async function startServer() {
     };
   }
 
+  function getWhatsAppCloudConfig(tenantId: string) {
+    return whatsappCloudConfigs.find(config => config.tenant_id === tenantId) || null;
+  }
+
+  function sanitizeWhatsAppCloudConfig(config: WhatsAppCloudConfigRecord | null) {
+    if (!config) {
+      return {
+        enabled: false,
+        account_name: "",
+        business_manager_id: "",
+        whatsapp_business_account_id: "",
+        phone_number_id: "",
+        access_token: "",
+        webhook_verify_token: "",
+        webhook_url: "/api/webhooks/meta/whatsapp",
+        environment: "sandbox",
+        created_at: "",
+        updated_at: ""
+      };
+    }
+    return {
+      id: config.id,
+      tenant_id: config.tenant_id,
+      enabled: config.enabled,
+      account_name: config.account_name,
+      business_manager_id: config.business_manager_id,
+      whatsapp_business_account_id: config.whatsapp_business_account_id,
+      phone_number_id: config.phone_number_id,
+      access_token: config.access_token_encrypted ? maskGatewaySecret(config.access_token_encrypted) : "",
+      webhook_verify_token: config.webhook_verify_token_encrypted ? maskGatewaySecret(config.webhook_verify_token_encrypted) : "",
+      webhook_url: config.webhook_url || "/api/webhooks/meta/whatsapp",
+      environment: config.environment,
+      created_at: config.created_at,
+      updated_at: config.updated_at
+    };
+  }
+
+  function sanitizeWhatsAppCloudLog(log: WhatsAppCloudLogRecord) {
+    return {
+      ...log,
+      message: maskSecretText(log.message),
+      metadata: maskLogValue(log.metadata) as Record<string, unknown>
+    };
+  }
+
+  function recordWhatsAppCloudLog(tenantId: string, input: Omit<WhatsAppCloudLogRecord, "id" | "tenant_id" | "created_at">) {
+    const log: WhatsAppCloudLogRecord = {
+      id: createPublicId("WCL_"),
+      tenant_id: tenantId,
+      action: input.action,
+      status: input.status,
+      message: maskSecretText(input.message || ""),
+      metadata: (maskLogValue(input.metadata || {}) || {}) as Record<string, unknown>,
+      created_at: new Date().toISOString()
+    };
+    whatsappCloudLogs.unshift(log);
+    whatsappCloudLogs = whatsappCloudLogs.slice(0, 1000);
+    return log;
+  }
+
+  function decryptWhatsAppCloudConfig(config: WhatsAppCloudConfigRecord | null) {
+    if (!config) return null;
+    return {
+      enabled: config.enabled,
+      environment: config.environment,
+      account_name: config.account_name,
+      business_manager_id: config.business_manager_id,
+      whatsapp_business_account_id: config.whatsapp_business_account_id,
+      business_account_id: config.whatsapp_business_account_id,
+      phone_number_id: config.phone_number_id,
+      access_token: decryptGatewaySecret(config.access_token_encrypted || ""),
+      webhook_verify_token: decryptGatewaySecret(config.webhook_verify_token_encrypted || ""),
+      webhook_url: config.webhook_url
+    };
+  }
+
+  function createMetaWhatsAppCloudProvider(tenantId: string) {
+    const config = getWhatsAppCloudConfig(tenantId);
+    return new MetaWhatsAppCloudProvider(decryptWhatsAppCloudConfig(config) || { enabled: false, environment: "sandbox" }, {
+      log: entry => recordWhatsAppCloudLog(tenantId, {
+        action: entry.action === "phone_info" ? "phone_info" : entry.action === "list_templates" ? "list_templates" : entry.action === "webhook_validate" ? "webhook_validate" : entry.action === "webhook_received" ? "webhook_received" : "test_connection",
+        status: entry.status,
+        message: entry.message || entry.action,
+        metadata: entry.metadata || {}
+      })
+    });
+  }
+
+  function findWhatsAppCloudConfigByVerifyToken(token: string) {
+    return whatsappCloudConfigs.find(config => {
+      const verifyToken = decryptGatewaySecret(config.webhook_verify_token_encrypted || "");
+      return Boolean(verifyToken && token && verifyToken === token);
+    }) || null;
+  }
+
+  function findWhatsAppCloudConfigByWebhookPayload(payload: unknown) {
+    const body = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+    const entries = Array.isArray(body.entry) ? body.entry as Array<Record<string, unknown>> : [];
+    const phoneNumberIds = new Set<string>();
+    entries.forEach(entry => {
+      const changes = Array.isArray(entry.changes) ? entry.changes as Array<Record<string, unknown>> : [];
+      changes.forEach(change => {
+        const value = change.value && typeof change.value === "object" ? change.value as Record<string, unknown> : {};
+        const metadata = value.metadata && typeof value.metadata === "object" ? value.metadata as Record<string, unknown> : {};
+        const phoneNumberId = String(metadata.phone_number_id || "");
+        if (phoneNumberId) phoneNumberIds.add(phoneNumberId);
+      });
+    });
+    return whatsappCloudConfigs.find(config => phoneNumberIds.has(config.phone_number_id)) || null;
+  }
+
+  function upsertWhatsAppCloudConfig(req: express.Request, tenantId: string) {
+    const now = new Date().toISOString();
+    const existing = getWhatsAppCloudConfig(tenantId);
+    const mergeSecret = (incoming: unknown, current?: string) => {
+      const value = String(incoming || "").trim();
+      if (!value || isMaskedGatewaySecret(value)) return current || "";
+      return encryptGatewaySecret(value);
+    };
+    const config: WhatsAppCloudConfigRecord = {
+      id: existing?.id || createPublicId("WCLD_"),
+      tenant_id: tenantId,
+      enabled: Boolean(req.body.enabled),
+      account_name: String(req.body.account_name || existing?.account_name || "").trim().slice(0, 120),
+      business_manager_id: String(req.body.business_manager_id || existing?.business_manager_id || "").trim().slice(0, 120),
+      whatsapp_business_account_id: String(req.body.whatsapp_business_account_id || existing?.whatsapp_business_account_id || "").trim().slice(0, 120),
+      phone_number_id: String(req.body.phone_number_id || existing?.phone_number_id || "").trim().slice(0, 120),
+      access_token_encrypted: mergeSecret(req.body.access_token, existing?.access_token_encrypted),
+      webhook_verify_token_encrypted: mergeSecret(req.body.webhook_verify_token, existing?.webhook_verify_token_encrypted),
+      webhook_url: String(req.body.webhook_url || existing?.webhook_url || "/api/webhooks/meta/whatsapp").trim().slice(0, 500),
+      environment: String(req.body.environment || existing?.environment || "sandbox") === "production" ? "production" : "sandbox",
+      created_at: existing?.created_at || now,
+      updated_at: now
+    };
+    whatsappCloudConfigs = existing
+      ? whatsappCloudConfigs.map(item => item.id === existing.id ? config : item)
+      : [config, ...whatsappCloudConfigs];
+    recordWhatsAppCloudLog(tenantId, {
+      action: "settings_saved",
+      status: "success",
+      message: "Configuração WhatsApp Cloud salva",
+      metadata: {
+        enabled: config.enabled,
+        environment: config.environment,
+        accountName: config.account_name,
+        phoneNumberId: config.phone_number_id,
+        businessManagerId: config.business_manager_id,
+        whatsappBusinessAccountId: config.whatsapp_business_account_id
+      }
+    });
+    recordSecurityEvent({ tenant_id: tenantId, action: "WHATSAPP_CLOUD_CONFIG_UPDATED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "medium", actor: getAuthSession(req)?.email, detail: `${config.environment}:${config.enabled}` });
+    schedulePersistentStateSave("whatsapp-cloud-settings");
+    return config;
+  }
+
   function buildPublicTicketUrl(purchase: PurchaseRecord) {
     const tenant = tenants.find(item => item.id === purchase.tenant_id);
     const verifiedDomain = tenantDomains.find(domain => domain.tenant_id === purchase.tenant_id && domain.status === "verified" && domain.is_primary);
@@ -14286,6 +14467,111 @@ async function startServer() {
     res.json({ queued: queued.length, messages: queued.map(item => ({ ...item, phone: maskPhone(item.phone) })) });
   });
 
+  app.get("/api/admin/whatsapp-cloud/settings", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    res.json({
+      settings: sanitizeWhatsAppCloudConfig(getWhatsAppCloudConfig(tenantId)),
+      logs: whatsappCloudLogs.filter(log => log.tenant_id === tenantId).slice(0, 100).map(sanitizeWhatsAppCloudLog),
+      queue: whatsappMessageQueue
+        .filter(message => message.tenant_id === tenantId)
+        .slice(0, 20)
+        .map(message => ({ ...message, phone: maskPhone(message.phone) }))
+    });
+  });
+
+  app.put("/api/admin/whatsapp-cloud/settings", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    const config = upsertWhatsAppCloudConfig(req, tenantId);
+    res.json({
+      settings: sanitizeWhatsAppCloudConfig(config),
+      logs: whatsappCloudLogs.filter(log => log.tenant_id === tenantId).slice(0, 100).map(sanitizeWhatsAppCloudLog)
+    });
+  });
+
+  app.post("/api/admin/whatsapp-cloud/test", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    try {
+      const result = await createMetaWhatsAppCloudProvider(tenantId).testConnection();
+      res.json({ success: true, result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao testar conexão com WhatsApp Cloud";
+      recordWhatsAppCloudLog(tenantId, {
+        action: message.includes("configurado") || message.includes("desativado") ? "credential_error" : "meta_api_error",
+        status: "error",
+        message,
+        metadata: { operation: "testConnection" }
+      });
+      res.status(message.includes("configurado") || message.includes("desativado") ? 409 : 502).json({ error: message });
+    }
+  });
+
+  app.get("/api/admin/whatsapp-cloud/phone", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    try {
+      const phone = await createMetaWhatsAppCloudProvider(tenantId).getPhoneNumberInfo();
+      res.json({ phone });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao validar número do WhatsApp Cloud";
+      recordWhatsAppCloudLog(tenantId, {
+        action: message.includes("configurado") || message.includes("desativado") ? "credential_error" : "meta_api_error",
+        status: "error",
+        message,
+        metadata: { operation: "getPhoneNumberInfo" }
+      });
+      res.status(message.includes("configurado") || message.includes("desativado") ? 409 : 502).json({ error: message });
+    }
+  });
+
+  app.get("/api/admin/whatsapp-cloud/templates", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    try {
+      const templates = await createMetaWhatsAppCloudProvider(tenantId).listTemplates();
+      res.json({ templates });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao listar templates do WhatsApp Cloud";
+      recordWhatsAppCloudLog(tenantId, {
+        action: message.includes("configurado") || message.includes("desativado") ? "credential_error" : "meta_api_error",
+        status: "error",
+        message,
+        metadata: { operation: "listTemplates" }
+      });
+      res.status(message.includes("configurado") || message.includes("desativado") ? 409 : 502).json({ error: message });
+    }
+  });
+
+  app.get("/api/webhooks/meta/whatsapp", (req, res) => {
+    const token = String(req.query["hub.verify_token"] || "");
+    const config = findWhatsAppCloudConfigByVerifyToken(token);
+    if (!config) return res.status(403).send("Token de verificação inválido");
+    const result = new MetaWhatsAppCloudProvider(decryptWhatsAppCloudConfig(config) || { enabled: false, environment: "sandbox" }, {
+      log: entry => recordWhatsAppCloudLog(config.tenant_id, {
+        action: "webhook_validate",
+        status: entry.status,
+        message: entry.message || "Validação do webhook Meta",
+        metadata: entry.metadata || {}
+      })
+    }).validateWebhook(req.query as Record<string, unknown>);
+    if (!result.valid) return res.status(403).send("Token de verificação inválido");
+    res.status(200).send(result.challenge);
+  });
+
+  app.post("/api/webhooks/meta/whatsapp", (req, res) => {
+    const config = findWhatsAppCloudConfigByWebhookPayload(req.body);
+    const body = req.body && typeof req.body === "object" ? req.body as Record<string, unknown> : {};
+    const entries = Array.isArray(body.entry) ? body.entry : [];
+    if (config) {
+      createMetaWhatsAppCloudProvider(config.tenant_id).handleWebhook(req.body);
+    } else {
+      recordSecurityEvent({ tenant_id: "unknown", action: "WHATSAPP_CLOUD_WEBHOOK_UNMATCHED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: "meta-webhook", detail: `entries:${entries.length}` });
+    }
+    res.status(200).json({ received: true, entries: entries.length, tenantResolved: Boolean(config) });
+  });
+
   app.get("/api/admin/audit-logs", (req, res) => {
     res.json(scoped(auditLogs, req));
   });
@@ -16098,6 +16384,8 @@ async function startServer() {
       superadminImpersonationSessions,
       superadminAuditLogs,
       whatsappProviderConfigs,
+      whatsappCloudConfigs,
+      whatsappCloudLogs,
       whatsappMessageQueue,
       automationFlows,
       automationRuns,
@@ -16183,6 +16471,8 @@ async function startServer() {
       case "superadminImpersonationSessions": superadminImpersonationSessions = Array.isArray(value) ? value : []; break;
       case "superadminAuditLogs": superadminAuditLogs = Array.isArray(value) ? value : []; break;
       case "whatsappProviderConfigs": whatsappProviderConfigs = Array.isArray(value) ? value : []; break;
+      case "whatsappCloudConfigs": whatsappCloudConfigs = Array.isArray(value) ? value : []; break;
+      case "whatsappCloudLogs": whatsappCloudLogs = Array.isArray(value) ? value : []; break;
       case "whatsappMessageQueue": whatsappMessageQueue = Array.isArray(value) ? value : []; break;
       case "automationFlows": automationFlows = Array.isArray(value) ? value : []; break;
       case "automationRuns": automationRuns = Array.isArray(value) ? value : []; break;
