@@ -1221,7 +1221,7 @@ async function startServer() {
   type WhatsAppCloudLogRecord = {
     id: string;
     tenant_id: string;
-    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
+    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
     status: "success" | "error" | "skipped";
     message: string;
     metadata: Record<string, unknown>;
@@ -1240,6 +1240,19 @@ async function startServer() {
     per_customer_cooldown_hours: number;
     daily_tenant_limit: number;
     mode: "manual" | "automatic";
+    created_at: string;
+    updated_at: string;
+  };
+  type WhatsAppPurchaseConfirmationEventType = "purchase_confirmed";
+  type WhatsAppPurchaseConfirmationSettingsRecord = {
+    id: string;
+    tenant_id: string;
+    enabled: boolean;
+    template_name: string;
+    template_language: string;
+    mode: "manual" | "automatic";
+    daily_tenant_limit: number;
+    paid_only: boolean;
     created_at: string;
     updated_at: string;
   };
@@ -1277,6 +1290,27 @@ async function startServer() {
     created_at: string;
     updated_at: string;
     idempotency_key: string;
+  };
+  type WhatsAppOrderType = "raffle" | "fazendinha" | "number_mode";
+  type WhatsAppOrderSource = PurchaseRecord | FazendinhaPurchase | NumberModePurchase;
+  type WhatsAppOrderCandidate = {
+    tenantId: string;
+    orderId: string;
+    orderType: WhatsAppOrderType;
+    customerId?: string;
+    customerName: string;
+    customerPhone: string;
+    campaignName: string;
+    quantity: number;
+    numbersLabel: string;
+    amount: number;
+    status: string;
+    paymentStatus: string;
+    createdAt: string;
+    paidAt?: string | null;
+    expiresAt?: string;
+    publicLink: string;
+    rawRef: WhatsAppOrderSource;
   };
   type AutomationTriggerType =
     | "abandoned_pix_recovery"
@@ -2776,6 +2810,7 @@ async function startServer() {
   let whatsappCloudLogs: WhatsAppCloudLogRecord[] = [];
   let whatsappCloudTemplates: WhatsAppCloudTemplateRecord[] = [];
   let whatsappPixRecoverySettings: WhatsAppPixRecoverySettingsRecord[] = [];
+  let whatsappPurchaseConfirmationSettings: WhatsAppPurchaseConfirmationSettingsRecord[] = [];
   let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
   let automationFlows: AutomationFlowRecord[] = [];
   let automationRuns: AutomationRunRecord[] = [];
@@ -10740,6 +10775,7 @@ async function startServer() {
       purchase.earnedLootboxes = config.lootboxEnabled
         ? processFazendinhaLootboxDrops(purchase.customer.phone, groups.map(group => group.id), purchase.id, purchase.tenant_id)
         : 0;
+      handlePurchaseConfirmedWhatsAppCloudEvent(purchase, "confirmFazendinhaPurchase");
     }
 
     const pixPayload = buildPixPayload(purchase.valorPago, undefined, purchase.id, purchase.tenant_id);
@@ -10780,6 +10816,7 @@ async function startServer() {
     purchase.earnedLootboxes = config?.lootboxEnabled
       ? processLootboxDrops(purchase.customer.phone, purchase.numbers.length, purchase.id, config.lootboxConfig, `mode:${purchase.mode}`, purchase.mode, purchase.tenant_id)
       : 0;
+    handlePurchaseConfirmedWhatsAppCloudEvent(purchase, "confirmNumberModePurchase");
     return purchase;
   }
 
@@ -11357,8 +11394,121 @@ async function startServer() {
     ) || null;
   }
 
+  function buildTenantPublicPath(tenantId: string, path: string) {
+    const tenant = tenants.find(item => item.id === tenantId);
+    const verifiedDomain = tenantDomains.find(domain => domain.tenant_id === tenantId && domain.status === "verified" && domain.is_primary);
+    const host = verifiedDomain?.domain || tenant?.dominio_customizado || tenant?.dominio || `${tenant?.slug || "rifapro"}.meudominio.com`;
+    const protocol = host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
+    return `${protocol}://${host}${path.startsWith("/") ? path : `/${path}`}`;
+  }
+
+  function buildWhatsAppOrderCandidateFromPurchase(purchase: PurchaseRecord): WhatsAppOrderCandidate {
+    const raffle = raffles.find(item => item.tenant_id === purchase.tenant_id && item.id === purchase.raffleId);
+    const customer = purchase.customer || Object.values(customersByPhone).find(item => item.tenant_id === purchase.tenant_id && item.id === purchase.customer?.id);
+    return {
+      tenantId: purchase.tenant_id,
+      orderId: purchase.purchaseId,
+      orderType: "raffle",
+      customerId: customer?.id || purchase.customer?.id,
+      customerName: customer?.name || "Cliente",
+      customerPhone: normalizeBrazilianPhone(customer?.phone || purchase.contact || ""),
+      campaignName: raffle?.title || "Campanha",
+      quantity: purchase.tickets,
+      numbersLabel: (purchase.numeros || []).length ? purchase.numeros.join(", ") : "Confirmados",
+      amount: purchase.amount,
+      status: purchase.status,
+      paymentStatus: purchase.status,
+      createdAt: purchase.createdAt,
+      paidAt: purchase.paymentHistory?.find(item => item.status === "paid")?.date || null,
+      expiresAt: purchase.pixExpiresAt || purchase.reservedUntil,
+      publicLink: raffle ? buildPublicTicketUrl(purchase).split("?")[0] : "",
+      rawRef: purchase
+    };
+  }
+
+  function buildWhatsAppOrderCandidateFromFazendinhaPurchase(purchase: FazendinhaPurchase): WhatsAppOrderCandidate {
+    const config = getFazendinhaConfig(purchase.tenant_id);
+    const animalNames = purchase.nomeBichos?.length ? purchase.nomeBichos : purchase.nomeBicho ? purchase.nomeBicho.split(",").map(item => item.trim()).filter(Boolean) : [];
+    return {
+      tenantId: purchase.tenant_id,
+      orderId: purchase.id,
+      orderType: "fazendinha",
+      customerId: purchase.customer?.id || purchase.usuarioId,
+      customerName: purchase.customer?.name || "Cliente",
+      customerPhone: normalizeBrazilianPhone(purchase.customer?.phone || ""),
+      campaignName: config.name || "Fazendinha",
+      quantity: purchase.grupoIds?.length || animalNames.length || 1,
+      numbersLabel: animalNames.length ? animalNames.join(", ") : purchase.numeros.join(", "),
+      amount: purchase.valorPago,
+      status: purchase.statusPagamento,
+      paymentStatus: purchase.paymentStatus || (purchase.statusPagamento === "reserved" ? "pending" : purchase.statusPagamento),
+      createdAt: purchase.dataCompra,
+      paidAt: purchase.paidAt || purchase.confirmedAt || null,
+      expiresAt: purchase.pixExpiresAt || purchase.reservedUntil,
+      publicLink: buildTenantPublicPath(purchase.tenant_id, "/fazendinha"),
+      rawRef: purchase
+    };
+  }
+
+  function buildWhatsAppOrderCandidateFromNumberModePurchase(purchase: NumberModePurchase): WhatsAppOrderCandidate {
+    const config = getNumberModeConfig(purchase.tenant_id, purchase.mode);
+    return {
+      tenantId: purchase.tenant_id,
+      orderId: purchase.id,
+      orderType: "number_mode",
+      customerId: purchase.customer?.id,
+      customerName: purchase.customer?.name || "Cliente",
+      customerPhone: normalizeBrazilianPhone(purchase.customer?.phone || ""),
+      campaignName: config?.name || purchase.mode,
+      quantity: purchase.numbers.length,
+      numbersLabel: purchase.numbers.join(", "),
+      amount: purchase.amount,
+      status: purchase.status,
+      paymentStatus: purchase.paymentStatus || (purchase.status === "reserved" ? "pending" : purchase.status),
+      createdAt: purchase.createdAt,
+      paidAt: purchase.paidAt || purchase.confirmedAt || null,
+      expiresAt: purchase.pixExpiresAt || purchase.reservedUntil,
+      publicLink: buildTenantPublicPath(purchase.tenant_id, `/${purchase.mode}`),
+      rawRef: purchase
+    };
+  }
+
+  function buildWhatsAppOrderCandidate(order: WhatsAppOrderSource): WhatsAppOrderCandidate {
+    if ("purchaseId" in order) return buildWhatsAppOrderCandidateFromPurchase(order);
+    if ("statusPagamento" in order) return buildWhatsAppOrderCandidateFromFazendinhaPurchase(order);
+    return buildWhatsAppOrderCandidateFromNumberModePurchase(order);
+  }
+
+  function findWhatsAppOrderSource(tenantId: string, orderId: string, orderType?: WhatsAppOrderType): WhatsAppOrderSource | null {
+    if (!orderType || orderType === "raffle") {
+      const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === orderId);
+      if (purchase || orderType === "raffle") return purchase || null;
+    }
+    if (!orderType || orderType === "fazendinha") {
+      const purchase = fazendinhaCompras.find(item => item.tenant_id === tenantId && item.id === orderId);
+      if (purchase || orderType === "fazendinha") return purchase || null;
+    }
+    if (!orderType || orderType === "number_mode") {
+      const purchase = numberModePurchases.find(item => item.tenant_id === tenantId && item.id === orderId);
+      if (purchase || orderType === "number_mode") return purchase || null;
+    }
+    return null;
+  }
+
+  function listWhatsAppOrderSourcesForPixRecovery(tenantId: string): WhatsAppOrderSource[] {
+    return [
+      ...purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.status === "pending"),
+      ...fazendinhaCompras.filter(purchase => purchase.tenant_id === tenantId && purchase.statusPagamento === "reserved"),
+      ...numberModePurchases.filter(purchase => purchase.tenant_id === tenantId && purchase.status === "reserved")
+    ];
+  }
+
   function whatsappPixRecoveryEventForPurchase(purchase: PurchaseRecord): WhatsAppPixRecoveryEventType {
     return isPastReservationExpiry(purchase.pixExpiresAt || purchase.reservedUntil) ? "pix_expired_reminder" : "pix_pending_reminder";
+  }
+
+  function whatsappPixRecoveryEventForOrder(candidate: WhatsAppOrderCandidate): WhatsAppPixRecoveryEventType {
+    return isPastReservationExpiry(candidate.expiresAt) ? "pix_expired_reminder" : "pix_pending_reminder";
   }
 
   function buildWhatsAppPixRecoveryComponents(input: { customerName: string; campaign: string; amount: number; link: string }) {
@@ -11376,29 +11526,31 @@ async function startServer() {
   }
 
   function buildWhatsAppPixRecoveryCandidate(tenantId: string, purchase: PurchaseRecord, settingsRecord = getWhatsAppPixRecoverySettings(tenantId)) {
-    const eventType = whatsappPixRecoveryEventForPurchase(purchase);
+    return buildWhatsAppPixRecoveryCandidateFromOrder(tenantId, purchase, settingsRecord);
+  }
+
+  function buildWhatsAppPixRecoveryCandidateFromOrder(tenantId: string, order: WhatsAppOrderSource, settingsRecord = getWhatsAppPixRecoverySettings(tenantId)) {
+    const orderCandidate = buildWhatsAppOrderCandidate(order);
+    const eventType = whatsappPixRecoveryEventForOrder(orderCandidate);
     const templateName = eventType === "pix_expired_reminder" ? settingsRecord.expired_template_name : settingsRecord.pending_template_name;
     const language = eventType === "pix_expired_reminder" ? settingsRecord.expired_template_language : settingsRecord.pending_template_language;
-    const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === purchase.raffleId);
-    const customer = purchase.customer || Object.values(customersByPhone).find(item => item.tenant_id === tenantId && item.id === purchase.customer?.id);
-    const customerName = customer?.name || "Cliente";
-    const phone = normalizeBrazilianPhone(customer?.phone || purchase.contact || "");
-    const campaign = raffle?.title || "Campanha";
-    const paymentLink = eventType === "pix_pending_reminder" ? buildPublicTicketUrl(purchase) : "";
-    const campaignLink = raffle ? buildPublicTicketUrl(purchase).split("?")[0] : "";
+    const customer = orderCandidate.customerId ? Object.values(customersByPhone).find(item => item.tenant_id === tenantId && item.id === orderCandidate.customerId) : undefined;
+    const paymentLink = eventType === "pix_pending_reminder" && orderCandidate.orderType === "raffle" ? buildPublicTicketUrl(order as PurchaseRecord) : "";
+    const campaignLink = orderCandidate.publicLink;
     const link = paymentLink || campaignLink;
     return {
-      purchase,
+      purchase: order,
+      order: orderCandidate,
       customer,
       eventType,
       templateName,
       language,
-      phone,
-      campaign,
-      customerName,
+      phone: orderCandidate.customerPhone,
+      campaign: orderCandidate.campaignName,
+      customerName: orderCandidate.customerName,
       link,
-      idempotencyKey: `whatsapp-cloud-pix-recovery:${tenantId}:${purchase.purchaseId}:${eventType}`,
-      components: buildWhatsAppPixRecoveryComponents({ customerName, campaign, amount: purchase.amount, link })
+      idempotencyKey: `whatsapp-cloud-pix-recovery:${tenantId}:${orderCandidate.orderType}:${orderCandidate.orderId}:${eventType}`,
+      components: buildWhatsAppPixRecoveryComponents({ customerName: orderCandidate.customerName, campaign: orderCandidate.campaignName, amount: orderCandidate.amount, link })
     };
   }
 
@@ -11427,48 +11579,59 @@ async function startServer() {
   }
 
   function validateWhatsAppPixRecoveryCandidate(tenantId: string, purchase: PurchaseRecord, settingsRecord = getWhatsAppPixRecoverySettings(tenantId)) {
-    const candidate = buildWhatsAppPixRecoveryCandidate(tenantId, purchase, settingsRecord);
+    return validateWhatsAppPixRecoveryCandidateFromOrder(tenantId, purchase, settingsRecord);
+  }
+
+  function validateWhatsAppPixRecoveryCandidateFromOrder(tenantId: string, order: WhatsAppOrderSource, settingsRecord = getWhatsAppPixRecoverySettings(tenantId)) {
+    const candidate = buildWhatsAppPixRecoveryCandidateFromOrder(tenantId, order, settingsRecord);
     const cloudConfig = getWhatsAppCloudConfig(tenantId);
-    const ageMinutes = (Date.now() - new Date(purchase.createdAt).getTime()) / 60000;
+    const orderCandidate = candidate.order;
+    const ageMinutes = (Date.now() - new Date(orderCandidate.createdAt).getTime()) / 60000;
     if (!settingsRecord.enabled) return { candidate, eligible: false, reason: "Recuperacao automatica desativada" };
     if (!cloudConfig?.enabled) return { candidate, eligible: false, reason: "WhatsApp Cloud inativo" };
-    if (purchase.tenant_id !== tenantId) return { candidate, eligible: false, reason: "Compra de outro cliente da plataforma" };
-    if (purchase.status !== "pending") return { candidate, eligible: false, reason: "Compra nao esta pendente" };
-    if (!purchase.pixPayload && !purchase.pixGateway && !purchase.pixQrCodeBase64) return { candidate, eligible: false, reason: "Compra nao parece ser PIX" };
+    if (orderCandidate.tenantId !== tenantId) return { candidate, eligible: false, reason: "Compra de outro cliente da plataforma" };
+    if (!["pending", "reserved"].includes(orderCandidate.status) && !["pending", "reserved"].includes(orderCandidate.paymentStatus)) return { candidate, eligible: false, reason: "Compra nao esta pendente" };
+    if (orderCandidate.status === "cancelled" || orderCandidate.paymentStatus === "cancelled") return { candidate, eligible: false, reason: "Compra cancelada" };
+    const pixOrder = order as WhatsAppOrderSource & { pixPayload?: string; pixGateway?: string; pixQrCodeBase64?: string };
+    if (!pixOrder.pixPayload && !pixOrder.pixGateway && !pixOrder.pixQrCodeBase64) return { candidate, eligible: false, reason: "Compra nao parece ser PIX" };
     if (ageMinutes < settingsRecord.min_age_minutes && candidate.eventType === "pix_pending_reminder") return { candidate, eligible: false, reason: "Ainda dentro do tempo minimo" };
     if (!candidate.templateName) return { candidate, eligible: false, reason: "Template nao selecionado" };
     if (!getApprovedWhatsAppTemplate(tenantId, candidate.templateName, candidate.language)) return { candidate, eligible: false, reason: "Template oficial aprovado nao encontrado" };
     if (!isValidBrazilianWhatsAppPhone(candidate.phone)) return { candidate, eligible: false, reason: "Telefone invalido" };
     if (!candidate.link) return { candidate, eligible: false, reason: "Link de pagamento ou campanha indisponivel" };
     if (whatsappMessageQueue.some(message => message.idempotency_key === candidate.idempotencyKey)) return { candidate, eligible: false, reason: "Mensagem ja registrada para esta compra" };
-    if (hasRecentWhatsAppPixRecoveryForCustomer(tenantId, candidate.customer?.id || purchase.customer?.id, candidate.eventType, settingsRecord.per_customer_cooldown_hours)) return { candidate, eligible: false, reason: "Limite por cliente respeitado" };
+    if (hasRecentWhatsAppPixRecoveryForCustomer(tenantId, candidate.customer?.id || orderCandidate.customerId, candidate.eventType, settingsRecord.per_customer_cooldown_hours)) return { candidate, eligible: false, reason: "Limite por cliente respeitado" };
     if (countWhatsAppPixRecoveryToday(tenantId) >= settingsRecord.daily_tenant_limit) return { candidate, eligible: false, reason: "Limite diario atingido" };
     return { candidate, eligible: true, reason: "" };
   }
 
   function listWhatsAppPixRecoveryCandidates(tenantId: string, settingsRecord = getWhatsAppPixRecoverySettings(tenantId)) {
-    return purchases
-      .filter(purchase => purchase.tenant_id === tenantId && purchase.status === "pending")
-      .map(purchase => validateWhatsAppPixRecoveryCandidate(tenantId, purchase, settingsRecord));
+    return listWhatsAppOrderSourcesForPixRecovery(tenantId)
+      .map(purchase => validateWhatsAppPixRecoveryCandidateFromOrder(tenantId, purchase, settingsRecord));
   }
 
   function enqueueWhatsAppPixRecoveryMessage(tenantId: string, purchase: PurchaseRecord, settingsRecord = getWhatsAppPixRecoverySettings(tenantId)) {
-    const validation = validateWhatsAppPixRecoveryCandidate(tenantId, purchase, settingsRecord);
+    return enqueueWhatsAppPixRecoveryMessageFromOrder(tenantId, purchase, settingsRecord);
+  }
+
+  function enqueueWhatsAppPixRecoveryMessageFromOrder(tenantId: string, order: WhatsAppOrderSource, settingsRecord = getWhatsAppPixRecoverySettings(tenantId)) {
+    const validation = validateWhatsAppPixRecoveryCandidateFromOrder(tenantId, order, settingsRecord);
+    const orderCandidate = validation.candidate.order;
     const now = new Date().toISOString();
     if (!validation.eligible) {
       recordWhatsAppCloudLog(tenantId, {
         action: "pix_recovery_skipped",
         status: "skipped",
         message: validation.reason,
-        metadata: { purchaseId: purchase.purchaseId, eventType: validation.candidate.eventType, customerId: purchase.customer?.id || "" }
+        metadata: { orderId: orderCandidate.orderId, purchaseId: orderCandidate.orderId, orderType: orderCandidate.orderType, campaignName: orderCandidate.campaignName, eventType: validation.candidate.eventType, status: orderCandidate.status, customerId: orderCandidate.customerId || "" }
       });
       return { message: null, validation };
     }
     const message: WhatsAppMessageQueueRecord = {
       id: createPublicId("WAPP_"),
       tenant_id: tenantId,
-      order_id: purchase.purchaseId,
-      customer_id: validation.candidate.customer?.id || purchase.customer?.id,
+      order_id: orderCandidate.orderId,
+      customer_id: validation.candidate.customer?.id || orderCandidate.customerId,
       phone: validation.candidate.phone,
       message_type: "whatsapp_cloud_pix_recovery",
       message_body: "",
@@ -11482,10 +11645,14 @@ async function startServer() {
       language: validation.candidate.language,
       event_type: validation.candidate.eventType,
       payload: {
-        purchaseId: purchase.purchaseId,
+        orderId: orderCandidate.orderId,
+        purchaseId: orderCandidate.orderId,
+        orderType: orderCandidate.orderType,
         customerName: validation.candidate.customerName,
         campaign: validation.candidate.campaign,
-        amount: purchase.amount,
+        campaignName: orderCandidate.campaignName,
+        status: orderCandidate.status,
+        amount: orderCandidate.amount,
         link: validation.candidate.link,
         components: validation.candidate.components
       },
@@ -11499,7 +11666,7 @@ async function startServer() {
       action: "pix_recovery_enqueued",
       status: "success",
       message: "Recuperacao de PIX adicionada a fila",
-      metadata: { purchaseId: purchase.purchaseId, eventType: message.event_type, to: maskPhone(message.phone), templateName: message.template_name }
+      metadata: { orderId: orderCandidate.orderId, purchaseId: orderCandidate.orderId, orderType: orderCandidate.orderType, campaignName: orderCandidate.campaignName, eventType: message.event_type, status: message.status, to: maskPhone(message.phone), templateName: message.template_name }
     });
     schedulePersistentStateSave("whatsapp-pix-recovery-enqueue");
     return { message, validation };
@@ -11516,9 +11683,12 @@ async function startServer() {
     let failed = 0;
     let skipped = 0;
     for (const message of ready) {
-      const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === message.order_id);
+      const orderType = (message.payload?.orderType === "fazendinha" || message.payload?.orderType === "number_mode" || message.payload?.orderType === "raffle")
+        ? message.payload.orderType as WhatsAppOrderType
+        : undefined;
+      const purchase = findWhatsAppOrderSource(tenantId, String(message.order_id || ""), orderType);
       const eventType = (message.event_type === "pix_expired_reminder" ? "pix_expired_reminder" : "pix_pending_reminder") as WhatsAppPixRecoveryEventType;
-      const revalidation = purchase ? validateWhatsAppPixRecoveryCandidate(tenantId, purchase, settingsRecord) : null;
+      const revalidation = purchase ? validateWhatsAppPixRecoveryCandidateFromOrder(tenantId, purchase, settingsRecord) : null;
       const allowedQueuedReasons = new Set(["Mensagem ja registrada para esta compra", "Limite por cliente respeitado", "Limite diario atingido"]);
       if (!purchase || (revalidation && !revalidation.eligible && !allowedQueuedReasons.has(revalidation.reason))) {
         message.status = "skipped";
@@ -11526,7 +11696,7 @@ async function startServer() {
         message.processed_at = new Date().toISOString();
         message.updated_at = message.processed_at;
         skipped += 1;
-        recordWhatsAppCloudLog(tenantId, { action: "pix_recovery_skipped", status: "skipped", message: message.reason, metadata: { purchaseId: message.order_id || "", eventType } });
+        recordWhatsAppCloudLog(tenantId, { action: "pix_recovery_skipped", status: "skipped", message: message.reason, metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType, status: message.status } });
         continue;
       }
       if (countWhatsAppPixRecoveryToday(tenantId) > settingsRecord.daily_tenant_limit) {
@@ -11535,7 +11705,7 @@ async function startServer() {
         message.processed_at = new Date().toISOString();
         message.updated_at = message.processed_at;
         skipped += 1;
-        recordWhatsAppCloudLog(tenantId, { action: "pix_recovery_skipped", status: "skipped", message: message.reason, metadata: { purchaseId: message.order_id || "", eventType } });
+        recordWhatsAppCloudLog(tenantId, { action: "pix_recovery_skipped", status: "skipped", message: message.reason, metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType, status: message.status } });
         continue;
       }
       try {
@@ -11559,7 +11729,7 @@ async function startServer() {
           action: "pix_recovery_sent",
           status: "success",
           message: "Recuperacao de PIX enviada",
-          metadata: { purchaseId: message.order_id || "", eventType, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "" }
+          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType, status: message.status, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "" }
         });
       } catch (error) {
         const processedAt = new Date().toISOString();
@@ -11573,12 +11743,326 @@ async function startServer() {
           action: "meta_api_error",
           status: "error",
           message: message.last_error,
-          metadata: { purchaseId: message.order_id || "", eventType, to: maskPhone(message.phone), templateName: message.template_name }
+          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType, status: message.status, to: maskPhone(message.phone), templateName: message.template_name }
         });
       }
     }
     schedulePersistentStateSave("whatsapp-pix-recovery-run");
     return { processed: ready.length, sent, failed, skipped };
+  }
+
+  function defaultWhatsAppPurchaseConfirmationSettings(tenantId: string): WhatsAppPurchaseConfirmationSettingsRecord {
+    const now = new Date().toISOString();
+    return {
+      id: `${tenantId}:whatsapp-purchase-confirmation`,
+      tenant_id: tenantId,
+      enabled: false,
+      template_name: "",
+      template_language: "pt_BR",
+      mode: "manual",
+      daily_tenant_limit: 100,
+      paid_only: true,
+      created_at: now,
+      updated_at: now
+    };
+  }
+
+  function getWhatsAppPurchaseConfirmationSettings(tenantId: string) {
+    return whatsappPurchaseConfirmationSettings.find(item => item.tenant_id === tenantId) || defaultWhatsAppPurchaseConfirmationSettings(tenantId);
+  }
+
+  function sanitizeWhatsAppPurchaseConfirmationSettings(settingsRecord: WhatsAppPurchaseConfirmationSettingsRecord) {
+    return {
+      id: settingsRecord.id,
+      tenant_id: settingsRecord.tenant_id,
+      enabled: settingsRecord.enabled,
+      template_name: settingsRecord.template_name,
+      template_language: settingsRecord.template_language,
+      mode: settingsRecord.mode,
+      daily_tenant_limit: settingsRecord.daily_tenant_limit,
+      paid_only: settingsRecord.paid_only,
+      created_at: settingsRecord.created_at,
+      updated_at: settingsRecord.updated_at
+    };
+  }
+
+  function upsertWhatsAppPurchaseConfirmationSettings(req: express.Request, tenantId: string) {
+    const current = getWhatsAppPurchaseConfirmationSettings(tenantId);
+    const now = new Date().toISOString();
+    const next: WhatsAppPurchaseConfirmationSettingsRecord = {
+      ...current,
+      enabled: Boolean(req.body?.enabled),
+      template_name: String(req.body?.template_name || req.body?.templateName || current.template_name || "").trim(),
+      template_language: String(req.body?.template_language || req.body?.templateLanguage || current.template_language || "pt_BR").trim() || "pt_BR",
+      mode: req.body?.mode === "automatic" ? "automatic" : "manual",
+      daily_tenant_limit: Math.min(1000, Math.max(1, Math.floor(Number(req.body?.daily_tenant_limit ?? req.body?.dailyTenantLimit ?? current.daily_tenant_limit ?? 100)))),
+      paid_only: req.body?.paid_only !== undefined ? Boolean(req.body.paid_only) : req.body?.paidOnly !== undefined ? Boolean(req.body.paidOnly) : true,
+      updated_at: now
+    };
+    whatsappPurchaseConfirmationSettings = [
+      next,
+      ...whatsappPurchaseConfirmationSettings.filter(item => item.tenant_id !== tenantId)
+    ];
+    recordWhatsAppCloudLog(tenantId, {
+      action: "purchase_confirmation_settings_saved",
+      status: "success",
+      message: "Confirmacao automatica de compra salva",
+      metadata: { mode: next.mode, enabled: next.enabled, paidOnly: next.paid_only, adminId: getAuthSession(req)?.sub || "" }
+    });
+    schedulePersistentStateSave("whatsapp-purchase-confirmation-settings");
+    return next;
+  }
+
+  function getWhatsAppPurchaseConfirmationQueue(tenantId: string) {
+    return whatsappMessageQueue.filter(message => message.tenant_id === tenantId && message.message_type === "whatsapp_cloud_purchase_confirmation");
+  }
+
+  function countWhatsAppPurchaseConfirmationsToday(tenantId: string) {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return getWhatsAppPurchaseConfirmationQueue(tenantId).filter(message => {
+      const time = new Date(message.sent_at || message.processed_at || message.created_at).getTime();
+      return time >= start.getTime() && ["queued", "pending", "retrying", "sent"].includes(message.status);
+    }).length;
+  }
+
+  function purchaseHasRefundOrChargeback(purchase: PurchaseRecord) {
+    const relatedPayments = payments.filter(payment => payment.tenant_id === purchase.tenant_id && payment.order_id === purchase.purchaseId);
+    return relatedPayments.some(payment => {
+      const text = `${payment.status || ""} ${JSON.stringify(maskLogValue(payment.raw_response || {}))}`.toLowerCase();
+      return ["refunded", "refund", "charged_back", "chargeback", "estornado", "estornada"].some(term => text.includes(term));
+    });
+  }
+
+  function buildWhatsAppPurchaseConfirmationComponents(input: { customerName: string; campaign: string; quantity: number; numbers: number[] | string; amount: number; link: string }) {
+    const numbersText = Array.isArray(input.numbers)
+      ? (input.numbers.length ? input.numbers.join(", ").slice(0, 900) : "Confirmados")
+      : String(input.numbers || "Confirmados").slice(0, 900);
+    return [
+      {
+        type: "body",
+        parameters: [
+          { type: "text", text: input.customerName || "Cliente" },
+          { type: "text", text: input.campaign || "Campanha" },
+          { type: "text", text: String(input.quantity || input.numbers.length || 0) },
+          { type: "text", text: numbersText },
+          { type: "text", text: `R$ ${Number(input.amount || 0).toFixed(2)}` },
+          { type: "text", text: input.link }
+        ]
+      }
+    ];
+  }
+
+  function buildWhatsAppPurchaseConfirmationCandidate(tenantId: string, purchase: PurchaseRecord, settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId)) {
+    return buildWhatsAppPurchaseConfirmationCandidateFromOrder(tenantId, purchase, settingsRecord);
+  }
+
+  function buildWhatsAppPurchaseConfirmationCandidateFromOrder(tenantId: string, order: WhatsAppOrderSource, settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId)) {
+    const orderCandidate = buildWhatsAppOrderCandidate(order);
+    const customer = orderCandidate.customerId ? Object.values(customersByPhone).find(item => item.tenant_id === tenantId && item.id === orderCandidate.customerId) : undefined;
+    return {
+      purchase: order,
+      order: orderCandidate,
+      customer,
+      eventType: "purchase_confirmed" as WhatsAppPurchaseConfirmationEventType,
+      templateName: settingsRecord.template_name,
+      language: settingsRecord.template_language,
+      phone: orderCandidate.customerPhone,
+      campaign: orderCandidate.campaignName,
+      customerName: orderCandidate.customerName,
+      link: orderCandidate.publicLink,
+      idempotencyKey: `whatsapp-cloud-purchase-confirmation:${tenantId}:${orderCandidate.orderType}:${orderCandidate.orderId}:purchase_confirmed`,
+      components: buildWhatsAppPurchaseConfirmationComponents({ customerName: orderCandidate.customerName, campaign: orderCandidate.campaignName, quantity: orderCandidate.quantity, numbers: orderCandidate.numbersLabel, amount: orderCandidate.amount, link: orderCandidate.publicLink })
+    };
+  }
+
+  function validateWhatsAppPurchaseConfirmationCandidate(tenantId: string, purchase: PurchaseRecord, settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId)) {
+    return validateWhatsAppPurchaseConfirmationCandidateFromOrder(tenantId, purchase, settingsRecord);
+  }
+
+  function validateWhatsAppPurchaseConfirmationCandidateFromOrder(tenantId: string, order: WhatsAppOrderSource, settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId)) {
+    const candidate = buildWhatsAppPurchaseConfirmationCandidateFromOrder(tenantId, order, settingsRecord);
+    const cloudConfig = getWhatsAppCloudConfig(tenantId);
+    const orderCandidate = candidate.order;
+    if (!settingsRecord.enabled) return { candidate, eligible: false, reason: "Confirmacao automatica desativada" };
+    if (!cloudConfig?.enabled) return { candidate, eligible: false, reason: "WhatsApp Cloud inativo" };
+    if (orderCandidate.tenantId !== tenantId) return { candidate, eligible: false, reason: "Compra de outro cliente da plataforma" };
+    if (orderCandidate.status === "cancelled" || orderCandidate.paymentStatus === "cancelled") return { candidate, eligible: false, reason: "Compra cancelada" };
+    if (orderCandidate.orderType === "raffle" && purchaseHasRefundOrChargeback(order as PurchaseRecord)) return { candidate, eligible: false, reason: "Compra estornada" };
+    if (orderCandidate.status !== "paid" && orderCandidate.paymentStatus !== "paid") return { candidate, eligible: false, reason: "Compra nao esta paga" };
+    if (!orderCandidate.quantity || !orderCandidate.numbersLabel) return { candidate, eligible: false, reason: "Cotas ainda nao liberadas" };
+    if (candidate.customer && candidate.customer.tenant_id !== tenantId) return { candidate, eligible: false, reason: "Cliente nao pertence ao tenant" };
+    if (!candidate.templateName) return { candidate, eligible: false, reason: "Template nao selecionado" };
+    if (!getApprovedWhatsAppTemplate(tenantId, candidate.templateName, candidate.language)) return { candidate, eligible: false, reason: "Template oficial aprovado nao encontrado" };
+    if (!isValidBrazilianWhatsAppPhone(candidate.phone)) return { candidate, eligible: false, reason: "Telefone invalido" };
+    if (!candidate.link) return { candidate, eligible: false, reason: "Link da campanha indisponivel" };
+    if (whatsappMessageQueue.some(message => message.idempotency_key === candidate.idempotencyKey)) return { candidate, eligible: false, reason: "Mensagem ja registrada para esta compra" };
+    if (countWhatsAppPurchaseConfirmationsToday(tenantId) >= settingsRecord.daily_tenant_limit) return { candidate, eligible: false, reason: "Limite diario atingido" };
+    return { candidate, eligible: true, reason: "" };
+  }
+
+  function enqueueWhatsAppPurchaseConfirmationMessage(tenantId: string, purchase: PurchaseRecord, settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId), source = "purchase_confirmed") {
+    return enqueueWhatsAppPurchaseConfirmationMessageFromOrder(tenantId, purchase, settingsRecord, source);
+  }
+
+  function enqueueWhatsAppPurchaseConfirmationMessageFromOrder(tenantId: string, order: WhatsAppOrderSource, settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId), source = "purchase_confirmed") {
+    const orderCandidate = buildWhatsAppOrderCandidate(order);
+    recordWhatsAppCloudLog(tenantId, {
+      action: "purchase_confirmation_event",
+      status: "success",
+      message: "Compra confirmada recebida para WhatsApp Cloud",
+      metadata: { orderId: orderCandidate.orderId, purchaseId: orderCandidate.orderId, orderType: orderCandidate.orderType, campaignName: orderCandidate.campaignName, eventType: "purchase_confirmed", status: orderCandidate.status, source }
+    });
+    const validation = validateWhatsAppPurchaseConfirmationCandidateFromOrder(tenantId, order, settingsRecord);
+    const now = new Date().toISOString();
+    if (!validation.eligible) {
+      recordWhatsAppCloudLog(tenantId, {
+        action: "purchase_confirmation_skipped",
+        status: "skipped",
+        message: validation.reason,
+        metadata: { orderId: orderCandidate.orderId, purchaseId: orderCandidate.orderId, orderType: orderCandidate.orderType, campaignName: orderCandidate.campaignName, eventType: validation.candidate.eventType, status: orderCandidate.status, customerId: orderCandidate.customerId || "" }
+      });
+      return { message: null, validation };
+    }
+    const message: WhatsAppMessageQueueRecord = {
+      id: createPublicId("WAPP_"),
+      tenant_id: tenantId,
+      order_id: orderCandidate.orderId,
+      customer_id: validation.candidate.customer?.id || orderCandidate.customerId,
+      phone: validation.candidate.phone,
+      message_type: "whatsapp_cloud_purchase_confirmation",
+      message_body: "",
+      provider: "meta_cloud",
+      status: "queued",
+      attempts: 0,
+      max_attempts: 3,
+      last_error: "",
+      reason: "",
+      template_name: validation.candidate.templateName,
+      language: validation.candidate.language,
+      event_type: validation.candidate.eventType,
+      payload: {
+        orderId: orderCandidate.orderId,
+        purchaseId: orderCandidate.orderId,
+        orderType: orderCandidate.orderType,
+        customerName: validation.candidate.customerName,
+        campaign: validation.candidate.campaign,
+        campaignName: orderCandidate.campaignName,
+        quantity: orderCandidate.quantity,
+        numbers: orderCandidate.numbersLabel,
+        amount: orderCandidate.amount,
+        status: orderCandidate.status,
+        link: validation.candidate.link,
+        components: validation.candidate.components
+      },
+      created_at: now,
+      updated_at: now,
+      idempotency_key: validation.candidate.idempotencyKey
+    };
+    whatsappMessageQueue.unshift(message);
+    whatsappMessageQueue = whatsappMessageQueue.slice(0, 2000);
+    recordWhatsAppCloudLog(tenantId, {
+      action: "purchase_confirmation_enqueued",
+      status: "success",
+      message: "Confirmacao de compra adicionada a fila",
+      metadata: { orderId: orderCandidate.orderId, purchaseId: orderCandidate.orderId, orderType: orderCandidate.orderType, campaignName: orderCandidate.campaignName, eventType: message.event_type, status: message.status, to: maskPhone(message.phone), templateName: message.template_name }
+    });
+    schedulePersistentStateSave("whatsapp-purchase-confirmation-enqueue");
+    return { message, validation };
+  }
+
+  async function processWhatsappPurchaseConfirmationQueue(tenantId: string, limit = 20) {
+    const settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId);
+    const provider = createMetaWhatsAppCloudProvider(tenantId);
+    const templates = getSavedWhatsAppCloudTemplates(tenantId);
+    const ready = getWhatsAppPurchaseConfirmationQueue(tenantId)
+      .filter(message => message.status === "queued" && message.attempts < message.max_attempts)
+      .slice(0, Math.max(1, Math.min(100, limit)));
+    let sent = 0;
+    let failed = 0;
+    let skipped = 0;
+    for (const message of ready) {
+      const orderType = (message.payload?.orderType === "fazendinha" || message.payload?.orderType === "number_mode" || message.payload?.orderType === "raffle")
+        ? message.payload.orderType as WhatsAppOrderType
+        : undefined;
+      const purchase = findWhatsAppOrderSource(tenantId, String(message.order_id || ""), orderType);
+      const revalidation = purchase ? validateWhatsAppPurchaseConfirmationCandidateFromOrder(tenantId, purchase, settingsRecord) : null;
+      const allowedQueuedReasons = new Set(["Mensagem ja registrada para esta compra", "Limite diario atingido"]);
+      if (!purchase || (revalidation && !revalidation.eligible && !allowedQueuedReasons.has(revalidation.reason))) {
+        message.status = "skipped";
+        message.reason = revalidation?.reason || "Compra nao encontrada";
+        message.processed_at = new Date().toISOString();
+        message.updated_at = message.processed_at;
+        skipped += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "purchase_confirmation_skipped", status: "skipped", message: message.reason, metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status } });
+        continue;
+      }
+      if (countWhatsAppPurchaseConfirmationsToday(tenantId) > settingsRecord.daily_tenant_limit) {
+        message.status = "skipped";
+        message.reason = "Limite diario atingido";
+        message.processed_at = new Date().toISOString();
+        message.updated_at = message.processed_at;
+        skipped += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "purchase_confirmation_skipped", status: "skipped", message: message.reason, metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status } });
+        continue;
+      }
+      try {
+        message.attempts += 1;
+        message.updated_at = new Date().toISOString();
+        recordWhatsAppCloudLog(tenantId, {
+          action: "purchase_confirmation_send_requested",
+          status: "success",
+          message: "Envio de confirmacao de compra solicitado",
+          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status, to: maskPhone(message.phone), templateName: message.template_name }
+        });
+        const result = await provider.sendTemplateTest({
+          to: message.phone,
+          templateName: String(message.template_name || ""),
+          language: String(message.language || "pt_BR"),
+          components: Array.isArray(message.payload?.components) ? message.payload.components : [],
+          availableTemplates: templates
+        });
+        const processedAt = new Date().toISOString();
+        message.status = "sent";
+        message.sent_at = processedAt;
+        message.processed_at = processedAt;
+        message.updated_at = processedAt;
+        message.meta_message_id = result.data?.messages?.[0]?.id || "";
+        sent += 1;
+        recordWhatsAppCloudLog(tenantId, {
+          action: "purchase_confirmation_sent",
+          status: "success",
+          message: "Confirmacao de compra enviada",
+          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "" }
+        });
+      } catch (error) {
+        const processedAt = new Date().toISOString();
+        message.status = message.attempts >= message.max_attempts ? "failed" : "queued";
+        message.last_error = error instanceof Error ? error.message : "Falha ao enviar confirmacao de compra";
+        message.reason = message.last_error;
+        message.processed_at = processedAt;
+        message.updated_at = processedAt;
+        failed += 1;
+        recordWhatsAppCloudLog(tenantId, {
+          action: "purchase_confirmation_failed",
+          status: "error",
+          message: message.last_error,
+          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status, to: maskPhone(message.phone), templateName: message.template_name }
+        });
+      }
+    }
+    schedulePersistentStateSave("whatsapp-purchase-confirmation-run");
+    return { processed: ready.length, sent, failed, skipped };
+  }
+
+  function handlePurchaseConfirmedWhatsAppCloudEvent(purchase: WhatsAppOrderSource, source = "purchase_confirmed") {
+    const tenantId = buildWhatsAppOrderCandidate(purchase).tenantId;
+    const settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId);
+    const result = enqueueWhatsAppPurchaseConfirmationMessageFromOrder(tenantId, purchase, settingsRecord, source);
+    if (settingsRecord.mode === "automatic" && result.message) {
+      void processWhatsappPurchaseConfirmationQueue(tenantId, Math.min(1, settingsRecord.daily_tenant_limit));
+    }
+    return result;
   }
 
   function decryptWhatsAppCloudConfig(config: WhatsAppCloudConfigRecord | null) {
@@ -12223,6 +12707,7 @@ async function startServer() {
       queueN8nEvent("purchase.tickets_confirmed", buildPurchaseN8nPayload(purchase), { target: purchase.contact, tenantId: purchase.tenant_id });
     }
     enqueueWhatsAppTicketConfirmation(purchase);
+    handlePurchaseConfirmedWhatsAppCloudEvent(purchase, "confirmPurchase");
     scheduleAutomation("payment_confirmed_ticket", { tenant_id: purchase.tenant_id, customer_id: purchase.customer?.id, order_id: purchase.purchaseId, purchase, customer: purchase.customer });
     scheduleAutomation("post_purchase_thanks", { tenant_id: purchase.tenant_id, customer_id: purchase.customer?.id, order_id: purchase.purchaseId, purchase, customer: purchase.customer });
     return purchase;
@@ -15036,11 +15521,15 @@ async function startServer() {
     if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
     const settingsRecord = getWhatsAppPixRecoverySettings(tenantId);
     const items = listWhatsAppPixRecoveryCandidates(tenantId, settingsRecord).slice(0, 100).map(item => ({
-      purchaseId: item.candidate.purchase.purchaseId,
+      orderId: item.candidate.order.orderId,
+      purchaseId: item.candidate.order.orderId,
+      orderType: item.candidate.order.orderType,
       customerName: item.candidate.customerName,
       phone: maskPhone(item.candidate.phone),
       campaign: item.candidate.campaign,
-      amount: item.candidate.purchase.amount,
+      campaignName: item.candidate.order.campaignName,
+      amount: item.candidate.order.amount,
+      status: item.candidate.order.status,
       eventType: item.candidate.eventType,
       templateName: item.candidate.templateName,
       language: item.candidate.language,
@@ -15065,11 +15554,15 @@ async function startServer() {
     const tenantId = resolveRequestTenantId(req);
     if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
     const settingsRecord = getWhatsAppPixRecoverySettings(tenantId);
-    const purchaseId = String(req.body?.purchaseId || "").trim();
+    const purchaseId = String(req.body?.purchaseId || req.body?.orderId || "").trim();
+    const requestedOrderType = String(req.body?.orderType || "");
+    const orderType = requestedOrderType === "raffle" || requestedOrderType === "fazendinha" || requestedOrderType === "number_mode"
+      ? requestedOrderType as WhatsAppOrderType
+      : undefined;
     const candidates = purchaseId
-      ? purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.purchaseId === purchaseId)
-      : purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.status === "pending");
-    const results = candidates.map(purchase => enqueueWhatsAppPixRecoveryMessage(tenantId, purchase, settingsRecord));
+      ? [findWhatsAppOrderSource(tenantId, purchaseId, orderType)].filter((item): item is WhatsAppOrderSource => Boolean(item))
+      : listWhatsAppOrderSourcesForPixRecovery(tenantId);
+    const results = candidates.map(purchase => enqueueWhatsAppPixRecoveryMessageFromOrder(tenantId, purchase, settingsRecord));
     const queued = results.map(item => item.message).filter((item): item is WhatsAppMessageQueueRecord => Boolean(item));
     if (settingsRecord.mode === "automatic" && queued.length) {
       void processWhatsappPixRecoveryQueue(tenantId, Math.min(queued.length, settingsRecord.daily_tenant_limit));
@@ -15080,7 +15573,9 @@ async function startServer() {
       skipped: results.length - queued.length,
       messages: queued.map(sanitizeWhatsAppQueueRecord),
       results: results.map(item => ({
-        purchaseId: item.validation.candidate.purchase.purchaseId,
+        orderId: item.validation.candidate.order.orderId,
+        purchaseId: item.validation.candidate.order.orderId,
+        orderType: item.validation.candidate.order.orderType,
         eventType: item.validation.candidate.eventType,
         eligible: item.validation.eligible,
         reason: item.validation.reason || "Enfileirado"
@@ -15111,6 +15606,74 @@ async function startServer() {
     const tenantId = resolveRequestTenantId(req);
     if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
     const actions = new Set(["pix_recovery_settings_saved", "pix_recovery_preview", "pix_recovery_enqueued", "pix_recovery_sent", "pix_recovery_skipped", "meta_api_error"]);
+    res.json({
+      logs: whatsappCloudLogs
+        .filter(log => log.tenant_id === tenantId && actions.has(log.action))
+        .slice(0, 100)
+        .map(sanitizeWhatsAppCloudLog)
+    });
+  });
+
+  app.get("/api/admin/whatsapp-cloud/purchase-confirmation/settings", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    res.json({
+      settings: sanitizeWhatsAppPurchaseConfirmationSettings(getWhatsAppPurchaseConfirmationSettings(tenantId)),
+      templates: getSavedWhatsAppCloudTemplates(tenantId).map(sanitizeWhatsAppCloudTemplate)
+    });
+  });
+
+  app.put("/api/admin/whatsapp-cloud/purchase-confirmation/settings", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    const settingsRecord = upsertWhatsAppPurchaseConfirmationSettings(req, tenantId);
+    res.json({ settings: sanitizeWhatsAppPurchaseConfirmationSettings(settingsRecord) });
+  });
+
+  app.post("/api/admin/whatsapp-cloud/purchase-confirmation/test", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    if (Array.isArray(req.body?.to) || Array.isArray(req.body?.recipients) || Array.isArray(req.body?.phones)) {
+      return res.status(400).json({ error: "Envio em lote nao permitido para confirmacao de compra" });
+    }
+    const settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId);
+    const purchaseId = String(req.body?.purchaseId || "").trim();
+    const purchase = purchaseId
+      ? purchases.find(item => item.tenant_id === tenantId && item.purchaseId === purchaseId)
+      : purchases.find(item => item.tenant_id === tenantId && item.status === "paid" && item.numeros.length > 0);
+    if (!purchase) return res.status(404).json({ error: "Compra paga nao encontrada para teste do evento" });
+    const result = enqueueWhatsAppPurchaseConfirmationMessage(tenantId, purchase, settingsRecord, "admin_test_event");
+    if (settingsRecord.mode === "automatic" && result.message) {
+      void processWhatsappPurchaseConfirmationQueue(tenantId, 1);
+    }
+    res.json({
+      mode: settingsRecord.mode,
+      queued: result.message ? 1 : 0,
+      skipped: result.message ? 0 : 1,
+      message: result.message ? sanitizeWhatsAppQueueRecord(result.message) : null,
+      result: {
+        orderId: result.validation.candidate.order.orderId,
+        purchaseId: result.validation.candidate.order.orderId,
+        orderType: result.validation.candidate.order.orderType,
+        eventType: result.validation.candidate.eventType,
+        eligible: result.validation.eligible,
+        reason: result.validation.reason || "Enfileirado"
+      }
+    });
+  });
+
+  app.get("/api/admin/whatsapp-cloud/purchase-confirmation/queue", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    res.json({
+      queue: getWhatsAppPurchaseConfirmationQueue(tenantId).slice(0, 200).map(sanitizeWhatsAppQueueRecord)
+    });
+  });
+
+  app.get("/api/admin/whatsapp-cloud/purchase-confirmation/logs", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    const actions = new Set(["purchase_confirmation_settings_saved", "purchase_confirmation_event", "purchase_confirmation_enqueued", "purchase_confirmation_send_requested", "purchase_confirmation_sent", "purchase_confirmation_failed", "purchase_confirmation_skipped"]);
     res.json({
       logs: whatsappCloudLogs
         .filter(log => log.tenant_id === tenantId && actions.has(log.action))
@@ -16963,6 +17526,7 @@ async function startServer() {
       whatsappCloudLogs,
       whatsappCloudTemplates,
       whatsappPixRecoverySettings,
+      whatsappPurchaseConfirmationSettings,
       whatsappMessageQueue,
       automationFlows,
       automationRuns,
@@ -17052,6 +17616,7 @@ async function startServer() {
       case "whatsappCloudLogs": whatsappCloudLogs = Array.isArray(value) ? value : []; break;
       case "whatsappCloudTemplates": whatsappCloudTemplates = Array.isArray(value) ? value : []; break;
       case "whatsappPixRecoverySettings": whatsappPixRecoverySettings = Array.isArray(value) ? value : []; break;
+      case "whatsappPurchaseConfirmationSettings": whatsappPurchaseConfirmationSettings = Array.isArray(value) ? value : []; break;
       case "whatsappMessageQueue": whatsappMessageQueue = Array.isArray(value) ? value : []; break;
       case "automationFlows": automationFlows = Array.isArray(value) ? value : []; break;
       case "automationRuns": automationRuns = Array.isArray(value) ? value : []; break;

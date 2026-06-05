@@ -53,6 +53,16 @@ export function AdminIntegrations() {
   const [pixRecoveryPreview, setPixRecoveryPreview] = useState<any[]>([]);
   const [pixRecoveryQueue, setPixRecoveryQueue] = useState<any[]>([]);
   const [pixRecoveryLogs, setPixRecoveryLogs] = useState<any[]>([]);
+  const [purchaseConfirmationSettings, setPurchaseConfirmationSettings] = useState<any>({
+    enabled: false,
+    template_name: "",
+    template_language: "pt_BR",
+    mode: "manual",
+    daily_tenant_limit: 100,
+    paid_only: true
+  });
+  const [purchaseConfirmationQueue, setPurchaseConfirmationQueue] = useState<any[]>([]);
+  const [purchaseConfirmationLogs, setPurchaseConfirmationLogs] = useState<any[]>([]);
   const [whatsappConfig, setWhatsappConfig] = useState<any>({ provider: "mock", enabled: false, environment: "sandbox", default_language: "pt_BR" });
   const [whatsappMessages, setWhatsappMessages] = useState<any[]>([]);
   const [testPhone, setTestPhone] = useState("");
@@ -66,7 +76,7 @@ export function AdminIntegrations() {
   const selectedSettingsValues = useMemo(() => parseConfigText(settings), [settings]);
 
   const load = async () => {
-    const [integrationsRes, logsRes, whatsappCloudRes, whatsappCloudTemplatesRes, pixRecoverySettingsRes, pixRecoveryQueueRes, pixRecoveryLogsRes, whatsappConfigRes, whatsappMessagesRes] = await Promise.all([
+    const [integrationsRes, logsRes, whatsappCloudRes, whatsappCloudTemplatesRes, pixRecoverySettingsRes, pixRecoveryQueueRes, pixRecoveryLogsRes, purchaseConfirmationSettingsRes, purchaseConfirmationQueueRes, purchaseConfirmationLogsRes, whatsappConfigRes, whatsappMessagesRes] = await Promise.all([
       fetch("/api/admin/integrations/global"),
       fetch("/api/admin/integrations/global/logs"),
       fetch("/api/admin/whatsapp-cloud/settings"),
@@ -74,6 +84,9 @@ export function AdminIntegrations() {
       fetch("/api/admin/whatsapp-cloud/pix-recovery/settings"),
       fetch("/api/admin/whatsapp-cloud/pix-recovery/queue"),
       fetch("/api/admin/whatsapp-cloud/pix-recovery/logs"),
+      fetch("/api/admin/whatsapp-cloud/purchase-confirmation/settings"),
+      fetch("/api/admin/whatsapp-cloud/purchase-confirmation/queue"),
+      fetch("/api/admin/whatsapp-cloud/purchase-confirmation/logs"),
       fetch("/api/admin/whatsapp/config"),
       fetch("/api/admin/whatsapp/messages")
     ]);
@@ -92,6 +105,12 @@ export function AdminIntegrations() {
     setPixRecoveryQueue(pixQueueData.queue || []);
     const pixLogsData = await pixRecoveryLogsRes.json();
     setPixRecoveryLogs(pixLogsData.logs || []);
+    const purchaseSettingsData = await purchaseConfirmationSettingsRes.json();
+    setPurchaseConfirmationSettings(purchaseSettingsData.settings || purchaseConfirmationSettings);
+    const purchaseQueueData = await purchaseConfirmationQueueRes.json();
+    setPurchaseConfirmationQueue(purchaseQueueData.queue || []);
+    const purchaseLogsData = await purchaseConfirmationLogsRes.json();
+    setPurchaseConfirmationLogs(purchaseLogsData.logs || []);
     setWhatsappConfig(await whatsappConfigRes.json());
     setWhatsappMessages(await whatsappMessagesRes.json());
   };
@@ -308,6 +327,45 @@ export function AdminIntegrations() {
     else setPixRecoveryQueue(queueData.queue || []);
     if (!logsRes.ok) toast.error(logsData.error || "Não foi possível ver os logs");
     else setPixRecoveryLogs(logsData.logs || []);
+  };
+
+  const savePurchaseConfirmationSettings = async () => {
+    const res = await fetch("/api/admin/whatsapp-cloud/purchase-confirmation/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(purchaseConfirmationSettings)
+    });
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Não foi possível salvar as confirmações automáticas");
+    else {
+      setPurchaseConfirmationSettings(data.settings);
+      toast.success("Confirmações automáticas salvas");
+    }
+    await load();
+  };
+
+  const testPurchaseConfirmationEvent = async () => {
+    const res = await fetch("/api/admin/whatsapp-cloud/purchase-confirmation/test", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Não foi possível testar o evento");
+    else {
+      if (data.message) setPurchaseConfirmationQueue((current: any[]) => [data.message, ...current.filter(item => item.id !== data.message.id)]);
+      toast.success(data.queued ? "Evento de confirmação enfileirado" : data.result?.reason || "Evento testado");
+    }
+    await load();
+  };
+
+  const refreshPurchaseConfirmationQueue = async () => {
+    const [queueRes, logsRes] = await Promise.all([
+      fetch("/api/admin/whatsapp-cloud/purchase-confirmation/queue"),
+      fetch("/api/admin/whatsapp-cloud/purchase-confirmation/logs")
+    ]);
+    const queueData = await queueRes.json();
+    const logsData = await logsRes.json();
+    if (!queueRes.ok) toast.error(queueData.error || "Não foi possível ver a fila de confirmações");
+    else setPurchaseConfirmationQueue(queueData.queue || []);
+    if (!logsRes.ok) toast.error(logsData.error || "Não foi possível ver os logs de confirmações");
+    else setPurchaseConfirmationLogs(logsData.logs || []);
   };
 
   const copyCloudWebhookUrl = async () => {
@@ -737,6 +795,111 @@ export function AdminIntegrations() {
       </section>
 
       <section className="admin-card">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-emerald-500" />
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--admin-text)]">Confirmações Automáticas</h2>
+              <p className="text-sm text-[var(--admin-muted)]">Envie confirmação de compra apenas depois do pagamento definitivo e liberação das cotas.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={savePurchaseConfirmationSettings} className="admin-button-primary"><Save className="h-4 w-4" />Salvar</button>
+            <button type="button" onClick={testPurchaseConfirmationEvent} className="admin-button-secondary"><Send className="h-4 w-4" />Testar evento</button>
+            <button type="button" onClick={refreshPurchaseConfirmationQueue} className="admin-button-secondary"><Eye className="h-4 w-4" />Ver fila</button>
+            <button type="button" onClick={refreshPurchaseConfirmationQueue} className="admin-button-secondary"><ListChecks className="h-4 w-4" />Ver logs</button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <label className="flex items-center gap-2 rounded-lg border border-[var(--admin-border)] px-3 py-2 text-sm text-[var(--admin-text)]">
+            <input
+              type="checkbox"
+              checked={Boolean(purchaseConfirmationSettings.enabled)}
+              onChange={event => setPurchaseConfirmationSettings((prev: any) => ({ ...prev, enabled: event.target.checked }))}
+            />
+            Ativar confirmação automática
+          </label>
+          <label className="text-sm text-[var(--admin-muted)] xl:col-span-2">
+            Template de confirmação
+            <select
+              value={purchaseConfirmationSettings.template_name ? `${purchaseConfirmationSettings.template_name}::${purchaseConfirmationSettings.template_language || "pt_BR"}` : ""}
+              onChange={event => {
+                const [name = "", language = "pt_BR"] = event.target.value.split("::");
+                setPurchaseConfirmationSettings((prev: any) => ({ ...prev, template_name: name, template_language: language }));
+              }}
+              className="admin-input mt-1"
+            >
+              <option value="">Escolha um template aprovado</option>
+              {savedCloudTemplates.filter(template => String(template.status || "").toUpperCase() === "APPROVED").map(template => (
+                <option key={`purchase-confirmed-${template.name}-${template.language}`} value={`${template.name}::${template.language || "pt_BR"}`}>{template.name} · {template.language || "pt_BR"}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm text-[var(--admin-muted)]">
+            Modo
+            <select
+              value={purchaseConfirmationSettings.mode || "manual"}
+              onChange={event => setPurchaseConfirmationSettings((prev: any) => ({ ...prev, mode: event.target.value }))}
+              className="admin-input mt-1"
+            >
+              <option value="manual">Manual</option>
+              <option value="automatic">Automático</option>
+            </select>
+          </label>
+          <label className="text-sm text-[var(--admin-muted)]">
+            Limite diário
+            <input
+              type="number"
+              min={1}
+              value={purchaseConfirmationSettings.daily_tenant_limit || 100}
+              onChange={event => setPurchaseConfirmationSettings((prev: any) => ({ ...prev, daily_tenant_limit: Number(event.target.value) }))}
+              className="admin-input mt-1"
+            />
+          </label>
+          <label className="flex items-center gap-2 rounded-lg border border-[var(--admin-border)] px-3 py-2 text-sm text-[var(--admin-text)]">
+            <input
+              type="checkbox"
+              checked={purchaseConfirmationSettings.paid_only !== false}
+              onChange={event => setPurchaseConfirmationSettings((prev: any) => ({ ...prev, paid_only: event.target.checked }))}
+            />
+            Enviar somente compras pagas
+          </label>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3 text-xs text-[var(--admin-muted)]">
+          Variáveis permitidas: nome, campanha, quantidade_cotas, numeros, valor, link_campanha.
+        </div>
+
+        <div className="mt-5 grid gap-4 xl:grid-cols-2">
+          <div className="rounded-lg border border-[var(--admin-border)] p-3">
+            <h4 className="mb-2 font-semibold text-[var(--admin-text)]">Fila de confirmações</h4>
+            <div className="max-h-64 space-y-2 overflow-y-auto text-sm">
+              {purchaseConfirmationQueue.slice(0, 8).map(item => (
+                <div key={item.id} className="rounded border border-[var(--admin-border)] px-3 py-2">
+                  <p className="font-semibold text-[var(--admin-text)]">purchase_confirmed · {friendlyQueueStatus(item.status)}</p>
+                  <p className="text-xs text-[var(--admin-muted)]">{item.order_id || "Pedido"} · {item.phone} · {item.reason || item.last_error || "Aguardando"}</p>
+                </div>
+              ))}
+              {!purchaseConfirmationQueue.length && <p className="text-[var(--admin-muted)]">Nenhuma confirmação na fila.</p>}
+            </div>
+          </div>
+          <div className="rounded-lg border border-[var(--admin-border)] p-3">
+            <h4 className="mb-2 font-semibold text-[var(--admin-text)]">Logs de confirmações</h4>
+            <div className="max-h-64 space-y-2 overflow-y-auto text-sm">
+              {purchaseConfirmationLogs.slice(0, 8).map(log => (
+                <div key={log.id} className="rounded border border-[var(--admin-border)] px-3 py-2">
+                  <p className="font-semibold text-[var(--admin-text)]">{friendlyCloudAction(log.action)} · {friendlyCloudStatus(log.status)}</p>
+                  <p className="text-xs text-[var(--admin-muted)]">{log.message || "Evento registrado"} · {new Date(log.created_at).toLocaleString("pt-BR")}</p>
+                </div>
+              ))}
+              {!purchaseConfirmationLogs.length && <p className="text-[var(--admin-muted)]">Nenhum log de confirmação ainda.</p>}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="admin-card">
         <div className="mb-4 flex items-center gap-2">
           <MessageCircle className="h-5 w-5 text-emerald-500" />
           <h2 className="text-lg font-semibold text-[var(--admin-text)]">WhatsApp automático</h2>
@@ -986,6 +1149,13 @@ function friendlyCloudAction(value?: string) {
     pix_recovery_enqueued: "Recuperação adicionada",
     pix_recovery_sent: "Recuperação enviada",
     pix_recovery_skipped: "Recuperação ignorada",
+    purchase_confirmation_settings_saved: "Confirmação salva",
+    purchase_confirmation_event: "Compra confirmada",
+    purchase_confirmation_enqueued: "Confirmação adicionada",
+    purchase_confirmation_send_requested: "Envio solicitado",
+    purchase_confirmation_sent: "Confirmação enviada",
+    purchase_confirmation_failed: "Falha na confirmação",
+    purchase_confirmation_skipped: "Confirmação ignorada",
     webhook_validate: "Validação do webhook",
     webhook_received: "Webhook recebido",
     credential_error: "Credencial incompleta",
