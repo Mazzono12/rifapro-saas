@@ -64,6 +64,9 @@ export function AdminWhatsAppCenter() {
   const [filter, setFilter] = useState("");
   const [query, setQuery] = useState("");
   const [note, setNote] = useState("");
+  const [reply, setReply] = useState("");
+  const [replyError, setReplyError] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
   const [assignedUserId, setAssignedUserId] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -87,6 +90,7 @@ export function AdminWhatsAppCenter() {
     setContact(data.contact);
     setMessages(data.messages || []);
     setAssignedUserId(data.conversation?.assignedUserId || "");
+    setReplyError("");
     await loadConversations();
   }
 
@@ -101,6 +105,17 @@ export function AdminWhatsAppCenter() {
 
   const activeConversation = useMemo(() => selected || conversations.find(item => item.id === selectedId) || null, [conversations, selected, selectedId]);
   const windowState = serviceWindowState(activeConversation?.serviceWindowExpiresAt);
+  const replyDisabled = !activeConversation || windowState.expired || Boolean(contact?.optOut) || sendingReply || !reply.trim();
+
+  function outboundStatusLabel(status?: string) {
+    const normalized = String(status || "").toLowerCase();
+    if (normalized === "queued") return "enfileirado";
+    if (normalized === "sent") return "enviado";
+    if (normalized === "delivered") return "entregue";
+    if (normalized === "read") return "lido";
+    if (normalized === "failed") return "falhou";
+    return normalized || "";
+  }
 
   async function updateStatus(status: Conversation["status"]) {
     if (!activeConversation) return;
@@ -133,6 +148,25 @@ export function AdminWhatsAppCenter() {
       setNote("");
       await loadConversation(activeConversation.id);
     }
+  }
+
+  async function sendReply() {
+    if (!activeConversation || replyDisabled) return;
+    setSendingReply(true);
+    setReplyError("");
+    const response = await fetch(`/api/admin/whatsapp-center/conversations/${activeConversation.id}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: reply })
+    });
+    const data = await response.json().catch(() => ({}));
+    setSendingReply(false);
+    if (!response.ok) {
+      setReplyError(data.error || "Falha ao enviar resposta manual");
+      return;
+    }
+    setReply("");
+    await loadConversation(activeConversation.id);
   }
 
   return (
@@ -241,7 +275,8 @@ export function AdminWhatsAppCenter() {
                       {message.direction === "internal_note" && <StickyNote className="h-3 w-3" />}
                       <span>{message.direction === "internal_note" ? "Nota interna" : message.direction}</span>
                       <span>{formatDate(message.receivedAt || message.sentAt)}</span>
-                      {message.status && <span>{message.status}</span>}
+                      {message.direction === "outbound" && message.status && <span>{outboundStatusLabel(message.status)}</span>}
+                      {message.direction !== "outbound" && message.status && <span>{message.status}</span>}
                     </div>
                     <p className="whitespace-pre-wrap break-words">{message.body || `[${message.type}]`}</p>
                   </div>
@@ -250,16 +285,35 @@ export function AdminWhatsAppCenter() {
               {!messages.length && !loading && <p className="text-sm text-[var(--admin-muted)]">Selecione uma conversa para ver as mensagens.</p>}
             </div>
             <footer className="border-t border-[var(--admin-border)] p-4">
-              <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
+              <div className="grid gap-3 lg:grid-cols-[1fr_340px]">
                 <div className="flex gap-2">
                   <textarea className="admin-input min-h-[78px] flex-1 resize-none" value={note} onChange={event => setNote(event.target.value)} placeholder="Adicionar nota interna" />
                   <button type="button" onClick={() => void addNote()} className="admin-button-secondary self-stretch">
                     <StickyNote className="h-4 w-4" /> Nota
                   </button>
                 </div>
-                <button type="button" disabled className="admin-button-primary cursor-not-allowed opacity-60" title="Resposta manual sera liberada na proxima etapa.">
-                  <Send className="h-4 w-4" /> Resposta manual sera liberada na proxima etapa.
-                </button>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <textarea
+                      className="admin-input min-h-[78px] flex-1 resize-none"
+                      value={reply}
+                      maxLength={4000}
+                      onChange={event => setReply(event.target.value)}
+                      disabled={windowState.expired || Boolean(contact?.optOut)}
+                      placeholder={windowState.expired ? "Janela expirada" : "Responder cliente"}
+                    />
+                    <button type="button" disabled={replyDisabled} onClick={() => void sendReply()} className={`admin-button-primary self-stretch ${replyDisabled ? "cursor-not-allowed opacity-60" : ""}`} title="Enviar resposta manual">
+                      <Send className="h-4 w-4" /> Enviar
+                    </button>
+                  </div>
+                  {windowState.expired && (
+                    <p className="rounded-[8px] border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-100">
+                      A janela de atendimento expirou. Utilize um template aprovado.
+                    </p>
+                  )}
+                  {contact?.optOut && <p className="text-xs font-semibold text-rose-100">Contato em opt-out. Envio bloqueado.</p>}
+                  {replyError && <p className="text-xs font-semibold text-rose-100">{replyError}</p>}
+                </div>
               </div>
             </footer>
           </>

@@ -65,6 +65,7 @@ includesAll(server, [
   "app.put(\"/api/admin/whatsapp-center/conversations/:id/status\"",
   "app.put(\"/api/admin/whatsapp-center/conversations/:id/assign\"",
   "app.post(\"/api/admin/whatsapp-center/conversations/:id/notes\"",
+  "app.post(\"/api/admin/whatsapp-center/conversations/:id/messages\"",
   "app.get(\"/api/admin/whatsapp-center/contacts/:id\"",
   "app.put(\"/api/admin/whatsapp-center/contacts/:id/consent\""
 ], "endpoints admin");
@@ -78,16 +79,45 @@ includesAll(server, [
   "conversation.tenantId === tenantId"
 ], "seguranca e tenant");
 
-const noteEndpoint = blockBetween(server, "app.post(\"/api/admin/whatsapp-center/conversations/:id/notes\"", "app.get(\"/api/admin/whatsapp-center/contacts/:id\"");
+const noteEndpoint = blockBetween(server, "app.post(\"/api/admin/whatsapp-center/conversations/:id/notes\"", "app.post(\"/api/admin/whatsapp-center/conversations/:id/messages\"");
 includesAll(noteEndpoint, ["direction: \"internal_note\"", "status: \"internal\"", "schedulePersistentStateSave(\"whatsapp-center-note\")"], "nota interna");
 assert.ok(!noteEndpoint.includes("sendMetaCloudWhatsAppMessage") && !noteEndpoint.includes("sendQueuedWhatsAppMessage") && !noteEndpoint.includes("queueN8nEvent"), "Nota interna nao pode enviar mensagem ou automacao.");
+
+const manualEndpoint = blockBetween(server, "app.post(\"/api/admin/whatsapp-center/conversations/:id/messages\"", "app.get(\"/api/admin/whatsapp-center/contacts/:id\"");
+includesAll(manualEndpoint, [
+  "item.id === req.params.id && item.tenantId === tenantId",
+  "conversation.contactId && item.tenantId === tenantId",
+  "contact.optOut",
+  "A janela de atendimento expirou. Utilize um template aprovado.",
+  "Mensagem vazia",
+  "Mensagem excede o limite de 4000 caracteres",
+  "Envio em massa nao permitido",
+  "Envio para multiplos destinatarios nao permitido",
+  "sendMetaCloudWhatsAppMessage",
+  "direction: \"outbound\"",
+  "type: \"text\"",
+  "status: \"queued\"",
+  "message.status = \"sent\"",
+  "message.status = \"failed\"",
+  "contact.lastOutboundAt",
+  "conversation.updatedAt",
+  "manual_reply_sent",
+  "manual_reply_failed",
+  "maskPhone(contact.phone)",
+  "schedulePersistentStateSave(\"whatsapp-center-manual-reply\")"
+], "resposta manual");
+includesAll(manualEndpoint, ["metaAccessToken", "split(metaAccessToken).join(\"[masked]\")"], "mascara token no erro manual");
+assert.ok(!/metadata:\s*\{[^}]*access_token/.test(manualEndpoint) && !/res\.[\s\S]{0,120}metaAccessToken/.test(manualEndpoint), "Endpoint manual nao deve logar ou expor token.");
+assert.ok(!manualEndpoint.includes("rawBody") && !manualEndpoint.includes("payload bruto"), "Endpoint manual nao deve salvar payload bruto.");
+assert.ok(!manualEndpoint.includes("queueN8nEvent") && !manualEndpoint.includes("scheduleAutomation") && !manualEndpoint.includes("crmContacts"), "Endpoint manual nao pode acionar n8n, automacoes ou CRM.");
+assert.ok(!manualEndpoint.includes("checkout") && !manualEndpoint.includes("gateway") && !manualEndpoint.includes("billing") && !manualEndpoint.includes("affiliate"), "Endpoint manual nao deve tocar checkout/gateway/billing/afiliados.");
 
 const webhookBlock = blockBetween(server, "app.post(\"/api/webhooks/meta/whatsapp\"", "app.get(\"/api/admin/audit-logs\"");
 assert.ok(!webhookBlock.includes("queueN8nEvent") && !webhookBlock.includes("scheduleAutomation") && !webhookBlock.includes("crmContacts") && !webhookBlock.includes("sendQueuedWhatsAppMessage"), "Webhook da Central nao pode acionar n8n, automacoes, CRM ou fila promocional.");
 assert.ok(!webhookBlock.includes("checkout") && !webhookBlock.includes("gateway") && !webhookBlock.includes("billing") && !webhookBlock.includes("affiliate"), "Webhook da Central nao deve tocar checkout/gateway/billing/afiliados.");
 
 const centerBlock = blockBetween(server, "function requireWhatsAppCenterAccess", "function upsertWhatsAppCloudConfig");
-assert.ok(!/access_token|webhook_verify_token|decryptWhatsAppCloudConfig/.test(centerBlock), "Central nao deve salvar/expor token.");
+assert.ok(!/metadata:\s*\{[^}]*access_token|webhook_verify_token|res\.[\s\S]{0,120}metaAccessToken/.test(centerBlock), "Central nao deve salvar/expor token.");
 assert.ok(!centerBlock.includes("rawBody") && !centerBlock.includes("req.body") || centerBlock.includes("summarizeWhatsAppInbound"), "Central deve usar resumo sanitizado, nao payload bruto.");
 
 includesAll(server, [
@@ -127,9 +157,16 @@ includesAll(page, [
   "/api/admin/whatsapp-center/conversations/${activeConversation.id}/status",
   "/api/admin/whatsapp-center/conversations/${activeConversation.id}/assign",
   "/api/admin/whatsapp-center/conversations/${activeConversation.id}/notes",
+  "/api/admin/whatsapp-center/conversations/${activeConversation.id}/messages",
   "Opt-out registrado",
   "Janela 24h",
-  "Resposta manual sera liberada na proxima etapa."
+  "Responder cliente",
+  "A janela de atendimento expirou. Utilize um template aprovado.",
+  "outboundStatusLabel",
+  "enviado",
+  "entregue",
+  "lido",
+  "falhou"
 ], "tela inbox");
 
 assert.ok(!page.includes("/api/admin/crm") && !page.includes("campanha") && !page.includes("n8n"), "Tela nao deve usar CRM/campanhas/n8n.");

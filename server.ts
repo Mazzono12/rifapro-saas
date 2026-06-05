@@ -1221,7 +1221,7 @@ async function startServer() {
   type WhatsAppCloudLogRecord = {
     id: string;
     tenant_id: string;
-    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
+    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "manual_reply_sent" | "manual_reply_failed" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
     status: "success" | "error" | "skipped";
     message: string;
     metadata: Record<string, unknown>;
@@ -5957,6 +5957,86 @@ async function startServer() {
     conversation.updatedAt = now;
     schedulePersistentStateSave("whatsapp-center-note");
     res.status(201).json({ message: publicWhatsAppMessage(message), conversation: publicWhatsAppConversation(conversation) });
+  });
+
+  app.post("/api/admin/whatsapp-center/conversations/:id/messages", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const conversation = whatsappConversations.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!conversation) return res.status(404).json({ error: "Conversa nao encontrada" });
+    const contact = whatsappContacts.find(item => item.id === conversation.contactId && item.tenantId === tenantId);
+    if (!contact) return res.status(404).json({ error: "Contato nao encontrado" });
+    if (Array.isArray(req.body?.body) || Array.isArray(req.body?.to) || Array.isArray(req.body?.recipients) || Array.isArray(req.body?.phones)) {
+      return res.status(400).json({ error: "Envio em massa nao permitido" });
+    }
+    if (contact.optOut) return res.status(409).json({ error: "Contato em opt-out. Envio bloqueado." });
+    const expiresAt = conversation.serviceWindowExpiresAt ? new Date(conversation.serviceWindowExpiresAt).getTime() : 0;
+    if (!expiresAt || Date.now() > expiresAt) {
+      return res.status(409).json({ error: "A janela de atendimento expirou. Utilize um template aprovado." });
+    }
+    const body = String(req.body?.body || "").trim();
+    if (!body) return res.status(400).json({ error: "Mensagem vazia" });
+    if (body.length > 4000) return res.status(400).json({ error: "Mensagem excede o limite de 4000 caracteres" });
+    if (/[^\S\r\n]*(?:,|;)[^\S\r\n]*55?\d{10,}/.test(body)) return res.status(400).json({ error: "Envio para multiplos destinatarios nao permitido" });
+
+    const now = new Date().toISOString();
+    const message: WhatsAppConversationMessageRecord = {
+      id: createPublicId("WAM_"),
+      tenantId,
+      conversationId: conversation.id,
+      direction: "outbound",
+      type: "text",
+      body,
+      status: "queued",
+      sentAt: now,
+      rawSummary: { source: "admin_manual_reply", actor: getAuthSession(req)?.sub || "admin", to: maskPhone(contact.phone) }
+    };
+    whatsappConversationMessages.push(message);
+    let metaAccessToken = "";
+    try {
+      const config = decryptWhatsAppCloudConfig(getWhatsAppCloudConfig(tenantId));
+      metaAccessToken = config?.access_token || "";
+      const result = await sendMetaCloudWhatsAppMessage({
+        tenantId,
+        messageId: message.id,
+        to: contact.phone,
+        body
+      }, config || { enabled: false, environment: "sandbox" });
+      const sentAt = new Date().toISOString();
+      message.status = "sent";
+      message.metaMessageId = result.providerMessageId || "";
+      message.sentAt = sentAt;
+      message.rawSummary = { ...message.rawSummary, metaMessageId: message.metaMessageId ? "present" : "missing" };
+      contact.lastOutboundAt = sentAt;
+      contact.updatedAt = sentAt;
+      conversation.lastMessageAt = sentAt;
+      conversation.updatedAt = sentAt;
+      whatsappContacts = whatsappContacts.map(item => item.id === contact.id ? contact : item);
+      whatsappConversations = whatsappConversations.map(item => item.id === conversation.id ? conversation : item);
+      recordWhatsAppCloudLog(tenantId, {
+        action: "manual_reply_sent",
+        status: "success",
+        message: "Resposta manual enviada",
+        metadata: { conversationId: conversation.id, messageId: message.id, to: maskPhone(contact.phone), adminId: getAuthSession(req)?.sub || "", metaMessageId: message.metaMessageId || "" }
+      });
+      schedulePersistentStateSave("whatsapp-center-manual-reply");
+      res.status(201).json({ message: publicWhatsAppMessage(message), conversation: publicWhatsAppConversation(conversation) });
+    } catch (error) {
+      const failedAt = new Date().toISOString();
+      const rawErrorMessage = error instanceof Error ? error.message : "Falha ao enviar resposta manual";
+      const safeErrorMessage = maskSecretText(metaAccessToken ? rawErrorMessage.split(metaAccessToken).join("[masked]") : rawErrorMessage);
+      message.status = "failed";
+      message.rawSummary = { ...message.rawSummary, error: safeErrorMessage.slice(0, 300) };
+      conversation.updatedAt = failedAt;
+      whatsappConversations = whatsappConversations.map(item => item.id === conversation.id ? conversation : item);
+      recordWhatsAppCloudLog(tenantId, {
+        action: "manual_reply_failed",
+        status: "error",
+        message: safeErrorMessage,
+        metadata: { conversationId: conversation.id, messageId: message.id, to: maskPhone(contact.phone), adminId: getAuthSession(req)?.sub || "" }
+      });
+      schedulePersistentStateSave("whatsapp-center-manual-reply-failed");
+      res.status(502).json({ error: safeErrorMessage, message: publicWhatsAppMessage(message) });
+    }
   });
 
   app.get("/api/admin/whatsapp-center/contacts/:id", (req, res) => {
