@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
   Banknote,
@@ -100,6 +100,7 @@ type AffiliateDashboard = {
       rewardQuantity: number;
     }>;
     history: Array<{ id: string; ruleName: string; reward: string; goalLabel: string; milestone: number; createdAt: string }>;
+    consumptions: Array<{ id: string; rewardType: string; quantity: number; label: string; status: string; eventId?: string; lootboxId?: string; message?: string; createdAt: string }>;
   };
   ranking: {
     month: Array<{ position: number; affiliate: string; customers: number; conversions: number; revenue: number; conversion: number }>;
@@ -157,6 +158,8 @@ export function Affiliates() {
   const [campaignLinks, setCampaignLinks] = useState<AffiliateCampaignLink[]>([]);
   const [isLoadingCampaignLinks, setIsLoadingCampaignLinks] = useState(true);
   const [campaignLinksError, setCampaignLinksError] = useState("");
+  const [consumingReward, setConsumingReward] = useState("");
+  const consumingRewardRef = useRef("");
 
   useEffect(() => {
     if (!customer) return;
@@ -274,6 +277,34 @@ export function Affiliates() {
       toast.error("Saque não solicitado", { description: error.message });
     } finally {
       setIsWithdrawing(false);
+    }
+  };
+
+  const consumeReward = async (rewardType: string, quantity = 1) => {
+    if (!customer?.affiliateRefCode) return;
+    if (consumingRewardRef.current) return;
+    const idempotencyKey = `${customer.id}:${rewardType}:${Date.now()}`;
+    consumingRewardRef.current = rewardType;
+    setConsumingReward(rewardType);
+    try {
+      const res = await fetch(`/api/affiliates/${customer.affiliateRefCode}/rewards/consume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rewardType, quantity, idempotencyKey })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não foi possível usar esta recompensa.");
+      if (data.dashboard) setDashboard(data.dashboard);
+      toast.success("Recompensa utilizada", {
+        description: data.consumption?.result?.message || data.consumption?.result?.label || "Histórico atualizado."
+      });
+    } catch (error) {
+      toast.error("Recompensa não utilizada", {
+        description: error instanceof Error ? error.message : "Tente novamente em instantes."
+      });
+    } finally {
+      consumingRewardRef.current = "";
+      setConsumingReward("");
     }
   };
 
@@ -399,6 +430,11 @@ export function Affiliates() {
 
       <AffiliateGamificationPanel summary={gamification} />
       <AffiliatePerformanceBonusPanel rewards={dashboard?.performanceRewards} />
+      <AffiliateRewardsWalletPanel
+        rewards={dashboard?.performanceRewards}
+        consumingReward={consumingReward}
+        onConsume={consumeReward}
+      />
 
       {eligibility && (
         <section className={cn("admin-card border p-4 sm:p-5", eligibility.isEligibleThisMonth ? "border-[var(--admin-success)]/30" : "border-[var(--admin-warning)]/40")}>
@@ -687,6 +723,75 @@ function AffiliatePerformanceBonusPanel({ rewards }: { rewards?: AffiliateDashbo
               </p>
             )}
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AffiliateRewardsWalletPanel({
+  rewards,
+  consumingReward,
+  onConsume
+}: {
+  rewards?: AffiliateDashboard["performanceRewards"];
+  consumingReward: string;
+  onConsume: (rewardType: string, quantity?: number) => void;
+}) {
+  if (!rewards?.enabled) return null;
+  const balances = rewards.balances || { scratchcard: 0, wheel_spin: 0, super_quota: 0, bonus_number: 0, future_reward: 0 };
+  const items = [
+    { type: "scratchcard", title: "Raspadinhas", balance: balances.scratchcard || 0, description: "Use para liberar uma raspadinha no módulo de premiação." },
+    { type: "wheel_spin", title: "Roletas", balance: balances.wheel_spin || 0, description: "Use para liberar um giro na roleta premiada." },
+    { type: "super_quota", title: "Super Cotas", balance: balances.super_quota || 0, description: "Use para registrar uma super cota para atendimento pela operação." },
+    { type: "bonus_number", title: "Números bônus", balance: balances.bonus_number || 0, description: "Use para registrar um número bônus disponível." }
+  ];
+  const consumptions = rewards.consumptions || [];
+  return (
+    <section className="admin-card overflow-hidden p-0">
+      <div className="border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4 sm:p-5">
+        <p className="mb-2 flex items-center gap-2 text-xs font-black uppercase text-[var(--admin-primary)]">
+          <Gift className="h-4 w-4" />
+          Minhas Recompensas
+        </p>
+        <h2 className="break-words text-2xl font-black text-[var(--admin-text)]">Use seus bônus disponíveis</h2>
+      </div>
+      <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-4">
+        {items.map(item => (
+          <article key={item.type} className="flex min-w-0 flex-col rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
+            <div className="min-w-0 flex-1">
+              <p className="break-words text-sm font-black text-[var(--admin-text)]">{item.title}</p>
+              <p className="mt-2 text-3xl font-black text-[var(--admin-primary)]">{item.balance}</p>
+              <p className="mt-2 text-xs leading-5 text-[var(--admin-muted)]">{item.description}</p>
+            </div>
+            <button
+              disabled={item.balance <= 0 || Boolean(consumingReward)}
+              onClick={() => onConsume(item.type, 1)}
+              className="admin-button-primary mt-4 w-full justify-center disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {consumingReward === item.type ? "Usando..." : "Usar agora"}
+            </button>
+          </article>
+        ))}
+      </div>
+      <div className="border-t border-[var(--admin-border)] p-4 sm:p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <CalendarClock className="h-5 w-5 text-[var(--admin-primary)]" />
+          <h3 className="text-lg font-black text-[var(--admin-text)]">Histórico de Utilização</h3>
+        </div>
+        <div className="grid gap-3">
+          {consumptions.slice(0, 10).map(item => (
+            <div key={item.id} className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-3">
+              <p className="text-sm font-bold text-[var(--admin-text)]">{item.label}</p>
+              <p className="mt-1 text-xs text-[var(--admin-muted)]">{item.message || "Uso registrado."}</p>
+              <p className="mt-1 text-[11px] text-[var(--admin-muted)]">{new Date(item.createdAt).toLocaleDateString("pt-BR")}</p>
+            </div>
+          ))}
+          {!consumptions.length && (
+            <p className="rounded-[8px] border border-dashed border-[var(--admin-border)] p-4 text-sm text-[var(--admin-muted)]">
+              Seus usos de recompensa aparecerão aqui.
+            </p>
+          )}
         </div>
       </div>
     </section>

@@ -166,7 +166,9 @@ function normalizeAffiliateResult(item: any) {
       commission: safeNumber(affiliate.commission),
       useCustomCommission: Boolean(affiliate.useCustomCommission),
       customCommissionRate: safeNumber(affiliate.customCommissionRate),
-      useBalanceForPurchases: Boolean(affiliate.useBalanceForPurchases)
+      useBalanceForPurchases: Boolean(affiliate.useBalanceForPurchases),
+      performanceRewardBalances: affiliate.performanceRewardBalances || {},
+      performanceRewardConsumptions: asArray(affiliate.performanceRewardConsumptions)
     }
   };
 }
@@ -1070,6 +1072,29 @@ export function AdminSales() {
                       </div>
                     </div>
                   )}
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm font-bold text-white">Recompensas do afiliado</p>
+                      <p className="text-xs text-slate-400">Somente leitura</p>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                      <MiniCount label="Raspadinhas" value={selectedAffiliate.affiliate?.performanceRewardBalances?.scratchcard} />
+                      <MiniCount label="Roletas" value={selectedAffiliate.affiliate?.performanceRewardBalances?.wheel_spin} />
+                      <MiniCount label="Super Cotas" value={selectedAffiliate.affiliate?.performanceRewardBalances?.super_quota} />
+                      <MiniCount label="Números bônus" value={selectedAffiliate.affiliate?.performanceRewardBalances?.bonus_number} />
+                    </div>
+                    <div className="mt-3 max-h-40 space-y-2 overflow-y-auto pr-1">
+                      {asArray(selectedAffiliate.affiliate?.performanceRewardConsumptions).slice(0, 8).map((item: any) => (
+                        <div key={item.id} className="rounded-xl border border-white/5 bg-white/[0.03] p-3">
+                          <p className="text-xs font-bold text-white">{item.result?.label || "Recompensa utilizada"}</p>
+                          <p className="mt-1 text-[11px] text-slate-500">{formatDateTime(item.createdAt)} • {item.result?.message || "Uso registrado"}</p>
+                        </div>
+                      ))}
+                      {!asArray(selectedAffiliate.affiliate?.performanceRewardConsumptions).length && (
+                        <p className="rounded-xl border border-dashed border-white/10 p-3 text-xs text-slate-500">Nenhum consumo registrado.</p>
+                      )}
+                    </div>
+                  </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <label className="space-y-1">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Comissões liberadas</span>
@@ -1335,6 +1360,15 @@ function MiniWallet({ label, value }: { label: string; value: unknown }) {
     <div className="rounded-xl border border-white/5 bg-black/20 p-3">
       <p className="text-[10px] font-mono uppercase text-slate-500">{label}</p>
       <p className="mt-1 font-mono text-sm font-bold text-white">R$ {safeMoney(value)}</p>
+    </div>
+  );
+}
+
+function MiniCount({ label, value }: { label: string; value: unknown }) {
+  return (
+    <div className="rounded-xl border border-white/5 bg-black/20 p-3">
+      <p className="text-[10px] font-mono uppercase text-slate-500">{label}</p>
+      <p className="mt-1 font-mono text-sm font-bold text-white">{Math.max(0, Math.floor(safeNumber(value)))}</p>
     </div>
   );
 }

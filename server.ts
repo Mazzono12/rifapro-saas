@@ -1007,6 +1007,24 @@ async function startServer() {
     source: string;
     createdAt: string;
   };
+  type AffiliateRewardConsumptionLedger = {
+    id: string;
+    tenant_id: string;
+    affiliateRefCode: string;
+    customerId?: string;
+    rewardType: AffiliateRewardType;
+    quantity: number;
+    status: "used";
+    idempotencyKey: string;
+    result: {
+      label: string;
+      eventId?: string;
+      lootboxId?: string;
+      benefitQuantity?: number;
+      message?: string;
+    };
+    createdAt: string;
+  };
   type AffiliateWithdrawal = {
     tenant_id: string;
     id: string;
@@ -1419,6 +1437,7 @@ async function startServer() {
     history: AffiliateLedger[];
     performanceRewards?: AffiliatePerformanceRewardLedger[];
     performanceRewardBalances?: Partial<Record<AffiliateRewardType, number>>;
+    performanceRewardConsumptions?: AffiliateRewardConsumptionLedger[];
   };
   type CustomerRecord = {
     id: string;
@@ -6427,7 +6446,7 @@ async function startServer() {
 
   function publicAffiliateView(affiliate?: AffiliateRecord | null) {
     if (!affiliate) return undefined;
-    const { useCustomCommission, customCommissionRate, performanceRewards, performanceRewardBalances, tenant_id, customerId, ...publicAffiliate } = affiliate;
+    const { useCustomCommission, customCommissionRate, performanceRewards, performanceRewardBalances, performanceRewardConsumptions, tenant_id, customerId, ...publicAffiliate } = affiliate;
     return publicAffiliate;
   }
 
@@ -6452,7 +6471,8 @@ async function startServer() {
         enabled: Boolean(options.forceEnable) || customer.totalTickets >= getTenantSettings(customer.tenant_id).affiliateProgram.minTicketsToJoin,
         history: [],
         performanceRewards: [],
-        performanceRewardBalances: {}
+        performanceRewardBalances: {},
+        performanceRewardConsumptions: []
       };
       if (options.source) {
         affiliates[key].history.push({ amount: 0, type: options.source, date: new Date().toISOString() });
@@ -6464,6 +6484,7 @@ async function startServer() {
     affiliates[key].customCommissionRate = affiliates[key].useCustomCommission ? normalizeAffiliateCommissionRate(affiliates[key].customCommissionRate) : undefined;
     affiliates[key].performanceRewards ||= [];
     affiliates[key].performanceRewardBalances ||= {};
+    affiliates[key].performanceRewardConsumptions ||= [];
     affiliates[key].commission =
       affiliates[key].commissionBalance + affiliates[key].prizeBalance;
     affiliates[key].enabled =
@@ -11553,6 +11574,117 @@ async function startServer() {
     return generated;
   }
 
+  function activeAffiliateRewardRaffle(tenantId: string, rewardType: AffiliateRewardType) {
+    const activeRaffles = raffles.filter(raffle => raffle.tenant_id === tenantId && raffle.status === "active");
+    if (rewardType === "scratchcard") {
+      return activeRaffles.find(raffle => getGamificationConfig(tenantId, raffle.id).modules.scratchcard) || activeRaffles[0];
+    }
+    return activeRaffles[0];
+  }
+
+  function createAffiliateRewardScratchcard(input: { tenantId: string; customer: CustomerRecord; consumptionId: string }) {
+    const raffle = activeAffiliateRewardRaffle(input.tenantId, "scratchcard");
+    if (!raffle) throw new Error("Nenhuma campanha ativa para liberar raspadinha.");
+    const config = getGamificationConfig(input.tenantId, raffle.id);
+    config.modules.scratchcard = true;
+    const event: GamificationEvent = {
+      tenant_id: input.tenantId,
+      id: createPublicId("GAM_"),
+      raffleId: raffle.id,
+      purchaseId: input.consumptionId,
+      customerId: input.customer.id,
+      module: "scratchcard",
+      status: "available",
+      result: { source: "affiliate_reward", label: "Raspadinha de afiliado" },
+      createdAt: new Date().toISOString()
+    };
+    gamificationEvents.unshift(event);
+    addGamificationLog(input.tenantId, "AFFILIATE_REWARD_SCRATCHCARD_CREATED", `${input.customer.id}:${event.id}`);
+    return event;
+  }
+
+  function createAffiliateRewardWheelSpin(input: { tenantId: string; customer: CustomerRecord; consumptionId: string }) {
+    const customerPhone = normalizePhone(input.customer.phone) || input.customer.phone;
+    const userKey = tenantCustomerKey(input.tenantId, customerPhone);
+    const economy = createScopedLootboxConfig({
+      ...settings.lootboxEconomy,
+      experienceType: "wheel",
+      rewardModes: { box: false, wheel: true }
+    });
+    if (!lootboxes[userKey]) lootboxes[userKey] = { boxes: [], history: [] };
+    const box: LootboxRecord = {
+      tenant_id: input.tenantId,
+      id: createPublicId("BOX_"),
+      userId: userKey,
+      purchaseId: input.consumptionId,
+      scopeId: "affiliate_reward",
+      scopeType: "global",
+      experienceType: "wheel",
+      effects: { ...economy.effects },
+      wheelSegments: economy.wheelSegments.map(segment => ({ ...segment, reward: segment.reward ? { ...segment.reward } : undefined })),
+      status: "closed",
+      premiada: false,
+      valorPremio: 0,
+      lockedPrize: null,
+      createdAt: new Date().toISOString()
+    };
+    lootboxes[userKey].boxes.push(box);
+    lootboxes[userKey].history.push({ prize: "Giro de afiliado liberado", date: box.createdAt, won: false });
+    return box;
+  }
+
+  function normalizeAffiliateRewardType(value: unknown): AffiliateRewardType | null {
+    const type = String(value || "");
+    return ["scratchcard", "wheel_spin", "super_quota", "bonus_number", "future_reward"].includes(type) ? type as AffiliateRewardType : null;
+  }
+
+  function consumeAffiliateReward(input: { tenantId: string; affiliate: AffiliateRecord; rewardType: AffiliateRewardType; quantity?: number; idempotencyKey?: string }) {
+    const affiliate = input.affiliate;
+    if (!affiliate || affiliate.tenant_id !== input.tenantId || !affiliate.enabled) throw new Error("Acesso negado para esta recompensa.");
+    const customer = affiliateOwnerCustomer(affiliate);
+    if (!customer) throw new Error("Cliente do afiliado nao encontrado.");
+    affiliate.performanceRewardBalances ||= {};
+    affiliate.performanceRewardConsumptions ||= [];
+    const quantity = input.rewardType === "bonus_number" ? Math.max(1, Math.floor(Number(input.quantity || 1))) : 1;
+    const idempotencyKey = String(input.idempotencyKey || "").trim() || createPublicId("AFC_KEY_");
+    const existing = affiliate.performanceRewardConsumptions.find(item => item.idempotencyKey === idempotencyKey);
+    if (existing) return existing;
+    const currentBalance = Number(affiliate.performanceRewardBalances[input.rewardType] || 0);
+    if (currentBalance < quantity) throw new Error("Saldo insuficiente para usar esta recompensa.");
+    const consumptionId = createPublicId("AFC_");
+    let result: AffiliateRewardConsumptionLedger["result"];
+    if (input.rewardType === "scratchcard") {
+      const event = createAffiliateRewardScratchcard({ tenantId: input.tenantId, customer, consumptionId });
+      result = { label: "Raspadinha utilizada", eventId: event.id, message: "Raspadinha liberada para uso." };
+    } else if (input.rewardType === "wheel_spin") {
+      const box = createAffiliateRewardWheelSpin({ tenantId: input.tenantId, customer, consumptionId });
+      result = { label: "Roleta utilizada", lootboxId: box.id, message: "Giro liberado na roleta." };
+    } else if (input.rewardType === "super_quota") {
+      result = { label: "Super Cota utilizada", benefitQuantity: quantity, message: "Super Cota registrada para atendimento pela operação." };
+    } else if (input.rewardType === "bonus_number") {
+      result = { label: "Número bônus utilizado", benefitQuantity: quantity, message: `${quantity} número(s) bônus registrado(s).` };
+    } else {
+      result = { label: "Recompensa futura utilizada", benefitQuantity: quantity, message: "Recompensa registrada para atendimento pela operação." };
+    }
+    affiliate.performanceRewardBalances[input.rewardType] = Number((currentBalance - quantity).toFixed(2));
+    const now = new Date().toISOString();
+    const consumption: AffiliateRewardConsumptionLedger = {
+      id: consumptionId,
+      tenant_id: input.tenantId,
+      affiliateRefCode: affiliate.refCode,
+      customerId: customer.id,
+      rewardType: input.rewardType,
+      quantity,
+      status: "used",
+      idempotencyKey,
+      result,
+      createdAt: now
+    };
+    affiliate.performanceRewardConsumptions.unshift(consumption);
+    affiliate.history.push({ amount: 0, type: `reward_used:${input.rewardType}:${consumption.id}`, date: now, note: result.label });
+    return consumption;
+  }
+
   type AffiliatePaidOrder = {
     id: string;
     tenant_id: string;
@@ -11779,6 +11911,7 @@ async function startServer() {
   function buildAffiliatePerformanceRewardsDashboard(affiliate: AffiliateRecord) {
     const rewardSettings = getTenantSettings(affiliate.tenant_id).affiliatePerformanceRewards;
     affiliate.performanceRewards ||= [];
+    affiliate.performanceRewardConsumptions ||= [];
     const rules = (rewardSettings?.rules || [])
       .filter(rule => rule.enabled)
       .map(rule => {
@@ -11825,6 +11958,21 @@ async function startServer() {
           goalLabel: affiliateRewardGoalLabel(reward.goalType, reward.threshold),
           milestone: reward.milestone,
           createdAt: reward.createdAt
+        })),
+      consumptions: affiliate.performanceRewardConsumptions
+        .filter(consumption => consumption.tenant_id === affiliate.tenant_id && consumption.affiliateRefCode === affiliate.refCode)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 50)
+        .map(consumption => ({
+          id: consumption.id,
+          rewardType: consumption.rewardType,
+          quantity: consumption.quantity,
+          label: consumption.result.label,
+          status: consumption.status,
+          eventId: consumption.result.eventId,
+          lootboxId: consumption.result.lootboxId,
+          message: consumption.result.message,
+          createdAt: consumption.createdAt
         }))
     };
   }
@@ -16478,6 +16626,36 @@ async function startServer() {
       return;
     }
     res.json(buildAffiliateDashboard(req, affiliate));
+  });
+
+  app.post("/api/affiliates/:refCode/rewards/consume", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const affiliate = affiliates[tenantCustomerKey(tenantId, req.params.refCode)];
+    if (!affiliate) {
+      res.status(404).json({ error: "Affiliate not found" });
+      return;
+    }
+    if (!isAffiliateOwnerRequest(req, affiliate)) {
+      res.status(403).json({ error: "Acesso negado para este afiliado" });
+      return;
+    }
+    const rewardType = normalizeAffiliateRewardType(req.body.rewardType);
+    if (!rewardType) {
+      res.status(400).json({ error: "Recompensa invalida" });
+      return;
+    }
+    try {
+      const consumption = consumeAffiliateReward({
+        tenantId,
+        affiliate,
+        rewardType,
+        quantity: Number(req.body.quantity || 1),
+        idempotencyKey: req.body.idempotencyKey
+      });
+      res.json({ consumption, dashboard: buildAffiliateDashboard(req, affiliate) });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Nao foi possivel usar esta recompensa" });
+    }
   });
 
   app.get("/api/affiliates/:refCode/campaign-links", (req, res) => {

@@ -45,6 +45,11 @@ includesAll(affiliates, [
   "Giros",
   "Super Cotas",
   "Números bônus",
+  "Minhas Recompensas",
+  "Histórico de Utilização",
+  "/api/affiliates/${customer.affiliateRefCode}/rewards/consume",
+  "idempotencyKey",
+  "consumingRewardRef.current",
   "AffiliatePerformanceBonusPanel"
 ], "tela afiliado");
 
@@ -251,6 +256,41 @@ includesAll(performanceRewardsBlock, [
   "affiliate.performanceRewardBalances[rule.rewardType]"
 ], "motor de bonus de performance idempotente e tenant-scoped");
 
+const rewardConsumptionBlock = server.slice(server.indexOf("function consumeAffiliateReward"), server.indexOf("type AffiliatePaidOrder"));
+includesAll(rewardConsumptionBlock, [
+  "affiliate.tenant_id !== input.tenantId",
+  "affiliateOwnerCustomer(affiliate)",
+  "affiliate.performanceRewardBalances ||= {}",
+  "affiliate.performanceRewardConsumptions ||= []",
+  "affiliate.performanceRewardConsumptions.find(item => item.idempotencyKey === idempotencyKey)",
+  "currentBalance < quantity",
+  "Saldo insuficiente para usar esta recompensa.",
+  "createAffiliateRewardScratchcard",
+  "createAffiliateRewardWheelSpin",
+  "affiliate.performanceRewardBalances[input.rewardType] = Number((currentBalance - quantity).toFixed(2))",
+  "affiliate.performanceRewardConsumptions.unshift(consumption)",
+  "reward_used:${input.rewardType}:${consumption.id}"
+], "motor de consumo de bonus seguro e idempotente");
+
+const rewardIntegrationBlock = server.slice(server.indexOf("function createAffiliateRewardScratchcard"), server.indexOf("function normalizeAffiliateRewardType"));
+includesAll(rewardIntegrationBlock, [
+  "gamificationEvents.unshift(event)",
+  "module: \"scratchcard\"",
+  "status: \"available\"",
+  "LootboxRecord",
+  "experienceType: \"wheel\"",
+  "lootboxes[userKey].boxes.push(box)"
+], "consumo reutiliza motores existentes de raspadinha e roleta");
+
+const rewardConsumeRouteBlock = server.slice(server.indexOf('app.post("/api/affiliates/:refCode/rewards/consume"'), server.indexOf('app.get("/api/affiliates/:refCode/campaign-links"'));
+includesAll(rewardConsumeRouteBlock, [
+  "isAffiliateOwnerRequest(req, affiliate)",
+  'res.status(403).json({ error: "Acesso negado para este afiliado" })',
+  "normalizeAffiliateRewardType(req.body.rewardType)",
+  "consumeAffiliateReward({",
+  "idempotencyKey: req.body.idempotencyKey"
+], "endpoint de consumo privado por afiliado");
+
 const pendingReleaseBlock = server.slice(server.indexOf("function releaseEligiblePendingAffiliateCommissions"), server.indexOf("function affiliateCommissionEntries"));
 includesAll(pendingReleaseBlock, [
   "entry.type = entry.type.replace(/^pending:/, \"\")",
@@ -305,6 +345,7 @@ const publicAffiliateViewBlock = server.slice(server.indexOf("function publicAff
 includesAll(publicAffiliateViewBlock, [
   "performanceRewards",
   "performanceRewardBalances",
+  "performanceRewardConsumptions",
   "...publicAffiliate"
 ], "visao publica remove historico de bonus de performance");
 
@@ -316,6 +357,15 @@ includesAll(adminSales, [
   "useCustomCommission",
   "customCommissionRate"
 ], "ui admin comissao personalizada");
+
+includesAll(adminSales, [
+  "Recompensas do afiliado",
+  "Somente leitura",
+  "performanceRewardBalances",
+  "performanceRewardConsumptions",
+  "MiniCount",
+  "Nenhum consumo registrado."
+], "ui admin visualiza saldos e consumo de bonus");
 
 includesAll(adminConfig, [
   "Premiações para Afiliados",

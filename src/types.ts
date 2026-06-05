@@ -340,6 +340,24 @@ export interface AffiliateStats {
     source?: string;
     createdAt: string;
   }>;
+  performanceRewardConsumptions?: Array<{
+    id: string;
+    tenant_id?: string;
+    affiliateRefCode?: string;
+    customerId?: string;
+    rewardType: string;
+    quantity: number;
+    status: string;
+    idempotencyKey?: string;
+    result: {
+      label: string;
+      eventId?: string;
+      lootboxId?: string;
+      benefitQuantity?: number;
+      message?: string;
+    };
+    createdAt: string;
+  }>;
   rules?: {
     commissionRate: number;
     minTicketsToJoin: number;
