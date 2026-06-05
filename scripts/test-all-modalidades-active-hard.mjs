@@ -36,7 +36,7 @@ server.stderr.on("data", chunk => { serverOutput += chunk.toString(); });
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function waitForServer() {
-  for (let attempt = 0; attempt < 80; attempt += 1) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     try {
       const response = await fetch(`${baseUrl}/api/auth/session`);
       if (response.status >= 200) return;

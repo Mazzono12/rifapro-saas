@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Download, FileJson, Users, Search, Save, TicketCheck, XCircle, Wallet, Trophy, UserPlus, MessageSquare } from "lucide-react";
+import { CheckCircle2, Clock, Copy, Download, ExternalLink, FileJson, Users, Search, Save, TicketCheck, XCircle, Wallet, Trophy, UserPlus, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import type { Raffle } from "../../types";
@@ -180,6 +180,26 @@ function normalizeSupportTicket(ticket: any) {
   };
 }
 
+type PixRecoveryFilter = "all" | "pending" | "expired" | "24h" | "7d";
+
+function normalizePixRecoveryOrder(item: any) {
+  return {
+    id: String(item?.id || ""),
+    customerName: safeText(item?.customerName, "Cliente"),
+    whatsapp: safeText(item?.whatsapp, ""),
+    campaign: safeText(item?.campaign, "Campanha"),
+    amount: safeNumber(item?.amount),
+    status: safeText(item?.status, "pending"),
+    statusLabel: safeText(item?.statusLabel, "Aguardando pagamento"),
+    createdAt: safeText(item?.createdAt, ""),
+    expiresAt: safeText(item?.expiresAt, ""),
+    paymentLink: safeText(item?.paymentLink, ""),
+    campaignLink: safeText(item?.campaignLink, ""),
+    orderUrl: safeText(item?.orderUrl, ""),
+    copyMessage: safeText(item?.copyMessage, "")
+  };
+}
+
 async function readJsonArray<T = any>(url: string, normalize?: (item: any) => T): Promise<T[]> {
   try {
     const response = await fetch(url);
@@ -227,9 +247,12 @@ export function AdminSales() {
   const [drawSearch, setDrawSearch] = useState({ raffleId: "1", number: "" });
   const [drawResult, setDrawResult] = useState<any | null>(null);
   const [purchaseRaffleFilter, setPurchaseRaffleFilter] = useState("all");
+  const [pixRecovery, setPixRecovery] = useState<any[]>([]);
+  const [pixRecoveryFilter, setPixRecoveryFilter] = useState<PixRecoveryFilter>("all");
 
   const loadData = () => {
     void readJsonArray("/api/admin/purchases", normalizePurchase).then(setPurchases);
+    void readJsonArray("/api/admin/recovery/pix-pending", normalizePixRecoveryOrder).then(setPixRecovery);
     void readJsonArray("/api/admin/customers", normalizeCustomer).then(setCustomers);
     void readJsonArray("/api/raffles", normalizeAdminRaffle).then(setRaffles);
     void readJsonArray("/api/admin/affiliates/withdrawals").then(setWithdrawals);
@@ -336,6 +359,24 @@ export function AdminSales() {
     return !customerQuery || text.includes(customerQuery.toLowerCase()) || phone.includes(query) || cpf.includes(query);
   });
   const filteredPurchases = purchases.filter(purchase => purchaseRaffleFilter === "all" || purchase.raffleId === purchaseRaffleFilter);
+  const filteredPixRecovery = pixRecovery.filter(item => {
+    const created = new Date(item.createdAt || "").getTime();
+    const age = Number.isFinite(created) ? Date.now() - created : Number.POSITIVE_INFINITY;
+    if (pixRecoveryFilter === "pending") return item.status === "pending";
+    if (pixRecoveryFilter === "expired") return item.status === "expired";
+    if (pixRecoveryFilter === "24h") return age <= 24 * 60 * 60 * 1000;
+    if (pixRecoveryFilter === "7d") return age <= 7 * 24 * 60 * 60 * 1000;
+    return true;
+  });
+
+  const copyRecoveryText = async (text: string, successMessage: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(successMessage);
+    } catch {
+      toast.error("Não foi possível copiar agora");
+    }
+  };
 
   const openCustomerEditor = (customer: any) => {
     setEditingCustomer({
@@ -588,6 +629,99 @@ export function AdminSales() {
            </button>
          </div>
        </div>
+       </section>
+
+       <section className="admin-card min-w-0 p-5">
+         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+           <div className="min-w-0">
+             <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Recuperação de Vendas</p>
+             <h2 className="mt-2 flex min-w-0 items-center gap-2 break-words text-xl font-black text-[var(--admin-text)]">
+               <Clock className="h-5 w-5 shrink-0 text-[var(--admin-primary)]" /> PIX Pendentes
+             </h2>
+             <p className="mt-1 text-sm text-[var(--admin-muted)]">Clientes que iniciaram uma compra e ainda podem ser chamados manualmente.</p>
+           </div>
+           <div className="flex flex-wrap gap-2">
+             {[
+               ["all", "Todos"],
+               ["pending", "Aguardando pagamento"],
+               ["expired", "Vencidos"],
+               ["24h", "Últimas 24h"],
+               ["7d", "Últimos 7 dias"]
+             ].map(([value, label]) => (
+               <button
+                 key={value}
+                 type="button"
+                 onClick={() => setPixRecoveryFilter(value as PixRecoveryFilter)}
+                 className={cn(
+                   "rounded-lg border px-3 py-2 text-xs font-bold transition",
+                   pixRecoveryFilter === value ? "border-[var(--admin-primary)] bg-[var(--admin-primary)]/15 text-[var(--admin-primary)]" : "border-[var(--admin-border)] text-[var(--admin-muted)] hover:bg-white/[0.04]"
+                 )}
+               >
+                 {label}
+               </button>
+             ))}
+           </div>
+         </div>
+
+         <div className="mt-5 grid min-w-0 gap-3 xl:grid-cols-2">
+           {filteredPixRecovery.length === 0 ? (
+             <div className="rounded-[8px] border border-[var(--admin-border)] bg-white/[0.03] p-4 text-sm text-[var(--admin-muted)] xl:col-span-2">
+               Nenhum PIX pendente encontrado para este filtro.
+             </div>
+           ) : filteredPixRecovery.map(item => {
+             const recoveryLink = item.paymentLink || item.campaignLink;
+             const isExpired = item.status === "expired";
+             return (
+               <article key={item.id} className="min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-white/[0.03] p-4">
+                 <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                   <div className="min-w-0">
+                     <p className="min-w-0 break-words text-sm font-black text-[var(--admin-text)]">{item.customerName}</p>
+                     <p className="mt-1 min-w-0 break-words text-xs font-semibold text-[var(--admin-muted)]">{item.whatsapp || "WhatsApp não informado"}</p>
+                   </div>
+                   <span className={cn(
+                     "shrink-0 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest",
+                     isExpired ? "border-red-400/30 bg-red-400/10 text-red-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200"
+                   )}>
+                     {item.statusLabel}
+                   </span>
+                 </div>
+                 <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2">
+                   <RecoveryField label="Campanha" value={item.campaign} />
+                   <RecoveryField label="Valor" value={`R$ ${safeMoney(item.amount)}`} />
+                   <RecoveryField label="Gerado em" value={formatDateTime(item.createdAt)} />
+                   <RecoveryField label="Vencimento" value={item.expiresAt ? formatDateTime(item.expiresAt) : "Sem vencimento informado"} />
+                 </div>
+                 <div className="mt-4 flex flex-wrap gap-2">
+                   <button
+                     type="button"
+                     onClick={() => copyRecoveryText(item.copyMessage, "Mensagem copiada")}
+                     className="admin-button-secondary"
+                   >
+                     <Copy className="h-4 w-4" /> Copiar mensagem
+                   </button>
+                   {recoveryLink && (
+                     <button
+                       type="button"
+                       onClick={() => copyRecoveryText(recoveryLink, isExpired ? "Link da campanha copiado" : "Link de pagamento copiado")}
+                       className="admin-button-secondary"
+                     >
+                       <Copy className="h-4 w-4" /> {isExpired ? "Copiar link da campanha" : "Copiar link"}
+                     </button>
+                   )}
+                   {item.orderUrl && (
+                     <button
+                       type="button"
+                       onClick={() => window.open(item.orderUrl, "_blank", "noopener,noreferrer")}
+                       className="admin-button-secondary"
+                     >
+                       <ExternalLink className="h-4 w-4" /> Abrir pedido
+                     </button>
+                   )}
+                 </div>
+               </article>
+             );
+           })}
+         </div>
        </section>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -1104,7 +1238,7 @@ export function AdminSales() {
                <tbody className="font-mono text-sm">
                   {filteredPurchases.length === 0 ? (
                      <tr>
-                        <td colSpan={7} className="py-8 text-center text-slate-500">Sem vendas registradas até o momento.</td>
+                        <td colSpan={7} className="py-8 text-center text-slate-500">Nenhuma venda registrada até o momento.</td>
                      </tr>
                   ) : filteredPurchases.map((p, i) => (
                      <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors">
@@ -1163,6 +1297,22 @@ function MiniWallet({ label, value }: { label: string; value: unknown }) {
       <p className="mt-1 font-mono text-sm font-bold text-white">R$ {safeMoney(value)}</p>
     </div>
   );
+}
+
+function RecoveryField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-[8px] border border-white/5 bg-black/20 p-3">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</p>
+      <p className="mt-1 min-w-0 break-words text-sm font-bold text-white">{value}</p>
+    </div>
+  );
+}
+
+function formatDateTime(value: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
 function LookupStat({ label, value }: { label: string; value: string }) {

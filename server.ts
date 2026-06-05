@@ -13866,6 +13866,57 @@ async function startServer() {
     res.json(scoped(purchases, req));
   });
 
+  function buildPixRecoveryMessage(input: { customerName: string; campaign: string; link: string; expired: boolean }) {
+    if (input.expired) {
+      return `Olá, ${input.customerName}! Vi que você iniciou sua compra na campanha ${input.campaign}, mas o PIX anterior venceu.\n\nPara participar, faça uma nova compra pelo link abaixo:\n\n${input.link}\n\nSe já pagou, pode desconsiderar esta mensagem. 🍀`;
+    }
+    return `Olá, ${input.customerName}! Vi que você iniciou sua compra na campanha ${input.campaign}, mas o pagamento via PIX ainda não foi concluído.\n\nPara garantir sua participação, finalize pelo link abaixo:\n\n${input.link}\n\nSe já pagou, pode desconsiderar esta mensagem. 🍀`;
+  }
+
+  function buildAdminPixPendingRecovery(req: express.Request, purchase: PurchaseRecord) {
+    const raffle = raffles.find(item => item.tenant_id === purchase.tenant_id && item.id === purchase.raffleId);
+    const expiresAt = purchase.pixExpiresAt || purchase.reservedUntil || "";
+    const expired = isPastReservationExpiry(expiresAt);
+    const origin = `${req.protocol}://${req.get("host")}`;
+    const paymentLink = expired ? "" : `${origin}/checkout/orders/${encodeURIComponent(purchase.purchaseId)}`;
+    const campaignLink = raffle ? `${origin}/raffle/${encodeURIComponent(raffle.id)}` : "";
+    const link = paymentLink || campaignLink || origin;
+    const customerName = purchase.customer?.name || "Cliente";
+    const campaign = raffle?.title || "Campanha";
+    return {
+      id: purchase.purchaseId,
+      customerName,
+      whatsapp: purchase.customer?.phone || purchase.contact || "",
+      campaign,
+      amount: Number(purchase.amount || 0),
+      status: expired ? "expired" : "pending",
+      statusLabel: expired ? "PIX vencido" : "Aguardando pagamento",
+      createdAt: purchase.createdAt,
+      expiresAt,
+      paymentLink,
+      campaignLink,
+      orderUrl: paymentLink,
+      copyMessage: buildPixRecoveryMessage({ customerName, campaign, link, expired })
+    };
+  }
+
+  app.get("/api/admin/recovery/pix-pending", (req, res) => {
+    const now = Date.now();
+    const minimumAgeMs = Math.max(60_000, Number(req.query.minimumAgeMinutes || 3) * 60_000);
+    const tenantPurchases = scoped(purchases, req);
+    const rows = tenantPurchases
+      .filter(purchase => purchase.status === "pending")
+      .filter(purchase => Boolean(purchase.pixPayload || purchase.pixGateway || purchase.pixExpiresAt || purchase.reservedUntil))
+      .filter(purchase => {
+        const createdAt = new Date(purchase.createdAt || "").getTime();
+        const expired = isPastReservationExpiry(purchase.pixExpiresAt || purchase.reservedUntil);
+        return expired || (Number.isFinite(createdAt) && now - createdAt >= minimumAgeMs);
+      })
+      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+      .map(purchase => buildAdminPixPendingRecovery(req, purchase));
+    res.json(rows);
+  });
+
   app.get("/api/admin/clientes", async (_req, res) => {
     try {
       res.json(await listarClientes());
