@@ -39,6 +39,8 @@ type AffiliateCampaignLink = {
   name: string;
   type: string;
   status: string;
+  commissionEnabled?: boolean;
+  commissionStatusLabel?: string;
   publicPath: string;
   affiliateUrl: string;
   imageUrl?: string;
@@ -830,6 +832,16 @@ function MarketingCampaignCard({ campaign, onCopy }: MarketingCampaignCardProps)
             {campaign.status}
           </span>
         </div>
+        {campaign.commissionStatusLabel && (
+          <div className={cn(
+            "mt-3 rounded-[8px] border px-3 py-2 text-xs font-bold",
+            campaign.commissionEnabled
+              ? "border-[var(--admin-success)]/30 bg-[var(--admin-success)]/10 text-[var(--admin-success)]"
+              : "border-[var(--admin-warning)]/35 bg-[var(--admin-warning)]/10 text-[var(--admin-warning)]"
+          )}>
+            {campaign.commissionStatusLabel}
+          </div>
+        )}
         <div className="mt-4 min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3">
           <p className="text-[11px] font-bold uppercase text-[var(--admin-muted)]">Link da campanha</p>
           <p className="mt-1 min-w-0 break-all font-mono text-xs leading-5 text-[var(--admin-text)] sm:line-clamp-2">

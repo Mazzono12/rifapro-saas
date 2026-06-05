@@ -947,7 +947,9 @@ async function startServer() {
     openedAt?: string;
     createdAt: string;
   };
-  type AffiliateLedger = { amount: number; type: string; date: string };
+  type AffiliateCampaignType = "raffle" | "fazendinha" | "number_mode";
+  type AffiliateCampaignRef = { type: AffiliateCampaignType; id: string };
+  type AffiliateLedger = { amount: number; type: string; date: string; note?: string; campaignType?: AffiliateCampaignType; campaignId?: string };
   type AffiliateWithdrawal = {
     tenant_id: string;
     id: string;
@@ -10173,10 +10175,12 @@ async function startServer() {
       updateCrmAutomationForCustomer(customer);
       creditAffiliateCommission({
         tenantId,
-        refCode: purchase.refCode,
-        buyerCustomerId: customer.id,
-        amount: purchase.amount,
-        source: `conversion:${purchase.id}`
+      refCode: purchase.refCode,
+      buyerCustomerId: customer.id,
+      amount: purchase.amount,
+      source: `conversion:${purchase.id}`,
+      campaign: { type: "number_mode", id: purchase.mode },
+      saleCreatedAt: purchase.createdAt
       });
     }
     const pixPayload = (purchase as NumberModePurchase & { pixPayload?: string }).pixPayload || buildPixPayload(purchase.amount, undefined, purchase.id, tenantId);
@@ -10322,7 +10326,9 @@ async function startServer() {
         refCode: purchase.refCode,
         buyerCustomerId: customer.id,
         amount,
-        source: `conversion:${purchase.id}`
+        source: `conversion:${purchase.id}`,
+        campaign: { type: "fazendinha", id: "fazendinha" },
+        saleCreatedAt: purchase.dataCompra
       });
     }
     selectedGroups.forEach(group => {
@@ -10372,7 +10378,9 @@ async function startServer() {
         refCode: purchase.refCode,
         buyerCustomerId: purchase.customer.id,
         amount: groups.reduce((sum, group) => sum + Number(group.preco || config.pricePerGroup), 0),
-        source: `conversion:${purchase.id}`
+        source: `conversion:${purchase.id}`,
+        campaign: { type: "fazendinha", id: "fazendinha" },
+        saleCreatedAt: purchase.dataCompra
       });
       purchase.earnedLootboxes = config.lootboxEnabled
         ? processFazendinhaLootboxDrops(purchase.customer.phone, groups.map(group => group.id), purchase.id, purchase.tenant_id)
@@ -10409,7 +10417,9 @@ async function startServer() {
       refCode: purchase.refCode,
       buyerCustomerId: purchase.customer.id,
       amount: purchase.amount,
-      source: `conversion:${purchase.id}`
+      source: `conversion:${purchase.id}`,
+      campaign: { type: "number_mode", id: purchase.mode },
+      saleCreatedAt: purchase.createdAt
     });
     const config = getNumberModeConfig(purchase.tenant_id, purchase.mode);
     purchase.earnedLootboxes = config?.lootboxEnabled
@@ -11332,7 +11342,9 @@ async function startServer() {
       refCode: purchase.refCode,
       buyerCustomerId: purchase.customer?.id,
       amount: purchase.amount,
-      source: `conversion:${purchase.purchaseId}`
+      source: `conversion:${purchase.purchaseId}`,
+      campaign: { type: "raffle", id: purchase.raffleId },
+      saleCreatedAt: purchase.createdAt
     });
 
     purchase.earnedLootboxes = raffle.lootboxEnabled === false
@@ -11361,12 +11373,24 @@ async function startServer() {
     return purchase;
   }
 
-  function creditAffiliateCommission(input: { tenantId: string; refCode?: string; buyerCustomerId?: string; amount: number; source: string }) {
+  function creditAffiliateCommission(input: { tenantId: string; refCode?: string; buyerCustomerId?: string; amount: number; source: string; campaign?: AffiliateCampaignRef; saleCreatedAt?: string }) {
     const referrer = input.refCode ? affiliates[tenantCustomerKey(input.tenantId, input.refCode)] : undefined;
     if (!referrer || referrer.customerId === input.buyerCustomerId) return null;
     const affiliate = referrer;
     const purchase = { amount: input.amount };
-    if (affiliate.history.some(entry => entry.type === input.source || entry.type === `pending:${input.source}`)) return affiliate;
+    if (affiliate.history.some(entry => entry.type === input.source || entry.type === `pending:${input.source}` || entry.type === `ineligible:${input.source}`)) return affiliate;
+    const campaignEligibility = affiliateIsEligibleForCampaignCommission(affiliate, input.campaign, input.tenantId, input.saleCreatedAt || new Date().toISOString());
+    if (!campaignEligibility.eligible) {
+      affiliate.history.push({
+        amount: 0,
+        type: `ineligible:${input.source}`,
+        date: new Date().toISOString(),
+        note: campaignEligibility.reason,
+        campaignType: input.campaign?.type,
+        campaignId: input.campaign?.id
+      });
+      return affiliate;
+    }
     const commissionRate = resolveAffiliateCommissionRate(affiliate);
     const comm = Number((purchase.amount * (commissionRate / 100)).toFixed(2));
     affiliate.conversions++;
@@ -11375,9 +11399,9 @@ async function startServer() {
     if (eligibility.isEligibleThisMonth) {
       affiliate.commissionBalance += comm;
       affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
-      affiliate.history.push({ amount: comm, type: input.source, date: new Date().toISOString() });
+      affiliate.history.push({ amount: comm, type: input.source, date: new Date().toISOString(), campaignType: input.campaign?.type, campaignId: input.campaign?.id });
     } else {
-      affiliate.history.push({ amount: comm, type: `pending:${input.source}`, date: new Date().toISOString() });
+      affiliate.history.push({ amount: comm, type: `pending:${input.source}`, date: new Date().toISOString(), campaignType: input.campaign?.type, campaignId: input.campaign?.id });
     }
     return affiliate;
   }
@@ -11458,6 +11482,74 @@ async function startServer() {
         .filter(entry => entry.type.startsWith("pending:conversion:"))
         .reduce((sum, entry) => sum + Number(entry.amount || 0), 0)
         .toFixed(2))
+    };
+  }
+
+  function paidAtFromTraditionalPurchase(purchase: PurchaseRecord) {
+    return paidAtFromHistory(purchase.paymentHistory) || purchase.createdAt;
+  }
+
+  function affiliateOwnCampaignPaidAt(affiliate: AffiliateRecord, campaign: AffiliateCampaignRef) {
+    const owner = affiliateOwnerCustomer(affiliate);
+    if (!owner || owner.tenant_id !== affiliate.tenant_id) return "";
+    if (campaign.type === "raffle") {
+      return purchases
+        .filter(purchase =>
+          purchase.tenant_id === affiliate.tenant_id &&
+          purchase.raffleId === campaign.id &&
+          purchase.status === "paid" &&
+          (purchase.customer?.id === owner.id || purchase.contact === owner.phone)
+        )
+        .map(paidAtFromTraditionalPurchase)
+        .sort()[0] || "";
+    }
+    if (campaign.type === "fazendinha") {
+      return fazendinhaCompras
+        .filter(purchase =>
+          purchase.tenant_id === affiliate.tenant_id &&
+          purchase.usuarioId === owner.id &&
+          purchase.statusPagamento === "paid"
+        )
+        .map(purchase => purchase.paidAt || purchase.confirmedAt || purchase.dataCompra)
+        .sort()[0] || "";
+    }
+    return numberModePurchases
+      .filter(purchase =>
+        purchase.tenant_id === affiliate.tenant_id &&
+        purchase.mode === campaign.id &&
+        purchase.customer.id === owner.id &&
+        purchase.status === "paid"
+      )
+      .map(purchase => purchase.paidAt || purchase.confirmedAt || purchase.createdAt)
+      .sort()[0] || "";
+  }
+
+  function affiliateIsEligibleForCampaignCommission(affiliate: AffiliateRecord, campaign: AffiliateCampaignRef | undefined, saleTenantId: string, saleCreatedAt: string) {
+    if (!campaign) return { eligible: true, reason: "" };
+    if (affiliate.tenant_id !== saleTenantId || !affiliate.enabled) {
+      return { eligible: false, reason: "Afiliado ainda não participa desta campanha." };
+    }
+    const ownPaidAt = affiliateOwnCampaignPaidAt(affiliate, campaign);
+    if (!ownPaidAt) return { eligible: false, reason: "Afiliado ainda não participa desta campanha." };
+    const ownTime = new Date(ownPaidAt).getTime();
+    const saleTime = new Date(saleCreatedAt).getTime();
+    if (!Number.isFinite(ownTime) || !Number.isFinite(saleTime) || ownTime >= saleTime) {
+      return { eligible: false, reason: "Afiliado ainda não participa desta campanha." };
+    }
+    return { eligible: true, reason: "" };
+  }
+
+  function buildAffiliateCampaignCommissionStatus(affiliate: AffiliateRecord, campaign?: AffiliateCampaignRef) {
+    if (!campaign) {
+      return { commissionEnabled: false, commissionStatusLabel: "Compre para liberar comissão nesta campanha" };
+    }
+    const ownPaidAt = affiliateOwnCampaignPaidAt(affiliate, campaign);
+    const participates = Boolean(ownPaidAt && new Date(ownPaidAt).getTime() < Date.now());
+    return {
+      commissionEnabled: participates,
+      commissionStatusLabel: participates
+        ? "Você já participa: comissões liberadas"
+        : "Compre para liberar comissão nesta campanha"
     };
   }
 
@@ -11656,6 +11748,7 @@ async function startServer() {
           name: raffle.title,
           type: "Rifa",
           status: "Ativa",
+          ...buildAffiliateCampaignCommissionStatus(affiliate, { type: "raffle", id: raffle.id }),
           publicPath: `/raffle/${encodeURIComponent(raffle.id)}`,
           affiliateUrl: addAffiliateParams(`/raffle/${encodeURIComponent(raffle.id)}`),
           imageUrl: raffle.image || raffle.mediaUrl || "",
@@ -11666,6 +11759,7 @@ async function startServer() {
           name: fazendinha.name || "A Fazendinha",
           type: "Fazendinha",
           status: "Ativa",
+          ...buildAffiliateCampaignCommissionStatus(affiliate, { type: "fazendinha", id: "fazendinha" }),
           publicPath: "/fazendinha",
           affiliateUrl: addAffiliateParams("/fazendinha"),
           imageUrl: fazendinha.mediaUrl || "",
@@ -11676,6 +11770,7 @@ async function startServer() {
           name: config.name,
           type: "Número da Sorte",
           status: "Ativa",
+          ...buildAffiliateCampaignCommissionStatus(affiliate, { type: "number_mode", id: config.id }),
           publicPath: `/${config.id}`,
           affiliateUrl: addAffiliateParams(`/${config.id}`),
           imageUrl: config.mediaUrl || "",
@@ -11690,6 +11785,7 @@ async function startServer() {
             name: coupon.name || `Promoção ${coupon.code}`,
             type: "Promoção",
             status: "Ativa",
+            ...buildAffiliateCampaignCommissionStatus(affiliate, linkedRaffle ? { type: "raffle", id: linkedRaffle.id } : undefined),
             publicPath,
             affiliateUrl,
             imageUrl: linkedRaffle?.image || linkedRaffle?.mediaUrl || "",

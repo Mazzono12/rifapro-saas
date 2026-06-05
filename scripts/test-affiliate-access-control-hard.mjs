@@ -216,10 +216,33 @@ assert(!adminAffiliateSearchBlock.includes("ensureAffiliateForCustomer"), "busca
 const commissionBlock = server.slice(server.indexOf("function creditAffiliateCommission"), server.indexOf("type AffiliatePaidOrder"));
 includesAll(commissionBlock, [
   "resolveAffiliateCommissionRate(affiliate)",
+  "affiliateIsEligibleForCampaignCommission(affiliate",
+  "`ineligible:${input.source}`",
   "affiliate.history.some",
   "affiliate.commissionBalance += comm"
 ], "comissao personalizada/idempotente");
 assert(!commissionBlock.includes("tenantScopedSettings.affiliateProgram.commissionRate"), "comissao deve passar pelo fallback personalizado/padrao");
+
+const campaignEligibilityBlock = server.slice(server.indexOf("function affiliateOwnCampaignPaidAt"), server.indexOf("function isPendingAffiliateCommission"));
+includesAll(campaignEligibilityBlock, [
+  "purchase.raffleId === campaign.id",
+  "purchase.status === \"paid\"",
+  "purchase.statusPagamento === \"paid\"",
+  "purchase.mode === campaign.id",
+  "affiliate.tenant_id !== saleTenantId",
+  "ownTime >= saleTime",
+  "Afiliado ainda não participa desta campanha.",
+  "Você já participa: comissões liberadas",
+  "Compre para liberar comissão nesta campanha"
+], "elegibilidade de comissao por campanha");
+
+includesAll(server, [
+  'campaign: { type: "raffle", id: purchase.raffleId }',
+  'campaign: { type: "fazendinha", id: "fazendinha" }',
+  'campaign: { type: "number_mode", id: purchase.mode }',
+  "saleCreatedAt: purchase.createdAt",
+  "saleCreatedAt: purchase.dataCompra"
+], "contexto de campanha nas comissoes");
 
 const adminAffiliateFullBlock = server.slice(server.indexOf('app.put("/api/admin/affiliates/:refCode/full"'), server.indexOf('app.put("/api/affiliates/:refCode"'));
 includesAll(adminAffiliateFullBlock, [
@@ -240,6 +263,11 @@ includesAll(adminSales, [
   "useCustomCommission",
   "customCommissionRate"
 ], "ui admin comissao personalizada");
+
+includesAll(affiliates, [
+  "commissionStatusLabel",
+  "commissionEnabled"
+], "painel afiliado indica participacao por campanha");
 
 assert(pkg.includes('"test:affiliate-access-control"'), "package.json deve expor test:affiliate-access-control");
 
