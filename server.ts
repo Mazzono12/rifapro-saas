@@ -8727,17 +8727,42 @@ async function startServer() {
       return;
     }
     const customers = buildCrmBuyerCustomers(req);
-    const segments = buildCrmBuyerSegments(customers);
+    const segmentCounts = buildCrmBuyerSegmentCounts(customers);
+    const filtered = sortCrmBuyerCustomers(
+      filterCrmBuyerCustomers(customers, {
+        search: String(req.query.search || ""),
+        segment: String(req.query.segment || "")
+      }),
+      String(req.query.sortBy || "lastPurchaseAt"),
+      String(req.query.sortDir || "desc")
+    );
+    const requestedLimit = Number.parseInt(String(req.query.limit || ""), 10);
+    const limit = Math.min(MAX_CRM_CUSTOMERS_LIMIT, Math.max(1, Number.isFinite(requestedLimit) ? requestedLimit : DEFAULT_CRM_CUSTOMERS_LIMIT));
+    const requestedPage = Number.parseInt(String(req.query.page || ""), 10);
+    const page = Math.max(1, Number.isFinite(requestedPage) ? requestedPage : 1);
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const safePage = Math.min(page, totalPages);
+    const offset = (safePage - 1) * limit;
+    const paginated = filtered.slice(offset, offset + limit);
     res.json({
-      customers,
-      segments,
+      customers: paginated,
+      pagination: {
+        page: safePage,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: safePage < totalPages,
+        hasPreviousPage: safePage > 1
+      },
+      segmentCounts,
       metrics: {
         total: customers.length,
         totalComprado: Number(customers.reduce((sum, customer) => sum + Number(customer.totalComprado || 0), 0).toFixed(2)),
         compras: customers.reduce((sum, customer) => sum + Number(customer.quantidadeCompras || 0), 0),
-        pixPendente: segments.pixPendente.length,
-        vip: segments.clientesVip.length,
-        recorrentes: segments.compradoresRecorrentes.length
+        pixPendente: segmentCounts.pix_pending,
+        vip: segmentCounts.vip,
+        recorrentes: segmentCounts.recurring
       }
     });
   });
@@ -9023,6 +9048,51 @@ async function startServer() {
       .filter(customer => customer.quantidadeCompras > 0 || customer.flags.pixPendente)
       .sort((a, b) => String(b.ultimaCompra || "").localeCompare(String(a.ultimaCompra || "")));
     return customers;
+  }
+
+  const MAX_CRM_CUSTOMERS_LIMIT = 100;
+  const DEFAULT_CRM_CUSTOMERS_LIMIT = 25;
+  const crmBuyerSegmentPredicates = {
+    today: (customer: ReturnType<typeof buildCrmBuyerCustomers>[number]) => customer.flags.comprouHoje,
+    last_7_days: (customer: ReturnType<typeof buildCrmBuyerCustomers>[number]) => customer.flags.comprouUltimos7Dias,
+    vip: (customer: ReturnType<typeof buildCrmBuyerCustomers>[number]) => customer.flags.clienteVip,
+    recurring: (customer: ReturnType<typeof buildCrmBuyerCustomers>[number]) => customer.flags.compradorRecorrente,
+    pix_pending: (customer: ReturnType<typeof buildCrmBuyerCustomers>[number]) => customer.flags.pixPendente,
+    pix_expired: (customer: ReturnType<typeof buildCrmBuyerCustomers>[number]) => customer.flags.pixVencido,
+    raffle: (customer: ReturnType<typeof buildCrmBuyerCustomers>[number]) => customer.flags.comprouRifa,
+    fazendinha: (customer: ReturnType<typeof buildCrmBuyerCustomers>[number]) => customer.flags.comprouFazendinha,
+    number_mode: (customer: ReturnType<typeof buildCrmBuyerCustomers>[number]) => customer.flags.comprouModalidades,
+    inactive_30_days: (customer: ReturnType<typeof buildCrmBuyerCustomers>[number]) => customer.flags.inativo30Dias
+  } as const;
+
+  function buildCrmBuyerSegmentCounts(customers: ReturnType<typeof buildCrmBuyerCustomers>) {
+    return Object.fromEntries(
+      Object.entries(crmBuyerSegmentPredicates).map(([key, predicate]) => [key, customers.filter(predicate).length])
+    ) as Record<keyof typeof crmBuyerSegmentPredicates, number>;
+  }
+
+  function filterCrmBuyerCustomers(customers: ReturnType<typeof buildCrmBuyerCustomers>, input: { search: string; segment: string }) {
+    const query = String(input.search || "").toLowerCase().trim();
+    const digits = query.replace(/\D/g, "");
+    const segment = String(input.segment || "").trim() as keyof typeof crmBuyerSegmentPredicates;
+    const predicate = crmBuyerSegmentPredicates[segment];
+    return customers.filter(customer => {
+      if (predicate && !predicate(customer)) return false;
+      if (!query) return true;
+      const haystack = `${customer.nome} ${customer.whatsapp} ${customer.campanhaMaisRecente} ${customer.statusComercial}`.toLowerCase();
+      return haystack.includes(query) || Boolean(digits && customer.whatsapp.replace(/\D/g, "").includes(digits));
+    });
+  }
+
+  function sortCrmBuyerCustomers(customers: ReturnType<typeof buildCrmBuyerCustomers>, sortBy: string, sortDir: string) {
+    const direction = sortDir === "asc" ? 1 : -1;
+    const safeSortBy = ["lastPurchaseAt", "totalPurchased", "purchaseCount", "name"].includes(sortBy) ? sortBy : "lastPurchaseAt";
+    return [...customers].sort((left, right) => {
+      if (safeSortBy === "name") return left.nome.localeCompare(right.nome, "pt-BR") * direction;
+      if (safeSortBy === "totalPurchased") return (Number(left.totalComprado || 0) - Number(right.totalComprado || 0)) * direction;
+      if (safeSortBy === "purchaseCount") return (Number(left.quantidadeCompras || 0) - Number(right.quantidadeCompras || 0)) * direction;
+      return String(left.ultimaCompra || "").localeCompare(String(right.ultimaCompra || "")) * direction;
+    });
   }
 
   function buildCrmBuyerSegments(customers: ReturnType<typeof buildCrmBuyerCustomers>) {

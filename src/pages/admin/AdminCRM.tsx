@@ -48,12 +48,18 @@ type BuyerCrmCustomer = {
 
 type BuyerCrmPayload = {
   customers: BuyerCrmCustomer[];
-  segments: Record<string, BuyerCrmCustomer[]>;
+  pagination: { page: number; limit: number; total: number; totalPages: number; hasNextPage: boolean; hasPreviousPage: boolean };
+  segmentCounts: Record<string, number>;
   metrics: { total: number; totalComprado: number; compras: number; pixPendente: number; vip: number; recorrentes: number };
 };
 
 const emptyPayload: CrmPayload = { contacts: [], pipeline: [], segments: {}, metrics: { total: 0, leads: 0, compradores: 0, vips: 0, inativos: 0, receita: 0 } };
-const emptyBuyerPayload: BuyerCrmPayload = { customers: [], segments: {}, metrics: { total: 0, totalComprado: 0, compras: 0, pixPendente: 0, vip: 0, recorrentes: 0 } };
+const emptyBuyerPayload: BuyerCrmPayload = {
+  customers: [],
+  pagination: { page: 1, limit: 25, total: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false },
+  segmentCounts: {},
+  metrics: { total: 0, totalComprado: 0, compras: 0, pixPendente: 0, vip: 0, recorrentes: 0 }
+};
 
 const segmentLabels: Record<string, string> = {
   inactive: "Inativos",
@@ -65,24 +71,29 @@ const segmentLabels: Record<string, string> = {
 };
 
 const buyerSegmentLabels: Record<string, string> = {
-  todos: "Todos",
-  compraramHoje: "Compraram hoje",
-  ultimos7Dias: "Compraram nos últimos 7 dias",
-  clientesVip: "Clientes VIP",
-  compradoresRecorrentes: "Compradores recorrentes",
-  pixPendente: "PIX pendente",
-  pixVencido: "PIX vencido",
-  compraramRifa: "Compraram Rifa",
-  compraramFazendinha: "Compraram Fazendinha",
-  compraramModalidades: "Compraram Modalidades",
-  inativos30Dias: "Inativos há 30 dias"
+  all: "Todos",
+  today: "Compraram hoje",
+  last_7_days: "Compraram nos últimos 7 dias",
+  vip: "Clientes VIP",
+  recurring: "Compradores recorrentes",
+  pix_pending: "PIX pendente",
+  pix_expired: "PIX vencido",
+  raffle: "Compraram Rifa",
+  fazendinha: "Compraram Fazendinha",
+  number_mode: "Compraram Modalidades",
+  inactive_30_days: "Inativos há 30 dias"
 };
 
 export function AdminCRM() {
   const [data, setData] = useState<CrmPayload>(emptyPayload);
   const [buyerData, setBuyerData] = useState<BuyerCrmPayload>(emptyBuyerPayload);
-  const [buyerSegment, setBuyerSegment] = useState("todos");
+  const [buyerSegment, setBuyerSegment] = useState("all");
   const [buyerQuery, setBuyerQuery] = useState("");
+  const [buyerPage, setBuyerPage] = useState(1);
+  const [buyerLimit, setBuyerLimit] = useState(25);
+  const [buyerSortBy, setBuyerSortBy] = useState("lastPurchaseAt");
+  const [buyerSortDir, setBuyerSortDir] = useState<"asc" | "desc">("desc");
+  const [buyerLoading, setBuyerLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [tag, setTag] = useState("");
@@ -96,16 +107,38 @@ export function AdminCRM() {
     void loadCrm();
   }, []);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadBuyerCrm();
+    }, buyerQuery.trim() ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [buyerPage, buyerLimit, buyerQuery, buyerSegment, buyerSortBy, buyerSortDir]);
+
   const loadCrm = async () => {
-    const [response, buyersResponse] = await Promise.all([
-      fetch("/api/admin/crm"),
-      fetch("/api/admin/crm/customers")
-    ]);
+    const response = await fetch("/api/admin/crm");
     const payload = response.ok ? await response.json() : emptyPayload;
-    const buyersPayload = buyersResponse.ok ? await buyersResponse.json() : emptyBuyerPayload;
     setData(payload);
-    setBuyerData(buyersPayload);
     if (selected) void openContact(selected.id, payload.contacts);
+  };
+
+  const loadBuyerCrm = async () => {
+    setBuyerLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(buyerPage),
+        limit: String(buyerLimit),
+        sortBy: buyerSortBy,
+        sortDir: buyerSortDir
+      });
+      const search = buyerQuery.trim();
+      if (search) params.set("search", search);
+      if (buyerSegment !== "all") params.set("segment", buyerSegment);
+      const response = await fetch(`/api/admin/crm/customers?${params.toString()}`);
+      const payload = response.ok ? await response.json() : emptyBuyerPayload;
+      setBuyerData(payload);
+    } finally {
+      setBuyerLoading(false);
+    }
   };
 
   const openContact = async (id: string, fallback = data.contacts) => {
@@ -186,15 +219,6 @@ export function AdminCRM() {
   }, [data.contacts, query, status, tag]);
 
   const tags = useMemo(() => Array.from(new Set(data.contacts.flatMap(contact => contact.tags))).sort(), [data.contacts]);
-  const buyerRows = useMemo(() => {
-    const source = buyerSegment === "todos" ? buyerData.customers : buyerData.segments[buyerSegment] || [];
-    const text = buyerQuery.toLowerCase().trim();
-    const digits = buyerQuery.replace(/\D/g, "");
-    return source.filter(customer => {
-      const haystack = `${customer.nome} ${customer.whatsapp} ${customer.campanhaMaisRecente} ${customer.statusComercial}`.toLowerCase();
-      return !text || haystack.includes(text) || customer.whatsapp.includes(digits);
-    });
-  }, [buyerData, buyerSegment, buyerQuery]);
 
   const copyText = async (label: string, value: string) => {
     try {
@@ -232,24 +256,76 @@ export function AdminCRM() {
             <button
               key={key}
               type="button"
-              onClick={() => setBuyerSegment(key)}
+              onClick={() => {
+                setBuyerSegment(key);
+                setBuyerPage(1);
+              }}
               className={`rounded-[8px] border p-3 text-left transition ${buyerSegment === key ? "border-[var(--admin-primary)] bg-[var(--admin-primary)]/12" : "border-[var(--admin-border)] bg-[var(--admin-surface-strong)] hover:border-[var(--admin-primary)]/50"}`}
             >
               <p className="text-sm font-black text-[var(--admin-text)]">{label}</p>
-              <p className="mt-2 text-2xl font-black text-[var(--admin-primary)]">{key === "todos" ? buyerData.customers.length : buyerData.segments[key]?.length || 0}</p>
+              <p className="mt-2 text-2xl font-black text-[var(--admin-primary)]">{key === "all" ? buyerData.metrics.total : buyerData.segmentCounts[key] || 0}</p>
             </button>
           ))}
         </div>
 
         <div className="border-t border-[var(--admin-border)] p-4">
-          <label className="relative mb-4 block">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
-            <input value={buyerQuery} onChange={event => setBuyerQuery(event.target.value)} placeholder="Buscar por nome, WhatsApp, campanha ou status..." className="admin-input h-12 w-full pl-11" />
-          </label>
+          <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_170px_190px_170px]">
+            <label className="relative block">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
+              <input
+                value={buyerQuery}
+                onChange={event => {
+                  setBuyerQuery(event.target.value);
+                  setBuyerPage(1);
+                }}
+                placeholder="Buscar por nome, WhatsApp, campanha ou status..."
+                className="admin-input h-12 w-full pl-11"
+              />
+            </label>
+            <select
+              className="admin-input h-12"
+              value={buyerLimit}
+              onChange={event => {
+                setBuyerLimit(Number(event.target.value));
+                setBuyerPage(1);
+              }}
+            >
+              {[10, 25, 50, 100].map(value => <option key={value} value={value}>{value} por página</option>)}
+            </select>
+            <select
+              className="admin-input h-12"
+              value={buyerSortBy}
+              onChange={event => {
+                setBuyerSortBy(event.target.value);
+                setBuyerPage(1);
+              }}
+            >
+              <option value="lastPurchaseAt">Ordenar por última compra</option>
+              <option value="totalPurchased">Ordenar por total comprado</option>
+              <option value="purchaseCount">Ordenar por quantidade de compras</option>
+              <option value="name">Ordenar por nome</option>
+            </select>
+            <select
+              className="admin-input h-12"
+              value={buyerSortDir}
+              onChange={event => {
+                setBuyerSortDir(event.target.value === "asc" ? "asc" : "desc");
+                setBuyerPage(1);
+              }}
+            >
+              <option value="desc">Maior primeiro</option>
+              <option value="asc">Menor primeiro</option>
+            </select>
+          </div>
 
-          {buyerRows.length ? (
+          {buyerLoading ? (
+            <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-8 text-center">
+              <p className="font-bold text-[var(--admin-text)]">Carregando compradores...</p>
+              <p className="mt-1 text-sm text-[var(--admin-muted)]">Estamos organizando a base comercial desta página.</p>
+            </div>
+          ) : buyerData.customers.length ? (
             <div className="grid gap-3">
-              {buyerRows.map(customer => (
+              {buyerData.customers.map(customer => (
                 <article key={customer.id} className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
                   <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr_1fr_auto] xl:items-center">
                     <div className="min-w-0">
@@ -276,6 +352,29 @@ export function AdminCRM() {
                   </div>
                 </article>
               ))}
+              <div className="flex flex-col gap-3 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-3 text-sm text-[var(--admin-muted)] sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  Página {buyerData.pagination.page} de {buyerData.pagination.totalPages} · {buyerData.pagination.total} compradores encontrados
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="admin-button-secondary justify-center disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!buyerData.pagination.hasPreviousPage}
+                    onClick={() => setBuyerPage(page => Math.max(1, page - 1))}
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-button-secondary justify-center disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!buyerData.pagination.hasNextPage}
+                    onClick={() => setBuyerPage(page => page + 1)}
+                  >
+                    Próxima
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="rounded-[8px] border border-dashed border-[var(--admin-border)] p-8 text-center">
