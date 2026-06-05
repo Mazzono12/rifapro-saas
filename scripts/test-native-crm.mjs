@@ -12,15 +12,29 @@ function includesAll(source, terms, label) {
 }
 
 includesAll(server, ["CrmContactRecord", "crmContacts", "crmContactOverrides", "buildCrmContactFromCustomer", "updateCrmAutomationForCustomer"], "modelo CRM");
-includesAll(server, ["/api/admin/crm", "/api/admin/crm/contacts", "/api/admin/crm/contacts/:id", "/api/admin/crm/pipeline", "/api/admin/crm/segments", "/api/admin/crm/export.csv", "/api/superadmin/crm"], "endpoints CRM");
+includesAll(server, ["/api/admin/crm", "/api/admin/crm/customers", "/api/admin/crm/contacts", "/api/admin/crm/contacts/:id", "/api/admin/crm/pipeline", "/api/admin/crm/segments", "/api/admin/crm/export.csv", "/api/superadmin/crm"], "endpoints CRM");
 includesAll(server, ["maskCpfForCrm", "maskPhone", "adminCanAccessTenant", "scoped(crmContacts", "recordAuditLedger"], "seguranca CRM");
+includesAll(server, ["requestHasAdminSession(req)", "buildCrmBuyerCustomers", "buildCrmBuyerSegments", "statusComercial", "mensagemPronta"], "CRM compradores seguro");
+includesAll(server, ["compraramHoje", "ultimos7Dias", "clientesVip", "compradoresRecorrentes", "pixPendente", "pixVencido", "compraramRifa", "compraramFazendinha", "compraramModalidades", "inativos30Dias"], "segmentos comerciais CRM");
+includesAll(server, ["PIX ainda está pendente", "Temos novas campanhas disponíveis", "clientes especiais", "Obrigado por participar novamente"], "mensagens prontas CRM");
+const crmCustomersRoute = server.slice(server.indexOf('app.get("/api/admin/crm/customers"'), server.indexOf('app.get("/api/admin/crm/contacts"'));
+const crmCustomersHelper = server.slice(server.indexOf("function buildCrmBuyerCustomers"), server.indexOf("function buildCrmBuyerSegments"));
+includesAll(crmCustomersRoute + crmCustomersHelper, ["requestHasAdminSession(req)", "adminCanAccessTenant", "nome", "whatsapp", "totalComprado", "quantidadeCompras", "ultimaCompra", "campanhaMaisRecente", "statusComercial"], "payload comercial enxuto");
+for (const forbidden of ["pixPayload", "pixQrCodeBase64", "raw_response", "accessPassword", "cpf_mascarado", "gatewayCustomerIds"]) {
+  assert(!crmCustomersRoute.includes(forbidden), `CRM compradores nao deve expor ${forbidden}`);
+}
 includesAll(server, ["getCustomerPaidActivity", "total_spent", "total_orders", "last_purchase_at", "vip", "inativo", "afiliado"], "automacoes CRM");
 includesAll(server, ["whatsappMessageQueue", "walletLedger", "auditEventLedger", "ensureAffiliateForCustomer"], "historico CRM");
 includesAll(server, ["{ pattern: /^\\/crm/, feature: \"crm\" }", "crmContacts,", "crmContactOverrides,"], "feature flag e persistencia CRM");
 
 includesAll(app, ["path=\"crm\"", "path=\"crm/:contactId\"", "path=\"crm/pipeline\"", "path=\"crm/segmentos\"", "AdminCRM"], "rotas CRM");
 includesAll(layout, ["CRM", "/admin/crm"], "menu CRM");
-includesAll(crm, ["Pipeline", "Segmentos", "Novo lead", "Notas internas", "CSV", "saveContact", "createLead"], "UI CRM");
+includesAll(crm, ["CRM de Compradores", "Compraram hoje", "Compraram nos últimos 7 dias", "Clientes VIP", "Compradores recorrentes", "PIX pendente", "PIX vencido", "Compraram Rifa", "Compraram Fazendinha", "Compraram Modalidades", "Inativos há 30 dias"], "UI segmentos compradores");
+includesAll(crm, ["Copiar WhatsApp", "Copiar mensagem", "Nenhuma mensagem é enviada automaticamente", "mensagemPronta", "/api/admin/crm/customers"], "UI CRM somente copia");
+includesAll(crm, ["Etapas comerciais", "Segmentos", "Novo contato", "Notas internas", "CSV", "saveContact", "createLead"], "UI CRM");
+for (const forbiddenUi of ["Novo lead", "Salvar lead", "Pipeline", "\"Score\"", "Todas tags"]) {
+  assert(!crm.includes(forbiddenUi), `UI CRM nao deve exibir termo tecnico: ${forbiddenUi}`);
+}
 
 includesAll(migration, ["crm_contacts", "crm_contact_notes", "tenant_id uuid not null", "enable row level security", "public.can_access_tenant", "status in ('lead','comprador','vip','inativo','bloqueado')"], "migration CRM");
 

@@ -8721,6 +8721,27 @@ async function startServer() {
     });
   });
 
+  app.get("/api/admin/crm/customers", (req, res) => {
+    if (!requestHasAdminSession(req)) {
+      res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+      return;
+    }
+    const customers = buildCrmBuyerCustomers(req);
+    const segments = buildCrmBuyerSegments(customers);
+    res.json({
+      customers,
+      segments,
+      metrics: {
+        total: customers.length,
+        totalComprado: Number(customers.reduce((sum, customer) => sum + Number(customer.totalComprado || 0), 0).toFixed(2)),
+        compras: customers.reduce((sum, customer) => sum + Number(customer.quantidadeCompras || 0), 0),
+        pixPendente: segments.pixPendente.length,
+        vip: segments.clientesVip.length,
+        recorrentes: segments.compradoresRecorrentes.length
+      }
+    });
+  });
+
   app.get("/api/admin/crm/contacts", (req, res) => {
     const query = String(req.query.q || "").toLowerCase().trim();
     const status = String(req.query.status || "");
@@ -8898,6 +8919,125 @@ async function startServer() {
       .filter(purchase => purchase.tenant_id === customer.tenant_id && purchase.usuarioId === customer.id && purchase.statusPagamento === "paid")
       .map(purchase => ({ id: purchase.id, type: "fazendinha", amount: Number(purchase.valorPago || 0), tickets: purchase.numeros.length, created_at: purchase.dataCompra, status: purchase.statusPagamento }));
     return [...traditional, ...modalidade, ...fazendinha].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+
+  function getCustomerCommercialActivity(customer: CustomerRecord) {
+    const traditional = purchases
+      .filter(purchase => purchase.tenant_id === customer.tenant_id && (purchase.customer?.id === customer.id || purchase.contact === customer.phone))
+      .map(purchase => ({
+        id: purchase.purchaseId,
+        type: "rifa",
+        amount: Number(purchase.amount || 0),
+        created_at: paidAtFromHistory(purchase.paymentHistory) || purchase.createdAt,
+        status: purchase.status,
+        campaignName: raffles.find(raffle => raffle.tenant_id === purchase.tenant_id && raffle.id === purchase.raffleId)?.title || purchase.raffleId,
+        expiresAt: purchase.pixExpiresAt || purchase.reservedUntil || ""
+      }));
+    const modalidade = numberModePurchases
+      .filter(purchase => purchase.tenant_id === customer.tenant_id && purchase.customer.id === customer.id)
+      .map(purchase => ({
+        id: purchase.id,
+        type: "modalidade",
+        amount: Number(purchase.amount || 0),
+        created_at: purchase.paidAt || purchase.createdAt,
+        status: purchase.status,
+        campaignName: `Modalidade ${purchase.mode}`,
+        expiresAt: purchase.pixExpiresAt || purchase.reservedUntil || ""
+      }));
+    const fazendinha = fazendinhaCompras
+      .filter(purchase => purchase.tenant_id === customer.tenant_id && purchase.usuarioId === customer.id)
+      .map(purchase => ({
+        id: purchase.id,
+        type: "fazendinha",
+        amount: Number(purchase.valorPago || 0),
+        created_at: purchase.paidAt || purchase.dataCompra,
+        status: purchase.statusPagamento === "reserved" ? "pending" : purchase.statusPagamento,
+        campaignName: "A Fazendinha",
+        expiresAt: purchase.pixExpiresAt || purchase.reservedUntil || ""
+      }));
+    return [...traditional, ...modalidade, ...fazendinha].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+
+  function commercialStatusForCustomer(input: { paidOrders: number; totalSpent: number; lastPaidAt: string; hasPendingPix: boolean }) {
+    if (input.hasPendingPix) return "PIX pendente";
+    if (input.totalSpent >= 1000 || input.paidOrders >= 5) return "VIP";
+    if (input.lastPaidAt && Date.now() - new Date(input.lastPaidAt).getTime() >= 30 * 24 * 60 * 60 * 1000) return "Inativo";
+    if (input.paidOrders >= 2) return "Recorrente";
+    return "Novo cliente";
+  }
+
+  function buildCommercialMessage(status: string, name: string) {
+    const firstName = String(name || "cliente").split(/\s+/)[0] || "cliente";
+    if (status === "PIX pendente") return `Olá, ${firstName}! Vi que você iniciou uma compra, mas o PIX ainda está pendente. Quer finalizar sua participação?`;
+    if (status === "Inativo") return `Olá, ${firstName}! Temos novas campanhas disponíveis. Dá uma olhada e participe novamente!`;
+    if (status === "VIP") return `Olá, ${firstName}! Você está entre nossos clientes especiais. Separei uma campanha que pode te interessar.`;
+    if (status === "Recorrente") return `Olá, ${firstName}! Obrigado por participar novamente. Temos novas oportunidades para você concorrer.`;
+    return `Olá, ${firstName}! Temos campanhas disponíveis para você participar.`;
+  }
+
+  function buildCrmBuyerCustomers(req: express.Request) {
+    const tenantId = resolveRequestTenantId(req);
+    const now = Date.now();
+    const customers = Object.values(customersByPhone)
+      .filter(customer => adminCanAccessTenant(req, customer.tenant_id))
+      .filter(customer => normalizeAuthRole(getAuthSession(req)?.role) === "superadmin" || customer.tenant_id === tenantId)
+      .map(customer => {
+        const activity = getCustomerCommercialActivity(customer);
+        const paid = activity.filter(item => item.status === "paid");
+        const pending = activity.filter(item => item.status === "pending" || item.status === "reserved");
+        const expiredPending = activity.filter(item => ["pending", "reserved", "cancelled"].includes(item.status) && item.expiresAt && new Date(item.expiresAt).getTime() <= now);
+        const lastPaidAt = paid[0]?.created_at || "";
+        const latest = activity[0];
+        const totalComprado = Number(paid.reduce((sum, item) => sum + Number(item.amount || 0), 0).toFixed(2));
+        const statusComercial = commercialStatusForCustomer({
+          paidOrders: paid.length,
+          totalSpent: totalComprado,
+          lastPaidAt,
+          hasPendingPix: pending.length > 0
+        });
+        return {
+          id: customer.id,
+          nome: customer.name,
+          whatsapp: normalizePhone(customer.phone),
+          totalComprado,
+          quantidadeCompras: paid.length,
+          ultimaCompra: lastPaidAt,
+          campanhaMaisRecente: latest?.campaignName || "",
+          statusComercial,
+          tiposCompra: Array.from(new Set(paid.map(item => item.type))),
+          flags: {
+            comprouHoje: Boolean(lastPaidAt && new Date(lastPaidAt).toDateString() === new Date().toDateString()),
+            comprouUltimos7Dias: Boolean(lastPaidAt && now - new Date(lastPaidAt).getTime() <= 7 * 24 * 60 * 60 * 1000),
+            clienteVip: statusComercial === "VIP",
+            compradorRecorrente: paid.length >= 2,
+            pixPendente: pending.length > 0,
+            pixVencido: expiredPending.length > 0,
+            comprouRifa: paid.some(item => item.type === "rifa"),
+            comprouFazendinha: paid.some(item => item.type === "fazendinha"),
+            comprouModalidades: paid.some(item => item.type === "modalidade"),
+            inativo30Dias: Boolean(lastPaidAt && now - new Date(lastPaidAt).getTime() >= 30 * 24 * 60 * 60 * 1000)
+          },
+          mensagemPronta: buildCommercialMessage(statusComercial, customer.name)
+        };
+      })
+      .filter(customer => customer.quantidadeCompras > 0 || customer.flags.pixPendente)
+      .sort((a, b) => String(b.ultimaCompra || "").localeCompare(String(a.ultimaCompra || "")));
+    return customers;
+  }
+
+  function buildCrmBuyerSegments(customers: ReturnType<typeof buildCrmBuyerCustomers>) {
+    return {
+      compraramHoje: customers.filter(customer => customer.flags.comprouHoje),
+      ultimos7Dias: customers.filter(customer => customer.flags.comprouUltimos7Dias),
+      clientesVip: customers.filter(customer => customer.flags.clienteVip),
+      compradoresRecorrentes: customers.filter(customer => customer.flags.compradorRecorrente),
+      pixPendente: customers.filter(customer => customer.flags.pixPendente),
+      pixVencido: customers.filter(customer => customer.flags.pixVencido),
+      compraramRifa: customers.filter(customer => customer.flags.comprouRifa),
+      compraramFazendinha: customers.filter(customer => customer.flags.comprouFazendinha),
+      compraramModalidades: customers.filter(customer => customer.flags.comprouModalidades),
+      inativos30Dias: customers.filter(customer => customer.flags.inativo30Dias)
+    };
   }
 
   function inferCrmStatus(customer: CustomerRecord | undefined, totalSpent: number, totalOrders: number, lastPurchaseAt = ""): CrmContactStatus {
