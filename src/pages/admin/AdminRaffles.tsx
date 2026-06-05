@@ -166,7 +166,7 @@ export function AdminRaffles() {
             <p className="mt-2 text-sm text-slate-400">Crie, publique e acompanhe suas campanhas comerciais.</p>
          </div>
          <button 
-           onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, n8nEnabled: false, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
+           onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
            className="bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/50 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
          >
            <Plus className="w-4 h-4" /> Nova campanha
@@ -501,20 +501,6 @@ export function AdminRaffles() {
                 </div>
 
                 <div className="rounded-3xl border border-amber-300/15 bg-amber-300/[0.03] p-5">
-                  <label className="mb-4 flex items-start gap-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.05] p-4">
-                    <input
-                      type="checkbox"
-                      className="mt-1"
-                      checked={Boolean(currentRaffle.n8nEnabled)}
-                      onChange={e => setCurrentRaffle({ ...currentRaffle, n8nEnabled: e.target.checked })}
-                    />
-                    <span>
-                      <span className="block text-sm font-bold text-white">Ligar integração n8n neste sorteio</span>
-                      <span className="mt-1 block text-xs text-slate-400">
-                        Quando ligado, compras confirmadas deste sorteio podem enviar cotas ao WhatsApp/e-mail pelo canal seguro configurado em Operações.
-                      </span>
-                    </span>
-                  </label>
                   <div className="mb-4">
                     <RewardExperienceSelector
                       enabled={currentRaffle.lootboxEnabled !== false}
@@ -595,7 +581,7 @@ export function AdminRaffles() {
                   Nenhum registro encontrado.
                 </p>
                 <button
-                  onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, n8nEnabled: false, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
+                  onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
                   className="neon-button mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3"
                 >
                   <Plus className="h-4 w-4" /> Nova campanha
@@ -618,8 +604,6 @@ export function AdminRaffles() {
                         <span>Progresso: {((r.progressOverride ?? (r.soldTickets / r.totalTickets) * 100)).toFixed(1)}%</span>
                         <span>|</span>
                         <span>Bilhetes: {r.soldTickets}/{r.totalTickets}</span>
-                        <span>|</span>
-                        <span className={r.n8nEnabled ? "text-emerald-300" : "text-slate-500"}>Automação {r.n8nEnabled ? "ativa" : "inativa"}</span>
                      </div>
                   </div>
                   <div className="flex gap-2">

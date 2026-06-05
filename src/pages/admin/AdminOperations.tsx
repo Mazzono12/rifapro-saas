@@ -23,23 +23,19 @@ export function AdminOperations() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [supportTickets, setSupportTickets] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
-  const [n8nLogs, setN8nLogs] = useState<any[]>([]);
-  const [n8nTestContact, setN8nTestContact] = useState({ phone: "", email: "" });
-  const [broadcast, setBroadcast] = useState({ audience: "platform", raffleId: "", whatsappMessage: "", emailSubject: "", emailBody: "" });
   const [form, setForm] = useState({ code: "", name: "", type: "percent", value: "10", minTickets: "" });
 
   const formatCurrency = (value: number) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const load = async () => {
-    const [financeRes, notificationsRes, healthRes, auditRes, couponsRes, supportRes, settingsRes, n8nRes] = await Promise.all([
+    const [financeRes, notificationsRes, healthRes, auditRes, couponsRes, supportRes, settingsRes] = await Promise.all([
       fetch("/api/admin/finance-summary"),
       fetch("/api/admin/notifications"),
       fetch("/api/admin/system-health"),
       fetch("/api/admin/audit-logs"),
       fetch("/api/admin/campaigns"),
       fetch("/api/admin/support/tickets"),
-      fetch("/api/settings"),
-      fetch("/api/admin/integrations/n8n")
+      fetch("/api/settings")
     ]);
     setFinance(await financeRes.json());
     setNotifications(await notificationsRes.json());
@@ -47,10 +43,7 @@ export function AdminOperations() {
     setAuditLogs(await auditRes.json());
     setCoupons(await couponsRes.json());
     setSupportTickets(await supportRes.json());
-    const publicSettings = await settingsRes.json();
-    const n8nData = await n8nRes.json();
-    setSettings({ ...publicSettings, n8nIntegration: n8nData.config || publicSettings.n8nIntegration });
-    setN8nLogs(n8nData.logs || []);
+    setSettings(await settingsRes.json());
   };
 
   useEffect(() => {
@@ -120,50 +113,6 @@ export function AdminOperations() {
       return;
     }
     toast.success("Configuração de SMS salva");
-    load().catch(() => null);
-  };
-
-  const saveN8nIntegration = async () => {
-    const res = await fetch("/api/admin/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ n8nIntegration: settings?.n8nIntegration })
-    });
-    if (!res.ok) {
-      toast.error("Erro ao salvar n8n");
-      return;
-    }
-    toast.success("Integração n8n salva");
-    load().catch(() => null);
-  };
-
-  const testN8nIntegration = async () => {
-    const res = await fetch("/api/admin/integrations/n8n/test", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(n8nTestContact)
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error || data.log?.error || "Falha no teste n8n");
-    } else {
-      toast.success("Canal seguro respondeu com sucesso");
-    }
-    load().catch(() => null);
-  };
-
-  const sendN8nBroadcast = async () => {
-    const res = await fetch("/api/admin/integrations/n8n/broadcast", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(broadcast)
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.log?.error || "Falha no disparo n8n");
-      return;
-    }
-    toast.success(`Disparo enviado para o n8n (${data.audienceSize} contato(s))`);
     load().catch(() => null);
   };
 
@@ -299,151 +248,6 @@ export function AdminOperations() {
               </label>
               <button onClick={saveSmsProvider} className="admin-button-secondary">Salvar SMS</button>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="admin-card p-5">
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-xl font-black text-[var(--admin-text)]">Integração n8n</h2>
-            <p className="text-sm text-[var(--admin-muted)]">Gerencie o canal seguro para WhatsApp, e-mail, automações e campanhas externas.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={testN8nIntegration} className="admin-button-secondary">Validar conexão</button>
-            <button onClick={saveN8nIntegration} className="admin-button">Salvar n8n</button>
-          </div>
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-[1fr_.9fr]">
-          <div className="space-y-3">
-            <label className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-4 text-sm font-bold text-[var(--admin-text)]">
-              Integração n8n ativa
-              <input
-                type="checkbox"
-                checked={Boolean(settings?.n8nIntegration?.enabled)}
-                onChange={e => setSettings((current: any) => ({ ...current, n8nIntegration: { ...(current?.n8nIntegration || {}), enabled: e.target.checked } }))}
-              />
-            </label>
-            <details className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-4">
-              <summary className="cursor-pointer text-sm font-semibold text-[var(--admin-text)]">Configurações Avançadas</summary>
-              <div className="mt-4 grid gap-3">
-                <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
-                  URL do canal seguro
-                  <input
-                    className="admin-input w-full"
-                    placeholder="Endpoint técnico da automação"
-                    value={settings?.n8nIntegration?.webhookUrl || ""}
-                    onChange={e => setSettings((current: any) => ({ ...current, n8nIntegration: { ...(current?.n8nIntegration || {}), webhookUrl: e.target.value } }))}
-                  />
-                </label>
-                <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
-                  Chave de segurança
-                  <input
-                    className="admin-input w-full"
-                    placeholder="Opcional para validação protegida"
-                    value={settings?.n8nIntegration?.secret || ""}
-                    onChange={e => setSettings((current: any) => ({ ...current, n8nIntegration: { ...(current?.n8nIntegration || {}), secret: e.target.value } }))}
-                  />
-                </label>
-              </div>
-            </details>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {[
-                ["sendPurchaseTickets", "Enviar cotas confirmadas"],
-                ["sendNewRaffleBroadcast", "Disparar nova rifa"],
-                ["sendRaffleUpdateBroadcast", "Disparar atualização de rifa"],
-                ["channelWhatsapp", "Canal WhatsApp"],
-                ["channelEmail", "Canal e-mail"]
-              ].map(([key, label]) => (
-                <label key={key} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--admin-border)] bg-white/[0.03] p-3 text-sm text-[var(--admin-text)]">
-                  {label}
-                  <input
-                    type="checkbox"
-                    checked={Boolean(settings?.n8nIntegration?.[key])}
-                    onChange={e => setSettings((current: any) => ({ ...current, n8nIntegration: { ...(current?.n8nIntegration || {}), [key]: e.target.checked } }))}
-                  />
-                </label>
-              ))}
-            </div>
-            <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
-              Público padrão
-              <select
-                className="admin-input w-full"
-                value={settings?.n8nIntegration?.defaultAudience || "platform"}
-                onChange={e => setSettings((current: any) => ({ ...current, n8nIntegration: { ...(current?.n8nIntegration || {}), defaultAudience: e.target.value } }))}
-              >
-                <option value="platform">Todo o Ambiente Premium</option>
-                <option value="raffle_previous">Clientes da rifa informada/anterior</option>
-              </select>
-            </label>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
-                WhatsApp de teste
-                <input
-                  className="admin-input w-full"
-                  placeholder="5511999999999"
-                  inputMode="tel"
-                  value={n8nTestContact.phone}
-                  onChange={e => setN8nTestContact(current => ({ ...current, phone: e.target.value }))}
-                />
-              </label>
-              <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
-                E-mail de teste
-                <input
-                  className="admin-input w-full"
-                  placeholder="cliente@teste.com"
-                  type="email"
-                  value={n8nTestContact.email}
-                  onChange={e => setN8nTestContact(current => ({ ...current, email: e.target.value }))}
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-4">
-            <h3 className="font-black text-[var(--admin-text)]">Disparo manual via n8n</h3>
-            <p className="mt-1 text-xs text-[var(--admin-muted)]">Use para avisar uma nova rifa, promoção ou comunicado.</p>
-            <div className="mt-3 grid gap-2">
-              <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
-                Audiência
-                <select className="admin-input" value={broadcast.audience} onChange={e => setBroadcast({ ...broadcast, audience: e.target.value })}>
-                  <option value="platform">Todos os clientes</option>
-                  <option value="raffle_previous">Clientes de uma rifa específica</option>
-                </select>
-              </label>
-              <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
-                ID da rifa
-                <input className="admin-input" placeholder="Obrigatório para audiência específica" value={broadcast.raffleId} onChange={e => setBroadcast({ ...broadcast, raffleId: e.target.value })} />
-              </label>
-              <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
-                Mensagem WhatsApp
-                <textarea className="admin-input min-h-28" placeholder="Texto que o fluxo n8n enviará no WhatsApp" value={broadcast.whatsappMessage} onChange={e => setBroadcast({ ...broadcast, whatsappMessage: e.target.value })} />
-              </label>
-              <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
-                Assunto do e-mail
-                <input className="admin-input" placeholder="Assunto da campanha" value={broadcast.emailSubject} onChange={e => setBroadcast({ ...broadcast, emailSubject: e.target.value })} />
-              </label>
-              <label className="grid gap-1.5 text-sm font-semibold text-[var(--admin-text)]">
-                Corpo do e-mail
-                <textarea className="admin-input min-h-28" placeholder="Conteúdo que o fluxo n8n usará no e-mail" value={broadcast.emailBody} onChange={e => setBroadcast({ ...broadcast, emailBody: e.target.value })} />
-              </label>
-              <button onClick={sendN8nBroadcast} className="admin-button">Enviar para n8n</button>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-4">
-          <h3 className="mb-3 font-black text-[var(--admin-text)]">Histórico n8n</h3>
-          <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-            {n8nLogs.slice(0, 12).map(log => (
-              <div key={log.id} className="rounded-xl border border-[var(--admin-border)] p-3">
-                <p className="text-sm font-bold text-[var(--admin-text)]">{log.event} • {log.status}</p>
-                <p className="text-xs text-[var(--admin-muted)]">{new Date(log.createdAt).toLocaleString("pt-BR")} • {log.target} {log.statusCode ? `• HTTP ${log.statusCode}` : ""}</p>
-                {log.error && <p className="mt-1 text-xs text-rose-300">{log.error}</p>}
-              </div>
-            ))}
-            {!n8nLogs.length && <p className="text-sm text-[var(--admin-muted)]">Nenhum evento enviado ainda.</p>}
           </div>
         </div>
       </section>
