@@ -1221,7 +1221,7 @@ async function startServer() {
   type WhatsAppCloudLogRecord = {
     id: string;
     tenant_id: string;
-    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "template_sent" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "manual_reply_sent" | "manual_reply_failed" | "manual_template_sent" | "manual_template_failed" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
+    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "template_sent" | "crm_campaign_created" | "crm_campaign_preview" | "crm_campaign_enqueued" | "crm_campaign_cancelled" | "crm_campaign_send_requested" | "crm_campaign_sent" | "crm_campaign_failed" | "crm_campaign_skipped" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "manual_reply_sent" | "manual_reply_failed" | "manual_template_sent" | "manual_template_failed" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
     status: "success" | "error" | "skipped";
     message: string;
     metadata: Record<string, unknown>;
@@ -1316,6 +1316,29 @@ async function startServer() {
     reason: string;
     source: string;
     createdAt: string;
+  };
+  type WhatsAppCrmCampaignSegment = "today" | "last_7_days" | "vip" | "recurring" | "pix_pending" | "pix_expired" | "raffle" | "fazendinha" | "number_mode" | "inactive_30_days";
+  type WhatsAppCrmCampaignStatus = "draft" | "ready" | "queued" | "sending" | "completed" | "cancelled";
+  type WhatsAppCrmCampaignRecord = {
+    id: string;
+    tenant_id: string;
+    name: string;
+    segment: WhatsAppCrmCampaignSegment;
+    template_name: string;
+    language: string;
+    components: unknown[];
+    status: WhatsAppCrmCampaignStatus;
+    predicted_recipients: number;
+    queued_count: number;
+    sent_count: number;
+    failed_count: number;
+    skipped_count: number;
+    daily_tenant_limit: number;
+    cooldown_hours: number;
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+    cancelled_at?: string;
   };
   type WhatsAppMessageQueueRecord = {
     id: string;
@@ -2862,6 +2885,7 @@ async function startServer() {
   let whatsappCloudTemplates: WhatsAppCloudTemplateRecord[] = [];
   let whatsappPixRecoverySettings: WhatsAppPixRecoverySettingsRecord[] = [];
   let whatsappPurchaseConfirmationSettings: WhatsAppPurchaseConfirmationSettingsRecord[] = [];
+  let whatsappCrmCampaigns: WhatsAppCrmCampaignRecord[] = [];
   let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
   let whatsappContacts: WhatsAppContactRecord[] = [];
   let whatsappConversations: WhatsAppConversationRecord[] = [];
@@ -6141,6 +6165,236 @@ async function startServer() {
       schedulePersistentStateSave("whatsapp-center-template-reply-failed");
       res.status(502).json({ error: safeErrorMessage, message: publicWhatsAppMessage(message) });
     }
+  });
+
+  app.get("/api/admin/whatsapp-center/campaigns", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({ campaigns: whatsappCrmCampaigns.filter(item => item.tenant_id === tenantId).map(sanitizeWhatsAppCrmCampaign) });
+  });
+
+  app.post("/api/admin/whatsapp-center/campaigns", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (Array.isArray(req.body?.to) || Array.isArray(req.body?.recipients) || Array.isArray(req.body?.phones) || Array.isArray(req.body?.contacts)) {
+      return res.status(400).json({ error: "Lista manual nao permitida nesta fase" });
+    }
+    const segment = String(req.body?.segment || "");
+    if (!isWhatsAppCrmCampaignSegment(segment)) return res.status(400).json({ error: "Segmento CRM invalido" });
+    const templateName = String(req.body?.templateName || req.body?.template_name || "").trim();
+    const language = String(req.body?.language || "pt_BR").trim() || "pt_BR";
+    if (!templateName) return res.status(400).json({ error: "Template obrigatorio" });
+    const template = getApprovedWhatsAppTemplate(tenantId, templateName, language);
+    if (!template) return res.status(409).json({ error: "Template aprovado nao encontrado" });
+    if (req.body?.body || req.body?.message || req.body?.text) return res.status(400).json({ error: "Texto livre nao permitido em campanhas" });
+    if (req.body?.components !== undefined && !Array.isArray(req.body.components)) return res.status(400).json({ error: "Componentes invalidos" });
+    const components = Array.isArray(req.body?.components) ? req.body.components : [];
+    try {
+      validateWhatsAppTemplateComponents(template, components);
+    } catch (error) {
+      return res.status(400).json({ error: error instanceof Error ? error.message : "Componentes invalidos" });
+    }
+    const now = new Date().toISOString();
+    const campaign: WhatsAppCrmCampaignRecord = {
+      id: createPublicId("WAC_"),
+      tenant_id: tenantId,
+      name: String(req.body?.name || `Campanha ${segment}`).trim().slice(0, 120) || `Campanha ${segment}`,
+      segment,
+      template_name: templateName,
+      language,
+      components,
+      status: "draft",
+      predicted_recipients: 0,
+      queued_count: 0,
+      sent_count: 0,
+      failed_count: 0,
+      skipped_count: 0,
+      daily_tenant_limit: Math.min(1000, Math.max(1, Math.floor(Number(req.body?.dailyTenantLimit ?? req.body?.daily_tenant_limit ?? 100)))),
+      cooldown_hours: Math.min(720, Math.max(1, Math.floor(Number(req.body?.cooldownHours ?? req.body?.cooldown_hours ?? 24)))),
+      created_by: getAuthSession(req)?.sub || "admin",
+      created_at: now,
+      updated_at: now
+    };
+    whatsappCrmCampaigns.unshift(campaign);
+    recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_created", status: "success", message: "Campanha CRM criada", metadata: { campaignId: campaign.id, segment, templateName, adminId: campaign.created_by } });
+    schedulePersistentStateSave("whatsapp-crm-campaign-created");
+    res.status(201).json({ campaign: sanitizeWhatsAppCrmCampaign(campaign) });
+  });
+
+  app.get("/api/admin/whatsapp-center/campaigns/queue", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({ queue: getWhatsAppCrmCampaignQueue(tenantId).slice(0, 300).map(sanitizeWhatsAppQueueRecord) });
+  });
+
+  app.get("/api/admin/whatsapp-center/campaigns/logs", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({ logs: getWhatsAppCrmCampaignLogs(tenantId, String(req.query.campaignId || "")) });
+  });
+
+  app.get("/api/admin/whatsapp-center/campaigns/:id", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const campaign = whatsappCrmCampaigns.find(item => item.id === req.params.id && item.tenant_id === tenantId);
+    if (!campaign) return res.status(404).json({ error: "Campanha nao encontrada" });
+    res.json({ campaign: sanitizeWhatsAppCrmCampaign(campaign), queue: getWhatsAppCrmCampaignQueue(tenantId, campaign.id).map(sanitizeWhatsAppQueueRecord), logs: getWhatsAppCrmCampaignLogs(tenantId, campaign.id) });
+  });
+
+  app.post("/api/admin/whatsapp-center/campaigns/:id/preview", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const campaign = whatsappCrmCampaigns.find(item => item.id === req.params.id && item.tenant_id === tenantId);
+    if (!campaign) return res.status(404).json({ error: "Campanha nao encontrada" });
+    const recipients = buildWhatsAppCrmCampaignRecipients(req, campaign);
+    campaign.predicted_recipients = recipients.length;
+    campaign.status = campaign.status === "draft" ? "ready" : campaign.status;
+    campaign.updated_at = new Date().toISOString();
+    recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_preview", status: "success", message: "Preview de campanha CRM gerado", metadata: { campaignId: campaign.id, segment: campaign.segment, recipients: recipients.length, previewOnly: true } });
+    schedulePersistentStateSave("whatsapp-crm-campaign-preview");
+    res.json({ campaign: sanitizeWhatsAppCrmCampaign(campaign), recipients: recipients.slice(0, 100).map(item => ({ ...item, phone: maskPhone(item.phone) })), total: recipients.length });
+  });
+
+  app.post("/api/admin/whatsapp-center/campaigns/:id/enqueue", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const campaign = whatsappCrmCampaigns.find(item => item.id === req.params.id && item.tenant_id === tenantId);
+    if (!campaign) return res.status(404).json({ error: "Campanha nao encontrada" });
+    if (campaign.status === "cancelled") return res.status(409).json({ error: "Campanha cancelada" });
+    const template = getApprovedWhatsAppTemplate(tenantId, campaign.template_name, campaign.language);
+    if (!template) return res.status(409).json({ error: "Template aprovado nao encontrado" });
+    const recipients = buildWhatsAppCrmCampaignRecipients(req, campaign);
+    const now = new Date().toISOString();
+    let queued = 0;
+    let skipped = 0;
+    for (const recipient of recipients) {
+      const idempotencyKey = `whatsapp-crm-campaign:${tenantId}:${campaign.id}:${recipient.phone}:${campaign.template_name}`;
+      if (whatsappMessageQueue.some(item => item.idempotency_key === idempotencyKey)) {
+        skipped += 1;
+        continue;
+      }
+      if (queued >= campaign.daily_tenant_limit || countWhatsAppCrmCampaignSentToday(tenantId) + queued >= campaign.daily_tenant_limit) {
+        skipped += 1;
+        continue;
+      }
+      if (hasRecentWhatsAppCrmCampaignForPhone(tenantId, recipient.phone, campaign.cooldown_hours)) {
+        skipped += 1;
+        continue;
+      }
+      whatsappMessageQueue.unshift({
+        id: createPublicId("WAPP_"),
+        tenant_id: tenantId,
+        customer_id: recipient.customerId,
+        phone: recipient.phone,
+        message_type: "whatsapp_crm_campaign",
+        message_body: "",
+        provider: "meta_cloud",
+        status: "queued",
+        attempts: 0,
+        max_attempts: 3,
+        last_error: "",
+        reason: "",
+        template_name: campaign.template_name,
+        language: campaign.language,
+        event_type: "crm_campaign",
+        payload: { campaignId: campaign.id, campaignName: campaign.name, segment: campaign.segment, customerName: recipient.name, statusComercial: recipient.statusComercial, components: campaign.components },
+        created_at: now,
+        updated_at: now,
+        idempotency_key: idempotencyKey
+      });
+      queued += 1;
+    }
+    whatsappMessageQueue = whatsappMessageQueue.slice(0, 5000);
+    campaign.predicted_recipients = recipients.length;
+    campaign.queued_count = getWhatsAppCrmCampaignQueue(tenantId, campaign.id).filter(item => item.status === "queued").length;
+    campaign.skipped_count += skipped;
+    campaign.status = "queued";
+    campaign.updated_at = now;
+    recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_enqueued", status: "success", message: "Campanha CRM enfileirada", metadata: { campaignId: campaign.id, segment: campaign.segment, queued, skipped, templateName: campaign.template_name } });
+    schedulePersistentStateSave("whatsapp-crm-campaign-enqueue");
+    res.json({ campaign: sanitizeWhatsAppCrmCampaign(campaign), queued, skipped, queue: getWhatsAppCrmCampaignQueue(tenantId, campaign.id).map(sanitizeWhatsAppQueueRecord) });
+  });
+
+  app.post("/api/admin/whatsapp-center/campaigns/:id/cancel", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const campaign = whatsappCrmCampaigns.find(item => item.id === req.params.id && item.tenant_id === tenantId);
+    if (!campaign) return res.status(404).json({ error: "Campanha nao encontrada" });
+    const now = new Date().toISOString();
+    campaign.status = "cancelled";
+    campaign.cancelled_at = now;
+    campaign.updated_at = now;
+    getWhatsAppCrmCampaignQueue(tenantId, campaign.id).filter(item => item.status === "queued").forEach(item => {
+      item.status = "skipped";
+      item.reason = "Campanha cancelada antes do envio";
+      item.updated_at = now;
+    });
+    recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_cancelled", status: "success", message: "Campanha CRM cancelada", metadata: { campaignId: campaign.id, adminId: getAuthSession(req)?.sub || "" } });
+    schedulePersistentStateSave("whatsapp-crm-campaign-cancel");
+    res.json({ campaign: sanitizeWhatsAppCrmCampaign(campaign) });
+  });
+
+  app.post("/api/admin/whatsapp-center/campaigns/queue/run", requireWhatsAppCrmCampaignAccess, async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const limit = Math.min(100, Math.max(1, Math.floor(Number(req.body?.limit || 20))));
+    const provider = createMetaWhatsAppCloudProvider(tenantId);
+    const templates = getSavedWhatsAppCloudTemplates(tenantId);
+    const ready = getWhatsAppCrmCampaignQueue(tenantId).filter(item => item.status === "queued" && item.attempts < item.max_attempts).slice(0, limit);
+    let sent = 0;
+    let failed = 0;
+    let skipped = 0;
+    for (const message of ready) {
+      const campaignId = String(message.payload?.campaignId || "");
+      const campaign = whatsappCrmCampaigns.find(item => item.id === campaignId && item.tenant_id === tenantId);
+      if (!campaign || campaign.status === "cancelled") {
+        message.status = "skipped";
+        message.reason = "Campanha cancelada ou indisponivel";
+        message.updated_at = new Date().toISOString();
+        skipped += 1;
+        continue;
+      }
+      if (countWhatsAppCrmCampaignSentToday(tenantId) >= campaign.daily_tenant_limit || hasRecentWhatsAppCrmCampaignForPhone(tenantId, message.phone, campaign.cooldown_hours, message.id)) {
+        message.status = "skipped";
+        message.reason = "Limite diario ou intervalo por telefone respeitado";
+        message.updated_at = new Date().toISOString();
+        skipped += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_skipped", status: "skipped", message: message.reason, metadata: { campaignId: campaign.id, to: maskPhone(message.phone), templateName: message.template_name } });
+        continue;
+      }
+      try {
+        campaign.status = "sending";
+        message.attempts += 1;
+        message.updated_at = new Date().toISOString();
+        recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_send_requested", status: "success", message: "Envio de campanha CRM solicitado", metadata: { campaignId: campaign.id, to: maskPhone(message.phone), templateName: message.template_name } });
+        const result = await provider.sendTemplate({
+          to: message.phone,
+          templateName: String(message.template_name || ""),
+          language: String(message.language || "pt_BR"),
+          components: Array.isArray(message.payload?.components) ? message.payload.components : [],
+          availableTemplates: templates
+        });
+        const processedAt = new Date().toISOString();
+        message.status = "sent";
+        message.sent_at = processedAt;
+        message.processed_at = processedAt;
+        message.updated_at = processedAt;
+        message.meta_message_id = result.data?.messages?.[0]?.id || "";
+        sent += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_sent", status: "success", message: "Campanha CRM enviada", metadata: { campaignId: campaign.id, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "" } });
+      } catch (error) {
+        const processedAt = new Date().toISOString();
+        message.status = message.attempts >= message.max_attempts ? "failed" : "queued";
+        message.last_error = maskSecretText(error instanceof Error ? error.message : "Falha ao enviar campanha CRM");
+        message.reason = message.last_error;
+        message.processed_at = processedAt;
+        message.updated_at = processedAt;
+        failed += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_failed", status: "error", message: message.last_error, metadata: { campaignId, to: maskPhone(message.phone), templateName: message.template_name } });
+      }
+    }
+    whatsappCrmCampaigns.filter(item => item.tenant_id === tenantId).forEach(campaign => {
+      const queue = getWhatsAppCrmCampaignQueue(tenantId, campaign.id);
+      campaign.queued_count = queue.filter(item => item.status === "queued").length;
+      campaign.sent_count = queue.filter(item => item.status === "sent").length;
+      campaign.failed_count = queue.filter(item => item.status === "failed").length;
+      campaign.skipped_count = queue.filter(item => item.status === "skipped").length;
+      if (queue.length && !queue.some(item => item.status === "queued") && campaign.status !== "cancelled") campaign.status = "completed";
+      campaign.updated_at = new Date().toISOString();
+    });
+    schedulePersistentStateSave("whatsapp-crm-campaign-run");
+    res.json({ processed: ready.length, sent, failed, skipped, queue: getWhatsAppCrmCampaignQueue(tenantId).slice(0, 200).map(sanitizeWhatsAppQueueRecord) });
   });
 
   app.get("/api/admin/whatsapp-center/contacts/:id", (req, res) => {
@@ -12474,6 +12728,19 @@ async function startServer() {
     next();
   }
 
+  function requireWhatsAppCrmCampaignAccess(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const session = getAuthSession(req);
+    if (!session) {
+      res.status(401).json({ error: "Sessao invalida ou expirada" });
+      return;
+    }
+    if (!["superadmin", "admin"].includes(normalizeAuthRole(session.role))) {
+      res.status(403).json({ error: "Acesso restrito a admin" });
+      return;
+    }
+    next();
+  }
+
   function normalizeWhatsAppCenterPhone(value: unknown) {
     const digits = String(value || "").replace(/\D/g, "");
     if (!digits) return "";
@@ -12596,6 +12863,80 @@ async function startServer() {
       if (approved.type === "PHONE_NUMBER" && parameters.length) throw new Error("Botao de telefone nao aceita variaveis livres");
       if ((approved.type === "URL" || approved.type === "QUICK_REPLY") && parameters.length > 1) throw new Error("Botao nao aprovado neste template");
     });
+  }
+
+  function isWhatsAppCrmCampaignSegment(value: unknown): value is WhatsAppCrmCampaignSegment {
+    return Object.keys(crmBuyerSegmentPredicates).includes(String(value || ""));
+  }
+
+  function getWhatsAppCrmCampaignQueue(tenantId: string, campaignId?: string) {
+    return whatsappMessageQueue.filter(message =>
+      message.tenant_id === tenantId &&
+      message.message_type === "whatsapp_crm_campaign" &&
+      (!campaignId || message.payload?.campaignId === campaignId)
+    );
+  }
+
+  function getWhatsAppCrmCampaignLogs(tenantId: string, campaignId?: string) {
+    const actions = new Set(["crm_campaign_created", "crm_campaign_preview", "crm_campaign_enqueued", "crm_campaign_cancelled", "crm_campaign_send_requested", "crm_campaign_sent", "crm_campaign_failed", "crm_campaign_skipped"]);
+    return whatsappCloudLogs
+      .filter(log => log.tenant_id === tenantId && actions.has(log.action) && (!campaignId || log.metadata?.campaignId === campaignId))
+      .slice(0, 200);
+  }
+
+  function sanitizeWhatsAppCrmCampaign(campaign: WhatsAppCrmCampaignRecord) {
+    const queue = getWhatsAppCrmCampaignQueue(campaign.tenant_id, campaign.id);
+    return {
+      ...campaign,
+      components: sanitizeTemplateComponentsForLog(campaign.components),
+      queue: {
+        total: queue.length,
+        queued: queue.filter(item => item.status === "queued").length,
+        sent: queue.filter(item => item.status === "sent").length,
+        failed: queue.filter(item => item.status === "failed").length,
+        skipped: queue.filter(item => item.status === "skipped").length
+      }
+    };
+  }
+
+  function buildWhatsAppCrmCampaignRecipients(req: express.Request, campaign: WhatsAppCrmCampaignRecord) {
+    const tenantId = campaign.tenant_id;
+    const customers = filterCrmBuyerCustomers(buildCrmBuyerCustomers(req), { search: "", segment: campaign.segment });
+    const seenPhones = new Set<string>();
+    return customers
+      .map(customer => ({
+        customerId: customer.id,
+        name: customer.nome,
+        phone: normalizeBrazilianPhone(customer.whatsapp),
+        segment: campaign.segment,
+        statusComercial: customer.statusComercial,
+        campanhaMaisRecente: customer.campanhaMaisRecente
+      }))
+      .filter(recipient => {
+        if (!isValidBrazilianWhatsAppPhone(recipient.phone)) return false;
+        if (seenPhones.has(recipient.phone)) return false;
+        seenPhones.add(recipient.phone);
+        const contact = whatsappContacts.find(item => item.tenantId === tenantId && item.phone === recipient.phone);
+        return !contact?.optOut;
+      });
+  }
+
+  function countWhatsAppCrmCampaignSentToday(tenantId: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    return getWhatsAppCrmCampaignQueue(tenantId).filter(message =>
+      message.status === "sent" &&
+      String(message.sent_at || message.processed_at || message.updated_at || "").startsWith(today)
+    ).length;
+  }
+
+  function hasRecentWhatsAppCrmCampaignForPhone(tenantId: string, phone: string, cooldownHours: number, excludeMessageId = "") {
+    const since = Date.now() - Math.max(1, cooldownHours) * 60 * 60 * 1000;
+    return getWhatsAppCrmCampaignQueue(tenantId).some(message =>
+      message.id !== excludeMessageId &&
+      message.phone === phone &&
+      ["queued", "sent"].includes(message.status) &&
+      new Date(message.updated_at || message.created_at).getTime() >= since
+    );
   }
 
   function isWhatsAppOptOutCommand(body: string) {
@@ -18181,6 +18522,7 @@ async function startServer() {
       whatsappCloudTemplates,
       whatsappPixRecoverySettings,
       whatsappPurchaseConfirmationSettings,
+      whatsappCrmCampaigns,
       whatsappMessageQueue,
       whatsappContacts,
       whatsappConversations,
@@ -18275,6 +18617,7 @@ async function startServer() {
       case "whatsappCloudTemplates": whatsappCloudTemplates = Array.isArray(value) ? value : []; break;
       case "whatsappPixRecoverySettings": whatsappPixRecoverySettings = Array.isArray(value) ? value : []; break;
       case "whatsappPurchaseConfirmationSettings": whatsappPurchaseConfirmationSettings = Array.isArray(value) ? value : []; break;
+      case "whatsappCrmCampaigns": whatsappCrmCampaigns = Array.isArray(value) ? value : []; break;
       case "whatsappMessageQueue": whatsappMessageQueue = Array.isArray(value) ? value : []; break;
       case "whatsappContacts": whatsappContacts = Array.isArray(value) ? value : []; break;
       case "whatsappConversations": whatsappConversations = Array.isArray(value) ? value : []; break;

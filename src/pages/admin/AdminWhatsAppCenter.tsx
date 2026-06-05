@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock3, FileText, MessageCircle, Search, Send, StickyNote, UserPlus, X } from "lucide-react";
+import { AlertTriangle, Ban, CheckCircle2, Clock3, Eye, FileText, ListChecks, Megaphone, MessageCircle, Play, RefreshCw, Search, Send, StickyNote, UserPlus, Users, X } from "lucide-react";
 
 type Contact = {
   id: string;
@@ -51,6 +51,57 @@ type Template = {
   buttons?: TemplateButton[];
 };
 
+type CampaignStatus = "draft" | "ready" | "queued" | "sending" | "completed" | "cancelled";
+
+type Campaign = {
+  id: string;
+  name: string;
+  segment: string;
+  template_name: string;
+  language: string;
+  status: CampaignStatus;
+  predicted_recipients: number;
+  queued_count: number;
+  sent_count: number;
+  failed_count: number;
+  skipped_count: number;
+  daily_tenant_limit: number;
+  cooldown_hours: number;
+  queue?: { total: number; queued: number; sent: number; failed: number; skipped: number };
+  created_at: string;
+  updated_at: string;
+};
+
+type CampaignQueueItem = {
+  id: string;
+  campaignId?: string;
+  phone: string;
+  status: string;
+  attempts: number;
+  template_name?: string;
+  reason?: string;
+  created_at: string;
+  updated_at: string;
+  payload?: Record<string, any>;
+};
+
+type CampaignLog = {
+  id: string;
+  action: string;
+  status: string;
+  message: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+};
+
+type CampaignRecipient = {
+  customerId: string;
+  name: string;
+  phone: string;
+  segment: string;
+  statusComercial?: string;
+};
+
 const filters = [
   { key: "", label: "Todas" },
   { key: "open", label: "Abertas" },
@@ -74,6 +125,7 @@ function serviceWindowState(value?: string) {
 }
 
 export function AdminWhatsAppCenter() {
+  const [centerView, setCenterView] = useState<"inbox" | "campaigns">("inbox");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [selected, setSelected] = useState<Conversation | null>(null);
@@ -245,7 +297,17 @@ export function AdminWhatsAppCenter() {
   }
 
   return (
-    <div className="grid min-h-[calc(100vh-150px)] gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={() => setCenterView("inbox")} className={centerView === "inbox" ? "admin-button-primary" : "admin-button-secondary"}>
+          <MessageCircle className="h-4 w-4" /> Atendimento
+        </button>
+        <button type="button" onClick={() => setCenterView("campaigns")} className={centerView === "campaigns" ? "admin-button-primary" : "admin-button-secondary"}>
+          <Megaphone className="h-4 w-4" /> Campanhas CRM
+        </button>
+      </div>
+      {centerView === "campaigns" ? <AdminWhatsAppCampaigns /> : (
+    <div className="grid min-h-[calc(100vh-190px)] gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
       <aside className="admin-card flex min-h-[620px] flex-col overflow-hidden p-0">
         <div className="border-b border-[var(--admin-border)] p-4">
           <div className="flex items-center gap-3">
@@ -466,5 +528,366 @@ export function AdminWhatsAppCenter() {
         )}
       </section>
     </div>
+      )}
+    </div>
   );
+}
+
+function AdminWhatsAppCampaigns() {
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [queue, setQueue] = useState<CampaignQueueItem[]>([]);
+  const [logs, setLogs] = useState<CampaignLog[]>([]);
+  const [previewRecipients, setPreviewRecipients] = useState<CampaignRecipient[]>([]);
+  const [previewTotal, setPreviewTotal] = useState(0);
+  const [selectedId, setSelectedId] = useState("");
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    segment: "today",
+    templateId: "",
+    componentsText: "[]",
+    dailyTenantLimit: "100",
+    cooldownHours: "24"
+  });
+
+  const selectedTemplate = useMemo(() => templates.find(template => template.id === form.templateId) || templates[0] || null, [templates, form.templateId]);
+  const selectedCampaign = useMemo(() => campaigns.find(item => item.id === selectedId) || campaigns[0] || null, [campaigns, selectedId]);
+
+  async function loadCampaigns() {
+    const response = await fetch("/api/admin/whatsapp-center/campaigns");
+    const data = await response.json().catch(() => ({ campaigns: [] }));
+    if (response.ok) {
+      setCampaigns(data.campaigns || []);
+      if (!selectedId && data.campaigns?.[0]?.id) setSelectedId(data.campaigns[0].id);
+    }
+  }
+
+  async function loadTemplates() {
+    const response = await fetch("/api/admin/whatsapp-center/templates");
+    const data = await response.json().catch(() => ({ templates: [] }));
+    if (response.ok) {
+      setTemplates(data.templates || []);
+      if (!form.templateId && data.templates?.[0]?.id) {
+        setForm(current => ({ ...current, templateId: data.templates[0].id }));
+      }
+    }
+  }
+
+  async function loadQueueAndLogs() {
+    const [queueResponse, logsResponse] = await Promise.all([
+      fetch("/api/admin/whatsapp-center/campaigns/queue"),
+      fetch("/api/admin/whatsapp-center/campaigns/logs")
+    ]);
+    const queueData = await queueResponse.json().catch(() => ({ queue: [] }));
+    const logsData = await logsResponse.json().catch(() => ({ logs: [] }));
+    if (queueResponse.ok) setQueue(queueData.queue || []);
+    if (logsResponse.ok) setLogs(logsData.logs || []);
+  }
+
+  useEffect(() => {
+    void loadTemplates();
+    void loadCampaigns();
+    void loadQueueAndLogs();
+  }, []);
+
+  function parseComponents() {
+    const parsed = JSON.parse(form.componentsText || "[]");
+    if (!Array.isArray(parsed)) throw new Error("Componentes devem ser uma lista JSON.");
+    return parsed;
+  }
+
+  async function createCampaign() {
+    if (!selectedTemplate) return;
+    setBusy("create");
+    setError("");
+    let components: unknown[] = [];
+    try {
+      components = parseComponents();
+    } catch (err) {
+      setBusy("");
+      setError(err instanceof Error ? err.message : "Revise os componentes.");
+      return;
+    }
+    const response = await fetch("/api/admin/whatsapp-center/campaigns", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.name,
+        segment: form.segment,
+        templateName: selectedTemplate.name,
+        language: selectedTemplate.language,
+        components,
+        dailyTenantLimit: Number(form.dailyTenantLimit || 100),
+        cooldownHours: Number(form.cooldownHours || 24)
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    setBusy("");
+    if (!response.ok) {
+      setError(data.error || "Falha ao criar Campanha CRM.");
+      return;
+    }
+    setSelectedId(data.campaign?.id || "");
+    setPreviewRecipients([]);
+    setPreviewTotal(0);
+    await loadCampaigns();
+    await loadQueueAndLogs();
+  }
+
+  async function previewCampaign(id = selectedCampaign?.id || "") {
+    if (!id) return;
+    setBusy(`preview:${id}`);
+    setError("");
+    const response = await fetch(`/api/admin/whatsapp-center/campaigns/${id}/preview`, { method: "POST" });
+    const data = await response.json().catch(() => ({}));
+    setBusy("");
+    if (!response.ok) {
+      setError(data.error || "Falha ao gerar preview.");
+      return;
+    }
+    setPreviewRecipients(data.recipients || []);
+    setPreviewTotal(Number(data.total || 0));
+    await loadCampaigns();
+    await loadQueueAndLogs();
+  }
+
+  async function enqueueCampaign(id = selectedCampaign?.id || "") {
+    if (!id) return;
+    setBusy(`enqueue:${id}`);
+    setError("");
+    const response = await fetch(`/api/admin/whatsapp-center/campaigns/${id}/enqueue`, { method: "POST" });
+    const data = await response.json().catch(() => ({}));
+    setBusy("");
+    if (!response.ok) {
+      setError(data.error || "Falha ao enfileirar.");
+      return;
+    }
+    await loadCampaigns();
+    await loadQueueAndLogs();
+  }
+
+  async function cancelCampaign(id: string) {
+    setBusy(`cancel:${id}`);
+    setError("");
+    const response = await fetch(`/api/admin/whatsapp-center/campaigns/${id}/cancel`, { method: "POST" });
+    const data = await response.json().catch(() => ({}));
+    setBusy("");
+    if (!response.ok) {
+      setError(data.error || "Falha ao cancelar.");
+      return;
+    }
+    await loadCampaigns();
+    await loadQueueAndLogs();
+  }
+
+  async function runQueue() {
+    setBusy("run");
+    setError("");
+    const response = await fetch("/api/admin/whatsapp-center/campaigns/queue/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ limit: 20 })
+    });
+    const data = await response.json().catch(() => ({}));
+    setBusy("");
+    if (!response.ok) {
+      setError(data.error || "Falha ao processar fila.");
+      return;
+    }
+    await loadCampaigns();
+    await loadQueueAndLogs();
+  }
+
+  function templatePreview(template: Template | null) {
+    const body = template?.components?.find(component => String(component.type || "").toUpperCase() === "BODY");
+    const header = template?.components?.find(component => String(component.type || "").toUpperCase() === "HEADER");
+    return [header?.text, body?.text].filter(Boolean).join("\n\n") || "Template aprovado sem texto de preview.";
+  }
+
+  return (
+    <div className="space-y-4">
+      <section className="admin-card p-4">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="mb-1 text-xl font-semibold text-[var(--admin-text)]">Campanhas CRM</h2>
+            <p className="text-sm text-[var(--admin-muted)]">Envios promocionais por segmento, sempre com templates aprovados.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => void loadQueueAndLogs()} className="admin-button-secondary">
+              <RefreshCw className="h-4 w-4" /> Atualizar
+            </button>
+            <button type="button" onClick={() => void runQueue()} disabled={busy === "run"} className="admin-button-primary disabled:cursor-not-allowed disabled:opacity-60">
+              <Play className="h-4 w-4" /> Rodar fila
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+          <div className="space-y-3 rounded-[8px] border border-[var(--admin-border)] bg-black/10 p-4">
+            <h3 className="text-sm font-black uppercase text-[var(--admin-muted)]">Criar Campanha</h3>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-[var(--admin-muted)]">Nome</span>
+              <input className="admin-input h-10 w-full" value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Ex.: Oferta VIP" />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-[var(--admin-muted)]">Segmento</span>
+              <select className="admin-input h-10 w-full" value={form.segment} onChange={event => setForm(current => ({ ...current, segment: event.target.value }))}>
+                {campaignSegments.map(segment => <option key={segment.key} value={segment.key}>{segment.label}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-[var(--admin-muted)]">Template aprovado</span>
+              <select className="admin-input h-10 w-full" value={selectedTemplate?.id || ""} onChange={event => setForm(current => ({ ...current, templateId: event.target.value }))}>
+                {templates.map(template => <option key={template.id} value={template.id}>{template.name} · {template.language}</option>)}
+              </select>
+            </label>
+            {!templates.length && <p className="rounded-[8px] border border-amber-400/40 bg-amber-400/10 p-3 text-xs font-semibold text-amber-100">Nenhum template aprovado sincronizado.</p>}
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-[var(--admin-muted)]">Limite diario</span>
+                <input className="admin-input h-10 w-full" type="number" min="1" max="1000" value={form.dailyTenantLimit} onChange={event => setForm(current => ({ ...current, dailyTenantLimit: event.target.value }))} />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-[var(--admin-muted)]">Cooldown horas</span>
+                <input className="admin-input h-10 w-full" type="number" min="1" max="720" value={form.cooldownHours} onChange={event => setForm(current => ({ ...current, cooldownHours: event.target.value }))} />
+              </label>
+            </div>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-[var(--admin-muted)]">Componentes JSON</span>
+              <textarea className="admin-input min-h-[110px] w-full resize-none font-mono text-xs" value={form.componentsText} onChange={event => setForm(current => ({ ...current, componentsText: event.target.value }))} />
+            </label>
+            <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3">
+              <p className="mb-2 text-xs font-semibold uppercase text-[var(--admin-muted)]">Preview do template</p>
+              <p className="whitespace-pre-wrap text-sm text-[var(--admin-text)]">{templatePreview(selectedTemplate)}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(selectedTemplate?.buttons || []).map(button => (
+                  <span key={`${button.index}-${button.type}`} className="rounded-[8px] border border-[var(--admin-border)] px-3 py-1 text-xs text-[var(--admin-text)]">{button.text || button.type}</span>
+                ))}
+              </div>
+            </div>
+            {error && <p className="rounded-[8px] border border-rose-400/40 bg-rose-400/10 p-3 text-xs font-semibold text-rose-100">{error}</p>}
+            <button type="button" onClick={() => void createCampaign()} disabled={!selectedTemplate || busy === "create"} className="admin-button-primary w-full justify-center disabled:cursor-not-allowed disabled:opacity-60">
+              <Megaphone className="h-4 w-4" /> Criar Campanha
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div className="overflow-hidden rounded-[8px] border border-[var(--admin-border)]">
+              <div className="grid grid-cols-[1.2fr_0.8fr_0.8fr_0.7fr_0.8fr] gap-3 border-b border-[var(--admin-border)] bg-black/20 px-4 py-3 text-xs font-black uppercase text-[var(--admin-muted)]">
+                <span>Nome</span><span>Segmento</span><span>Template</span><span>Status</span><span>Acoes</span>
+              </div>
+              {campaigns.map(item => (
+                <div key={item.id} className="grid grid-cols-[1.2fr_0.8fr_0.8fr_0.7fr_0.8fr] items-center gap-3 border-b border-[var(--admin-border)] px-4 py-3 text-sm last:border-b-0">
+                  <button type="button" onClick={() => setSelectedId(item.id)} className="min-w-0 text-left">
+                    <span className="block truncate font-semibold text-[var(--admin-text)]">{item.name}</span>
+                    <span className="text-xs text-[var(--admin-muted)]">{item.predicted_recipients} previsto · {item.queue?.total || 0} na fila</span>
+                  </button>
+                  <span className="text-[var(--admin-muted)]">{campaignSegmentLabel(item.segment)}</span>
+                  <span className="truncate text-[var(--admin-muted)]">{item.template_name}</span>
+                  <StatusPill status={campaignStatusLabel(item.status)} />
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => void previewCampaign(item.id)} className="admin-icon-button" title="Preview" aria-label="Preview"><Eye className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => void enqueueCampaign(item.id)} disabled={item.status === "cancelled"} className="admin-icon-button disabled:cursor-not-allowed disabled:opacity-50" title="Enfileirar" aria-label="Enfileirar"><ListChecks className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => void cancelCampaign(item.id)} disabled={item.status === "completed" || item.status === "cancelled"} className="admin-icon-button disabled:cursor-not-allowed disabled:opacity-50" title="Cancelar" aria-label="Cancelar"><Ban className="h-4 w-4" /></button>
+                  </div>
+                </div>
+              ))}
+              {!campaigns.length && <div className="p-6 text-sm text-[var(--admin-muted)]">Nenhum item criado.</div>}
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-[8px] border border-[var(--admin-border)] p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Users className="h-4 w-4 text-[var(--admin-muted)]" />
+                  <h3 className="text-sm font-black uppercase text-[var(--admin-muted)]">Preview destinatarios</h3>
+                  <span className="ml-auto text-xs font-semibold text-[var(--admin-text)]">{previewTotal}</span>
+                </div>
+                <div className="max-h-[260px] space-y-2 overflow-y-auto">
+                  {previewRecipients.map(recipient => (
+                    <div key={`${recipient.customerId}-${recipient.phone}`} className="rounded-[8px] border border-[var(--admin-border)] px-3 py-2 text-sm">
+                      <p className="font-semibold text-[var(--admin-text)]">{recipient.name}</p>
+                      <p className="text-xs text-[var(--admin-muted)]">{recipient.phone} · {recipient.statusComercial || "-"}</p>
+                    </div>
+                  ))}
+                  {!previewRecipients.length && <p className="text-sm text-[var(--admin-muted)]">Use o botao de preview em uma linha.</p>}
+                </div>
+              </div>
+
+              <div className="rounded-[8px] border border-[var(--admin-border)] p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <ListChecks className="h-4 w-4 text-[var(--admin-muted)]" />
+                  <h3 className="text-sm font-black uppercase text-[var(--admin-muted)]">Fila</h3>
+                  <span className="ml-auto text-xs font-semibold text-[var(--admin-text)]">{queue.length}</span>
+                </div>
+                <div className="max-h-[260px] space-y-2 overflow-y-auto">
+                  {queue.map(item => (
+                    <div key={item.id} className="rounded-[8px] border border-[var(--admin-border)] px-3 py-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate font-semibold text-[var(--admin-text)]">{item.phone}</p>
+                        <span className="text-xs text-[var(--admin-muted)]">{item.status}</span>
+                      </div>
+                      <p className="truncate text-xs text-[var(--admin-muted)]">{item.template_name || "-"} · tentativas {item.attempts}</p>
+                    </div>
+                  ))}
+                  {!queue.length && <p className="text-sm text-[var(--admin-muted)]">Fila vazia.</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[8px] border border-[var(--admin-border)] p-4">
+              <h3 className="mb-3 text-sm font-black uppercase text-[var(--admin-muted)]">Logs</h3>
+              <div className="max-h-[260px] space-y-2 overflow-y-auto">
+                {logs.map(log => (
+                  <div key={log.id} className="rounded-[8px] border border-[var(--admin-border)] px-3 py-2 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-[var(--admin-text)]">{log.action}</span>
+                      <span className="text-xs text-[var(--admin-muted)]">{log.status}</span>
+                      <span className="ml-auto text-xs text-[var(--admin-muted)]">{formatDate(log.created_at)}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--admin-muted)]">{log.message}</p>
+                  </div>
+                ))}
+                {!logs.length && <p className="text-sm text-[var(--admin-muted)]">Sem logs.</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+const campaignSegments = [
+  { key: "today", label: "Hoje" },
+  { key: "last_7_days", label: "Ultimos 7 dias" },
+  { key: "vip", label: "VIP" },
+  { key: "recurring", label: "Recorrentes" },
+  { key: "pix_pending", label: "PIX pendente" },
+  { key: "pix_expired", label: "PIX vencido" },
+  { key: "raffle", label: "Rifa" },
+  { key: "fazendinha", label: "Fazendinha" },
+  { key: "number_mode", label: "Modalidade numerica" },
+  { key: "inactive_30_days", label: "Inativos 30 dias" }
+];
+
+function campaignSegmentLabel(value: string) {
+  return campaignSegments.find(item => item.key === value)?.label || value;
+}
+
+function campaignStatusLabel(value: CampaignStatus) {
+  const labels: Record<CampaignStatus, string> = {
+    draft: "rascunho",
+    ready: "pronta",
+    queued: "enfileirada",
+    sending: "em envio",
+    completed: "concluida",
+    cancelled: "cancelada"
+  };
+  return labels[value] || value;
+}
+
+function StatusPill({ status }: { status: string }) {
+  return <span className="inline-flex w-fit items-center rounded-[8px] border border-[var(--admin-border)] px-2 py-1 text-xs font-semibold text-[var(--admin-text)]">{status}</span>;
 }
