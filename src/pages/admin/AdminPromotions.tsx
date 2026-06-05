@@ -29,6 +29,10 @@ const defaultRule = (): Partial<PromotionRule> => ({
   stackable: false
 });
 
+function friendlyPromotionType(value?: string) {
+  return promotionTypes.find(item => item.value === value)?.label || "Promoção comercial";
+}
+
 function prettyJson(value: unknown) {
   return JSON.stringify(value || {}, null, 2);
 }
@@ -111,6 +115,14 @@ export function AdminPromotions() {
     await load();
   }
 
+  const conditions = useMemo(() => parseJsonField(conditionsText, selected.conditions || {}), [conditionsText, selected.conditions]);
+  const rewards = useMemo(() => parseJsonField(rewardsText, selected.rewards || {}), [rewardsText, selected.rewards]);
+  const limits = useMemo(() => parseJsonField(limitsText, selected.limits || {}), [limitsText, selected.limits]);
+
+  const updateConditions = (key: string, value: unknown) => setConditionsText(prettyJson({ ...conditions, [key]: value }));
+  const updateRewards = (key: string, value: unknown) => setRewardsText(prettyJson({ ...rewards, [key]: value }));
+  const updateLimits = (key: string, value: unknown) => setLimitsText(prettyJson({ ...limits, [key]: value }));
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -154,10 +166,10 @@ export function AdminPromotions() {
                     <span className={`rounded-full px-2.5 py-1 text-xs font-black ${rule.enabled ? "bg-emerald-500/15 text-emerald-200" : "bg-white/10 text-[var(--admin-muted)]"}`}>
                       {rule.enabled ? "Ativa" : "Inativa"}
                     </span>
-                    <span className="rounded-full bg-cyan-400/10 px-2.5 py-1 text-xs font-black text-cyan-200">{promotionTypes.find(item => item.value === rule.type)?.label || rule.type}</span>
+                    <span className="rounded-full bg-cyan-400/10 px-2.5 py-1 text-xs font-black text-cyan-200">{friendlyPromotionType(rule.type)}</span>
                   </div>
                   <h3 className="mt-2 text-base font-black text-[var(--admin-text)]">{rule.name}</h3>
-                  <p className="mt-1 text-xs text-[var(--admin-muted)]">Prioridade {rule.priority} • {rule.raffle_id ? "Campanha específica" : "Global do cliente"}</p>
+                  <p className="mt-1 text-xs text-[var(--admin-muted)]">{rule.raffle_id ? "Campanha específica" : "Todas as campanhas"} • Ordem de exibição {rule.priority}</p>
                 </button>
                 <div className="flex gap-2">
                   <button className="admin-icon-button" onClick={() => duplicate(rule.id)} aria-label="Duplicar"><Copy className="h-4 w-4" /></button>
@@ -190,12 +202,41 @@ export function AdminPromotions() {
               </select>
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block text-sm font-bold text-[var(--admin-text)]">Prioridade<input className="admin-input mt-1 w-full" type="number" value={selected.priority || 100} onChange={event => setSelected(prev => ({ ...prev, priority: Number(event.target.value) }))} /></label>
+              <label className="block text-sm font-bold text-[var(--admin-text)]">
+                Ordem de exibição
+                <input className="admin-input mt-1 w-full" type="number" value={selected.priority || 100} onChange={event => setSelected(prev => ({ ...prev, priority: Number(event.target.value) }))} />
+                <span className="mt-1 block text-xs text-[var(--admin-muted)]">Menores valores aparecem primeiro quando houver mais de uma promoção ativa.</span>
+              </label>
               <label className="flex items-center gap-2 pt-7 text-sm font-bold text-[var(--admin-text)]"><input type="checkbox" checked={selected.enabled !== false} onChange={event => setSelected(prev => ({ ...prev, enabled: event.target.checked }))} /> Ativa</label>
             </div>
-            <JsonEditor label="Condições" value={conditionsText} onChange={setConditionsText} />
-            <JsonEditor label="Recompensas" value={rewardsText} onChange={setRewardsText} />
-            <JsonEditor label="Limites" value={limitsText} onChange={setLimitsText} />
+            <section className="rounded-xl border border-[var(--admin-border)] p-3">
+              <h3 className="text-sm font-black text-[var(--admin-text)]">Quando a promoção vale</h3>
+              <p className="mt-1 text-xs text-[var(--admin-muted)]">Defina as regras comerciais para o cliente receber o benefício.</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <CommercialInput label="Compra mínima" help="Quantidade mínima de cotas ou valor necessário para ativar." value={conditions.minQuantity ?? conditions.minTickets ?? ""} onChange={value => updateConditions("minQuantity", Number(value || 0))} />
+                <CommercialInput label="Texto público" help="Mensagem exibida para o comprador." value={conditions.publicText ?? ""} onChange={value => updateConditions("publicText", value)} />
+                <CommercialInput label="Dia da semana" help="Opcional para campanhas por período." value={conditions.weekday ?? ""} onChange={value => updateConditions("weekday", value)} />
+                <CommercialInput label="Horário da promoção" help="Ex.: 18h às 22h." value={conditions.timeWindow ?? ""} onChange={value => updateConditions("timeWindow", value)} />
+              </div>
+            </section>
+            <section className="rounded-xl border border-[var(--admin-border)] p-3">
+              <h3 className="text-sm font-black text-[var(--admin-text)]">Benefício entregue</h3>
+              <p className="mt-1 text-xs text-[var(--admin-muted)]">Escolha o que o cliente ganha quando cumprir a regra.</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <CommercialInput label="Multiplicador de cotas" help="Ex.: 2 para cotas em dobro." value={rewards.multiplier ?? ""} onChange={value => updateRewards("multiplier", Number(value || 0))} />
+                <CommercialInput label="Cotas extras" help="Quantidade fixa de cotas adicionais." value={rewards.extraTickets ?? ""} onChange={value => updateRewards("extraTickets", Number(value || 0))} />
+                <CommercialInput label="Nome do benefício" help="Nome amigável mostrado em relatórios e campanhas." value={rewards.label ?? ""} onChange={value => updateRewards("label", value)} />
+                <CommercialInput label="Valor do bônus" help="Use quando a promoção entregar cashback, desconto ou prêmio em reais." value={rewards.amount ?? ""} onChange={value => updateRewards("amount", Number(value || 0))} />
+              </div>
+            </section>
+            <section className="rounded-xl border border-[var(--admin-border)] p-3">
+              <h3 className="text-sm font-black text-[var(--admin-text)]">Limites de uso</h3>
+              <p className="mt-1 text-xs text-[var(--admin-muted)]">Proteja a campanha contra uso excessivo.</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <CommercialInput label="Limite por cliente" value={limits.maxPerCustomer ?? ""} onChange={value => updateLimits("maxPerCustomer", Number(value || 0))} />
+                <CommercialInput label="Limite total" help="Use 0 para não limitar." value={limits.maxTotal ?? ""} onChange={value => updateLimits("maxTotal", Number(value || 0))} />
+              </div>
+            </section>
             <button className="admin-button-primary w-full" onClick={save} disabled={loading}>
               {loading ? <Zap className="h-4 w-4 animate-pulse" /> : <Save className="h-4 w-4" />} Salvar promoção
             </button>
@@ -206,11 +247,12 @@ export function AdminPromotions() {
   );
 }
 
-function JsonEditor({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function CommercialInput({ label, value, onChange, help = "" }: { label: string; value: unknown; onChange: (value: string) => void; help?: string }) {
   return (
     <label className="block text-sm font-bold text-[var(--admin-text)]">
       {label}
-      <textarea className="admin-input mt-1 min-h-28 w-full font-mono text-xs" value={value} onChange={event => onChange(event.target.value)} spellCheck={false} />
+      <input className="admin-input mt-1 w-full" value={String(value ?? "")} onChange={event => onChange(event.target.value)} />
+      {help && <span className="mt-1 block text-xs font-normal text-[var(--admin-muted)]">{help}</span>}
     </label>
   );
 }

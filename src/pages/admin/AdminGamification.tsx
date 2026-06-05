@@ -14,6 +14,15 @@ const moduleLabels: Record<string, string> = {
   orderBump: "Order bump / Upsell"
 };
 
+const statusLabels: Record<string, string> = {
+  success: "Concluído",
+  completed: "Concluído",
+  winner: "Ganhador encontrado",
+  pending: "Em processamento",
+  failed: "Precisa de atenção",
+  error: "Precisa de atenção"
+};
+
 export function AdminGamification() {
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [selectedRaffleId, setSelectedRaffleId] = useState("");
@@ -107,7 +116,7 @@ export function AdminGamification() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Object.entries(config.modules).map(([key, enabled]) => (
           <label key={key} className="admin-card flex cursor-pointer items-center justify-between p-4">
-            <span className="text-sm font-semibold text-[var(--admin-text)]">{moduleLabels[key] || key}</span>
+            <span className="text-sm font-semibold text-[var(--admin-text)]">{friendlyModule(key)}</span>
             <input type="checkbox" checked={Boolean(enabled)} onChange={event => update(`modules.${key}`, event.target.checked)} />
           </label>
         ))}
@@ -117,9 +126,9 @@ export function AdminGamification() {
         <div className="admin-card space-y-4 p-5">
           <h2 className="font-semibold text-[var(--admin-text)]">Regras principais</h2>
           <Field label="Probabilidade da raspadinha (%)" value={config.scratchcard.winProbability} onChange={value => update("scratchcard.winProbability", Number(value))} />
-          <Field label="Order bump - cotas" value={config.orderBump.tickets} onChange={value => update("orderBump.tickets", Number(value))} />
-          <Field label="Order bump - desconto (%)" value={config.orderBump.discountPercent} onChange={value => update("orderBump.discountPercent", Number(value))} />
-          <Field label="Order bump - texto" value={config.orderBump.label} onChange={value => update("orderBump.label", value)} />
+          <Field label="Oferta adicional - cotas" value={config.orderBump.tickets} onChange={value => update("orderBump.tickets", Number(value))} />
+          <Field label="Oferta adicional - desconto (%)" value={config.orderBump.discountPercent} onChange={value => update("orderBump.discountPercent", Number(value))} />
+          <Field label="Oferta adicional - texto" value={config.orderBump.label} onChange={value => update("orderBump.label", value)} />
           <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -129,7 +138,7 @@ export function AdminGamification() {
               </div>
               <label className="inline-flex items-center gap-2 rounded-full border border-[var(--admin-border)] bg-[var(--admin-bg)] px-3 py-2 text-xs font-black text-[var(--admin-text)]">
                 <input type="checkbox" checked={Boolean(config.modules.doubleTickets)} onChange={event => update("modules.doubleTickets", event.target.checked)} />
-                Status: {config.modules.doubleTickets ? "Ativo" : "Inativo"}
+                Situação: {config.modules.doubleTickets ? "Ativa" : "Inativa"}
               </label>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -147,22 +156,23 @@ export function AdminGamification() {
         </div>
 
         <div className="admin-card space-y-4 p-5">
-          <h2 className="font-semibold text-[var(--admin-text)]">JSON avançado</h2>
-          <JsonEditor label="Prêmios raspadinha" value={config.scratchcard.prizes} onChange={value => update("scratchcard.prizes", value)} />
-          <JsonEditor label="Bilhetes premiados" value={config.winningTicket.prizes} onChange={value => update("winningTicket.prizes", value)} />
-          <JsonEditor label="Janelas hora premiada" value={config.luckyHour.windows} onChange={value => update("luckyHour.windows", value)} />
-          <JsonEditor label="Caixinhas" value={config.mysteryBox.boxes} onChange={value => update("mysteryBox.boxes", value)} />
+          <h2 className="font-semibold text-[var(--admin-text)]">Prêmios e campanhas automáticas</h2>
+          <p className="text-sm text-[var(--admin-muted)]">Configure os benefícios por nome, quantidade e chance de entrega. Os detalhes técnicos ficam protegidos pelo sistema.</p>
+          <RewardPlanner label="Prêmios da raspadinha" value={config.scratchcard.prizes} onChange={value => update("scratchcard.prizes", value)} />
+          <RewardPlanner label="Bilhetes premiados" value={config.winningTicket.prizes} onChange={value => update("winningTicket.prizes", value)} />
+          <RewardPlanner label="Janelas da hora premiada" value={config.luckyHour.windows} onChange={value => update("luckyHour.windows", value)} mode="window" />
+          <RewardPlanner label="Caixinhas premiadas" value={config.mysteryBox.boxes} onChange={value => update("mysteryBox.boxes", value)} />
         </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="admin-card p-5">
           <h2 className="mb-3 font-semibold text-[var(--admin-text)]">Ganhadores automáticos</h2>
-          <Rows rows={winners.map(winner => [winner.module, winner.prize, winner.number || "-", winner.purchaseId])} empty="Nenhum ganhador automático ainda." />
+          <Rows rows={winners.map(winner => [friendlyModule(winner.module), winner.prize || "Benefício entregue", winner.number ? `Cota ${winner.number}` : "Cota não informada", winner.purchaseId ? "Compra vinculada" : "Compra não vinculada"])} empty="Nenhum ganhador automático ainda." />
         </div>
         <div className="admin-card p-5">
           <h2 className="mb-3 font-semibold text-[var(--admin-text)]">Eventos</h2>
-          <Rows rows={events.slice(0, 12).map(event => [event.module, event.status, event.purchaseId, new Date(event.createdAt).toLocaleString("pt-BR")])} empty="Nenhum evento ainda." />
+          <Rows rows={events.slice(0, 12).map(event => [friendlyModule(event.module), friendlyStatus(event.status), event.purchaseId ? "Compra vinculada" : "Compra não vinculada", new Date(event.createdAt).toLocaleString("pt-BR")])} empty="Nenhum evento ainda." />
         </div>
       </section>
 
@@ -180,22 +190,53 @@ function Field({ label, value, onChange, placeholder = "" }: { label: string; va
   );
 }
 
-function JsonEditor({ label, value, onChange }: { label: string; value: any; onChange: (value: any) => void }) {
-  const [text, setText] = useState(() => JSON.stringify(value || [], null, 2));
-  useEffect(() => setText(JSON.stringify(value || [], null, 2)), [value]);
+function RewardPlanner({ label, value, onChange, mode = "reward" }: { label: string; value: any; onChange: (value: any) => void; mode?: "reward" | "window" }) {
+  const items = Array.isArray(value) ? value : [];
+  const updateItem = (index: number, key: string, nextValue: string) => {
+    const next = [...items];
+    const current = next[index] && typeof next[index] === "object" ? next[index] : {};
+    next[index] = { ...current, [key]: key === "quantity" || key === "chance" ? Number(nextValue || 0) : nextValue };
+    onChange(next);
+  };
+  const addItem = () => onChange([...items, mode === "window" ? { label: "Nova janela", startsAt: "", endsAt: "" } : { label: "Novo prêmio", quantity: 1, chance: 0 }]);
+
   return (
-    <label className="block text-sm text-[var(--admin-muted)]">
-      {label}
-      <textarea
-        className="admin-input mt-1 h-28 w-full font-mono text-xs"
-        value={text}
-        onChange={event => {
-          setText(event.target.value);
-          try { onChange(JSON.parse(event.target.value)); } catch { null; }
-        }}
-      />
-    </label>
+    <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--admin-text)]">{label}</h3>
+          <p className="text-xs text-[var(--admin-muted)]">{items.length ? `${items.length} item(ns) configurado(s)` : "Nenhum item cadastrado"}</p>
+        </div>
+        <button type="button" onClick={addItem} className="admin-button-secondary text-xs">Adicionar</button>
+      </div>
+      <div className="mt-3 space-y-3">
+        {items.slice(0, 6).map((item: any, index: number) => (
+          <div key={index} className="rounded-xl border border-[var(--admin-border)] p-3">
+            <Field label={mode === "window" ? "Nome da janela" : "Nome do benefício"} value={item.label || item.name || item.prize || ""} onChange={next => updateItem(index, "label", next)} />
+            {mode === "window" ? (
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <Field label="Início" value={item.startsAt || item.start || ""} onChange={next => updateItem(index, "startsAt", next)} />
+                <Field label="Fim" value={item.endsAt || item.end || ""} onChange={next => updateItem(index, "endsAt", next)} />
+              </div>
+            ) : (
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <Field label="Quantidade disponível" value={item.quantity ?? ""} onChange={next => updateItem(index, "quantity", next)} />
+                <Field label="Chance de entrega (%)" value={item.chance ?? item.probability ?? ""} onChange={next => updateItem(index, "chance", next)} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
+}
+
+function friendlyModule(value: string) {
+  return moduleLabels[value] || "Ação comercial";
+}
+
+function friendlyStatus(value: string) {
+  return statusLabels[String(value || "").toLowerCase()] || "Registrado";
 }
 
 function Rows({ rows, empty }: { rows: any[][]; empty: string }) {

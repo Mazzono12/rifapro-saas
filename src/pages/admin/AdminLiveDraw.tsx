@@ -69,7 +69,7 @@ export function AdminLiveDraw() {
         celebrate();
         toast.success("PARABÉNS! Ganhador encontrado");
       } else {
-        toast.info(data.message || "Cota sem ganhador pago");
+        toast.info(friendlyDrawMessage(data));
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro ao realizar sorteio");
@@ -90,7 +90,7 @@ export function AdminLiveDraw() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao preparar sorteio");
       setResult(data);
-      toast.success("Participantes travados e hash publicado");
+      toast.success("Participantes protegidos para o sorteio");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro ao preparar sorteio");
     } finally {
@@ -119,7 +119,7 @@ export function AdminLiveDraw() {
     if (!url) return;
     const link = document.createElement("a");
     link.href = url;
-    link.download = `certificado-sorteio-${form.raffleId}.pdf`;
+    link.download = "certificado-sorteio.pdf";
     link.click();
   };
 
@@ -170,17 +170,17 @@ export function AdminLiveDraw() {
 
       <div className="relative z-10 mx-auto max-w-6xl space-y-6">
         <div className="text-center">
-          <p className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-xs font-mono uppercase tracking-[0.28em] text-amber-200">
+          <p className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">
             <Sparkles className="h-4 w-4" /> Tema Sorteio
           </p>
           <h1 className="mt-5 font-sans text-5xl font-black uppercase tracking-[0.14em] text-white md:text-7xl">Número da SORTE</h1>
-          <p className="mt-3 text-slate-300">Sorteio provably fair com lock de participantes, seed secreta, hash publico e certificado auditavel.</p>
+          <p className="mt-3 text-slate-300">Sorteio auditável com participantes protegidos, apuração guiada e certificado público do resultado.</p>
         </div>
 
         <section className="glass-card p-5 md:p-6">
           <div className="grid gap-3 md:grid-cols-[1.4fr_auto_auto_auto]">
             <select value={form.raffleId} onChange={e => setForm({ ...form, raffleId: e.target.value })} className="p-4">
-              {raffles.map(item => <option key={item.id} value={item.id}>{item.id} • {item.title}</option>)}
+              {raffles.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
             </select>
             <button onClick={prepareDraw} disabled={preparing} className="rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-6 py-4 font-bold text-cyan-100 disabled:opacity-50">
               <Lock className="mr-2 inline h-5 w-5" /> {preparing ? "Travando..." : "Preparar"}
@@ -228,12 +228,10 @@ export function AdminLiveDraw() {
             {result.drawAudit && (
               <div className="mb-6 rounded-2xl border border-white/10 bg-black/25 p-4 text-left">
                 <div className="grid gap-3 md:grid-cols-2">
-                  <Info label="Status provably fair" value={result.drawAudit.status || "locked"} />
-                  <Info label="Hash da seed" value={result.drawAudit.server_seed_hash} />
-                  <Info label="Hash cotas elegiveis" value={result.drawAudit.eligible_numbers_hash} />
-                  <Info label="Algoritmo" value={result.drawAudit.algorithm_version} />
-                  <Info label="Seed revelada" value={result.drawAudit.server_seed_revealed || "Nao revelada antes da execucao"} />
-                  <Info label="Hash resultado" value={result.drawAudit.result_hash || "Aguardando execucao"} />
+                  <Info label="Situação da auditoria" value={friendlyAuditStatus(result.drawAudit.status)} />
+                  <Info label="Participantes" value={result.drawAudit.eligible_numbers_hash ? "Lista protegida" : "Aguardando preparação"} />
+                  <Info label="Segurança do sorteio" value={result.drawAudit.server_seed_revealed ? "Comprovante liberado" : "Comprovante protegido"} />
+                  <Info label="Resultado" value={result.drawAudit.result_hash ? "Resultado certificado" : "Aguardando apuração"} />
                 </div>
                 {result.drawAudit.audit_pdf_url && (
                   <button onClick={downloadCertificate} className="mt-4 rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-bold text-white hover:bg-white/[0.1]">
@@ -256,8 +254,8 @@ export function AdminLiveDraw() {
                 <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-cyan-300/10 text-cyan-200">
                   <Flame className="h-10 w-10" />
                 </div>
-                <h2 className="mt-5 font-display text-4xl font-black text-white">{result.status === "available" ? "Cota disponível" : "Cota reservada"}</h2>
-                <p className="mt-2 text-slate-300">{result.message}</p>
+                <h2 className="mt-5 font-display text-4xl font-black text-white">{friendlyDrawResult(result.status)}</h2>
+                <p className="mt-2 text-slate-300">{friendlyDrawMessage(result)}</p>
               </>
             )}
 
@@ -317,8 +315,34 @@ function EditableMini({ label, value, suffix = "", onChange }: { label: string; 
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <p className="mb-2 text-sm text-slate-300"><span className="font-mono text-xs uppercase tracking-widest text-slate-500">{label}:</span> <strong className="text-white">{value}</strong></p>
+    <p className="mb-2 text-sm text-slate-300"><span className="text-xs font-semibold uppercase tracking-widest text-slate-500">{label}:</span> <strong className="text-white">{value}</strong></p>
   );
+}
+
+function friendlyAuditStatus(value?: string) {
+  const labels: Record<string, string> = {
+    locked: "Participantes protegidos",
+    prepared: "Pronto para apuração",
+    published: "Resultado publicado",
+    completed: "Resultado certificado"
+  };
+  return labels[String(value || "").toLowerCase()] || "Em preparação";
+}
+
+function friendlyDrawResult(value?: string) {
+  const labels: Record<string, string> = {
+    available: "Cota disponível",
+    reserved: "Cota reservada",
+    pending: "Aguardando confirmação",
+    no_winner: "Sem ganhador confirmado"
+  };
+  return labels[String(value || "").toLowerCase()] || "Apuração registrada";
+}
+
+function friendlyDrawMessage(result: any) {
+  if (result?.status === "available") return "A cota sorteada não possui pagamento confirmado para premiação.";
+  if (result?.status === "reserved" || result?.status === "pending") return "A cota ainda não está liberada para premiação.";
+  return "Resultado registrado com os comprovantes de auditoria protegidos pelo sistema.";
 }
 
 function formatWinnerName(name?: string) {
