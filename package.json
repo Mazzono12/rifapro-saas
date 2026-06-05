@@ -149,6 +149,7 @@
     "test:readiness-hardcore": "node scripts/test-hardcore-suite.mjs readiness-hardcore"
     ,"test:whatsapp-auto-ticket": "node scripts/test-whatsapp-auto-ticket.mjs"
     ,"test:whatsapp-queue-hard": "node scripts/test-whatsapp-queue-hard.mjs"
+    ,"test:whatsapp-center-inbox-hard": "node scripts/test-whatsapp-center-inbox-hard.mjs"
     ,"test:whatsapp-cloud-foundation-hard": "node scripts/test-whatsapp-cloud-foundation-hard.mjs"
     ,"test:whatsapp-cloud-modalities-hard": "node scripts/test-whatsapp-cloud-modalities-hard.mjs"
     ,"test:pix-confirmation-safety": "node scripts/test-pix-confirmation-safety.mjs"

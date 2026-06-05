@@ -1266,6 +1266,57 @@ async function startServer() {
     components: unknown[];
     synced_at: string;
   };
+  type WhatsAppContactRecord = {
+    id: string;
+    tenantId: string;
+    customerId?: string;
+    phone: string;
+    displayName: string;
+    source: string;
+    optOut: boolean;
+    optOutAt?: string;
+    lastInboundAt?: string;
+    lastOutboundAt?: string;
+    tags: string[];
+    createdAt: string;
+    updatedAt: string;
+  };
+  type WhatsAppConversationStatus = "open" | "pending" | "resolved" | "waiting_customer";
+  type WhatsAppConversationRecord = {
+    id: string;
+    tenantId: string;
+    contactId: string;
+    phone: string;
+    status: WhatsAppConversationStatus;
+    assignedUserId?: string;
+    lastMessageAt?: string;
+    serviceWindowExpiresAt?: string;
+    unreadCount: number;
+    createdAt: string;
+    updatedAt: string;
+  };
+  type WhatsAppConversationMessageRecord = {
+    id: string;
+    tenantId: string;
+    conversationId: string;
+    direction: "inbound" | "outbound" | "system" | "internal_note";
+    type: "text" | "template" | "image" | "audio" | "document" | "button" | "status" | "unknown";
+    body: string;
+    status?: string;
+    metaMessageId?: string;
+    receivedAt?: string;
+    sentAt?: string;
+    rawSummary: Record<string, unknown>;
+  };
+  type WhatsAppOptOutEventRecord = {
+    id: string;
+    tenantId: string;
+    contactId: string;
+    phone: string;
+    reason: string;
+    source: string;
+    createdAt: string;
+  };
   type WhatsAppMessageQueueRecord = {
     id: string;
     tenant_id: string;
@@ -2812,6 +2863,10 @@ async function startServer() {
   let whatsappPixRecoverySettings: WhatsAppPixRecoverySettingsRecord[] = [];
   let whatsappPurchaseConfirmationSettings: WhatsAppPurchaseConfirmationSettingsRecord[] = [];
   let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
+  let whatsappContacts: WhatsAppContactRecord[] = [];
+  let whatsappConversations: WhatsAppConversationRecord[] = [];
+  let whatsappConversationMessages: WhatsAppConversationMessageRecord[] = [];
+  let whatsappOptOutEvents: WhatsAppOptOutEventRecord[] = [];
   let automationFlows: AutomationFlowRecord[] = [];
   let automationRuns: AutomationRunRecord[] = [];
   let publicActivityEvents: PublicActivityEventRecord[] = [];
@@ -5820,6 +5875,112 @@ async function startServer() {
   });
 
   app.use(resolveTenant);
+
+  app.use("/api/admin/whatsapp-center", rateLimiter, requireWhatsAppCenterAccess);
+
+  app.get("/api/admin/whatsapp-center/conversations", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const status = String(req.query.status || "");
+    const q = String(req.query.q || "").trim().toLowerCase();
+    const unreadOnly = String(req.query.unread || "") === "true" || status === "unread";
+    const rows = whatsappConversations
+      .filter(conversation => conversation.tenantId === tenantId)
+      .filter(conversation => !status || status === "unread" || conversation.status === status)
+      .filter(conversation => !unreadOnly || conversation.unreadCount > 0)
+      .filter(conversation => {
+        if (!q) return true;
+        const contact = whatsappContacts.find(item => item.id === conversation.contactId);
+        return [conversation.phone, contact?.displayName || "", contact?.phone || ""].some(value => String(value).toLowerCase().includes(q));
+      })
+      .sort((a, b) => new Date(b.lastMessageAt || b.updatedAt).getTime() - new Date(a.lastMessageAt || a.updatedAt).getTime())
+      .map(publicWhatsAppConversation);
+    res.json({ conversations: rows });
+  });
+
+  app.get("/api/admin/whatsapp-center/conversations/:id", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const conversation = whatsappConversations.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!conversation) return res.status(404).json({ error: "Conversa nao encontrada" });
+    conversation.unreadCount = 0;
+    conversation.updatedAt = new Date().toISOString();
+    schedulePersistentStateSave("whatsapp-center-read");
+    const messages = whatsappConversationMessages
+      .filter(message => message.tenantId === tenantId && message.conversationId === conversation.id)
+      .sort((a, b) => new Date(a.receivedAt || a.sentAt || "").getTime() - new Date(b.receivedAt || b.sentAt || "").getTime())
+      .map(publicWhatsAppMessage);
+    const contact = whatsappContacts.find(item => item.id === conversation.contactId);
+    res.json({ conversation: publicWhatsAppConversation(conversation), contact: contact ? publicWhatsAppContact(contact) : null, messages });
+  });
+
+  app.put("/api/admin/whatsapp-center/conversations/:id/status", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const status = String(req.body.status || "") as WhatsAppConversationStatus;
+    if (!["open", "pending", "resolved", "waiting_customer"].includes(status)) return res.status(400).json({ error: "Status invalido" });
+    const conversation = whatsappConversations.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!conversation) return res.status(404).json({ error: "Conversa nao encontrada" });
+    conversation.status = status;
+    conversation.updatedAt = new Date().toISOString();
+    schedulePersistentStateSave("whatsapp-center-status");
+    res.json({ conversation: publicWhatsAppConversation(conversation) });
+  });
+
+  app.put("/api/admin/whatsapp-center/conversations/:id/assign", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const conversation = whatsappConversations.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!conversation) return res.status(404).json({ error: "Conversa nao encontrada" });
+    conversation.assignedUserId = String(req.body.assignedUserId || "").trim().slice(0, 120) || undefined;
+    conversation.updatedAt = new Date().toISOString();
+    schedulePersistentStateSave("whatsapp-center-assign");
+    res.json({ conversation: publicWhatsAppConversation(conversation) });
+  });
+
+  app.post("/api/admin/whatsapp-center/conversations/:id/notes", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const conversation = whatsappConversations.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!conversation) return res.status(404).json({ error: "Conversa nao encontrada" });
+    const body = String(req.body.body || "").trim().slice(0, 4000);
+    if (!body) return res.status(400).json({ error: "Nota vazia" });
+    const now = new Date().toISOString();
+    const message: WhatsAppConversationMessageRecord = {
+      id: createPublicId("WAM_"),
+      tenantId,
+      conversationId: conversation.id,
+      direction: "internal_note",
+      type: "text",
+      body,
+      status: "internal",
+      receivedAt: now,
+      rawSummary: { source: "admin_note", actor: getAuthSession(req)?.sub || "admin" }
+    };
+    whatsappConversationMessages.push(message);
+    conversation.lastMessageAt = now;
+    conversation.updatedAt = now;
+    schedulePersistentStateSave("whatsapp-center-note");
+    res.status(201).json({ message: publicWhatsAppMessage(message), conversation: publicWhatsAppConversation(conversation) });
+  });
+
+  app.get("/api/admin/whatsapp-center/contacts/:id", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const contact = whatsappContacts.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!contact) return res.status(404).json({ error: "Contato nao encontrado" });
+    const conversations = whatsappConversations.filter(item => item.tenantId === tenantId && item.contactId === contact.id).map(publicWhatsAppConversation);
+    const optOutEvents = whatsappOptOutEvents.filter(item => item.tenantId === tenantId && item.contactId === contact.id);
+    res.json({ contact: publicWhatsAppContact(contact), conversations, optOutEvents });
+  });
+
+  app.put("/api/admin/whatsapp-center/contacts/:id/consent", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const contact = whatsappContacts.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!contact) return res.status(404).json({ error: "Contato nao encontrado" });
+    const optOut = Boolean(req.body.optOut);
+    contact.optOut = optOut;
+    contact.optOutAt = optOut ? (contact.optOutAt || new Date().toISOString()) : undefined;
+    contact.updatedAt = new Date().toISOString();
+    if (optOut) recordWhatsAppOptOut(tenantId, contact, String(req.body.reason || "admin_consent_update").slice(0, 160), "admin");
+    whatsappContacts = whatsappContacts.map(item => item.id === contact.id ? contact : item);
+    schedulePersistentStateSave("whatsapp-center-consent");
+    res.json({ contact: publicWhatsAppContact(contact) });
+  });
 
   app.use("/api/admin", rateLimiter, requireTenantAdmin);
   const adminFeatureRoutes: Array<{ pattern: RegExp; feature: TenantFeatureFlag }> = [
@@ -12116,6 +12277,234 @@ async function startServer() {
     return whatsappCloudConfigs.find(config => phoneNumberIds.has(config.phone_number_id)) || null;
   }
 
+  function requireWhatsAppCenterAccess(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const session = getAuthSession(req);
+    if (!session) {
+      res.status(401).json({ error: "Sessao invalida ou expirada" });
+      return;
+    }
+    if (!["superadmin", "admin", "operador"].includes(normalizeAuthRole(session.role))) {
+      res.status(403).json({ error: "Acesso restrito a admin ou operador" });
+      return;
+    }
+    next();
+  }
+
+  function normalizeWhatsAppCenterPhone(value: unknown) {
+    const digits = String(value || "").replace(/\D/g, "");
+    if (!digits) return "";
+    return digits.startsWith("55") ? digits : `55${digits}`;
+  }
+
+  function whatsappMessageType(message: Record<string, unknown>): WhatsAppConversationMessageRecord["type"] {
+    const type = String(message.type || "").toLowerCase();
+    if (["text", "template", "image", "audio", "document", "button"].includes(type)) return type as WhatsAppConversationMessageRecord["type"];
+    if (message.button) return "button";
+    return "unknown";
+  }
+
+  function summarizeWhatsAppInbound(message: Record<string, unknown>) {
+    const type = whatsappMessageType(message);
+    return {
+      id: String(message.id || "").slice(0, 160),
+      type,
+      timestamp: String(message.timestamp || "").slice(0, 40),
+      from: maskPhone(normalizeWhatsAppCenterPhone(message.from)),
+      hasText: Boolean((message.text as Record<string, unknown> | undefined)?.body),
+      hasMedia: ["image", "audio", "document"].includes(type)
+    };
+  }
+
+  function summarizeWhatsAppStatus(status: Record<string, unknown>) {
+    const conversation = status.conversation && typeof status.conversation === "object" ? status.conversation as Record<string, unknown> : {};
+    return {
+      id: String(status.id || "").slice(0, 160),
+      status: String(status.status || "unknown").slice(0, 40),
+      timestamp: String(status.timestamp || "").slice(0, 40),
+      recipient: maskPhone(normalizeWhatsAppCenterPhone(status.recipient_id)),
+      conversationId: String(conversation.id || "").slice(0, 160)
+    };
+  }
+
+  function getWhatsAppInboundBody(message: Record<string, unknown>) {
+    const text = message.text && typeof message.text === "object" ? message.text as Record<string, unknown> : {};
+    const button = message.button && typeof message.button === "object" ? message.button as Record<string, unknown> : {};
+    const interactive = message.interactive && typeof message.interactive === "object" ? message.interactive as Record<string, unknown> : {};
+    const buttonReply = interactive.button_reply && typeof interactive.button_reply === "object" ? interactive.button_reply as Record<string, unknown> : {};
+    return String(text.body || button.text || buttonReply.title || "").trim().slice(0, 4000);
+  }
+
+  function isWhatsAppOptOutCommand(body: string) {
+    const normalized = body.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+    return ["SAIR", "PARAR", "CANCELAR", "DESCADASTRAR", "STOP"].includes(normalized);
+  }
+
+  function findCustomerIdForWhatsAppContact(tenantId: string, phone: string) {
+    const digits = phone.replace(/\D/g, "");
+    const variants = new Set([digits, digits.replace(/^55/, "")]);
+    return Object.values(customersByPhone).find(customer =>
+      customer.tenant_id === tenantId &&
+      variants.has(String(customer.phone || "").replace(/\D/g, "").replace(/^55/, ""))
+    )?.id;
+  }
+
+  function upsertWhatsAppContact(tenantId: string, phone: string, displayName: string, source: string, inboundAt?: string) {
+    const now = new Date().toISOString();
+    const existing = whatsappContacts.find(contact => contact.tenantId === tenantId && contact.phone === phone);
+    const contact: WhatsAppContactRecord = {
+      id: existing?.id || createPublicId("WAC_"),
+      tenantId,
+      customerId: existing?.customerId || findCustomerIdForWhatsAppContact(tenantId, phone),
+      phone,
+      displayName: String(displayName || existing?.displayName || phone).trim().slice(0, 160),
+      source: source || existing?.source || "meta_webhook",
+      optOut: Boolean(existing?.optOut),
+      optOutAt: existing?.optOutAt,
+      lastInboundAt: inboundAt || existing?.lastInboundAt,
+      lastOutboundAt: existing?.lastOutboundAt,
+      tags: Array.isArray(existing?.tags) ? existing!.tags : [],
+      createdAt: existing?.createdAt || now,
+      updatedAt: now
+    };
+    whatsappContacts = existing ? whatsappContacts.map(item => item.id === existing.id ? contact : item) : [contact, ...whatsappContacts];
+    return contact;
+  }
+
+  function ensureWhatsAppConversation(tenantId: string, contact: WhatsAppContactRecord, inboundAt?: string) {
+    const now = new Date().toISOString();
+    const existing = whatsappConversations.find(conversation =>
+      conversation.tenantId === tenantId &&
+      conversation.contactId === contact.id &&
+      conversation.status !== "resolved"
+    );
+    const serviceWindowExpiresAt = inboundAt ? new Date(new Date(inboundAt).getTime() + 24 * 60 * 60 * 1000).toISOString() : existing?.serviceWindowExpiresAt;
+    const conversation: WhatsAppConversationRecord = {
+      id: existing?.id || createPublicId("WCV_"),
+      tenantId,
+      contactId: contact.id,
+      phone: contact.phone,
+      status: existing?.status || "open",
+      assignedUserId: existing?.assignedUserId,
+      lastMessageAt: inboundAt || existing?.lastMessageAt || now,
+      serviceWindowExpiresAt,
+      unreadCount: existing?.unreadCount || 0,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now
+    };
+    whatsappConversations = existing ? whatsappConversations.map(item => item.id === existing.id ? conversation : item) : [conversation, ...whatsappConversations];
+    return conversation;
+  }
+
+  function publicWhatsAppContact(contact: WhatsAppContactRecord) {
+    return { ...contact, phoneMasked: maskPhone(contact.phone) };
+  }
+
+  function publicWhatsAppConversation(conversation: WhatsAppConversationRecord) {
+    const contact = whatsappContacts.find(item => item.id === conversation.contactId);
+    return { ...conversation, contact: contact ? publicWhatsAppContact(contact) : null, phoneMasked: maskPhone(conversation.phone) };
+  }
+
+  function publicWhatsAppMessage(message: WhatsAppConversationMessageRecord) {
+    return { ...message, rawSummary: maskLogValue(message.rawSummary) };
+  }
+
+  function recordWhatsAppOptOut(tenantId: string, contact: WhatsAppContactRecord, reason: string, source: string) {
+    const now = new Date().toISOString();
+    if (!contact.optOut) {
+      contact.optOut = true;
+      contact.optOutAt = now;
+      contact.updatedAt = now;
+      whatsappContacts = whatsappContacts.map(item => item.id === contact.id ? contact : item);
+    }
+    whatsappOptOutEvents.unshift({
+      id: createPublicId("WAO_"),
+      tenantId,
+      contactId: contact.id,
+      phone: contact.phone,
+      reason,
+      source,
+      createdAt: now
+    });
+  }
+
+  function processWhatsAppCenterInboundWebhook(tenantId: string, payload: unknown) {
+    const body = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+    const entries = Array.isArray(body.entry) ? body.entry as Array<Record<string, unknown>> : [];
+    let inboundCount = 0;
+    let statusCount = 0;
+    entries.forEach(entry => {
+      const changes = Array.isArray(entry.changes) ? entry.changes as Array<Record<string, unknown>> : [];
+      changes.forEach(change => {
+        const value = change.value && typeof change.value === "object" ? change.value as Record<string, unknown> : {};
+        const contacts = Array.isArray(value.contacts) ? value.contacts as Array<Record<string, unknown>> : [];
+        const contactNames = new Map<string, string>();
+        contacts.forEach(item => {
+          const profile = item.profile && typeof item.profile === "object" ? item.profile as Record<string, unknown> : {};
+          contactNames.set(normalizeWhatsAppCenterPhone(item.wa_id), String(profile.name || "").trim());
+        });
+        const messages = Array.isArray(value.messages) ? value.messages as Array<Record<string, unknown>> : [];
+        messages.forEach(message => {
+          const phone = normalizeWhatsAppCenterPhone(message.from);
+          if (!phone) return;
+          const receivedAt = message.timestamp ? new Date(Number(message.timestamp) * 1000).toISOString() : new Date().toISOString();
+          const contact = upsertWhatsAppContact(tenantId, phone, contactNames.get(phone) || "", "meta_webhook", receivedAt);
+          const conversation = ensureWhatsAppConversation(tenantId, contact, receivedAt);
+          const bodyText = getWhatsAppInboundBody(message);
+          whatsappConversationMessages.push({
+            id: createPublicId("WAM_"),
+            tenantId,
+            conversationId: conversation.id,
+            direction: "inbound",
+            type: whatsappMessageType(message),
+            body: bodyText,
+            status: "received",
+            metaMessageId: String(message.id || ""),
+            receivedAt,
+            rawSummary: summarizeWhatsAppInbound(message)
+          });
+          conversation.unreadCount += 1;
+          conversation.lastMessageAt = receivedAt;
+          conversation.serviceWindowExpiresAt = new Date(new Date(receivedAt).getTime() + 24 * 60 * 60 * 1000).toISOString();
+          conversation.updatedAt = new Date().toISOString();
+          whatsappConversations = whatsappConversations.map(item => item.id === conversation.id ? conversation : item);
+          if (isWhatsAppOptOutCommand(bodyText)) recordWhatsAppOptOut(tenantId, contact, bodyText.toUpperCase(), "inbound_command");
+          inboundCount += 1;
+        });
+        const statuses = Array.isArray(value.statuses) ? value.statuses as Array<Record<string, unknown>> : [];
+        statuses.forEach(status => {
+          const metaMessageId = String(status.id || "");
+          const statusValue = String(status.status || "unknown").slice(0, 40);
+          const existing = whatsappConversationMessages.find(message => message.tenantId === tenantId && message.metaMessageId === metaMessageId);
+          if (existing) {
+            existing.status = statusValue;
+            existing.rawSummary = { ...existing.rawSummary, lastStatus: summarizeWhatsAppStatus(status) };
+          } else {
+            const phone = normalizeWhatsAppCenterPhone(status.recipient_id);
+            const contact = phone ? upsertWhatsAppContact(tenantId, phone, "", "meta_status") : null;
+            const conversation = contact ? ensureWhatsAppConversation(tenantId, contact) : null;
+            if (conversation) {
+              whatsappConversationMessages.push({
+                id: createPublicId("WAM_"),
+                tenantId,
+                conversationId: conversation.id,
+                direction: "system",
+                type: "status",
+                body: statusValue,
+                status: statusValue,
+                metaMessageId,
+                receivedAt: new Date().toISOString(),
+                rawSummary: summarizeWhatsAppStatus(status)
+              });
+            }
+          }
+          statusCount += 1;
+        });
+      });
+    });
+    if (inboundCount || statusCount) schedulePersistentStateSave("whatsapp-center-webhook");
+    return { inboundCount, statusCount };
+  }
+
   function upsertWhatsAppCloudConfig(req: express.Request, tenantId: string) {
     const now = new Date().toISOString();
     const existing = getWhatsAppCloudConfig(tenantId);
@@ -15704,6 +16093,7 @@ async function startServer() {
     const entries = Array.isArray(body.entry) ? body.entry : [];
     if (config) {
       createMetaWhatsAppCloudProvider(config.tenant_id).handleWebhook(req.body);
+      processWhatsAppCenterInboundWebhook(config.tenant_id, req.body);
     } else {
       recordSecurityEvent({ tenant_id: "unknown", action: "WHATSAPP_CLOUD_WEBHOOK_UNMATCHED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: "meta-webhook", detail: `entries:${entries.length}` });
     }
@@ -17528,6 +17918,10 @@ async function startServer() {
       whatsappPixRecoverySettings,
       whatsappPurchaseConfirmationSettings,
       whatsappMessageQueue,
+      whatsappContacts,
+      whatsappConversations,
+      whatsappConversationMessages,
+      whatsappOptOutEvents,
       automationFlows,
       automationRuns,
       tenantApiKeys,
@@ -17618,6 +18012,10 @@ async function startServer() {
       case "whatsappPixRecoverySettings": whatsappPixRecoverySettings = Array.isArray(value) ? value : []; break;
       case "whatsappPurchaseConfirmationSettings": whatsappPurchaseConfirmationSettings = Array.isArray(value) ? value : []; break;
       case "whatsappMessageQueue": whatsappMessageQueue = Array.isArray(value) ? value : []; break;
+      case "whatsappContacts": whatsappContacts = Array.isArray(value) ? value : []; break;
+      case "whatsappConversations": whatsappConversations = Array.isArray(value) ? value : []; break;
+      case "whatsappConversationMessages": whatsappConversationMessages = Array.isArray(value) ? value : []; break;
+      case "whatsappOptOutEvents": whatsappOptOutEvents = Array.isArray(value) ? value : []; break;
       case "automationFlows": automationFlows = Array.isArray(value) ? value : []; break;
       case "automationRuns": automationRuns = Array.isArray(value) ? value : []; break;
       case "tenantApiKeys": tenantApiKeys = Array.isArray(value) ? value : []; break;

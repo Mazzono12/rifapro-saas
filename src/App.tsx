@@ -107,6 +107,7 @@ const AdminGamification = lazy(() => import("./pages/admin/AdminGamification").t
 const AdminPromotions = lazy(() => import("./pages/admin/AdminPromotions").then(module => ({ default: module.AdminPromotions })));
 const AdminLiveDraw = lazy(() => import("./pages/admin/AdminLiveDraw").then(module => ({ default: module.AdminLiveDraw })));
 const AdminMessages = lazy(() => import("./pages/admin/AdminMessages").then(module => ({ default: module.AdminMessages })));
+const AdminWhatsAppCenter = lazy(() => import("./pages/admin/AdminWhatsAppCenter").then(module => ({ default: module.AdminWhatsAppCenter })));
 const AdminUsers = lazy(() => import("./pages/admin/AdminCRM").then(module => ({ default: module.AdminUsers })));
 const AdminCRM = lazy(() => import("./pages/admin/AdminCRM").then(module => ({ default: module.AdminCRM })));
 const AdminReports = lazy(() => import("./pages/admin/AdminReports").then(module => ({ default: module.AdminReports })));
@@ -286,6 +287,9 @@ export default function App() {
               <Route path="/caixinhas" element={<Navigate to="/" replace />} />
               <Route path="/:mode" element={<NumberModePage />} />
             
+              <Route path="/admin/whatsapp-center" element={<ProtectedRoute roles={["superadmin", "admin", "operador"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
+                <Route index element={adminSection("Central WhatsApp", <AdminWhatsAppCenter />)} />
+              </Route>
               <Route path="/admin" element={<ProtectedRoute roles={["superadmin", "admin"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={adminSection("Dashboard", <AdminDashboard />)} />
                 <Route path="crm" element={adminSection("CRM", <AdminCRM />)} />
@@ -306,6 +310,7 @@ export default function App() {
                 <Route path="modalidades" element={adminSection("Modalidades", <AdminModalidades />)} />
                 <Route path="sorteio" element={adminSection("Sorteio Ao Vivo", <AdminLiveDraw />)} />
                 <Route path="mensagens" element={adminSection("Mensagens", <AdminMessages />)} />
+                <Route path="whatsapp-center" element={adminSection("Central WhatsApp", <AdminWhatsAppCenter />)} />
                 <Route path="relatorios" element={adminSection("Relatórios e Afiliados", <AdminReports />)} />
                 <Route path="operacoes" element={adminSection("Operações", <AdminOperations />)} />
                 <Route path="integracoes" element={adminSection("Integrações", <AdminIntegrations />)} />
