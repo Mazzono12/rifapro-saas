@@ -39,6 +39,20 @@ export function AdminIntegrations() {
   const [savedCloudTemplates, setSavedCloudTemplates] = useState<any[]>([]);
   const [cloudPhone, setCloudPhone] = useState<any>(null);
   const [templateTest, setTemplateTest] = useState({ to: "", templateName: "", language: "pt_BR", components: "[]" });
+  const [pixRecoverySettings, setPixRecoverySettings] = useState<any>({
+    enabled: false,
+    pending_template_name: "",
+    pending_template_language: "pt_BR",
+    expired_template_name: "",
+    expired_template_language: "pt_BR",
+    min_age_minutes: 15,
+    per_customer_cooldown_hours: 24,
+    daily_tenant_limit: 100,
+    mode: "manual"
+  });
+  const [pixRecoveryPreview, setPixRecoveryPreview] = useState<any[]>([]);
+  const [pixRecoveryQueue, setPixRecoveryQueue] = useState<any[]>([]);
+  const [pixRecoveryLogs, setPixRecoveryLogs] = useState<any[]>([]);
   const [whatsappConfig, setWhatsappConfig] = useState<any>({ provider: "mock", enabled: false, environment: "sandbox", default_language: "pt_BR" });
   const [whatsappMessages, setWhatsappMessages] = useState<any[]>([]);
   const [testPhone, setTestPhone] = useState("");
@@ -52,11 +66,14 @@ export function AdminIntegrations() {
   const selectedSettingsValues = useMemo(() => parseConfigText(settings), [settings]);
 
   const load = async () => {
-    const [integrationsRes, logsRes, whatsappCloudRes, whatsappCloudTemplatesRes, whatsappConfigRes, whatsappMessagesRes] = await Promise.all([
+    const [integrationsRes, logsRes, whatsappCloudRes, whatsappCloudTemplatesRes, pixRecoverySettingsRes, pixRecoveryQueueRes, pixRecoveryLogsRes, whatsappConfigRes, whatsappMessagesRes] = await Promise.all([
       fetch("/api/admin/integrations/global"),
       fetch("/api/admin/integrations/global/logs"),
       fetch("/api/admin/whatsapp-cloud/settings"),
       fetch("/api/admin/whatsapp-cloud/templates/saved"),
+      fetch("/api/admin/whatsapp-cloud/pix-recovery/settings"),
+      fetch("/api/admin/whatsapp-cloud/pix-recovery/queue"),
+      fetch("/api/admin/whatsapp-cloud/pix-recovery/logs"),
       fetch("/api/admin/whatsapp/config"),
       fetch("/api/admin/whatsapp/messages")
     ]);
@@ -69,6 +86,12 @@ export function AdminIntegrations() {
     setCloudLogs(cloudData.logs || []);
     const savedTemplatesData = await whatsappCloudTemplatesRes.json();
     setSavedCloudTemplates(savedTemplatesData.templates || []);
+    const pixSettingsData = await pixRecoverySettingsRes.json();
+    setPixRecoverySettings(pixSettingsData.settings || pixRecoverySettings);
+    const pixQueueData = await pixRecoveryQueueRes.json();
+    setPixRecoveryQueue(pixQueueData.queue || []);
+    const pixLogsData = await pixRecoveryLogsRes.json();
+    setPixRecoveryLogs(pixLogsData.logs || []);
     setWhatsappConfig(await whatsappConfigRes.json());
     setWhatsappMessages(await whatsappMessagesRes.json());
   };
@@ -224,6 +247,67 @@ export function AdminIntegrations() {
     if (!res.ok) toast.error(data.error || "Não foi possível enviar o teste individual");
     else toast.success("Teste individual enviado");
     await load();
+  };
+
+  const savePixRecoverySettings = async () => {
+    const res = await fetch("/api/admin/whatsapp-cloud/pix-recovery/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(pixRecoverySettings)
+    });
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Não foi possível salvar a recuperação de PIX");
+    else {
+      setPixRecoverySettings(data.settings);
+      toast.success("Recuperação de PIX salva");
+    }
+    await load();
+  };
+
+  const previewPixRecovery = async () => {
+    const res = await fetch("/api/admin/whatsapp-cloud/pix-recovery/preview", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Não foi possível testar a regra");
+    else {
+      setPixRecoveryPreview(data.items || []);
+      toast.success("Regra testada sem enviar mensagens");
+    }
+    await load();
+  };
+
+  const enqueuePixRecovery = async () => {
+    const res = await fetch("/api/admin/whatsapp-cloud/pix-recovery/enqueue", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Não foi possível criar a fila");
+    else {
+      setPixRecoveryQueue(data.messages || []);
+      toast.success(`${data.queued || 0} mensagem(ns) adicionada(s) à fila`);
+    }
+    await load();
+  };
+
+  const runPixRecoveryQueue = async () => {
+    const res = await fetch("/api/admin/whatsapp-cloud/pix-recovery/run", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Não foi possível processar a fila");
+    else {
+      setPixRecoveryQueue(data.queue || []);
+      toast.success(`${data.sent || 0} mensagem(ns) enviada(s)`);
+    }
+    await load();
+  };
+
+  const refreshPixRecoveryQueue = async () => {
+    const [queueRes, logsRes] = await Promise.all([
+      fetch("/api/admin/whatsapp-cloud/pix-recovery/queue"),
+      fetch("/api/admin/whatsapp-cloud/pix-recovery/logs")
+    ]);
+    const queueData = await queueRes.json();
+    const logsData = await logsRes.json();
+    if (!queueRes.ok) toast.error(queueData.error || "Não foi possível ver a fila");
+    else setPixRecoveryQueue(queueData.queue || []);
+    if (!logsRes.ok) toast.error(logsData.error || "Não foi possível ver os logs");
+    else setPixRecoveryLogs(logsData.logs || []);
   };
 
   const copyCloudWebhookUrl = async () => {
@@ -510,6 +594,146 @@ export function AdminIntegrations() {
             </div>
           </div>
         </div>
+
+        <div className="mt-5 rounded-lg border border-[var(--admin-border)] p-4">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h3 className="font-semibold text-[var(--admin-text)]">Recuperação automática de PIX</h3>
+              <p className="text-sm text-[var(--admin-muted)]">Recupere compras com PIX pendente ou vencido usando apenas templates oficiais aprovados.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={savePixRecoverySettings} className="admin-button-primary"><Save className="h-4 w-4" />Salvar automação</button>
+              <button type="button" onClick={previewPixRecovery} className="admin-button-secondary"><Eye className="h-4 w-4" />Testar regra</button>
+              <button type="button" onClick={enqueuePixRecovery} className="admin-button-secondary"><ListChecks className="h-4 w-4" />Criar fila</button>
+              <button type="button" onClick={runPixRecoveryQueue} className="admin-button-secondary"><Send className="h-4 w-4" />Processar fila</button>
+              <button type="button" onClick={refreshPixRecoveryQueue} className="admin-button-secondary"><Eye className="h-4 w-4" />Ver fila</button>
+              <button type="button" onClick={refreshPixRecoveryQueue} className="admin-button-secondary"><CheckCircle className="h-4 w-4" />Ver logs</button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <label className="flex items-center gap-2 rounded-lg border border-[var(--admin-border)] px-3 py-2 text-sm text-[var(--admin-text)]">
+              <input
+                type="checkbox"
+                checked={Boolean(pixRecoverySettings.enabled)}
+                onChange={event => setPixRecoverySettings((prev: any) => ({ ...prev, enabled: event.target.checked }))}
+              />
+              Ativar recuperação automática
+            </label>
+            <label className="text-sm text-[var(--admin-muted)]">
+              Template para PIX pendente
+              <select
+                value={pixRecoverySettings.pending_template_name ? `${pixRecoverySettings.pending_template_name}::${pixRecoverySettings.pending_template_language || "pt_BR"}` : ""}
+                onChange={event => {
+                  const [name = "", language = "pt_BR"] = event.target.value.split("::");
+                  setPixRecoverySettings((prev: any) => ({ ...prev, pending_template_name: name, pending_template_language: language }));
+                }}
+                className="admin-input mt-1"
+              >
+                <option value="">Escolha um template aprovado</option>
+                {savedCloudTemplates.filter(template => String(template.status || "").toUpperCase() === "APPROVED").map(template => (
+                  <option key={`pending-${template.name}-${template.language}`} value={`${template.name}::${template.language || "pt_BR"}`}>{template.name} · {template.language || "pt_BR"}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm text-[var(--admin-muted)]">
+              Template para PIX vencido
+              <select
+                value={pixRecoverySettings.expired_template_name ? `${pixRecoverySettings.expired_template_name}::${pixRecoverySettings.expired_template_language || "pt_BR"}` : ""}
+                onChange={event => {
+                  const [name = "", language = "pt_BR"] = event.target.value.split("::");
+                  setPixRecoverySettings((prev: any) => ({ ...prev, expired_template_name: name, expired_template_language: language }));
+                }}
+                className="admin-input mt-1"
+              >
+                <option value="">Escolha um template aprovado</option>
+                {savedCloudTemplates.filter(template => String(template.status || "").toUpperCase() === "APPROVED").map(template => (
+                  <option key={`expired-${template.name}-${template.language}`} value={`${template.name}::${template.language || "pt_BR"}`}>{template.name} · {template.language || "pt_BR"}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm text-[var(--admin-muted)]">
+              Modo
+              <select
+                value={pixRecoverySettings.mode || "manual"}
+                onChange={event => setPixRecoverySettings((prev: any) => ({ ...prev, mode: event.target.value }))}
+                className="admin-input mt-1"
+              >
+                <option value="manual">Manual: apenas criar fila</option>
+                <option value="automatic">Automático: enviar pela fila</option>
+              </select>
+            </label>
+            <label className="text-sm text-[var(--admin-muted)]">
+              Tempo mínimo após geração do PIX
+              <input
+                type="number"
+                min={1}
+                value={pixRecoverySettings.min_age_minutes || 15}
+                onChange={event => setPixRecoverySettings((prev: any) => ({ ...prev, min_age_minutes: Number(event.target.value) }))}
+                className="admin-input mt-1"
+              />
+            </label>
+            <label className="text-sm text-[var(--admin-muted)]">
+              Limite por cliente
+              <input
+                type="number"
+                min={1}
+                value={pixRecoverySettings.per_customer_cooldown_hours || 24}
+                onChange={event => setPixRecoverySettings((prev: any) => ({ ...prev, per_customer_cooldown_hours: Number(event.target.value) }))}
+                className="admin-input mt-1"
+              />
+            </label>
+            <label className="text-sm text-[var(--admin-muted)]">
+              Limite diário por tenant
+              <input
+                type="number"
+                min={1}
+                value={pixRecoverySettings.daily_tenant_limit || 100}
+                onChange={event => setPixRecoverySettings((prev: any) => ({ ...prev, daily_tenant_limit: Number(event.target.value) }))}
+                className="admin-input mt-1"
+              />
+            </label>
+          </div>
+
+          <div className="mt-5 grid gap-4 xl:grid-cols-3">
+            <div className="rounded-lg border border-[var(--admin-border)] p-3">
+              <h4 className="mb-2 font-semibold text-[var(--admin-text)]">Prévia da regra</h4>
+              <div className="max-h-64 space-y-2 overflow-y-auto text-sm">
+                {pixRecoveryPreview.slice(0, 8).map(item => (
+                  <div key={`${item.purchaseId}-${item.eventType}`} className="rounded border border-[var(--admin-border)] px-3 py-2">
+                    <p className="font-semibold text-[var(--admin-text)]">{item.customerName} · {item.campaign}</p>
+                    <p className="text-xs text-[var(--admin-muted)]">{friendlyPixRecoveryEvent(item.eventType)} · {item.eligible ? "Pronto para fila" : item.reason}</p>
+                  </div>
+                ))}
+                {!pixRecoveryPreview.length && <p className="text-[var(--admin-muted)]">Clique em testar regra para ver compras elegíveis.</p>}
+              </div>
+            </div>
+            <div className="rounded-lg border border-[var(--admin-border)] p-3">
+              <h4 className="mb-2 font-semibold text-[var(--admin-text)]">Fila de recuperação</h4>
+              <div className="max-h-64 space-y-2 overflow-y-auto text-sm">
+                {pixRecoveryQueue.slice(0, 8).map(item => (
+                  <div key={item.id} className="rounded border border-[var(--admin-border)] px-3 py-2">
+                    <p className="font-semibold text-[var(--admin-text)]">{friendlyPixRecoveryEvent(item.event_type)} · {friendlyQueueStatus(item.status)}</p>
+                    <p className="text-xs text-[var(--admin-muted)]">{item.order_id || "Pedido"} · {item.phone} · {item.reason || item.last_error || "Aguardando"}</p>
+                  </div>
+                ))}
+                {!pixRecoveryQueue.length && <p className="text-[var(--admin-muted)]">Nenhuma mensagem na fila.</p>}
+              </div>
+            </div>
+            <div className="rounded-lg border border-[var(--admin-border)] p-3">
+              <h4 className="mb-2 font-semibold text-[var(--admin-text)]">Logs de recuperação</h4>
+              <div className="max-h-64 space-y-2 overflow-y-auto text-sm">
+                {pixRecoveryLogs.slice(0, 8).map(log => (
+                  <div key={log.id} className="rounded border border-[var(--admin-border)] px-3 py-2">
+                    <p className="font-semibold text-[var(--admin-text)]">{friendlyCloudAction(log.action)} · {friendlyCloudStatus(log.status)}</p>
+                    <p className="text-xs text-[var(--admin-muted)]">{log.message || "Evento registrado"} · {new Date(log.created_at).toLocaleString("pt-BR")}</p>
+                  </div>
+                ))}
+                {!pixRecoveryLogs.length && <p className="text-[var(--admin-muted)]">Nenhum log de recuperação ainda.</p>}
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="admin-card">
@@ -757,12 +981,37 @@ function friendlyCloudAction(value?: string) {
     templates_synced: "Templates sincronizados",
     template_test_requested: "Teste individual solicitado",
     template_test_sent: "Teste individual enviado",
+    pix_recovery_settings_saved: "Recuperação de PIX salva",
+    pix_recovery_preview: "Prévia da recuperação",
+    pix_recovery_enqueued: "Recuperação adicionada",
+    pix_recovery_sent: "Recuperação enviada",
+    pix_recovery_skipped: "Recuperação ignorada",
     webhook_validate: "Validação do webhook",
     webhook_received: "Webhook recebido",
     credential_error: "Credencial incompleta",
     meta_api_error: "Retorno da Meta"
   };
   return labels[String(value || "").toLowerCase()] || "Operação registrada";
+}
+
+function friendlyPixRecoveryEvent(value?: string) {
+  const labels: Record<string, string> = {
+    pix_pending_reminder: "PIX pendente",
+    pix_expired_reminder: "PIX vencido"
+  };
+  return labels[String(value || "").toLowerCase()] || "Recuperação de PIX";
+}
+
+function friendlyQueueStatus(value?: string) {
+  const labels: Record<string, string> = {
+    queued: "Na fila",
+    pending: "Aguardando",
+    retrying: "Tentando novamente",
+    sent: "Enviado",
+    failed: "Falhou",
+    skipped: "Ignorado"
+  };
+  return labels[String(value || "").toLowerCase()] || "Aguardando";
 }
 
 function friendlyTemplateStatus(value?: string) {

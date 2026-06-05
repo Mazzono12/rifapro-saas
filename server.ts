@@ -1221,11 +1221,27 @@ async function startServer() {
   type WhatsAppCloudLogRecord = {
     id: string;
     tenant_id: string;
-    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
+    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
     status: "success" | "error" | "skipped";
     message: string;
     metadata: Record<string, unknown>;
     created_at: string;
+  };
+  type WhatsAppPixRecoveryEventType = "pix_pending_reminder" | "pix_expired_reminder";
+  type WhatsAppPixRecoverySettingsRecord = {
+    id: string;
+    tenant_id: string;
+    enabled: boolean;
+    pending_template_name: string;
+    pending_template_language: string;
+    expired_template_name: string;
+    expired_template_language: string;
+    min_age_minutes: number;
+    per_customer_cooldown_hours: number;
+    daily_tenant_limit: number;
+    mode: "manual" | "automatic";
+    created_at: string;
+    updated_at: string;
   };
   type WhatsAppCloudTemplateRecord = {
     id: string;
@@ -1246,11 +1262,18 @@ async function startServer() {
     message_type: "ticket_confirmation" | string;
     message_body: string;
     provider: "mock" | "meta_cloud" | string;
-    status: "pending" | "sent" | "failed" | "retrying";
+    status: "queued" | "pending" | "sent" | "failed" | "retrying" | "skipped";
     attempts: number;
     max_attempts: number;
     last_error?: string;
+    reason?: string;
     sent_at?: string;
+    processed_at?: string;
+    meta_message_id?: string;
+    template_name?: string;
+    language?: string;
+    event_type?: WhatsAppPixRecoveryEventType | string;
+    payload?: Record<string, unknown>;
     created_at: string;
     updated_at: string;
     idempotency_key: string;
@@ -2752,6 +2775,7 @@ async function startServer() {
   let whatsappCloudConfigs: WhatsAppCloudConfigRecord[] = [];
   let whatsappCloudLogs: WhatsAppCloudLogRecord[] = [];
   let whatsappCloudTemplates: WhatsAppCloudTemplateRecord[] = [];
+  let whatsappPixRecoverySettings: WhatsAppPixRecoverySettingsRecord[] = [];
   let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
   let automationFlows: AutomationFlowRecord[] = [];
   let automationRuns: AutomationRunRecord[] = [];
@@ -11246,6 +11270,317 @@ async function startServer() {
     };
   }
 
+  function defaultWhatsAppPixRecoverySettings(tenantId: string): WhatsAppPixRecoverySettingsRecord {
+    const now = new Date().toISOString();
+    return {
+      id: `${tenantId}:whatsapp-pix-recovery`,
+      tenant_id: tenantId,
+      enabled: false,
+      pending_template_name: "",
+      pending_template_language: "pt_BR",
+      expired_template_name: "",
+      expired_template_language: "pt_BR",
+      min_age_minutes: 15,
+      per_customer_cooldown_hours: 24,
+      daily_tenant_limit: 100,
+      mode: "manual",
+      created_at: now,
+      updated_at: now
+    };
+  }
+
+  function getWhatsAppPixRecoverySettings(tenantId: string) {
+    return whatsappPixRecoverySettings.find(item => item.tenant_id === tenantId) || defaultWhatsAppPixRecoverySettings(tenantId);
+  }
+
+  function sanitizeWhatsAppPixRecoverySettings(settingsRecord: WhatsAppPixRecoverySettingsRecord) {
+    return {
+      id: settingsRecord.id,
+      tenant_id: settingsRecord.tenant_id,
+      enabled: settingsRecord.enabled,
+      pending_template_name: settingsRecord.pending_template_name,
+      pending_template_language: settingsRecord.pending_template_language,
+      expired_template_name: settingsRecord.expired_template_name,
+      expired_template_language: settingsRecord.expired_template_language,
+      min_age_minutes: settingsRecord.min_age_minutes,
+      per_customer_cooldown_hours: settingsRecord.per_customer_cooldown_hours,
+      daily_tenant_limit: settingsRecord.daily_tenant_limit,
+      mode: settingsRecord.mode,
+      created_at: settingsRecord.created_at,
+      updated_at: settingsRecord.updated_at
+    };
+  }
+
+  function upsertWhatsAppPixRecoverySettings(req: express.Request, tenantId: string) {
+    const current = getWhatsAppPixRecoverySettings(tenantId);
+    const now = new Date().toISOString();
+    const next: WhatsAppPixRecoverySettingsRecord = {
+      ...current,
+      enabled: Boolean(req.body?.enabled),
+      pending_template_name: String(req.body?.pending_template_name || req.body?.pendingTemplateName || current.pending_template_name || "").trim(),
+      pending_template_language: String(req.body?.pending_template_language || req.body?.pendingTemplateLanguage || current.pending_template_language || "pt_BR").trim() || "pt_BR",
+      expired_template_name: String(req.body?.expired_template_name || req.body?.expiredTemplateName || current.expired_template_name || "").trim(),
+      expired_template_language: String(req.body?.expired_template_language || req.body?.expiredTemplateLanguage || current.expired_template_language || "pt_BR").trim() || "pt_BR",
+      min_age_minutes: Math.min(24 * 60, Math.max(1, Math.floor(Number(req.body?.min_age_minutes ?? req.body?.minAgeMinutes ?? current.min_age_minutes ?? 15)))),
+      per_customer_cooldown_hours: Math.min(168, Math.max(1, Math.floor(Number(req.body?.per_customer_cooldown_hours ?? req.body?.perCustomerCooldownHours ?? current.per_customer_cooldown_hours ?? 24)))),
+      daily_tenant_limit: Math.min(1000, Math.max(1, Math.floor(Number(req.body?.daily_tenant_limit ?? req.body?.dailyTenantLimit ?? current.daily_tenant_limit ?? 100)))),
+      mode: req.body?.mode === "automatic" ? "automatic" : "manual",
+      updated_at: now
+    };
+    whatsappPixRecoverySettings = [
+      next,
+      ...whatsappPixRecoverySettings.filter(item => item.tenant_id !== tenantId)
+    ];
+    recordWhatsAppCloudLog(tenantId, {
+      action: "pix_recovery_settings_saved",
+      status: "success",
+      message: "Recuperacao automatica de PIX salva",
+      metadata: { mode: next.mode, enabled: next.enabled, adminId: getAuthSession(req)?.sub || "" }
+    });
+    schedulePersistentStateSave("whatsapp-pix-recovery-settings");
+    return next;
+  }
+
+  function sanitizeWhatsAppQueueRecord(message: WhatsAppMessageQueueRecord) {
+    return {
+      ...message,
+      phone: maskPhone(message.phone),
+      payload: maskLogValue(message.payload || {}) as Record<string, unknown>
+    };
+  }
+
+  function getApprovedWhatsAppTemplate(tenantId: string, name: string, language: string) {
+    return getSavedWhatsAppCloudTemplates(tenantId).find(template =>
+      template.name === name &&
+      template.language === language &&
+      String(template.status || "").toUpperCase() === "APPROVED"
+    ) || null;
+  }
+
+  function whatsappPixRecoveryEventForPurchase(purchase: PurchaseRecord): WhatsAppPixRecoveryEventType {
+    return isPastReservationExpiry(purchase.pixExpiresAt || purchase.reservedUntil) ? "pix_expired_reminder" : "pix_pending_reminder";
+  }
+
+  function buildWhatsAppPixRecoveryComponents(input: { customerName: string; campaign: string; amount: number; link: string }) {
+    return [
+      {
+        type: "body",
+        parameters: [
+          { type: "text", text: input.customerName || "Cliente" },
+          { type: "text", text: input.campaign || "Campanha" },
+          { type: "text", text: `R$ ${Number(input.amount || 0).toFixed(2)}` },
+          { type: "text", text: input.link }
+        ]
+      }
+    ];
+  }
+
+  function buildWhatsAppPixRecoveryCandidate(tenantId: string, purchase: PurchaseRecord, settingsRecord = getWhatsAppPixRecoverySettings(tenantId)) {
+    const eventType = whatsappPixRecoveryEventForPurchase(purchase);
+    const templateName = eventType === "pix_expired_reminder" ? settingsRecord.expired_template_name : settingsRecord.pending_template_name;
+    const language = eventType === "pix_expired_reminder" ? settingsRecord.expired_template_language : settingsRecord.pending_template_language;
+    const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === purchase.raffleId);
+    const customer = purchase.customer || Object.values(customersByPhone).find(item => item.tenant_id === tenantId && item.id === purchase.customer?.id);
+    const customerName = customer?.name || "Cliente";
+    const phone = normalizeBrazilianPhone(customer?.phone || purchase.contact || "");
+    const campaign = raffle?.title || "Campanha";
+    const paymentLink = eventType === "pix_pending_reminder" ? buildPublicTicketUrl(purchase) : "";
+    const campaignLink = raffle ? buildPublicTicketUrl(purchase).split("?")[0] : "";
+    const link = paymentLink || campaignLink;
+    return {
+      purchase,
+      customer,
+      eventType,
+      templateName,
+      language,
+      phone,
+      campaign,
+      customerName,
+      link,
+      idempotencyKey: `whatsapp-cloud-pix-recovery:${tenantId}:${purchase.purchaseId}:${eventType}`,
+      components: buildWhatsAppPixRecoveryComponents({ customerName, campaign, amount: purchase.amount, link })
+    };
+  }
+
+  function getWhatsAppPixRecoveryQueue(tenantId: string) {
+    return whatsappMessageQueue.filter(message => message.tenant_id === tenantId && message.message_type === "whatsapp_cloud_pix_recovery");
+  }
+
+  function countWhatsAppPixRecoveryToday(tenantId: string) {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return getWhatsAppPixRecoveryQueue(tenantId).filter(message => {
+      const time = new Date(message.sent_at || message.processed_at || message.created_at).getTime();
+      return time >= start.getTime() && ["queued", "pending", "retrying", "sent"].includes(message.status);
+    }).length;
+  }
+
+  function hasRecentWhatsAppPixRecoveryForCustomer(tenantId: string, customerId: string | undefined, eventType: WhatsAppPixRecoveryEventType, cooldownHours: number) {
+    if (!customerId) return false;
+    const since = Date.now() - Math.max(1, cooldownHours) * 60 * 60 * 1000;
+    return getWhatsAppPixRecoveryQueue(tenantId).some(message =>
+      message.customer_id === customerId &&
+      message.event_type === eventType &&
+      ["queued", "pending", "retrying", "sent"].includes(message.status) &&
+      new Date(message.created_at).getTime() >= since
+    );
+  }
+
+  function validateWhatsAppPixRecoveryCandidate(tenantId: string, purchase: PurchaseRecord, settingsRecord = getWhatsAppPixRecoverySettings(tenantId)) {
+    const candidate = buildWhatsAppPixRecoveryCandidate(tenantId, purchase, settingsRecord);
+    const cloudConfig = getWhatsAppCloudConfig(tenantId);
+    const ageMinutes = (Date.now() - new Date(purchase.createdAt).getTime()) / 60000;
+    if (!settingsRecord.enabled) return { candidate, eligible: false, reason: "Recuperacao automatica desativada" };
+    if (!cloudConfig?.enabled) return { candidate, eligible: false, reason: "WhatsApp Cloud inativo" };
+    if (purchase.tenant_id !== tenantId) return { candidate, eligible: false, reason: "Compra de outro cliente da plataforma" };
+    if (purchase.status !== "pending") return { candidate, eligible: false, reason: "Compra nao esta pendente" };
+    if (!purchase.pixPayload && !purchase.pixGateway && !purchase.pixQrCodeBase64) return { candidate, eligible: false, reason: "Compra nao parece ser PIX" };
+    if (ageMinutes < settingsRecord.min_age_minutes && candidate.eventType === "pix_pending_reminder") return { candidate, eligible: false, reason: "Ainda dentro do tempo minimo" };
+    if (!candidate.templateName) return { candidate, eligible: false, reason: "Template nao selecionado" };
+    if (!getApprovedWhatsAppTemplate(tenantId, candidate.templateName, candidate.language)) return { candidate, eligible: false, reason: "Template oficial aprovado nao encontrado" };
+    if (!isValidBrazilianWhatsAppPhone(candidate.phone)) return { candidate, eligible: false, reason: "Telefone invalido" };
+    if (!candidate.link) return { candidate, eligible: false, reason: "Link de pagamento ou campanha indisponivel" };
+    if (whatsappMessageQueue.some(message => message.idempotency_key === candidate.idempotencyKey)) return { candidate, eligible: false, reason: "Mensagem ja registrada para esta compra" };
+    if (hasRecentWhatsAppPixRecoveryForCustomer(tenantId, candidate.customer?.id || purchase.customer?.id, candidate.eventType, settingsRecord.per_customer_cooldown_hours)) return { candidate, eligible: false, reason: "Limite por cliente respeitado" };
+    if (countWhatsAppPixRecoveryToday(tenantId) >= settingsRecord.daily_tenant_limit) return { candidate, eligible: false, reason: "Limite diario atingido" };
+    return { candidate, eligible: true, reason: "" };
+  }
+
+  function listWhatsAppPixRecoveryCandidates(tenantId: string, settingsRecord = getWhatsAppPixRecoverySettings(tenantId)) {
+    return purchases
+      .filter(purchase => purchase.tenant_id === tenantId && purchase.status === "pending")
+      .map(purchase => validateWhatsAppPixRecoveryCandidate(tenantId, purchase, settingsRecord));
+  }
+
+  function enqueueWhatsAppPixRecoveryMessage(tenantId: string, purchase: PurchaseRecord, settingsRecord = getWhatsAppPixRecoverySettings(tenantId)) {
+    const validation = validateWhatsAppPixRecoveryCandidate(tenantId, purchase, settingsRecord);
+    const now = new Date().toISOString();
+    if (!validation.eligible) {
+      recordWhatsAppCloudLog(tenantId, {
+        action: "pix_recovery_skipped",
+        status: "skipped",
+        message: validation.reason,
+        metadata: { purchaseId: purchase.purchaseId, eventType: validation.candidate.eventType, customerId: purchase.customer?.id || "" }
+      });
+      return { message: null, validation };
+    }
+    const message: WhatsAppMessageQueueRecord = {
+      id: createPublicId("WAPP_"),
+      tenant_id: tenantId,
+      order_id: purchase.purchaseId,
+      customer_id: validation.candidate.customer?.id || purchase.customer?.id,
+      phone: validation.candidate.phone,
+      message_type: "whatsapp_cloud_pix_recovery",
+      message_body: "",
+      provider: "meta_cloud",
+      status: "queued",
+      attempts: 0,
+      max_attempts: 3,
+      last_error: "",
+      reason: "",
+      template_name: validation.candidate.templateName,
+      language: validation.candidate.language,
+      event_type: validation.candidate.eventType,
+      payload: {
+        purchaseId: purchase.purchaseId,
+        customerName: validation.candidate.customerName,
+        campaign: validation.candidate.campaign,
+        amount: purchase.amount,
+        link: validation.candidate.link,
+        components: validation.candidate.components
+      },
+      created_at: now,
+      updated_at: now,
+      idempotency_key: validation.candidate.idempotencyKey
+    };
+    whatsappMessageQueue.unshift(message);
+    whatsappMessageQueue = whatsappMessageQueue.slice(0, 2000);
+    recordWhatsAppCloudLog(tenantId, {
+      action: "pix_recovery_enqueued",
+      status: "success",
+      message: "Recuperacao de PIX adicionada a fila",
+      metadata: { purchaseId: purchase.purchaseId, eventType: message.event_type, to: maskPhone(message.phone), templateName: message.template_name }
+    });
+    schedulePersistentStateSave("whatsapp-pix-recovery-enqueue");
+    return { message, validation };
+  }
+
+  async function processWhatsappPixRecoveryQueue(tenantId: string, limit = 20) {
+    const settingsRecord = getWhatsAppPixRecoverySettings(tenantId);
+    const provider = createMetaWhatsAppCloudProvider(tenantId);
+    const templates = getSavedWhatsAppCloudTemplates(tenantId);
+    const ready = getWhatsAppPixRecoveryQueue(tenantId)
+      .filter(message => message.status === "queued" && message.attempts < message.max_attempts)
+      .slice(0, Math.max(1, Math.min(100, limit)));
+    let sent = 0;
+    let failed = 0;
+    let skipped = 0;
+    for (const message of ready) {
+      const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === message.order_id);
+      const eventType = (message.event_type === "pix_expired_reminder" ? "pix_expired_reminder" : "pix_pending_reminder") as WhatsAppPixRecoveryEventType;
+      const revalidation = purchase ? validateWhatsAppPixRecoveryCandidate(tenantId, purchase, settingsRecord) : null;
+      const allowedQueuedReasons = new Set(["Mensagem ja registrada para esta compra", "Limite por cliente respeitado", "Limite diario atingido"]);
+      if (!purchase || (revalidation && !revalidation.eligible && !allowedQueuedReasons.has(revalidation.reason))) {
+        message.status = "skipped";
+        message.reason = revalidation?.reason || "Compra nao esta pendente";
+        message.processed_at = new Date().toISOString();
+        message.updated_at = message.processed_at;
+        skipped += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "pix_recovery_skipped", status: "skipped", message: message.reason, metadata: { purchaseId: message.order_id || "", eventType } });
+        continue;
+      }
+      if (countWhatsAppPixRecoveryToday(tenantId) > settingsRecord.daily_tenant_limit) {
+        message.status = "skipped";
+        message.reason = "Limite diario atingido";
+        message.processed_at = new Date().toISOString();
+        message.updated_at = message.processed_at;
+        skipped += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "pix_recovery_skipped", status: "skipped", message: message.reason, metadata: { purchaseId: message.order_id || "", eventType } });
+        continue;
+      }
+      try {
+        message.attempts += 1;
+        message.updated_at = new Date().toISOString();
+        const result = await provider.sendTemplateTest({
+          to: message.phone,
+          templateName: String(message.template_name || ""),
+          language: String(message.language || "pt_BR"),
+          components: Array.isArray(message.payload?.components) ? message.payload.components : [],
+          availableTemplates: templates
+        });
+        const processedAt = new Date().toISOString();
+        message.status = "sent";
+        message.sent_at = processedAt;
+        message.processed_at = processedAt;
+        message.updated_at = processedAt;
+        message.meta_message_id = result.data?.messages?.[0]?.id || "";
+        sent += 1;
+        recordWhatsAppCloudLog(tenantId, {
+          action: "pix_recovery_sent",
+          status: "success",
+          message: "Recuperacao de PIX enviada",
+          metadata: { purchaseId: message.order_id || "", eventType, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "" }
+        });
+      } catch (error) {
+        const processedAt = new Date().toISOString();
+        message.status = message.attempts >= message.max_attempts ? "failed" : "queued";
+        message.last_error = error instanceof Error ? error.message : "Falha ao enviar recuperacao de PIX";
+        message.reason = message.last_error;
+        message.processed_at = processedAt;
+        message.updated_at = processedAt;
+        failed += 1;
+        recordWhatsAppCloudLog(tenantId, {
+          action: "meta_api_error",
+          status: "error",
+          message: message.last_error,
+          metadata: { purchaseId: message.order_id || "", eventType, to: maskPhone(message.phone), templateName: message.template_name }
+        });
+      }
+    }
+    schedulePersistentStateSave("whatsapp-pix-recovery-run");
+    return { processed: ready.length, sent, failed, skipped };
+  }
+
   function decryptWhatsAppCloudConfig(config: WhatsAppCloudConfigRecord | null) {
     if (!config) return null;
     return {
@@ -14680,6 +15015,110 @@ async function startServer() {
     }
   });
 
+  app.get("/api/admin/whatsapp-cloud/pix-recovery/settings", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    res.json({
+      settings: sanitizeWhatsAppPixRecoverySettings(getWhatsAppPixRecoverySettings(tenantId)),
+      templates: getSavedWhatsAppCloudTemplates(tenantId).map(sanitizeWhatsAppCloudTemplate)
+    });
+  });
+
+  app.put("/api/admin/whatsapp-cloud/pix-recovery/settings", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    const settingsRecord = upsertWhatsAppPixRecoverySettings(req, tenantId);
+    res.json({ settings: sanitizeWhatsAppPixRecoverySettings(settingsRecord) });
+  });
+
+  app.post("/api/admin/whatsapp-cloud/pix-recovery/preview", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    const settingsRecord = getWhatsAppPixRecoverySettings(tenantId);
+    const items = listWhatsAppPixRecoveryCandidates(tenantId, settingsRecord).slice(0, 100).map(item => ({
+      purchaseId: item.candidate.purchase.purchaseId,
+      customerName: item.candidate.customerName,
+      phone: maskPhone(item.candidate.phone),
+      campaign: item.candidate.campaign,
+      amount: item.candidate.purchase.amount,
+      eventType: item.candidate.eventType,
+      templateName: item.candidate.templateName,
+      language: item.candidate.language,
+      eligible: item.eligible,
+      reason: item.reason || "Pronto para enfileirar"
+    }));
+    recordWhatsAppCloudLog(tenantId, {
+      action: "pix_recovery_preview",
+      status: "success",
+      message: "Previa da recuperacao de PIX gerada",
+      metadata: { total: items.length, eligible: items.filter(item => item.eligible).length, adminId: getAuthSession(req)?.sub || "" }
+    });
+    res.json({
+      settings: sanitizeWhatsAppPixRecoverySettings(settingsRecord),
+      total: items.length,
+      eligible: items.filter(item => item.eligible).length,
+      items
+    });
+  });
+
+  app.post("/api/admin/whatsapp-cloud/pix-recovery/enqueue", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    const settingsRecord = getWhatsAppPixRecoverySettings(tenantId);
+    const purchaseId = String(req.body?.purchaseId || "").trim();
+    const candidates = purchaseId
+      ? purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.purchaseId === purchaseId)
+      : purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.status === "pending");
+    const results = candidates.map(purchase => enqueueWhatsAppPixRecoveryMessage(tenantId, purchase, settingsRecord));
+    const queued = results.map(item => item.message).filter((item): item is WhatsAppMessageQueueRecord => Boolean(item));
+    if (settingsRecord.mode === "automatic" && queued.length) {
+      void processWhatsappPixRecoveryQueue(tenantId, Math.min(queued.length, settingsRecord.daily_tenant_limit));
+    }
+    res.json({
+      mode: settingsRecord.mode,
+      queued: queued.length,
+      skipped: results.length - queued.length,
+      messages: queued.map(sanitizeWhatsAppQueueRecord),
+      results: results.map(item => ({
+        purchaseId: item.validation.candidate.purchase.purchaseId,
+        eventType: item.validation.candidate.eventType,
+        eligible: item.validation.eligible,
+        reason: item.validation.reason || "Enfileirado"
+      }))
+    });
+  });
+
+  app.post("/api/admin/whatsapp-cloud/pix-recovery/run", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    const limit = Math.max(1, Math.min(100, Number(req.body?.limit || 20)));
+    const result = await processWhatsappPixRecoveryQueue(tenantId, limit);
+    res.json({
+      ...result,
+      queue: getWhatsAppPixRecoveryQueue(tenantId).slice(0, 100).map(sanitizeWhatsAppQueueRecord)
+    });
+  });
+
+  app.get("/api/admin/whatsapp-cloud/pix-recovery/queue", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    res.json({
+      queue: getWhatsAppPixRecoveryQueue(tenantId).slice(0, 200).map(sanitizeWhatsAppQueueRecord)
+    });
+  });
+
+  app.get("/api/admin/whatsapp-cloud/pix-recovery/logs", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    const actions = new Set(["pix_recovery_settings_saved", "pix_recovery_preview", "pix_recovery_enqueued", "pix_recovery_sent", "pix_recovery_skipped", "meta_api_error"]);
+    res.json({
+      logs: whatsappCloudLogs
+        .filter(log => log.tenant_id === tenantId && actions.has(log.action))
+        .slice(0, 100)
+        .map(sanitizeWhatsAppCloudLog)
+    });
+  });
+
   app.get("/api/webhooks/meta/whatsapp", (req, res) => {
     const token = String(req.query["hub.verify_token"] || "");
     const config = findWhatsAppCloudConfigByVerifyToken(token);
@@ -16523,6 +16962,7 @@ async function startServer() {
       whatsappCloudConfigs,
       whatsappCloudLogs,
       whatsappCloudTemplates,
+      whatsappPixRecoverySettings,
       whatsappMessageQueue,
       automationFlows,
       automationRuns,
@@ -16611,6 +17051,7 @@ async function startServer() {
       case "whatsappCloudConfigs": whatsappCloudConfigs = Array.isArray(value) ? value : []; break;
       case "whatsappCloudLogs": whatsappCloudLogs = Array.isArray(value) ? value : []; break;
       case "whatsappCloudTemplates": whatsappCloudTemplates = Array.isArray(value) ? value : []; break;
+      case "whatsappPixRecoverySettings": whatsappPixRecoverySettings = Array.isArray(value) ? value : []; break;
       case "whatsappMessageQueue": whatsappMessageQueue = Array.isArray(value) ? value : []; break;
       case "automationFlows": automationFlows = Array.isArray(value) ? value : []; break;
       case "automationRuns": automationRuns = Array.isArray(value) ? value : []; break;
