@@ -9,11 +9,7 @@ import {
   Crown,
   DollarSign,
   ExternalLink,
-  FileText,
-  Film,
-  Image,
   Megaphone,
-  PlaySquare,
   QrCode,
   Save,
   Send,
@@ -36,7 +32,6 @@ import type { AffiliateStats } from "../types";
 import { cn } from "../lib/utils";
 import { uploadCustomerProfilePhoto } from "../utils/customerMedia";
 
-type MarketingTab = "banners" | "videos" | "stories" | "reels" | "textos";
 type AffiliateCampaignLink = {
   publicId: string;
   name: string;
@@ -82,14 +77,6 @@ type AffiliateDashboard = {
   };
 };
 
-const marketingTabs: Array<{ id: MarketingTab; label: string; icon: React.ElementType }> = [
-  { id: "banners", label: "Banners", icon: Image },
-  { id: "videos", label: "Vídeos", icon: Film },
-  { id: "stories", label: "Stories", icon: PlaySquare },
-  { id: "reels", label: "Reels", icon: Sparkles },
-  { id: "textos", label: "Textos prontos", icon: FileText }
-];
-
 export function Affiliates() {
   const { customer, setCustomer } = useCustomerStore();
   const [stats, setStats] = useState<AffiliateStats | null>(null);
@@ -100,7 +87,6 @@ export function Affiliates() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [marketingTab, setMarketingTab] = useState<MarketingTab>("banners");
   const [isLoadingAffiliate, setIsLoadingAffiliate] = useState(true);
   const [affiliateLoadError, setAffiliateLoadError] = useState("");
   const [campaignLinks, setCampaignLinks] = useState<AffiliateCampaignLink[]>([]);
@@ -410,7 +396,7 @@ export function Affiliates() {
         </section>
       </div>
 
-      <CampaignLinksSection
+      <MarketingCenterSection
         campaigns={campaignLinks}
         isLoading={isLoadingCampaignLinks}
         error={campaignLinksError}
@@ -498,39 +484,6 @@ export function Affiliates() {
         <RankingCard title="Top afiliados do ano" rows={rankingYear} />
       </section>
 
-      <section className="admin-card p-4 sm:p-5">
-        <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--admin-text)]">
-              <Megaphone className="h-5 w-5 shrink-0 text-[var(--admin-primary)]" />
-              <span className="min-w-0 break-words">Central de Marketing</span>
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-[var(--admin-muted)]">Materiais rápidos para divulgar em redes sociais e grupos.</p>
-          </div>
-          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-            {marketingTabs.map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setMarketingTab(tab.id)}
-                className={cn("admin-button-secondary min-w-0 justify-center px-3 text-xs sm:text-sm", marketingTab === tab.id && "border-[var(--admin-primary)] text-[var(--admin-primary)]")}
-              >
-                <tab.icon className="h-4 w-4" />
-                <span className="min-w-0 truncate">{tab.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <MarketingPanel
-          activeTab={marketingTab}
-          customerName={customer.name}
-          affiliateLink={affiliateLink}
-          couponCode={couponCode}
-          settings={settings}
-          onCopy={copyValue}
-        />
-      </section>
-
       {settings?.affiliateInstructionVideo?.enabled && settings.affiliateInstructionVideo?.mediaUrl && (
         <section className="admin-card overflow-hidden p-4 sm:p-5">
           <div className="mb-4">
@@ -578,7 +531,7 @@ export function Affiliates() {
   );
 }
 
-function CampaignLinksSection({
+function MarketingCenterSection({
   campaigns,
   isLoading,
   error,
@@ -591,19 +544,30 @@ function CampaignLinksSection({
 }) {
   return (
     <section className="admin-card p-4 sm:p-5">
-      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <h2 className="break-words text-lg font-bold text-[var(--admin-text)]">Links das campanhas ativas</h2>
-          <p className="mt-1 text-sm leading-6 text-[var(--admin-muted)]">Copie links dedicados para divulgar cada campanha com seu código de afiliado.</p>
+          <p className="text-xs font-bold uppercase text-[var(--admin-primary)]">Material pronto para divulgar</p>
+          <h2 className="mt-1 flex items-center gap-2 break-words text-xl font-black text-[var(--admin-text)]">
+            <Megaphone className="h-5 w-5 shrink-0 text-[var(--admin-primary)]" />
+            Central de Marketing
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--admin-muted)]">Copie links e textos comerciais prontos para cada campanha ativa com sua indicação aplicada.</p>
         </div>
-        <Sparkles className="h-5 w-5 shrink-0 text-[var(--admin-primary)]" />
+        <div className="w-full rounded-[8px] border border-[var(--admin-primary)]/25 bg-[var(--admin-primary)]/10 px-4 py-3 text-sm font-bold text-[var(--admin-primary)] sm:w-auto">
+          {isLoading ? "Preparando materiais..." : `${campaigns.length} ${campaigns.length === 1 ? "material pronto para divulgar" : "materiais prontos para divulgar"}`}
+        </div>
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="space-y-4">
+          <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4 text-sm font-semibold text-[var(--admin-muted)]">
+            Carregando seus materiais de divulgação...
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="min-h-[220px] animate-pulse rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)]" />
+              <div key={index} className="min-h-[360px] animate-pulse rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)]" />
           ))}
+          </div>
         </div>
       ) : error ? (
         <div className="rounded-[8px] border border-[var(--admin-warning)]/35 bg-[var(--admin-warning)]/10 p-4 text-sm font-semibold leading-6 text-[var(--admin-warning)]">
@@ -611,12 +575,14 @@ function CampaignLinksSection({
         </div>
       ) : campaigns.length === 0 ? (
         <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 text-center">
-          <p className="text-sm font-semibold leading-6 text-[var(--admin-text)]">Nenhuma campanha ativa disponível no momento.</p>
+          <Sparkles className="mx-auto mb-3 h-8 w-8 text-[var(--admin-muted)]" />
+          <p className="text-sm font-semibold leading-6 text-[var(--admin-text)]">Nenhum material de divulgação disponível no momento.</p>
+          <p className="mt-1 text-sm leading-6 text-[var(--admin-muted)]">Quando uma campanha ativa estiver disponível, os textos e links aparecerão aqui.</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {campaigns.map(campaign => (
-            <CampaignLinkCard key={`${campaign.type}-${campaign.publicId}-${campaign.affiliateUrl}`} campaign={campaign} onCopy={onCopy} />
+            <MarketingCampaignCard key={`${campaign.type}-${campaign.publicId}-${campaign.affiliateUrl}`} campaign={campaign} onCopy={onCopy} />
           ))}
         </div>
       )}
@@ -624,20 +590,28 @@ function CampaignLinksSection({
   );
 }
 
-type CampaignLinkCardProps = {
+type MarketingCampaignCardProps = {
   campaign: AffiliateCampaignLink;
   onCopy: (value: string, message: string) => Promise<void>;
   key?: React.Key;
 };
 
-function CampaignLinkCard({ campaign, onCopy }: CampaignLinkCardProps) {
+function MarketingCampaignCard({ campaign, onCopy }: MarketingCampaignCardProps) {
+  const texts = buildCampaignMarketingTexts(campaign);
+
   return (
     <article className="flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)]">
       {campaign.imageUrl ? (
-        <div className="aspect-[16/7] min-w-0 overflow-hidden bg-[var(--admin-surface)]">
+        <div className="aspect-[16/8] min-w-0 overflow-hidden bg-[var(--admin-surface)]">
           <img src={campaign.imageUrl} alt={campaign.name} className="h-full w-full object-cover" />
         </div>
-      ) : null}
+      ) : (
+        <div className="grid aspect-[16/8] place-items-center bg-[var(--admin-surface)]">
+          <div className="grid h-14 w-14 place-items-center rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] text-[var(--admin-primary)]">
+            <Megaphone className="h-7 w-7" />
+          </div>
+        </div>
+      )}
       <div className="flex min-w-0 flex-1 flex-col p-4">
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0">
@@ -649,36 +623,73 @@ function CampaignLinkCard({ campaign, onCopy }: CampaignLinkCardProps) {
           </span>
         </div>
         <div className="mt-4 min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3">
-          <p className="text-[11px] font-bold uppercase text-[var(--admin-muted)]">Link dedicado</p>
+          <p className="text-[11px] font-bold uppercase text-[var(--admin-muted)]">Link da campanha</p>
           <p className="mt-1 min-w-0 break-all font-mono text-xs leading-5 text-[var(--admin-text)] sm:line-clamp-2">
             {campaign.affiliateUrl}
           </p>
         </div>
-        {campaign.whatsappText && (
-          <div className="mt-3 min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3">
-            <p className="text-[11px] font-bold uppercase text-[var(--admin-muted)]">Texto para WhatsApp</p>
-            <p className="mt-1 line-clamp-3 break-words text-xs leading-5 text-[var(--admin-muted)]">{campaign.whatsappText}</p>
-          </div>
-        )}
+        <div className="mt-3 grid gap-3">
+          <MarketingTextPreview label="Texto pronto para WhatsApp" text={texts.whatsapp} />
+          <MarketingTextPreview label="Texto pronto para Instagram" text={texts.instagram} />
+          <MarketingTextPreview label="Texto curto para Status" text={texts.status} />
+          <MarketingTextPreview label="Texto de chamada para Facebook" text={texts.facebook} />
+        </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <button onClick={() => void onCopy(campaign.affiliateUrl, "Link da campanha copiado")} className="admin-button-primary min-w-0 justify-center">
+          <button onClick={() => void onCopy(campaign.affiliateUrl, "Link da campanha copiado")} className="admin-button-primary min-w-0 justify-center py-3">
             <Copy className="h-4 w-4" />
             Copiar link
           </button>
-          <a href={campaign.affiliateUrl} target="_blank" rel="noreferrer" className="admin-button-secondary min-w-0 justify-center">
+          <button onClick={() => void onCopy(texts.whatsapp, "Texto WhatsApp copiado")} className="admin-button-secondary min-w-0 justify-center py-3">
+            <Send className="h-4 w-4" />
+            Copiar texto WhatsApp
+          </button>
+          <button onClick={() => void onCopy(texts.instagram, "Legenda copiada")} className="admin-button-secondary min-w-0 justify-center py-3">
+            <Copy className="h-4 w-4" />
+            Copiar legenda
+          </button>
+          <a href={campaign.affiliateUrl} target="_blank" rel="noreferrer" className="admin-button-secondary min-w-0 justify-center py-3">
             <ExternalLink className="h-4 w-4" />
             Abrir campanha
           </a>
         </div>
-        {campaign.whatsappText && (
-          <button onClick={() => void onCopy(campaign.whatsappText || campaign.affiliateUrl, "Texto para WhatsApp copiado")} className="admin-button-secondary mt-2 w-full min-w-0 justify-center">
-            <Send className="h-4 w-4" />
-            Copiar WhatsApp
-          </button>
-        )}
+        <button onClick={() => void onCopy(texts.whatsapp, "Tudo pronto para WhatsApp copiado")} className="admin-button-primary mt-2 w-full min-w-0 justify-center py-3">
+          <Share2 className="h-4 w-4" />
+          Copiar tudo para WhatsApp
+        </button>
       </div>
     </article>
   );
+}
+
+function MarketingTextPreview({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3">
+      <p className="text-[11px] font-bold uppercase text-[var(--admin-muted)]">{label}</p>
+      <p className="mt-1 line-clamp-3 min-w-0 whitespace-pre-line break-words text-xs leading-5 text-[var(--admin-muted)]">{text}</p>
+    </div>
+  );
+}
+
+function buildCampaignMarketingTexts(campaign: AffiliateCampaignLink) {
+  const name = campaign.name || "campanha";
+  const affiliateUrl = campaign.affiliateUrl;
+  const whatsapp = campaign.whatsappText || `🚀 Olha essa oportunidade!
+
+Participe agora da campanha: ${name}
+
+Você concorre a prêmios incríveis com segurança e praticidade.
+
+👉 Acesse pelo meu link:
+${affiliateUrl}
+
+Boa sorte! 🍀`;
+
+  return {
+    whatsapp,
+    instagram: `Participe agora da campanha ${name} e concorra a prêmios incríveis com segurança e praticidade.\n\nAcesse pelo meu link: ${affiliateUrl}\n\n#sorteio #premios #campanha`,
+    status: `Campanha ${name} no ar! Entre pelo meu link: ${affiliateUrl}`,
+    facebook: `Olha essa oportunidade: a campanha ${name} já está ativa. Participe com segurança pelo meu link oficial: ${affiliateUrl}`
+  };
 }
 
 function AffiliateAvatar({ customer, large = false }: { customer: { name: string; photoUrl?: string }; large?: boolean }) {
@@ -781,66 +792,6 @@ function RankingCard({ title, rows }: { title: string; rows: React.ReactNode[][]
         minWidth="640px"
       />
     </section>
-  );
-}
-
-function MarketingPanel({
-  activeTab,
-  customerName,
-  affiliateLink,
-  couponCode,
-  settings,
-  onCopy
-}: {
-  activeTab: MarketingTab;
-  customerName: string;
-  affiliateLink: string;
-  couponCode: string;
-  settings: any;
-  onCopy: (value: string, message: string) => Promise<void>;
-}) {
-  const videoTitle = settings?.affiliateInstructionVideo?.title || "Como divulgar seu link";
-  const copy = {
-    banners: [
-      ["Banner principal", "Use em grupos e páginas com chamada direta para a ação ativa."],
-      ["Banner de cupom", `Destaque o cupom ${couponCode} junto ao seu link.`],
-      ["Banner de prova social", "Mostre urgência, prêmio e benefício de entrar pelo seu convite."]
-    ],
-    videos: [
-      [videoTitle, "Conteúdo de treinamento configurado no admin."],
-      ["Vídeo curto de convite", "Roteiro de 15 segundos com benefício, prova e chamada para comprar."],
-      ["Vídeo de tutorial", "Explique como escolher números e finalizar a participação."]
-    ],
-    stories: [
-      ["Story 1", "Gancho rápido com prêmio e chamada para arrastar ou tocar no link."],
-      ["Story 2", "Prova social com clientes entrando pela indicação."],
-      ["Story 3", `Cupom ${couponCode} em destaque.`]
-    ],
-    reels: [
-      ["Reel de abertura", "Mostre o prêmio nos primeiros 2 segundos."],
-      ["Reel de urgência", "Use contagem regressiva e chamada direta."],
-      ["Reel de bastidores", "Humanize sua divulgação e reforce confiança."]
-    ],
-    textos: [
-      ["WhatsApp curto", `Pessoal, estou indicando essa ação. Entra pelo meu link: ${affiliateLink}`],
-      ["Grupo VIP", `Use meu cupom ${couponCode} e acompanhe as novidades pelo link: ${affiliateLink}`],
-      ["Bio", `Participe pelo meu convite oficial: ${affiliateLink}`]
-    ]
-  }[activeTab];
-
-  return (
-    <div className="grid gap-3 md:grid-cols-3">
-      {copy.map(([title, description]) => (
-        <article key={title} className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
-          <p className="text-sm font-bold text-[var(--admin-text)]">{title}</p>
-          <p className="mt-2 min-h-12 text-sm leading-6 text-[var(--admin-muted)]">{description}</p>
-          <button onClick={() => void onCopy(`${title}\n${description}\n\n${customerName}: ${affiliateLink}`, "Material copiado")} className="admin-button-secondary mt-4 w-full justify-center">
-            <Copy className="h-4 w-4" />
-            Copiar material
-          </button>
-        </article>
-      ))}
-    </div>
   );
 }
 

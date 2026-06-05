@@ -77,12 +77,27 @@ for (const field of ["soldNumbers", "pixConfig", "tenant_id", "accessToken", "we
 
 includesAll(affiliates, [
   "/api/affiliates/${customer.affiliateRefCode}/campaign-links",
-  "Links das campanhas ativas",
-  "Nenhuma campanha ativa disponível no momento.",
+  "Central de Marketing",
+  "Material pronto para divulgar",
+  "Nenhum material de divulgação disponível no momento.",
+  "Texto pronto para WhatsApp",
+  "Texto pronto para Instagram",
+  "Texto curto para Status",
+  "Texto de chamada para Facebook",
   "Copiar link",
+  "Copiar texto WhatsApp",
+  "Copiar legenda",
+  "Copiar tudo para WhatsApp",
   "Abrir campanha",
-  "CampaignLinkCard"
-], "ui de links dedicados");
+  "MarketingCenterSection",
+  "MarketingCampaignCard",
+  "buildCampaignMarketingTexts",
+  "campaign.affiliateUrl"
+], "ui de central de marketing");
+
+for (const field of ["soldNumbers", "pixConfig", "tenant_id", "accessToken", "webhookSecret", "commissionBalance", "prizeBalance"]) {
+  assert(!affiliates.includes(`campaign.${field}`), `central de marketing nao deve expor ${field}`);
+}
 
 const updateRouteBlock = server.slice(server.indexOf('app.put("/api/affiliates/:refCode"'), server.indexOf('app.post("/api/affiliates/:refCode/click"'));
 includesAll(updateRouteBlock, [
