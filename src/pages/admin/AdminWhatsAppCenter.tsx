@@ -130,6 +130,45 @@ type WhatsAppDashboard = {
   conversations: { abertas: number; aguardandoCliente: number; pendentes: number; resolvidas: number };
 };
 
+type AutomationType = "new_buyer" | "vip_buyer" | "abandoned_pix" | "inactive_customer" | "post_raffle" | "top_buyers" | "birthday";
+
+type AutomationRule = {
+  id: string;
+  type: AutomationType;
+  label?: string;
+  enabled: boolean;
+  template: string;
+  language: string;
+  delay: number;
+  conditions: Record<string, any>;
+  dailyLimit: number;
+  cooldownHours: number;
+  nextExecutions?: AutomationExecution[];
+  history?: AutomationExecution[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AutomationExecution = {
+  id: string;
+  ruleId: string;
+  customerId: string;
+  status: string;
+  scheduledAt: string;
+  executedAt?: string;
+  template?: string;
+  reason?: string;
+};
+
+type AutomationLog = {
+  id: string;
+  action: string;
+  status: string;
+  message: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+};
+
 const filters = [
   { key: "", label: "Todas" },
   { key: "open", label: "Abertas" },
@@ -161,7 +200,7 @@ function percent(value: number) {
 }
 
 export function AdminWhatsAppCenter() {
-  const [centerView, setCenterView] = useState<"dashboard" | "inbox" | "campaigns">("dashboard");
+  const [centerView, setCenterView] = useState<"dashboard" | "inbox" | "campaigns" | "automations">("dashboard");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [selected, setSelected] = useState<Conversation | null>(null);
@@ -344,8 +383,11 @@ export function AdminWhatsAppCenter() {
         <button type="button" onClick={() => setCenterView("campaigns")} className={centerView === "campaigns" ? "admin-button-primary" : "admin-button-secondary"}>
           <Megaphone className="h-4 w-4" /> Campanhas CRM
         </button>
+        <button type="button" onClick={() => setCenterView("automations")} className={centerView === "automations" ? "admin-button-primary" : "admin-button-secondary"}>
+          <ListChecks className="h-4 w-4" /> Automações CRM
+        </button>
       </div>
-      {centerView === "dashboard" ? <AdminWhatsAppDashboard /> : centerView === "campaigns" ? <AdminWhatsAppCampaigns /> : (
+      {centerView === "dashboard" ? <AdminWhatsAppDashboard /> : centerView === "campaigns" ? <AdminWhatsAppCampaigns /> : centerView === "automations" ? <AdminWhatsAppAutomations templates={templates} /> : (
     <div className="grid min-h-[calc(100vh-190px)] gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
       <aside className="admin-card flex min-h-[620px] flex-col overflow-hidden p-0">
         <div className="border-b border-[var(--admin-border)] p-4">
@@ -748,6 +790,248 @@ function DashboardTable({ title, headers, rows, empty }: { title: string; header
           </tbody>
         </table>
         {!rows.length && <p className="p-4 text-sm font-semibold text-[var(--admin-muted)]">{empty}</p>}
+      </div>
+    </div>
+  );
+}
+
+function AdminWhatsAppAutomations({ templates }: { templates: Template[] }) {
+  const [rules, setRules] = useState<AutomationRule[]>([]);
+  const [executions, setExecutions] = useState<AutomationExecution[]>([]);
+  const [logs, setLogs] = useState<AutomationLog[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    type: "new_buyer" as AutomationType,
+    template: "",
+    delay: 1440,
+    enabled: true,
+    dailyLimit: 100,
+    cooldownHours: 24,
+    conditions: "{}"
+  });
+
+  const labels: Record<AutomationType, string> = {
+    new_buyer: "Comprador Novo",
+    vip_buyer: "Comprador VIP",
+    abandoned_pix: "PIX Abandonado",
+    inactive_customer: "Cliente Inativo",
+    post_raffle: "Pós-Sorteio",
+    top_buyers: "Top Compradores",
+    birthday: "Aniversário"
+  };
+
+  const delays: Record<AutomationType, Array<{ value: number; label: string }>> = {
+    new_buyer: [{ value: 1440, label: "D+1" }, { value: 4320, label: "D+3" }, { value: 10080, label: "D+7" }],
+    vip_buyer: [{ value: 0, label: "Ao atingir regra" }],
+    abandoned_pix: [{ value: 30, label: "30 min" }, { value: 360, label: "6 horas" }, { value: 1440, label: "24 horas" }, { value: 4320, label: "72 horas" }],
+    inactive_customer: [{ value: 43200, label: "30 dias" }, { value: 86400, label: "60 dias" }, { value: 129600, label: "90 dias" }],
+    post_raffle: [{ value: 0, label: "Após encerramento" }],
+    top_buyers: [{ value: 0, label: "Ranking atual" }],
+    birthday: [{ value: 0, label: "No aniversário" }]
+  };
+
+  async function loadAutomations() {
+    setLoading(true);
+    setError("");
+    const [rulesResponse, logsResponse] = await Promise.all([
+      fetch("/api/admin/whatsapp-center/automations"),
+      fetch("/api/admin/whatsapp-center/automations/logs")
+    ]);
+    const rulesData = await rulesResponse.json().catch(() => ({ rules: [] }));
+    const logsData = await logsResponse.json().catch(() => ({ executions: [], logs: [] }));
+    setLoading(false);
+    if (!rulesResponse.ok) {
+      setError(rulesData.error || "Nao foi possivel carregar automacoes");
+      return;
+    }
+    setRules(rulesData.rules || []);
+    if (logsResponse.ok) {
+      setExecutions(logsData.executions || []);
+      setLogs(logsData.logs || []);
+    }
+  }
+
+  useEffect(() => {
+    void loadAutomations();
+  }, []);
+
+  useEffect(() => {
+    if (!form.template && templates[0]) setForm(current => ({ ...current, template: templates[0].name }));
+  }, [templates, form.template]);
+
+  function delayLabel(type: AutomationType, delay: number) {
+    return delays[type]?.find(item => item.value === delay)?.label || `${delay} min`;
+  }
+
+  async function saveAutomation() {
+    let conditions: Record<string, any> = {};
+    try {
+      conditions = JSON.parse(form.conditions || "{}");
+      if (!conditions || typeof conditions !== "object" || Array.isArray(conditions)) throw new Error("JSON invalido");
+    } catch {
+      setError("Revise as condições JSON da automação.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    const response = await fetch("/api/admin/whatsapp-center/automations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: form.type,
+        template: form.template,
+        language: templates.find(template => template.name === form.template)?.language || "pt_BR",
+        delay: form.delay,
+        enabled: form.enabled,
+        dailyLimit: form.dailyLimit,
+        cooldownHours: form.cooldownHours,
+        conditions
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    setSaving(false);
+    if (!response.ok) {
+      setError(data.error || "Falha ao salvar automação");
+      return;
+    }
+    await loadAutomations();
+  }
+
+  async function toggleAutomation(rule: AutomationRule) {
+    const response = await fetch(`/api/admin/whatsapp-center/automations/${rule.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...rule, enabled: !rule.enabled })
+    });
+    if (response.ok) await loadAutomations();
+  }
+
+  async function removeAutomation(rule: AutomationRule) {
+    const response = await fetch(`/api/admin/whatsapp-center/automations/${rule.id}`, { method: "DELETE" });
+    if (response.ok) await loadAutomations();
+  }
+
+  async function runAutomations() {
+    setLoading(true);
+    const response = await fetch("/api/admin/whatsapp-center/automations/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limit: 50 }) });
+    const data = await response.json().catch(() => ({}));
+    setLoading(false);
+    if (!response.ok) {
+      setError(data.error || "Falha ao executar automações");
+      return;
+    }
+    await loadAutomations();
+  }
+
+  return (
+    <div className="space-y-4">
+      <section className="admin-card">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--admin-muted)]">CRM WhatsApp Cloud</p>
+            <h2 className="mb-1 text-2xl font-bold text-[var(--admin-text)]">Automações CRM</h2>
+            <p className="text-sm text-[var(--admin-muted)]">Gatilhos comerciais com templates aprovados, opt-out, cooldown e limite diário.</p>
+          </div>
+          <button type="button" onClick={() => void runAutomations()} className="admin-button-primary" disabled={loading}>
+            <Play className="h-4 w-4" /> Executar fila
+          </button>
+        </div>
+        <p className="mt-3 rounded-[8px] border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm font-medium text-amber-100">
+          As automações criam execuções programadas e filas com segurança. Nesta etapa, o envio é processado ao clicar em Executar fila. Para execução automática contínua, configure um orquestrador/cron chamando /api/admin/whatsapp-center/automations/run.
+        </p>
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
+        <section className="admin-card space-y-4">
+          <h3 className="mb-0 text-lg font-semibold text-[var(--admin-text)]">Nova automação</h3>
+          <label className="grid gap-2 text-sm font-semibold text-[var(--admin-muted)]">
+            Automação
+            <select className="admin-input h-11" value={form.type} onChange={event => {
+              const type = event.target.value as AutomationType;
+              setForm(current => ({ ...current, type, delay: delays[type][0].value }));
+            }}>
+              {(Object.keys(labels) as AutomationType[]).map(type => <option key={type} value={type}>{labels[type]}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-[var(--admin-muted)]">
+            Template aprovado
+            <select className="admin-input h-11" value={form.template} onChange={event => setForm(current => ({ ...current, template: event.target.value }))}>
+              {templates.map(template => <option key={template.id} value={template.name}>{template.name} · {template.language}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-[var(--admin-muted)]">
+            Gatilho
+            <select className="admin-input h-11" value={form.delay} onChange={event => setForm(current => ({ ...current, delay: Number(event.target.value) }))}>
+              {delays[form.type].map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-2 text-sm font-semibold text-[var(--admin-muted)]">Limite diário<input className="admin-input h-11" type="number" min={1} value={form.dailyLimit} onChange={event => setForm(current => ({ ...current, dailyLimit: Number(event.target.value) }))} /></label>
+            <label className="grid gap-2 text-sm font-semibold text-[var(--admin-muted)]">Cooldown (h)<input className="admin-input h-11" type="number" min={1} value={form.cooldownHours} onChange={event => setForm(current => ({ ...current, cooldownHours: Number(event.target.value) }))} /></label>
+          </div>
+          <label className="grid gap-2 text-sm font-semibold text-[var(--admin-muted)]">
+            Condições JSON
+            <textarea className="admin-input min-h-[110px] font-mono text-xs" value={form.conditions} onChange={event => setForm(current => ({ ...current, conditions: event.target.value }))} />
+          </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-[var(--admin-text)]">
+            <input type="checkbox" checked={form.enabled} onChange={event => setForm(current => ({ ...current, enabled: event.target.checked }))} /> Ativa
+          </label>
+          {error && <p className="rounded-[8px] border border-rose-400/40 bg-rose-400/10 p-3 text-xs font-semibold text-rose-100">{error}</p>}
+          <button type="button" onClick={() => void saveAutomation()} className="admin-button-primary w-full justify-center" disabled={saving || !templates.length}>
+            <ListChecks className="h-4 w-4" /> Salvar automação
+          </button>
+        </section>
+
+        <section className="admin-card overflow-hidden p-0">
+          <div className="border-b border-[var(--admin-border)] p-4">
+            <h3 className="mb-1 text-lg font-semibold text-[var(--admin-text)]">Regras configuradas</h3>
+            <p className="text-xs text-[var(--admin-muted)]">{rules.length} automações nativas</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] text-left text-sm">
+              <thead className="border-b border-[var(--admin-border)] text-xs uppercase text-[var(--admin-muted)]">
+                <tr><th className="p-3">Automação</th><th className="p-3">Template</th><th className="p-3">Gatilho</th><th className="p-3">Status</th><th className="p-3">Próximas execuções</th><th className="p-3">Ações</th></tr>
+              </thead>
+              <tbody>
+                {rules.map(rule => (
+                  <tr key={rule.id} className="border-b border-[var(--admin-border)]">
+                    <td className="p-3 font-semibold text-[var(--admin-text)]">{rule.label || labels[rule.type]}</td>
+                    <td className="p-3 text-[var(--admin-muted)]">{rule.template}</td>
+                    <td className="p-3 text-[var(--admin-muted)]">{delayLabel(rule.type, rule.delay)}</td>
+                    <td className="p-3"><span className={`rounded-[6px] px-2 py-1 text-xs font-bold ${rule.enabled ? "bg-emerald-400/10 text-emerald-100" : "bg-slate-400/10 text-slate-200"}`}>{rule.enabled ? "ativa" : "pausada"}</span></td>
+                    <td className="p-3 text-xs text-[var(--admin-muted)]">{(rule.nextExecutions || []).slice(0, 2).map(item => formatDate(item.scheduledAt)).join(", ") || "Sem agendamentos"}</td>
+                    <td className="p-3">
+                      <div className="flex gap-2">
+                        <button type="button" className="admin-icon-button" onClick={() => void toggleAutomation(rule)} title={rule.enabled ? "Pausar" : "Ativar"}><RefreshCw className="h-4 w-4" /></button>
+                        <button type="button" className="admin-icon-button" onClick={() => void removeAutomation(rule)} title="Remover"><X className="h-4 w-4" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {!rules.length && <tr><td colSpan={6} className="p-6 text-center text-sm text-[var(--admin-muted)]">Nenhuma automação configurada.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <section className="admin-card">
+          <h3 className="text-lg font-semibold text-[var(--admin-text)]">Histórico</h3>
+          <div className="mt-3 space-y-2">
+            {executions.slice(0, 8).map(item => <div key={item.id} className="rounded-[8px] border border-[var(--admin-border)] p-3 text-sm text-[var(--admin-text)]"><strong>{item.status}</strong><span className="ml-2 text-[var(--admin-muted)]">{item.template} · {formatDate(item.executedAt || item.scheduledAt)}</span></div>)}
+            {!executions.length && <p className="text-sm text-[var(--admin-muted)]">Sem histórico de execuções.</p>}
+          </div>
+        </section>
+        <section className="admin-card">
+          <h3 className="text-lg font-semibold text-[var(--admin-text)]">Logs</h3>
+          <div className="mt-3 space-y-2">
+            {logs.slice(0, 8).map(log => <div key={log.id} className="rounded-[8px] border border-[var(--admin-border)] p-3 text-sm text-[var(--admin-text)]"><strong>{log.action}</strong><span className="ml-2 text-[var(--admin-muted)]">{log.message} · {formatDate(log.created_at)}</span></div>)}
+            {!logs.length && <p className="text-sm text-[var(--admin-muted)]">Sem logs de automações.</p>}
+          </div>
+        </section>
       </div>
     </div>
   );

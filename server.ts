@@ -1221,7 +1221,7 @@ async function startServer() {
   type WhatsAppCloudLogRecord = {
     id: string;
     tenant_id: string;
-    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "template_sent" | "crm_campaign_created" | "crm_campaign_preview" | "crm_campaign_enqueued" | "crm_campaign_cancelled" | "crm_campaign_send_requested" | "crm_campaign_sent" | "crm_campaign_failed" | "crm_campaign_skipped" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "manual_reply_sent" | "manual_reply_failed" | "manual_template_sent" | "manual_template_failed" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
+    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "template_sent" | "crm_campaign_created" | "crm_campaign_preview" | "crm_campaign_enqueued" | "crm_campaign_cancelled" | "crm_campaign_send_requested" | "crm_campaign_sent" | "crm_campaign_failed" | "crm_campaign_skipped" | "whatsapp_automation_rule_created" | "whatsapp_automation_rule_updated" | "whatsapp_automation_rule_deleted" | "whatsapp_automation_scheduled" | "whatsapp_automation_sent" | "whatsapp_automation_skipped" | "whatsapp_automation_failed" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "manual_reply_sent" | "manual_reply_failed" | "manual_template_sent" | "manual_template_failed" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
     status: "success" | "error" | "skipped";
     message: string;
     metadata: Record<string, unknown>;
@@ -1339,6 +1339,39 @@ async function startServer() {
     created_at: string;
     updated_at: string;
     cancelled_at?: string;
+  };
+  type WhatsAppAutomationType = "new_buyer" | "vip_buyer" | "abandoned_pix" | "inactive_customer" | "post_raffle" | "top_buyers" | "birthday";
+  type WhatsAppAutomationExecutionStatus = "scheduled" | "sent" | "failed" | "skipped";
+  type WhatsAppAutomationRuleRecord = {
+    id: string;
+    tenantId: string;
+    type: WhatsAppAutomationType;
+    enabled: boolean;
+    template: string;
+    language: string;
+    delay: number;
+    conditions: Record<string, unknown>;
+    dailyLimit: number;
+    cooldownHours: number;
+    createdAt: string;
+    updatedAt: string;
+  };
+  type WhatsAppAutomationExecutionRecord = {
+    id: string;
+    tenantId: string;
+    ruleId: string;
+    customerId: string;
+    status: WhatsAppAutomationExecutionStatus;
+    scheduledAt: string;
+    executedAt?: string;
+    phone?: string;
+    template?: string;
+    language?: string;
+    reason?: string;
+    queueId?: string;
+    idempotencyKey: string;
+    createdAt: string;
+    updatedAt: string;
   };
   type WhatsAppMessageQueueRecord = {
     id: string;
@@ -2886,6 +2919,8 @@ async function startServer() {
   let whatsappPixRecoverySettings: WhatsAppPixRecoverySettingsRecord[] = [];
   let whatsappPurchaseConfirmationSettings: WhatsAppPurchaseConfirmationSettingsRecord[] = [];
   let whatsappCrmCampaigns: WhatsAppCrmCampaignRecord[] = [];
+  let whatsappAutomationRules: WhatsAppAutomationRuleRecord[] = [];
+  let whatsappAutomationExecutions: WhatsAppAutomationExecutionRecord[] = [];
   let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
   let whatsappContacts: WhatsAppContactRecord[] = [];
   let whatsappConversations: WhatsAppConversationRecord[] = [];
@@ -6400,6 +6435,154 @@ async function startServer() {
     });
     schedulePersistentStateSave("whatsapp-crm-campaign-run");
     res.json({ processed: ready.length, sent, failed, skipped, queue: getWhatsAppCrmCampaignQueue(tenantId).slice(0, 200).map(sanitizeWhatsAppQueueRecord) });
+  });
+
+  app.get("/api/admin/whatsapp-center/automations", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({
+      rules: whatsappAutomationRules.filter(item => item.tenantId === tenantId).map(sanitizeWhatsAppAutomationRule),
+      types: whatsappAutomationTypeLabels,
+      allowedDelays: whatsappAutomationAllowedDelays
+    });
+  });
+
+  app.post("/api/admin/whatsapp-center/automations", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const type = String(req.body?.type || "");
+    if (!isWhatsAppAutomationType(type)) return res.status(400).json({ error: "Automacao CRM invalida" });
+    const template = String(req.body?.template || req.body?.templateName || "").trim();
+    const language = String(req.body?.language || "pt_BR").trim() || "pt_BR";
+    if (!template) return res.status(400).json({ error: "Template obrigatorio" });
+    const approvedTemplate = getApprovedWhatsAppTemplate(tenantId, template, language);
+    if (!approvedTemplate) return res.status(409).json({ error: "Template APPROVED obrigatorio" });
+    if (req.body?.body || req.body?.message || req.body?.text) return res.status(400).json({ error: "Texto livre nao permitido em automacoes CRM" });
+    const now = new Date().toISOString();
+    const rule: WhatsAppAutomationRuleRecord = {
+      id: createPublicId("WAR_"),
+      tenantId,
+      type,
+      enabled: Boolean(req.body?.enabled ?? true),
+      template,
+      language,
+      delay: normalizeWhatsAppAutomationDelay(type, req.body?.delay),
+      conditions: req.body?.conditions && typeof req.body.conditions === "object" && !Array.isArray(req.body.conditions) ? req.body.conditions : {},
+      dailyLimit: Math.min(1000, Math.max(1, Math.floor(Number(req.body?.dailyLimit ?? req.body?.daily_limit ?? 100)))),
+      cooldownHours: Math.min(720, Math.max(1, Math.floor(Number(req.body?.cooldownHours ?? req.body?.cooldown_hours ?? 24)))),
+      createdAt: now,
+      updatedAt: now
+    };
+    whatsappAutomationRules.unshift(rule);
+    recordWhatsAppCloudLog(tenantId, { action: "whatsapp_automation_rule_created", status: "success", message: "Automacao CRM criada", metadata: { ruleId: rule.id, type: rule.type, template: rule.template, adminId: getAuthSession(req)?.sub || "" } });
+    schedulePersistentStateSave("whatsapp-automation-rule-created");
+    res.status(201).json({ rule: sanitizeWhatsAppAutomationRule(rule) });
+  });
+
+  app.put("/api/admin/whatsapp-center/automations/:id", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const rule = whatsappAutomationRules.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!rule) return res.status(404).json({ error: "Automacao nao encontrada" });
+    const nextType = isWhatsAppAutomationType(req.body?.type) ? req.body.type : rule.type;
+    const template = String(req.body?.template || req.body?.templateName || rule.template).trim();
+    const language = String(req.body?.language || rule.language || "pt_BR").trim() || "pt_BR";
+    if (!template) return res.status(400).json({ error: "Template obrigatorio" });
+    const approvedTemplate = getApprovedWhatsAppTemplate(tenantId, template, language);
+    if (!approvedTemplate) return res.status(409).json({ error: "Template APPROVED obrigatorio" });
+    if (req.body?.body || req.body?.message || req.body?.text) return res.status(400).json({ error: "Texto livre nao permitido em automacoes CRM" });
+    rule.type = nextType;
+    rule.enabled = Boolean(req.body?.enabled ?? rule.enabled);
+    rule.template = template;
+    rule.language = language;
+    rule.delay = normalizeWhatsAppAutomationDelay(nextType, req.body?.delay ?? rule.delay);
+    rule.conditions = req.body?.conditions && typeof req.body.conditions === "object" && !Array.isArray(req.body.conditions) ? req.body.conditions : rule.conditions;
+    rule.dailyLimit = Math.min(1000, Math.max(1, Math.floor(Number(req.body?.dailyLimit ?? req.body?.daily_limit ?? rule.dailyLimit))));
+    rule.cooldownHours = Math.min(720, Math.max(1, Math.floor(Number(req.body?.cooldownHours ?? req.body?.cooldown_hours ?? rule.cooldownHours))));
+    rule.updatedAt = new Date().toISOString();
+    recordWhatsAppCloudLog(tenantId, { action: "whatsapp_automation_rule_updated", status: "success", message: "Automacao CRM atualizada", metadata: { ruleId: rule.id, type: rule.type, template: rule.template, adminId: getAuthSession(req)?.sub || "" } });
+    schedulePersistentStateSave("whatsapp-automation-rule-updated");
+    res.json({ rule: sanitizeWhatsAppAutomationRule(rule) });
+  });
+
+  app.delete("/api/admin/whatsapp-center/automations/:id", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const rule = whatsappAutomationRules.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!rule) return res.status(404).json({ error: "Automacao nao encontrada" });
+    whatsappAutomationRules = whatsappAutomationRules.filter(item => !(item.id === rule.id && item.tenantId === tenantId));
+    whatsappAutomationExecutions.filter(item => item.tenantId === tenantId && item.ruleId === rule.id && item.status === "scheduled").forEach(item => {
+      item.status = "skipped";
+      item.reason = "Automacao removida antes do envio";
+      item.updatedAt = new Date().toISOString();
+    });
+    recordWhatsAppCloudLog(tenantId, { action: "whatsapp_automation_rule_deleted", status: "success", message: "Automacao CRM removida", metadata: { ruleId: rule.id, type: rule.type, adminId: getAuthSession(req)?.sub || "" } });
+    schedulePersistentStateSave("whatsapp-automation-rule-deleted");
+    res.json({ ok: true });
+  });
+
+  app.get("/api/admin/whatsapp-center/automations/logs", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const ruleId = String(req.query.ruleId || "");
+    res.json({
+      executions: whatsappAutomationExecutions.filter(item => item.tenantId === tenantId && (!ruleId || item.ruleId === ruleId)).slice(0, 300),
+      logs: getWhatsAppAutomationLogs(tenantId, ruleId)
+    });
+  });
+
+  app.post("/api/admin/whatsapp-center/automations/run", requireWhatsAppCrmCampaignAccess, async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const requestedRuleId = String(req.body?.ruleId || "");
+    const activeRules = whatsappAutomationRules.filter(rule => rule.tenantId === tenantId && rule.enabled && (!requestedRuleId || rule.id === requestedRuleId));
+    const scheduling = activeRules.map(rule => scheduleWhatsAppAutomationExecutions(req, rule));
+    const limit = Math.min(100, Math.max(1, Math.floor(Number(req.body?.limit || 20))));
+    const provider = createMetaWhatsAppCloudProvider(tenantId);
+    const templates = getSavedWhatsAppCloudTemplates(tenantId);
+    const nowIso = new Date().toISOString();
+    const ready = whatsappAutomationExecutions
+      .filter(item => item.tenantId === tenantId && item.status === "scheduled" && item.scheduledAt <= nowIso && (!requestedRuleId || item.ruleId === requestedRuleId))
+      .slice(0, limit);
+    let sent = 0;
+    let failed = 0;
+    let skipped = 0;
+    for (const execution of ready) {
+      const rule = whatsappAutomationRules.find(item => item.id === execution.ruleId && item.tenantId === tenantId);
+      if (!rule || !rule.enabled) {
+        execution.status = "skipped";
+        execution.reason = "Automacao desativada";
+        execution.updatedAt = new Date().toISOString();
+        skipped += 1;
+        continue;
+      }
+      const phone = normalizeBrazilianPhone(execution.phone || "");
+      if (!phone || customerHasWhatsAppOptOut(tenantId, phone) || countWhatsAppAutomationsSentToday(tenantId) >= rule.dailyLimit || hasRecentWhatsAppAutomationForCustomer(tenantId, execution.customerId, rule.cooldownHours, execution.id)) {
+        execution.status = "skipped";
+        execution.reason = "Opt-out, limite diario ou cooldown respeitado";
+        execution.updatedAt = new Date().toISOString();
+        skipped += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "whatsapp_automation_skipped", status: "skipped", message: execution.reason, metadata: { ruleId: rule.id, executionId: execution.id, customerId: execution.customerId } });
+        continue;
+      }
+      try {
+        const result = await provider.sendTemplate({
+          to: phone,
+          templateName: rule.template,
+          language: rule.language,
+          components: [],
+          availableTemplates: templates
+        });
+        const executedAt = new Date().toISOString();
+        execution.status = "sent";
+        execution.executedAt = executedAt;
+        execution.updatedAt = executedAt;
+        sent += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "whatsapp_automation_sent", status: "success", message: "Automacao CRM enviada", metadata: { ruleId: rule.id, executionId: execution.id, customerId: execution.customerId, type: rule.type, template: rule.template, metaMessageId: result.data?.messages?.[0]?.id || "" } });
+      } catch (error) {
+        execution.status = "failed";
+        execution.reason = maskSecretText(error instanceof Error ? error.message : "Falha ao enviar automacao CRM");
+        execution.updatedAt = new Date().toISOString();
+        failed += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "whatsapp_automation_failed", status: "error", message: execution.reason, metadata: { ruleId: rule.id, executionId: execution.id, customerId: execution.customerId, type: rule.type, template: rule.template } });
+      }
+    }
+    schedulePersistentStateSave("whatsapp-automation-run");
+    res.json({ scheduled: scheduling.reduce((sum, item) => sum + item.scheduled, 0), skippedScheduled: scheduling.reduce((sum, item) => sum + item.skipped, 0), processed: ready.length, sent, failed, skipped, executions: whatsappAutomationExecutions.filter(item => item.tenantId === tenantId).slice(0, 200) });
   });
 
   app.get("/api/admin/whatsapp-center/contacts/:id", (req, res) => {
@@ -13117,6 +13300,196 @@ async function startServer() {
     );
   }
 
+  const whatsappAutomationTypeLabels: Record<WhatsAppAutomationType, string> = {
+    new_buyer: "Comprador Novo",
+    vip_buyer: "Comprador VIP",
+    abandoned_pix: "PIX Abandonado",
+    inactive_customer: "Cliente Inativo",
+    post_raffle: "Pos-Sorteio",
+    top_buyers: "Top Compradores",
+    birthday: "Aniversario"
+  };
+  const whatsappAutomationAllowedDelays: Record<WhatsAppAutomationType, number[]> = {
+    new_buyer: [1440, 4320, 10080],
+    vip_buyer: [0],
+    abandoned_pix: [30, 360, 1440, 4320],
+    inactive_customer: [43200, 86400, 129600],
+    post_raffle: [0],
+    top_buyers: [0],
+    birthday: [0]
+  };
+
+  function isWhatsAppAutomationType(value: unknown): value is WhatsAppAutomationType {
+    return Object.keys(whatsappAutomationTypeLabels).includes(String(value || ""));
+  }
+
+  function normalizeWhatsAppAutomationDelay(type: WhatsAppAutomationType, value: unknown) {
+    const delay = Math.max(0, Math.floor(Number(value ?? whatsappAutomationAllowedDelays[type][0] ?? 0)));
+    const allowed = whatsappAutomationAllowedDelays[type];
+    return allowed.includes(delay) ? delay : allowed[0];
+  }
+
+  function sanitizeWhatsAppAutomationRule(rule: WhatsAppAutomationRuleRecord) {
+    const executions = whatsappAutomationExecutions.filter(item => item.tenantId === rule.tenantId && item.ruleId === rule.id);
+    return {
+      id: rule.id,
+      tenantId: rule.tenantId,
+      type: rule.type,
+      label: whatsappAutomationTypeLabels[rule.type],
+      enabled: rule.enabled,
+      template: rule.template,
+      language: rule.language,
+      delay: rule.delay,
+      conditions: rule.conditions,
+      dailyLimit: rule.dailyLimit,
+      cooldownHours: rule.cooldownHours,
+      createdAt: rule.createdAt,
+      updatedAt: rule.updatedAt,
+      nextExecutions: executions.filter(item => item.status === "scheduled").sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt)).slice(0, 10),
+      history: executions.filter(item => item.status !== "scheduled").sort((a, b) => String(b.executedAt || b.updatedAt).localeCompare(String(a.executedAt || a.updatedAt))).slice(0, 10)
+    };
+  }
+
+  function getWhatsAppAutomationLogs(tenantId: string, ruleId?: string) {
+    const actions = new Set(["whatsapp_automation_rule_created", "whatsapp_automation_rule_updated", "whatsapp_automation_rule_deleted", "whatsapp_automation_scheduled", "whatsapp_automation_sent", "whatsapp_automation_skipped", "whatsapp_automation_failed"]);
+    return whatsappCloudLogs
+      .filter(log => log.tenant_id === tenantId && actions.has(log.action) && (!ruleId || log.metadata?.ruleId === ruleId))
+      .slice(0, 200);
+  }
+
+  function countWhatsAppAutomationsSentToday(tenantId: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    return whatsappAutomationExecutions.filter(item =>
+      item.tenantId === tenantId &&
+      item.status === "sent" &&
+      String(item.executedAt || item.updatedAt || "").startsWith(today)
+    ).length;
+  }
+
+  function hasRecentWhatsAppAutomationForCustomer(tenantId: string, customerId: string, cooldownHours: number, excludeExecutionId = "") {
+    const since = Date.now() - Math.max(1, cooldownHours) * 60 * 60 * 1000;
+    return whatsappAutomationExecutions.some(item =>
+      item.id !== excludeExecutionId &&
+      item.tenantId === tenantId &&
+      item.customerId === customerId &&
+      ["scheduled", "sent"].includes(item.status) &&
+      new Date(item.updatedAt || item.createdAt).getTime() >= since
+    );
+  }
+
+  function customerHasWhatsAppOptOut(tenantId: string, phone: string) {
+    const normalized = normalizeBrazilianPhone(phone);
+    const contact = whatsappContacts.find(item => item.tenantId === tenantId && item.phone === normalized);
+    return Boolean(contact?.optOut);
+  }
+
+  function buildWhatsAppAutomationRecipients(req: express.Request, rule: WhatsAppAutomationRuleRecord) {
+    const now = Date.now();
+    const customers = buildCrmBuyerCustomers(req);
+    const conditions = rule.conditions || {};
+    const vipMode = String(conditions.vipMode || conditions.mode || "total_spent");
+    const threshold = Math.max(0, Number(conditions.threshold ?? conditions.amount ?? 1000));
+    const inactiveDays = Math.max(30, Number((conditions.days ?? (rule.delay / 1440)) || 30));
+    const topCriterion = String(conditions.criterion || "value");
+    const topLimit = Math.min(100, Math.max(1, Math.floor(Number(conditions.limit || 20))));
+    const selected = customers.filter(customer => {
+      if (rule.type === "new_buyer") return customer.quantidadeCompras === 1 && Boolean(customer.ultimaCompra);
+      if (rule.type === "vip_buyer") return vipMode === "purchase_count" ? customer.quantidadeCompras >= threshold : customer.totalComprado >= threshold;
+      if (rule.type === "abandoned_pix") return customer.flags.pixPendente || customer.flags.pixVencido;
+      if (rule.type === "inactive_customer") return Boolean(customer.ultimaCompra && now - new Date(customer.ultimaCompra).getTime() >= inactiveDays * 24 * 60 * 60 * 1000);
+      if (rule.type === "post_raffle") return Boolean(customer.campanhaMaisRecente);
+      if (rule.type === "top_buyers") return true;
+      if (rule.type === "birthday") {
+        const rawCustomer = Object.values(customersByPhone).find(item => item.tenant_id === rule.tenantId && item.id === customer.id) as (CustomerRecord & { birthDate?: string; birthday?: string; dataNascimento?: string }) | undefined;
+        const birthDate = String(rawCustomer?.birthDate || rawCustomer?.birthday || rawCustomer?.dataNascimento || "");
+        return Boolean(birthDate);
+      }
+      return false;
+    });
+    const ordered = rule.type === "top_buyers"
+      ? [...selected].sort((a, b) => topCriterion === "quantity" ? b.quantidadeCompras - a.quantidadeCompras : b.totalComprado - a.totalComprado).slice(0, topLimit)
+      : selected;
+    const seenPhones = new Set<string>();
+    return ordered.map(customer => ({
+      customerId: customer.id,
+      name: customer.nome,
+      phone: normalizeBrazilianPhone(customer.whatsapp),
+      totalComprado: customer.totalComprado,
+      quantidadeCompras: customer.quantidadeCompras,
+      ultimaCompra: customer.ultimaCompra,
+      campanhaMaisRecente: customer.campanhaMaisRecente
+    })).filter(recipient => {
+      if (!isValidBrazilianWhatsAppPhone(recipient.phone)) return false;
+      if (seenPhones.has(recipient.phone)) return false;
+      seenPhones.add(recipient.phone);
+      return !customerHasWhatsAppOptOut(rule.tenantId, recipient.phone);
+    });
+  }
+
+  function scheduleWhatsAppAutomationExecutions(req: express.Request, rule: WhatsAppAutomationRuleRecord) {
+    const scheduledAt = new Date(Math.floor((Date.now() + rule.delay * 60 * 1000) / 60000) * 60000).toISOString();
+    const recipients = buildWhatsAppAutomationRecipients(req, rule);
+    let scheduled = 0;
+    let skipped = 0;
+    for (const recipient of recipients) {
+      const idempotencyKey = `${rule.tenantId}:${rule.id}:${recipient.customerId}:${scheduledAt}`;
+      if (whatsappAutomationExecutions.some(item => item.idempotencyKey === idempotencyKey)) {
+        skipped += 1;
+        continue;
+      }
+      if (countWhatsAppAutomationsSentToday(rule.tenantId) + scheduled >= rule.dailyLimit) {
+        skipped += 1;
+        continue;
+      }
+      if (hasRecentWhatsAppAutomationForCustomer(rule.tenantId, recipient.customerId, rule.cooldownHours)) {
+        skipped += 1;
+        continue;
+      }
+      const now = new Date().toISOString();
+      const execution: WhatsAppAutomationExecutionRecord = {
+        id: createPublicId("WAA_"),
+        tenantId: rule.tenantId,
+        ruleId: rule.id,
+        customerId: recipient.customerId,
+        status: "scheduled",
+        scheduledAt,
+        phone: recipient.phone,
+        template: rule.template,
+        language: rule.language,
+        idempotencyKey,
+        createdAt: now,
+        updatedAt: now
+      };
+      whatsappAutomationExecutions.unshift(execution);
+      whatsappMessageQueue.unshift({
+        id: createPublicId("WAPP_"),
+        tenant_id: rule.tenantId,
+        customer_id: recipient.customerId,
+        phone: recipient.phone,
+        message_type: "whatsapp_crm_automation",
+        message_body: "",
+        provider: "meta_cloud",
+        status: "queued",
+        attempts: 0,
+        max_attempts: 3,
+        last_error: "",
+        reason: "",
+        template_name: rule.template,
+        language: rule.language,
+        event_type: `automation_${rule.type}`,
+        payload: { automationRuleId: rule.id, automationExecutionId: execution.id, automationType: rule.type, customerName: recipient.name, components: [] },
+        created_at: now,
+        updated_at: now,
+        idempotency_key: `whatsapp-crm-automation:${idempotencyKey}`
+      });
+      scheduled += 1;
+      recordWhatsAppCloudLog(rule.tenantId, { action: "whatsapp_automation_scheduled", status: "success", message: "Automacao CRM agendada", metadata: { ruleId: rule.id, executionId: execution.id, type: rule.type, customerId: recipient.customerId, scheduledAt } });
+    }
+    whatsappAutomationExecutions = whatsappAutomationExecutions.slice(0, 5000);
+    whatsappMessageQueue = whatsappMessageQueue.slice(0, 5000);
+    return { scheduled, skipped, recipients: recipients.length, scheduledAt };
+  }
+
   function isWhatsAppOptOutCommand(body: string) {
     const normalized = body.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
     return ["SAIR", "PARAR", "CANCELAR", "DESCADASTRAR", "STOP"].includes(normalized);
@@ -18701,6 +19074,8 @@ async function startServer() {
       whatsappPixRecoverySettings,
       whatsappPurchaseConfirmationSettings,
       whatsappCrmCampaigns,
+      whatsappAutomationRules,
+      whatsappAutomationExecutions,
       whatsappMessageQueue,
       whatsappContacts,
       whatsappConversations,
@@ -18796,6 +19171,8 @@ async function startServer() {
       case "whatsappPixRecoverySettings": whatsappPixRecoverySettings = Array.isArray(value) ? value : []; break;
       case "whatsappPurchaseConfirmationSettings": whatsappPurchaseConfirmationSettings = Array.isArray(value) ? value : []; break;
       case "whatsappCrmCampaigns": whatsappCrmCampaigns = Array.isArray(value) ? value : []; break;
+      case "whatsappAutomationRules": whatsappAutomationRules = Array.isArray(value) ? value : []; break;
+      case "whatsappAutomationExecutions": whatsappAutomationExecutions = Array.isArray(value) ? value : []; break;
       case "whatsappMessageQueue": whatsappMessageQueue = Array.isArray(value) ? value : []; break;
       case "whatsappContacts": whatsappContacts = Array.isArray(value) ? value : []; break;
       case "whatsappConversations": whatsappConversations = Array.isArray(value) ? value : []; break;
