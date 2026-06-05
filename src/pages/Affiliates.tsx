@@ -8,6 +8,7 @@ import {
   Copy,
   Crown,
   DollarSign,
+  ExternalLink,
   FileText,
   Film,
   Image,
@@ -36,6 +37,16 @@ import { cn } from "../lib/utils";
 import { uploadCustomerProfilePhoto } from "../utils/customerMedia";
 
 type MarketingTab = "banners" | "videos" | "stories" | "reels" | "textos";
+type AffiliateCampaignLink = {
+  publicId: string;
+  name: string;
+  type: string;
+  status: string;
+  publicPath: string;
+  affiliateUrl: string;
+  imageUrl?: string;
+  whatsappText?: string;
+};
 type AffiliateDashboard = {
   refCode: string;
   couponCode: string;
@@ -90,9 +101,16 @@ export function Affiliates() {
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [marketingTab, setMarketingTab] = useState<MarketingTab>("banners");
+  const [isLoadingAffiliate, setIsLoadingAffiliate] = useState(true);
+  const [affiliateLoadError, setAffiliateLoadError] = useState("");
+  const [campaignLinks, setCampaignLinks] = useState<AffiliateCampaignLink[]>([]);
+  const [isLoadingCampaignLinks, setIsLoadingCampaignLinks] = useState(true);
+  const [campaignLinksError, setCampaignLinksError] = useState("");
 
   useEffect(() => {
     if (!customer) return;
+    setIsLoadingAffiliate(true);
+    setAffiliateLoadError("");
     Promise.all([
       fetch(`/api/affiliates/${customer.affiliateRefCode}`).then(res => res.json()),
       fetch(`/api/affiliates/${customer.affiliateRefCode}/dashboard`).then(res => res.ok ? res.json() : null).catch(() => null)
@@ -104,12 +122,31 @@ export function Affiliates() {
       const balance = Number(dashboardData?.metrics?.availableToWithdraw ?? ((data.commissionBalance ?? data.commission ?? 0) + Number(data.prizeBalance || 0)));
       setWithdrawAmount(balance ? balance.toFixed(2) : "");
       setCustomer({ ...customer, affiliate: data });
-    }).catch(() => null);
+    }).catch(() => {
+      setAffiliateLoadError("Não foi possível carregar seu painel de afiliado agora. Tente novamente em alguns instantes.");
+    }).finally(() => setIsLoadingAffiliate(false));
   }, [customer?.affiliateRefCode]);
 
   useEffect(() => {
     fetch("/api/settings").then(res => res.json()).then(setSettings).catch(() => null);
   }, []);
+
+  useEffect(() => {
+    if (!customer?.affiliateRefCode) return;
+    setIsLoadingCampaignLinks(true);
+    setCampaignLinksError("");
+    fetch(`/api/affiliates/${customer.affiliateRefCode}/campaign-links`)
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Erro ao carregar campanhas");
+        setCampaignLinks(Array.isArray(data?.campaigns) ? data.campaigns : []);
+      })
+      .catch(() => {
+        setCampaignLinks([]);
+        setCampaignLinksError("Não foi possível carregar os links das campanhas agora.");
+      })
+      .finally(() => setIsLoadingCampaignLinks(false));
+  }, [customer?.affiliateRefCode]);
 
   const affiliateLink = useMemo(() => {
     if (dashboard?.links?.primary) return dashboard.links.primary;
@@ -202,7 +239,36 @@ export function Affiliates() {
     );
   }
 
-  if (!stats) return null;
+  if (isLoadingAffiliate) {
+    return (
+      <div className="mx-auto w-full max-w-7xl space-y-4 px-3 pb-10 pt-4 text-[var(--admin-text)] sm:px-4">
+        <div className="admin-card p-5">
+          <div className="h-6 w-40 animate-pulse rounded-[8px] bg-white/[0.08]" />
+          <div className="mt-4 h-9 w-full max-w-sm animate-pulse rounded-[8px] bg-white/[0.08]" />
+          <div className="mt-3 h-5 w-full max-w-2xl animate-pulse rounded-[8px] bg-white/[0.06]" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="admin-card h-32 animate-pulse bg-white/[0.06]" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats || affiliateLoadError) {
+    return (
+      <div className="mx-auto w-full max-w-2xl px-3 pb-10 pt-6 sm:px-4">
+        <div className="admin-card p-6 text-center">
+          <Wallet className="mx-auto mb-4 h-10 w-10 text-[var(--admin-warning)]" />
+          <h1 className="text-2xl font-black text-[var(--admin-text)]">Painel indisponível</h1>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-[var(--admin-muted)]">
+            {affiliateLoadError || "Ainda não recebemos os dados do seu painel de afiliado."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const rules = stats.rules;
   const eligible = stats.enabled;
@@ -231,26 +297,26 @@ export function Affiliates() {
   }));
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 pb-10 pt-4 text-[var(--admin-text)]">
-      <section className="admin-card p-5">
+    <div className="mx-auto w-full max-w-7xl space-y-5 px-3 pb-10 pt-3 text-[var(--admin-text)] sm:space-y-6 sm:px-4 sm:pt-4">
+      <section className="admin-card p-4 sm:p-5">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-[var(--admin-primary)]">
+            <p className="mb-2 flex min-w-0 items-center gap-2 text-xs font-bold uppercase text-[var(--admin-primary)]">
               <Crown className="h-4 w-4" />
-              Afiliados Premium V1
+              <span className="min-w-0 break-words">Afiliados Premium</span>
             </p>
-            <h1 className="text-3xl font-black text-[var(--admin-text)] md:text-4xl">Painel de Afiliado</h1>
+            <h1 className="break-words text-3xl font-black text-[var(--admin-text)] md:text-4xl">Painel de Afiliado</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--admin-muted)]">
               Comissão de {rules?.commissionRate || 0}% por compra indicada, com saque mínimo de R$ {(rules?.minWithdrawAmount || 0).toFixed(2)}.
             </p>
           </div>
-          <div className="flex min-w-0 items-center gap-3 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-2">
+          <div className="grid min-w-0 gap-3 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-3 sm:grid-cols-[auto_1fr_auto] sm:items-center lg:w-auto lg:min-w-[320px]">
             <AffiliateAvatar customer={customer} />
-            <div className="min-w-0 pr-2">
-              <p className="truncate text-sm font-bold text-[var(--admin-text)]">{customer.name}</p>
-              <p className="truncate font-mono text-xs text-[var(--admin-muted)]">{customer.affiliateRefCode}</p>
+            <div className="min-w-0 sm:pr-2">
+              <p className="min-w-0 break-words text-sm font-bold text-[var(--admin-text)] sm:truncate">{customer.name}</p>
+              <p className="min-w-0 break-all font-mono text-xs text-[var(--admin-muted)] sm:truncate sm:break-normal">{customer.affiliateRefCode}</p>
             </div>
-            <button onClick={() => void copyValue(affiliateLink, "Link de afiliado copiado")} className="admin-button-secondary shrink-0">
+            <button onClick={() => void copyValue(affiliateLink, "Link de afiliado copiado")} className="admin-button-secondary w-full shrink-0 justify-center sm:w-auto">
               <Copy className="h-4 w-4" />
               Copiar
             </button>
@@ -264,21 +330,21 @@ export function Affiliates() {
         </div>
       )}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <MetricCard icon={DollarSign} label="Comissões Totais" value={money(totalCommissions)} trend="histórico estimado" tone="success" />
-        <MetricCard icon={CalendarClock} label="Comissões Pendentes" value={money(pendingCommissions)} trend="a liberar" tone="warning" />
-        <MetricCard icon={CheckCircle2} label="Comissões Liberadas" value={money(releasedCommissions)} trend="saldo disponível" tone="primary" />
-        <MetricCard icon={Banknote} label="Saques Realizados" value={money(paidAmount)} trend={`${paidWithdrawalCount(stats.history)} baixa(s)`} tone="accent" />
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <MetricCard icon={DollarSign} label="Comissões Totais" value={<MetricValue>{money(totalCommissions)}</MetricValue>} trend="histórico estimado" tone="success" />
+        <MetricCard icon={CalendarClock} label="Comissões Pendentes" value={<MetricValue>{money(pendingCommissions)}</MetricValue>} trend="a liberar" tone="warning" />
+        <MetricCard icon={CheckCircle2} label="Comissões Liberadas" value={<MetricValue>{money(releasedCommissions)}</MetricValue>} trend="saldo disponível" tone="primary" />
+        <MetricCard icon={Banknote} label="Saques Realizados" value={<MetricValue>{money(paidAmount)}</MetricValue>} trend={`${paidWithdrawalCount(stats.history)} baixa(s)`} tone="accent" />
         <MetricCard icon={Users} label="Clientes Indicados" value={dashboard?.metrics.referredCustomers ?? stats.referredCustomers} trend={`${dashboard?.metrics.conversions ?? stats.conversions} conversões`} />
         <MetricCard icon={TrendingUp} label="Conversão" value={`${conversionRate.toFixed(1)}%`} trend={`${dashboard?.metrics.clicks ?? stats.clicks} cliques`} tone="success" />
       </section>
 
       {eligibility && (
-        <section className={cn("admin-card border p-5", eligibility.isEligibleThisMonth ? "border-[var(--admin-success)]/30" : "border-[var(--admin-warning)]/40")}>
+        <section className={cn("admin-card border p-4 sm:p-5", eligibility.isEligibleThisMonth ? "border-[var(--admin-success)]/30" : "border-[var(--admin-warning)]/40")}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="mb-1 text-xs font-black uppercase tracking-[0.18em] text-[var(--admin-muted)]">Status do Afiliado</p>
-              <h2 className="text-2xl font-black text-[var(--admin-text)]">
+            <div className="min-w-0">
+              <p className="mb-1 text-xs font-black uppercase text-[var(--admin-muted)]">Status do Afiliado</p>
+              <h2 className="break-words text-xl font-black text-[var(--admin-text)] sm:text-2xl">
                 {eligibility.isEligibleThisMonth ? "Ativo para receber comissões" : "Pendente de ativação mensal"}
               </h2>
               <p className="mt-2 text-sm leading-6 text-[var(--admin-muted)]">
@@ -287,14 +353,14 @@ export function Affiliates() {
                   : `Faltam ${money(eligibility.remainingAmount)} em cotas para liberar suas comissões deste mês.`}
               </p>
             </div>
-            <div className="grid min-w-0 gap-3 sm:grid-cols-3 lg:min-w-[520px]">
+            <div className="grid min-w-0 gap-3 sm:grid-cols-3 lg:w-full lg:max-w-[560px]">
               <FinanceStat label="Mínimo mensal" value={money(eligibility.monthlyRequiredAmount)} />
               <FinanceStat label="Comprado este mês" value={money(eligibility.monthlyPurchasedAmount)} />
               <FinanceStat label="Falta para ativar" value={money(eligibility.remainingAmount)} />
             </div>
           </div>
           {!eligibility.isEligibleThisMonth && (
-            <a href="/" className="admin-button-primary mt-4 inline-flex">
+            <a href="/" className="admin-button-primary mt-4 inline-flex w-full justify-center sm:w-auto">
               Comprar cotas
             </a>
           )}
@@ -315,13 +381,13 @@ export function Affiliates() {
           </div>
         </ChartCard>
 
-        <section className="admin-card p-5">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
+        <section className="admin-card p-4 sm:p-5">
+          <div className="mb-5 flex items-start justify-between gap-3">
+            <div className="min-w-0">
               <h2 className="text-lg font-bold text-[var(--admin-text)]">Central de Links</h2>
-              <p className="text-sm text-[var(--admin-muted)]">Link principal, curto, cupom e QR Code.</p>
+              <p className="text-sm leading-6 text-[var(--admin-muted)]">Copie seu link, cupom ou QR Code para divulgar com segurança.</p>
             </div>
-            <QrCode className="h-5 w-5 text-[var(--admin-primary)]" />
+            <QrCode className="h-5 w-5 shrink-0 text-[var(--admin-primary)]" />
           </div>
           <div className="grid gap-3">
             <LinkRow label="Link principal" value={affiliateLink} onCopy={() => void copyValue(affiliateLink, "Link principal copiado")} />
@@ -329,13 +395,13 @@ export function Affiliates() {
             <LinkRow label="Cupom personalizado" value={couponCode} onCopy={() => void copyValue(couponCode, "Cupom copiado")} />
           </div>
           <div className="mt-5 grid gap-4 sm:grid-cols-[150px_1fr]">
-            <div className="grid aspect-square place-items-center rounded-[8px] border border-[var(--admin-border)] bg-white p-3">
+            <div className="mx-auto grid aspect-square w-full max-w-[180px] place-items-center rounded-[8px] border border-[var(--admin-border)] bg-white p-3 sm:mx-0 sm:max-w-none">
               <QRCodeSVG value={affiliateLink} className="h-full w-full" bgColor="#ffffff" fgColor="#0f172a" level="M" />
             </div>
-            <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
+            <div className="min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
               <p className="text-sm font-semibold text-[var(--admin-text)]">QR Code de divulgação</p>
               <p className="mt-2 text-sm leading-6 text-[var(--admin-muted)]">Use em stories, grupos, bio ou atendimento. O código direciona para o link principal com sua indicação.</p>
-              <button onClick={() => void copyValue(affiliateLink, "Link do QR copiado")} className="admin-button-secondary mt-4">
+              <button onClick={() => void copyValue(affiliateLink, "Link do QR copiado")} className="admin-button-secondary mt-4 w-full justify-center sm:w-auto">
                 <Share2 className="h-4 w-4" />
                 Compartilhar link
               </button>
@@ -344,14 +410,21 @@ export function Affiliates() {
         </section>
       </div>
 
+      <CampaignLinksSection
+        campaigns={campaignLinks}
+        isLoading={isLoadingCampaignLinks}
+        error={campaignLinksError}
+        onCopy={copyValue}
+      />
+
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="admin-card p-5">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
+        <div className="admin-card p-4 sm:p-5">
+          <div className="mb-5 flex items-start justify-between gap-3">
+            <div className="min-w-0">
               <h2 className="text-lg font-bold text-[var(--admin-text)]">Área Financeira</h2>
-              <p className="text-sm text-[var(--admin-muted)]">Saldo, liberação e próximo pagamento.</p>
+              <p className="text-sm leading-6 text-[var(--admin-muted)]">Acompanhe saldo, liberação e próximo pagamento.</p>
             </div>
-            <Wallet className="h-5 w-5 text-[var(--admin-primary)]" />
+            <Wallet className="h-5 w-5 shrink-0 text-[var(--admin-primary)]" />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <FinanceStat label="Disponível para saque" value={money(totalBalance)} />
@@ -367,10 +440,10 @@ export function Affiliates() {
           <div className="mt-5 space-y-4 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
             <label className="grid gap-2 text-sm font-semibold text-[var(--admin-text)]">
               Chave PIX para saque
-              <input value={pixKey} onChange={event => setPixKey(event.target.value)} placeholder="CPF, telefone, e-mail ou aleatória" className="admin-input" />
+              <input value={pixKey} onChange={event => setPixKey(event.target.value)} placeholder="CPF, telefone, e-mail ou aleatória" className="admin-input min-w-0" />
             </label>
-            <button type="button" onClick={() => setUseBalance(!useBalance)} className="flex w-full items-center justify-between rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-4 py-3 text-left">
-              <span className="text-sm font-semibold text-[var(--admin-text)]">Usar saldo para comprar cotas</span>
+            <button type="button" onClick={() => setUseBalance(!useBalance)} className="flex w-full items-center justify-between gap-3 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-4 py-3 text-left">
+              <span className="min-w-0 text-sm font-semibold leading-5 text-[var(--admin-text)]">Usar saldo para comprar cotas</span>
               {useBalance ? <ToggleRight className="h-7 w-7 text-[var(--admin-success)]" /> : <ToggleLeft className="h-7 w-7 text-[var(--admin-muted)]" />}
             </button>
             <button onClick={saveAffiliate} className="admin-button-primary w-full justify-center">
@@ -388,7 +461,7 @@ export function Affiliates() {
                     step="0.01"
                     value={withdrawAmount}
                     onChange={event => setWithdrawAmount(event.target.value)}
-                    className="admin-input"
+                    className="admin-input min-w-0"
                   />
                 </label>
                 <button type="button" onClick={requestWithdrawal} disabled={isWithdrawing} className="admin-button-primary w-full justify-center disabled:opacity-60">
@@ -405,16 +478,16 @@ export function Affiliates() {
         </div>
 
         <div className="space-y-6">
-          <AdminDataTable
+          <ResponsiveDataTable
             columns={["Cliente", "Plano", "Status", "Data de cadastro", "Último pagamento", "Comissão"]}
             rows={referredRows}
-            empty="Nenhum cliente indicado identificado ainda."
+            empty="Quando alguém entrar pelo seu link, o cliente aparecerá aqui com status e comissão."
             minWidth="820px"
           />
-          <AdminDataTable
+          <ResponsiveDataTable
             columns={["Tipo", "Valor", "Data", "Status"]}
             rows={historyRows}
-            empty="Nenhum histórico financeiro ainda."
+            empty="Suas comissões, liberações e saques aparecerão aqui."
             minWidth="640px"
           />
         </div>
@@ -425,25 +498,25 @@ export function Affiliates() {
         <RankingCard title="Top afiliados do ano" rows={rankingYear} />
       </section>
 
-      <section className="admin-card p-5">
+      <section className="admin-card p-4 sm:p-5">
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+          <div className="min-w-0">
             <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--admin-text)]">
-              <Megaphone className="h-5 w-5 text-[var(--admin-primary)]" />
-              Central de Marketing
+              <Megaphone className="h-5 w-5 shrink-0 text-[var(--admin-primary)]" />
+              <span className="min-w-0 break-words">Central de Marketing</span>
             </h2>
-            <p className="mt-1 text-sm text-[var(--admin-muted)]">Materiais rápidos para divulgação em canais sociais.</p>
+            <p className="mt-1 text-sm leading-6 text-[var(--admin-muted)]">Materiais rápidos para divulgar em redes sociais e grupos.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
             {marketingTabs.map(tab => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setMarketingTab(tab.id)}
-                className={cn("admin-button-secondary", marketingTab === tab.id && "border-[var(--admin-primary)] text-[var(--admin-primary)]")}
+                className={cn("admin-button-secondary min-w-0 justify-center px-3 text-xs sm:text-sm", marketingTab === tab.id && "border-[var(--admin-primary)] text-[var(--admin-primary)]")}
               >
                 <tab.icon className="h-4 w-4" />
-                {tab.label}
+                <span className="min-w-0 truncate">{tab.label}</span>
               </button>
             ))}
           </div>
@@ -459,12 +532,12 @@ export function Affiliates() {
       </section>
 
       {settings?.affiliateInstructionVideo?.enabled && settings.affiliateInstructionVideo?.mediaUrl && (
-        <section className="admin-card overflow-hidden p-5">
+        <section className="admin-card overflow-hidden p-4 sm:p-5">
           <div className="mb-4">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--admin-primary)]">Treinamento do afiliado</p>
-            <h2 className="mt-1 text-xl font-bold text-[var(--admin-text)]">{settings.affiliateInstructionVideo.title || "Como divulgar seu link"}</h2>
+            <p className="text-xs font-bold uppercase text-[var(--admin-primary)]">Treinamento do afiliado</p>
+            <h2 className="mt-1 break-words text-xl font-bold text-[var(--admin-text)]">{settings.affiliateInstructionVideo.title || "Como divulgar seu link"}</h2>
             {settings.affiliateInstructionVideo.description && (
-              <p className="mt-1 text-sm text-[var(--admin-muted)]">{settings.affiliateInstructionVideo.description}</p>
+              <p className="mt-1 break-words text-sm leading-6 text-[var(--admin-muted)]">{settings.affiliateInstructionVideo.description}</p>
             )}
           </div>
           <div className="aspect-video overflow-hidden rounded-[8px] border border-[var(--admin-border)] bg-black">
@@ -478,14 +551,14 @@ export function Affiliates() {
         </section>
       )}
 
-      <section className="admin-card p-5">
-        <div className="grid gap-4 md:grid-cols-[auto_1fr_auto] md:items-center">
+      <section className="admin-card p-4 sm:p-5">
+        <div className="grid gap-4 sm:grid-cols-[auto_1fr] md:grid-cols-[auto_1fr_auto] md:items-center">
           <AffiliateAvatar customer={customer} large />
-          <div>
+          <div className="min-w-0">
             <h2 className="text-lg font-bold text-[var(--admin-text)]">Foto de divulgação</h2>
-            <p className="text-sm text-[var(--admin-muted)]">A mesma imagem aparece no perfil do cliente e deixa os materiais mais reconhecíveis.</p>
+            <p className="text-sm leading-6 text-[var(--admin-muted)]">A mesma imagem aparece no perfil do cliente e deixa os materiais mais reconhecíveis.</p>
           </div>
-          <label className="admin-button-secondary inline-flex min-h-11 cursor-pointer items-center justify-center gap-2">
+          <label className="admin-button-secondary inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 sm:col-span-2 md:col-span-1 md:w-auto">
             <UploadCloud className="h-4 w-4" />
             {uploadingPhoto ? "Enviando..." : "Escolher foto"}
             <input
@@ -505,6 +578,109 @@ export function Affiliates() {
   );
 }
 
+function CampaignLinksSection({
+  campaigns,
+  isLoading,
+  error,
+  onCopy
+}: {
+  campaigns: AffiliateCampaignLink[];
+  isLoading: boolean;
+  error: string;
+  onCopy: (value: string, message: string) => Promise<void>;
+}) {
+  return (
+    <section className="admin-card p-4 sm:p-5">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="break-words text-lg font-bold text-[var(--admin-text)]">Links das campanhas ativas</h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--admin-muted)]">Copie links dedicados para divulgar cada campanha com seu código de afiliado.</p>
+        </div>
+        <Sparkles className="h-5 w-5 shrink-0 text-[var(--admin-primary)]" />
+      </div>
+
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="min-h-[220px] animate-pulse rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)]" />
+          ))}
+        </div>
+      ) : error ? (
+        <div className="rounded-[8px] border border-[var(--admin-warning)]/35 bg-[var(--admin-warning)]/10 p-4 text-sm font-semibold leading-6 text-[var(--admin-warning)]">
+          {error}
+        </div>
+      ) : campaigns.length === 0 ? (
+        <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 text-center">
+          <p className="text-sm font-semibold leading-6 text-[var(--admin-text)]">Nenhuma campanha ativa disponível no momento.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {campaigns.map(campaign => (
+            <CampaignLinkCard key={`${campaign.type}-${campaign.publicId}-${campaign.affiliateUrl}`} campaign={campaign} onCopy={onCopy} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+type CampaignLinkCardProps = {
+  campaign: AffiliateCampaignLink;
+  onCopy: (value: string, message: string) => Promise<void>;
+  key?: React.Key;
+};
+
+function CampaignLinkCard({ campaign, onCopy }: CampaignLinkCardProps) {
+  return (
+    <article className="flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)]">
+      {campaign.imageUrl ? (
+        <div className="aspect-[16/7] min-w-0 overflow-hidden bg-[var(--admin-surface)]">
+          <img src={campaign.imageUrl} alt={campaign.name} className="h-full w-full object-cover" />
+        </div>
+      ) : null}
+      <div className="flex min-w-0 flex-1 flex-col p-4">
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase text-[var(--admin-primary)]">{campaign.type}</p>
+            <h3 className="mt-1 break-words text-base font-black leading-tight text-[var(--admin-text)]">{campaign.name}</h3>
+          </div>
+          <span className="shrink-0 rounded-full border border-[var(--admin-success)]/30 bg-[var(--admin-success)]/10 px-2.5 py-1 text-[11px] font-bold text-[var(--admin-success)]">
+            {campaign.status}
+          </span>
+        </div>
+        <div className="mt-4 min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3">
+          <p className="text-[11px] font-bold uppercase text-[var(--admin-muted)]">Link dedicado</p>
+          <p className="mt-1 min-w-0 break-all font-mono text-xs leading-5 text-[var(--admin-text)] sm:line-clamp-2">
+            {campaign.affiliateUrl}
+          </p>
+        </div>
+        {campaign.whatsappText && (
+          <div className="mt-3 min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3">
+            <p className="text-[11px] font-bold uppercase text-[var(--admin-muted)]">Texto para WhatsApp</p>
+            <p className="mt-1 line-clamp-3 break-words text-xs leading-5 text-[var(--admin-muted)]">{campaign.whatsappText}</p>
+          </div>
+        )}
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <button onClick={() => void onCopy(campaign.affiliateUrl, "Link da campanha copiado")} className="admin-button-primary min-w-0 justify-center">
+            <Copy className="h-4 w-4" />
+            Copiar link
+          </button>
+          <a href={campaign.affiliateUrl} target="_blank" rel="noreferrer" className="admin-button-secondary min-w-0 justify-center">
+            <ExternalLink className="h-4 w-4" />
+            Abrir campanha
+          </a>
+        </div>
+        {campaign.whatsappText && (
+          <button onClick={() => void onCopy(campaign.whatsappText || campaign.affiliateUrl, "Texto para WhatsApp copiado")} className="admin-button-secondary mt-2 w-full min-w-0 justify-center">
+            <Send className="h-4 w-4" />
+            Copiar WhatsApp
+          </button>
+        )}
+      </div>
+    </article>
+  );
+}
+
 function AffiliateAvatar({ customer, large = false }: { customer: { name: string; photoUrl?: string }; large?: boolean }) {
   return (
     <div className={cn("shrink-0 overflow-hidden rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)]", large ? "h-16 w-16" : "h-11 w-11")}>
@@ -519,12 +695,62 @@ function AffiliateAvatar({ customer, large = false }: { customer: { name: string
   );
 }
 
+function MetricValue({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="block min-w-0 max-w-full break-words text-[clamp(1.15rem,5vw,1.5rem)] leading-tight sm:text-2xl">
+      {children}
+    </span>
+  );
+}
+
+function ResponsiveDataTable({
+  columns,
+  rows,
+  empty,
+  minWidth
+}: {
+  columns: string[];
+  rows: React.ReactNode[][];
+  empty: string;
+  minWidth: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="hidden min-w-0 md:block">
+        <AdminDataTable columns={columns} rows={rows} empty={empty} minWidth={minWidth} />
+      </div>
+      <div className="grid gap-3 md:hidden">
+        {rows.length === 0 ? (
+          <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 text-center">
+            <p className="text-sm font-semibold leading-6 text-[var(--admin-text)]">{empty}</p>
+          </div>
+        ) : (
+          rows.map((row, rowIndex) => (
+            <article key={rowIndex} className="min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
+              <div className="grid gap-3">
+                {columns.map((column, columnIndex) => (
+                  <div key={`${column}-${columnIndex}`} className="min-w-0 border-b border-[var(--admin-border)] pb-2 last:border-b-0 last:pb-0">
+                    <p className="text-[11px] font-bold uppercase text-[var(--admin-muted)]">{column}</p>
+                    <div className="mt-1 min-w-0 break-words text-sm leading-6 text-[var(--admin-text)]">
+                      {row[columnIndex] ?? "-"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 function LinkRow({ label, value, onCopy }: { label: string; value: string; onCopy: () => void }) {
   return (
-    <div className="grid gap-2 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-3 sm:grid-cols-[130px_1fr_auto] sm:items-center">
-      <span className="text-xs font-bold uppercase text-[var(--admin-muted)]">{label}</span>
-      <span className="truncate font-mono text-sm text-[var(--admin-text)]">{value}</span>
-      <button onClick={onCopy} className="admin-button-secondary justify-center py-2 text-xs">
+    <div className="grid min-w-0 gap-2 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-3 sm:grid-cols-[130px_1fr_auto] sm:items-center">
+      <span className="min-w-0 text-xs font-bold uppercase text-[var(--admin-muted)]">{label}</span>
+      <span className="min-w-0 break-all font-mono text-sm leading-5 text-[var(--admin-text)] sm:truncate sm:break-normal">{value}</span>
+      <button onClick={onCopy} className="admin-button-secondary w-full justify-center py-2 text-xs sm:w-auto">
         <Copy className="h-4 w-4" />
         Copiar
       </button>
@@ -534,21 +760,26 @@ function LinkRow({ label, value, onCopy }: { label: string; value: string; onCop
 
 function FinanceStat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
-      <p className="text-xs font-bold uppercase text-[var(--admin-muted)]">{label}</p>
-      <p className="mt-2 text-xl font-black text-[var(--admin-text)]">{value}</p>
+    <div className="min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
+      <p className="min-w-0 break-words text-xs font-bold uppercase text-[var(--admin-muted)]">{label}</p>
+      <p className="mt-2 min-w-0 break-words text-lg font-black leading-tight text-[var(--admin-text)] sm:text-xl">{value}</p>
     </div>
   );
 }
 
 function RankingCard({ title, rows }: { title: string; rows: React.ReactNode[][] }) {
   return (
-    <section className="admin-card p-5">
+    <section className="admin-card p-4 sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-bold text-[var(--admin-text)]">{title}</h2>
-        <Trophy className="h-5 w-5 text-[var(--admin-primary)]" />
+        <h2 className="min-w-0 break-words text-lg font-bold text-[var(--admin-text)]">{title}</h2>
+        <Trophy className="h-5 w-5 shrink-0 text-[var(--admin-primary)]" />
       </div>
-      <AdminDataTable columns={["Posição", "Afiliado", "Clientes", "Receita", "Comissão"]} rows={rows} minWidth="640px" />
+      <ResponsiveDataTable
+        columns={["Posição", "Afiliado", "Clientes", "Receita", "Comissão"]}
+        rows={rows}
+        empty="O ranking aparecerá quando houver desempenho suficiente para comparar afiliados."
+        minWidth="640px"
+      />
     </section>
   );
 }

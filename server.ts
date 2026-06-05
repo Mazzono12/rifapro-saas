@@ -11566,6 +11566,82 @@ async function startServer() {
     };
   }
 
+  function buildAffiliateCampaignLinks(req: express.Request, affiliate: AffiliateRecord) {
+    const origin = `${req.protocol}://${req.get("host")}`;
+    const tenantId = affiliate.tenant_id;
+    const ref = affiliate.refCode;
+    const addAffiliateParams = (path: string, extra: Record<string, string> = {}) => {
+      const url = new URL(path, origin);
+      url.searchParams.set("ref", ref);
+      Object.entries(extra).forEach(([key, value]) => {
+        if (value) url.searchParams.set(key, value);
+      });
+      return url.toString();
+    };
+    const activeRaffles = raffles.filter(raffle => raffle.tenant_id === tenantId && raffle.status === "active");
+    const activeRaffleIds = new Set(activeRaffles.map(raffle => raffle.id));
+    const now = Date.now();
+    const activeCoupons = campaignCoupons.filter(coupon => {
+      if (coupon.tenant_id !== tenantId || !coupon.active) return false;
+      if (coupon.maxUses && coupon.used >= coupon.maxUses) return false;
+      if (coupon.startsAt && new Date(coupon.startsAt).getTime() > now) return false;
+      if (coupon.endsAt && new Date(coupon.endsAt).getTime() < now) return false;
+      return !coupon.raffleId || activeRaffleIds.has(coupon.raffleId);
+    });
+    const fazendinha = getFazendinhaConfig(tenantId);
+    const numberModes = getNumberModeConfigsForTenant(tenantId).filter(config => config.enabled && config.status === "active");
+
+    return {
+      campaigns: [
+        ...activeRaffles.map(raffle => ({
+          publicId: raffle.id,
+          name: raffle.title,
+          type: "Rifa",
+          status: "Ativa",
+          publicPath: `/raffle/${encodeURIComponent(raffle.id)}`,
+          affiliateUrl: addAffiliateParams(`/raffle/${encodeURIComponent(raffle.id)}`),
+          imageUrl: raffle.image || raffle.mediaUrl || "",
+          whatsappText: `Participe da campanha ${raffle.title} pelo meu link: ${addAffiliateParams(`/raffle/${encodeURIComponent(raffle.id)}`)}`
+        })),
+        ...(fazendinha.enabled && fazendinha.status === "active" ? [{
+          publicId: "fazendinha",
+          name: fazendinha.name || "A Fazendinha",
+          type: "Fazendinha",
+          status: "Ativa",
+          publicPath: "/fazendinha",
+          affiliateUrl: addAffiliateParams("/fazendinha"),
+          imageUrl: fazendinha.mediaUrl || "",
+          whatsappText: `Escolha seus bichinhos na Fazendinha pelo meu link: ${addAffiliateParams("/fazendinha")}`
+        }] : []),
+        ...numberModes.map(config => ({
+          publicId: config.id,
+          name: config.name,
+          type: "Número da Sorte",
+          status: "Ativa",
+          publicPath: `/${config.id}`,
+          affiliateUrl: addAffiliateParams(`/${config.id}`),
+          imageUrl: config.mediaUrl || "",
+          whatsappText: `Participe da modalidade ${config.name} pelo meu link: ${addAffiliateParams(`/${config.id}`)}`
+        })),
+        ...activeCoupons.map(coupon => {
+          const linkedRaffle = coupon.raffleId ? activeRaffles.find(raffle => raffle.id === coupon.raffleId) : undefined;
+          const publicPath = linkedRaffle ? `/raffle/${encodeURIComponent(linkedRaffle.id)}` : "/";
+          const affiliateUrl = addAffiliateParams(publicPath, { coupon: coupon.code });
+          return {
+            publicId: coupon.code,
+            name: coupon.name || `Promoção ${coupon.code}`,
+            type: "Promoção",
+            status: "Ativa",
+            publicPath,
+            affiliateUrl,
+            imageUrl: linkedRaffle?.image || linkedRaffle?.mediaUrl || "",
+            whatsappText: `Use a promoção ${coupon.code} pelo meu link: ${affiliateUrl}`
+          };
+        })
+      ]
+    };
+  }
+
   function manuallyConfirmPurchasePayment(purchase: PurchaseRecord, req: express.Request, reason: string) {
     const normalizedReason = String(reason || "").trim();
     if (!normalizedReason) throw new Error("Motivo da confirmacao manual e obrigatorio");
@@ -16001,6 +16077,20 @@ async function startServer() {
       return;
     }
     res.json(buildAffiliateDashboard(req, affiliate));
+  });
+
+  app.get("/api/affiliates/:refCode/campaign-links", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const affiliate = affiliates[tenantCustomerKey(tenantId, req.params.refCode)];
+    if (!affiliate) {
+      res.status(404).json({ error: "Affiliate not found" });
+      return;
+    }
+    if (!isAffiliateOwnerRequest(req, affiliate)) {
+      res.status(403).json({ error: "Acesso negado para este afiliado" });
+      return;
+    }
+    res.json(buildAffiliateCampaignLinks(req, affiliate));
   });
 
   app.get("/api/admin/affiliates/search", (req, res) => {

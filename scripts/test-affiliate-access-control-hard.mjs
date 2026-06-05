@@ -51,6 +51,39 @@ includesAll(dashboardRouteBlock, [
   "buildAffiliateDashboard(req, affiliate)"
 ], "dashboard afiliado privado");
 
+const campaignLinksRouteBlock = server.slice(server.indexOf('app.get("/api/affiliates/:refCode/campaign-links"'), server.indexOf('app.get("/api/admin/affiliates/search"'));
+includesAll(campaignLinksRouteBlock, [
+  "isAffiliateOwnerRequest(req, affiliate)",
+  'res.status(403).json({ error: "Acesso negado para este afiliado" })',
+  "buildAffiliateCampaignLinks(req, affiliate)"
+], "links dedicados do afiliado privados");
+
+const campaignLinksBuilderBlock = server.slice(server.indexOf("function buildAffiliateCampaignLinks"), server.indexOf("function manuallyConfirmPurchasePayment"));
+includesAll(campaignLinksBuilderBlock, [
+  'raffle.tenant_id === tenantId && raffle.status === "active"',
+  'coupon.tenant_id !== tenantId || !coupon.active',
+  'config.enabled && config.status === "active"',
+  'fazendinha.enabled && fazendinha.status === "active"',
+  'url.searchParams.set("ref", ref)',
+  'publicPath: `/raffle/${encodeURIComponent(raffle.id)}`',
+  'publicPath: "/fazendinha"',
+  'publicPath: `/${config.id}`',
+  'affiliateUrl'
+], "builder de links dedicados");
+
+for (const field of ["soldNumbers", "pixConfig", "tenant_id", "accessToken", "webhookSecret", "commissionBalance", "prizeBalance"]) {
+  assert(!campaignLinksBuilderBlock.includes(`${field}:`), `links dedicados nao devem retornar ${field}`);
+}
+
+includesAll(affiliates, [
+  "/api/affiliates/${customer.affiliateRefCode}/campaign-links",
+  "Links das campanhas ativas",
+  "Nenhuma campanha ativa disponível no momento.",
+  "Copiar link",
+  "Abrir campanha",
+  "CampaignLinkCard"
+], "ui de links dedicados");
+
 const updateRouteBlock = server.slice(server.indexOf('app.put("/api/affiliates/:refCode"'), server.indexOf('app.post("/api/affiliates/:refCode/click"'));
 includesAll(updateRouteBlock, [
   "isAffiliateOwnerRequest(req, affiliate)",
