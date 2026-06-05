@@ -27,6 +27,14 @@ export type MetaWhatsAppCloudProviderOptions = {
   log?: (entry: MetaWhatsAppCloudProviderLogInput) => void;
 };
 
+export type MetaWhatsAppCloudTemplateTestInput = {
+  to: string;
+  templateName: string;
+  language: string;
+  components?: unknown[];
+  availableTemplates?: Array<{ name?: string; language?: string; status?: string }>;
+};
+
 export class MetaWhatsAppCloudProvider {
   private readonly config: MetaCloudWhatsAppConfig;
   private readonly fetchImpl: typeof fetch;
@@ -63,6 +71,20 @@ export class MetaWhatsAppCloudProvider {
     return data;
   }
 
+  private async graphPost(path: string, payload: Record<string, unknown>) {
+    const response = await this.fetchImpl(`https://graph.facebook.com/${this.graphVersion}/${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.config.access_token || ""}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.error?.message || `Meta API retornou HTTP ${response.status}`);
+    return data;
+  }
+
   async testConnection() {
     this.requireCredentials("connection");
     const data = await this.graphGet(`${this.config.phone_number_id}?fields=id,display_phone_number,verified_name,quality_rating`);
@@ -80,7 +102,7 @@ export class MetaWhatsAppCloudProvider {
   async listTemplates() {
     this.requireCredentials("templates");
     const businessAccountId = this.config.whatsapp_business_account_id || this.config.business_account_id;
-    const data = await this.graphGet(`${businessAccountId}/message_templates?fields=name,language,status,category`);
+    const data = await this.graphGet(`${businessAccountId}/message_templates?fields=name,language,status,category,components`);
     this.log?.({ action: "list_templates", status: "success", metadata: { count: Array.isArray(data?.data) ? data.data.length : 0 } });
     return Array.isArray(data?.data) ? data.data : [];
   }
@@ -99,6 +121,31 @@ export class MetaWhatsAppCloudProvider {
     const entries = Array.isArray(body.entry) ? body.entry : [];
     this.log?.({ action: "webhook_received", status: "success", metadata: { entries: entries.length } });
     return { ok: true, entries: entries.length };
+  }
+
+  async sendTemplateTest(input: MetaWhatsAppCloudTemplateTestInput) {
+    this.requireCredentials("connection");
+    const templateName = String(input.templateName || "").trim();
+    const language = String(input.language || this.config.default_language || "pt_BR").trim() || "pt_BR";
+    if (!templateName) throw new Error("Template obrigatorio para o teste");
+    const templates = Array.isArray(input.availableTemplates) ? input.availableTemplates : [];
+    const template = templates.find(item => String(item.name || "") === templateName && String(item.language || "") === language);
+    if (!template) throw new Error("Template nao sincronizado para este tenant");
+    if (String(template.status || "").toUpperCase() !== "APPROVED") throw new Error("Template ainda nao esta aprovado para envio");
+    const components = Array.isArray(input.components) ? input.components : [];
+    const data = await this.graphPost(`${this.config.phone_number_id}/messages`, {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: input.to,
+      type: "template",
+      template: {
+        name: templateName,
+        language: { code: language },
+        ...(components.length ? { components } : {})
+      }
+    });
+    this.log?.({ action: "template_test_sent", status: "success", metadata: { templateName, language } });
+    return { ok: true, data };
   }
 }
 

@@ -36,7 +36,9 @@ export function AdminIntegrations() {
   const [cloudConfig, setCloudConfig] = useState<any>({ enabled: false, environment: "sandbox", webhook_url: "/api/webhooks/meta/whatsapp" });
   const [cloudLogs, setCloudLogs] = useState<any[]>([]);
   const [cloudTemplates, setCloudTemplates] = useState<any[]>([]);
+  const [savedCloudTemplates, setSavedCloudTemplates] = useState<any[]>([]);
   const [cloudPhone, setCloudPhone] = useState<any>(null);
+  const [templateTest, setTemplateTest] = useState({ to: "", templateName: "", language: "pt_BR", components: "[]" });
   const [whatsappConfig, setWhatsappConfig] = useState<any>({ provider: "mock", enabled: false, environment: "sandbox", default_language: "pt_BR" });
   const [whatsappMessages, setWhatsappMessages] = useState<any[]>([]);
   const [testPhone, setTestPhone] = useState("");
@@ -50,10 +52,11 @@ export function AdminIntegrations() {
   const selectedSettingsValues = useMemo(() => parseConfigText(settings), [settings]);
 
   const load = async () => {
-    const [integrationsRes, logsRes, whatsappCloudRes, whatsappConfigRes, whatsappMessagesRes] = await Promise.all([
+    const [integrationsRes, logsRes, whatsappCloudRes, whatsappCloudTemplatesRes, whatsappConfigRes, whatsappMessagesRes] = await Promise.all([
       fetch("/api/admin/integrations/global"),
       fetch("/api/admin/integrations/global/logs"),
       fetch("/api/admin/whatsapp-cloud/settings"),
+      fetch("/api/admin/whatsapp-cloud/templates/saved"),
       fetch("/api/admin/whatsapp/config"),
       fetch("/api/admin/whatsapp/messages")
     ]);
@@ -64,6 +67,8 @@ export function AdminIntegrations() {
     const cloudData = await whatsappCloudRes.json();
     setCloudConfig(cloudData.settings || { enabled: false, environment: "sandbox", webhook_url: "/api/webhooks/meta/whatsapp" });
     setCloudLogs(cloudData.logs || []);
+    const savedTemplatesData = await whatsappCloudTemplatesRes.json();
+    setSavedCloudTemplates(savedTemplatesData.templates || []);
     setWhatsappConfig(await whatsappConfigRes.json());
     setWhatsappMessages(await whatsappMessagesRes.json());
   };
@@ -176,6 +181,48 @@ export function AdminIntegrations() {
       setCloudTemplates(data.templates || []);
       toast.success("Templates carregados");
     }
+    await load();
+  };
+
+  const syncCloudTemplates = async () => {
+    const res = await fetch("/api/admin/whatsapp-cloud/templates/sync", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Não foi possível sincronizar templates");
+    else {
+      setSavedCloudTemplates(data.templates || []);
+      setCloudTemplates(data.templates || []);
+      toast.success("Templates sincronizados");
+    }
+    await load();
+  };
+
+  const refreshSavedCloudTemplates = async () => {
+    const res = await fetch("/api/admin/whatsapp-cloud/templates/saved");
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Não foi possível atualizar a lista");
+    else {
+      setSavedCloudTemplates(data.templates || []);
+      toast.success("Lista atualizada");
+    }
+  };
+
+  const sendCloudTemplateTest = async () => {
+    let components: unknown[] = [];
+    try {
+      const parsed = JSON.parse(templateTest.components || "[]");
+      components = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      toast.error("Revise as variáveis do template");
+      return;
+    }
+    const res = await fetch("/api/admin/whatsapp-cloud/test-template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...templateTest, components })
+    });
+    const data = await res.json();
+    if (!res.ok) toast.error(data.error || "Não foi possível enviar o teste individual");
+    else toast.success("Teste individual enviado");
     await load();
   };
 
@@ -369,6 +416,97 @@ export function AdminIntegrations() {
                 </div>
               ))}
               {!cloudLogs.length && <p className="text-[var(--admin-muted)]">Nenhum log registrado ainda.</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+          <div className="rounded-lg border border-[var(--admin-border)] p-4">
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="font-semibold text-[var(--admin-text)]">Templates Oficiais</h3>
+                <p className="text-sm text-[var(--admin-muted)]">Sincronize os modelos aprovados na Meta e mantenha uma cópia segura por cliente.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={syncCloudTemplates} className="admin-button-secondary"><ListChecks className="h-4 w-4" />Sincronizar templates</button>
+                <button type="button" onClick={refreshSavedCloudTemplates} className="admin-button-secondary"><Eye className="h-4 w-4" />Atualizar lista</button>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="text-xs uppercase text-[var(--admin-muted)]">
+                  <tr>
+                    <th className="py-2 pr-3">Nome</th>
+                    <th className="py-2 pr-3">Status</th>
+                    <th className="py-2 pr-3">Idioma</th>
+                    <th className="py-2 pr-3">Categoria</th>
+                    <th className="py-2">Última sincronização</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--admin-border)]">
+                  {savedCloudTemplates.map(template => (
+                    <tr key={`${template.name}-${template.language}`} className="text-[var(--admin-text)]">
+                      <td className="py-2 pr-3 font-semibold">{template.name}</td>
+                      <td className="py-2 pr-3">{friendlyTemplateStatus(template.status)}</td>
+                      <td className="py-2 pr-3">{template.language || "pt_BR"}</td>
+                      <td className="py-2 pr-3">{template.category || "Sem categoria"}</td>
+                      <td className="py-2 text-[var(--admin-muted)]">{template.synced_at ? new Date(template.synced_at).toLocaleString("pt-BR") : "Ainda não sincronizado"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!savedCloudTemplates.length && <p className="py-6 text-sm text-[var(--admin-muted)]">Nenhum template sincronizado ainda.</p>}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-[var(--admin-border)] p-4">
+            <h3 className="mb-2 font-semibold text-[var(--admin-text)]">Enviar teste individual</h3>
+            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">Envio permitido apenas para teste individual. Campanhas e disparos em massa serão configurados em etapa futura.</p>
+            <div className="space-y-3">
+              <label className="block text-sm text-[var(--admin-muted)]">
+                Número de teste
+                <input
+                  value={templateTest.to}
+                  onChange={event => setTemplateTest(prev => ({ ...prev, to: event.target.value }))}
+                  placeholder="5599999999999"
+                  className="admin-input mt-1"
+                />
+              </label>
+              <label className="block text-sm text-[var(--admin-muted)]">
+                Template
+                <select
+                  value={templateTest.templateName ? `${templateTest.templateName}::${templateTest.language}` : ""}
+                  onChange={event => {
+                    const [templateName = "", language = "pt_BR"] = event.target.value.split("::");
+                    setTemplateTest(prev => ({ ...prev, templateName, language }));
+                  }}
+                  className="admin-input mt-1"
+                >
+                  <option value="">Escolha um template aprovado</option>
+                  {savedCloudTemplates.filter(template => String(template.status || "").toUpperCase() === "APPROVED").map(template => (
+                    <option key={`${template.name}-${template.language}`} value={`${template.name}::${template.language || "pt_BR"}`}>{template.name} · {template.language || "pt_BR"}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm text-[var(--admin-muted)]">
+                Idioma
+                <input
+                  value={templateTest.language}
+                  onChange={event => setTemplateTest(prev => ({ ...prev, language: event.target.value }))}
+                  placeholder="pt_BR"
+                  className="admin-input mt-1"
+                />
+              </label>
+              <label className="block text-sm text-[var(--admin-muted)]">
+                Variáveis/componentes
+                <textarea
+                  value={templateTest.components}
+                  onChange={event => setTemplateTest(prev => ({ ...prev, components: event.target.value }))}
+                  rows={4}
+                  className="admin-input mt-1"
+                />
+              </label>
+              <button type="button" onClick={sendCloudTemplateTest} className="admin-button-primary w-full justify-center"><Send className="h-4 w-4" />Enviar teste</button>
             </div>
           </div>
         </div>
@@ -616,12 +754,24 @@ function friendlyCloudAction(value?: string) {
     test_connection: "Teste de conexão",
     phone_info: "Validação do número",
     list_templates: "Lista de templates",
+    templates_synced: "Templates sincronizados",
+    template_test_requested: "Teste individual solicitado",
+    template_test_sent: "Teste individual enviado",
     webhook_validate: "Validação do webhook",
     webhook_received: "Webhook recebido",
     credential_error: "Credencial incompleta",
     meta_api_error: "Retorno da Meta"
   };
   return labels[String(value || "").toLowerCase()] || "Operação registrada";
+}
+
+function friendlyTemplateStatus(value?: string) {
+  const labels: Record<string, string> = {
+    approved: "Aprovado",
+    pending: "Pendente",
+    rejected: "Rejeitado"
+  };
+  return labels[String(value || "").toLowerCase()] || "Em análise";
 }
 
 function friendlyCloudStatus(value?: string) {

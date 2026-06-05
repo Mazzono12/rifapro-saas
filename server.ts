@@ -1221,11 +1221,21 @@ async function startServer() {
   type WhatsAppCloudLogRecord = {
     id: string;
     tenant_id: string;
-    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
+    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
     status: "success" | "error" | "skipped";
     message: string;
     metadata: Record<string, unknown>;
     created_at: string;
+  };
+  type WhatsAppCloudTemplateRecord = {
+    id: string;
+    tenant_id: string;
+    name: string;
+    status: "APPROVED" | "PENDING" | "REJECTED" | string;
+    language: string;
+    category: string;
+    components: unknown[];
+    synced_at: string;
   };
   type WhatsAppMessageQueueRecord = {
     id: string;
@@ -2741,6 +2751,7 @@ async function startServer() {
   let whatsappProviderConfigs: WhatsAppProviderConfigRecord[] = [];
   let whatsappCloudConfigs: WhatsAppCloudConfigRecord[] = [];
   let whatsappCloudLogs: WhatsAppCloudLogRecord[] = [];
+  let whatsappCloudTemplates: WhatsAppCloudTemplateRecord[] = [];
   let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
   let automationFlows: AutomationFlowRecord[] = [];
   let automationRuns: AutomationRunRecord[] = [];
@@ -11201,6 +11212,40 @@ async function startServer() {
     return log;
   }
 
+  function sanitizeWhatsAppCloudTemplate(template: WhatsAppCloudTemplateRecord) {
+    return {
+      id: template.id,
+      tenant_id: template.tenant_id,
+      name: template.name,
+      status: template.status,
+      language: template.language,
+      category: template.category,
+      components: Array.isArray(template.components) ? template.components : [],
+      synced_at: template.synced_at
+    };
+  }
+
+  function getSavedWhatsAppCloudTemplates(tenantId: string) {
+    return whatsappCloudTemplates
+      .filter(template => template.tenant_id === tenantId)
+      .sort((a, b) => a.name.localeCompare(b.name) || a.language.localeCompare(b.language));
+  }
+
+  function normalizeWhatsAppCloudTemplateSnapshot(tenantId: string, template: Record<string, unknown>, syncedAt: string): WhatsAppCloudTemplateRecord {
+    const name = String(template.name || "").trim();
+    const language = String(template.language || "").trim() || "pt_BR";
+    return {
+      id: `${tenantId}:${name}:${language}`,
+      tenant_id: tenantId,
+      name,
+      status: String(template.status || "PENDING").toUpperCase(),
+      language,
+      category: String(template.category || "").trim(),
+      components: Array.isArray(template.components) ? template.components : [],
+      synced_at: syncedAt
+    };
+  }
+
   function decryptWhatsAppCloudConfig(config: WhatsAppCloudConfigRecord | null) {
     if (!config) return null;
     return {
@@ -11221,7 +11266,7 @@ async function startServer() {
     const config = getWhatsAppCloudConfig(tenantId);
     return new MetaWhatsAppCloudProvider(decryptWhatsAppCloudConfig(config) || { enabled: false, environment: "sandbox" }, {
       log: entry => recordWhatsAppCloudLog(tenantId, {
-        action: entry.action === "phone_info" ? "phone_info" : entry.action === "list_templates" ? "list_templates" : entry.action === "webhook_validate" ? "webhook_validate" : entry.action === "webhook_received" ? "webhook_received" : "test_connection",
+        action: entry.action === "phone_info" ? "phone_info" : entry.action === "list_templates" ? "list_templates" : entry.action === "webhook_validate" ? "webhook_validate" : entry.action === "webhook_received" ? "webhook_received" : entry.action === "template_test_sent" ? "template_test_sent" : "test_connection",
         status: entry.status,
         message: entry.message || entry.action,
         metadata: entry.metadata || {}
@@ -14544,6 +14589,97 @@ async function startServer() {
     }
   });
 
+  app.post("/api/admin/whatsapp-cloud/templates/sync", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    try {
+      const templates = await createMetaWhatsAppCloudProvider(tenantId).listTemplates();
+      const syncedAt = new Date().toISOString();
+      const snapshot = templates
+        .map(template => normalizeWhatsAppCloudTemplateSnapshot(tenantId, template as Record<string, unknown>, syncedAt))
+        .filter(template => template.name);
+      whatsappCloudTemplates = [
+        ...whatsappCloudTemplates.filter(template => template.tenant_id !== tenantId),
+        ...snapshot
+      ];
+      recordWhatsAppCloudLog(tenantId, {
+        action: "templates_synced",
+        status: "success",
+        message: "Templates oficiais sincronizados",
+        metadata: { count: snapshot.length, adminId: getAuthSession(req)?.sub || "" }
+      });
+      schedulePersistentStateSave("whatsapp-cloud-templates-sync");
+      res.json({ templates: snapshot.map(sanitizeWhatsAppCloudTemplate), syncedAt });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao sincronizar templates do WhatsApp Cloud";
+      recordWhatsAppCloudLog(tenantId, {
+        action: message.includes("configurado") || message.includes("desativado") ? "credential_error" : "meta_api_error",
+        status: "error",
+        message,
+        metadata: { operation: "syncTemplates", adminId: getAuthSession(req)?.sub || "" }
+      });
+      res.status(message.includes("configurado") || message.includes("desativado") ? 409 : 502).json({ error: message });
+    }
+  });
+
+  app.get("/api/admin/whatsapp-cloud/templates/saved", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    res.json({ templates: getSavedWhatsAppCloudTemplates(tenantId).map(sanitizeWhatsAppCloudTemplate) });
+  });
+
+  app.post("/api/admin/whatsapp-cloud/test-template", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    if (Array.isArray(req.body?.to) || Array.isArray(req.body?.recipients) || Array.isArray(req.body?.phones)) {
+      return res.status(400).json({ error: "Informe apenas um numero de teste" });
+    }
+    const rawPhone = String(req.body?.to || "").trim();
+    if (!rawPhone || /[,;\n]/.test(rawPhone)) return res.status(400).json({ error: "Informe apenas um numero de teste" });
+    const phone = normalizeBrazilianPhone(rawPhone);
+    if (!isValidBrazilianWhatsAppPhone(phone)) return res.status(400).json({ error: "Telefone de teste invalido" });
+    const templateName = String(req.body?.templateName || "").trim();
+    const language = String(req.body?.language || "pt_BR").trim() || "pt_BR";
+    if (!templateName) return res.status(400).json({ error: "Template obrigatorio para o teste" });
+    const templates = getSavedWhatsAppCloudTemplates(tenantId);
+    const selectedTemplate = templates.find(template => template.name === templateName && template.language === language);
+    if (!selectedTemplate) return res.status(409).json({ error: "Sincronize e escolha um template oficial antes do teste" });
+    if (String(selectedTemplate.status || "").toUpperCase() !== "APPROVED") return res.status(409).json({ error: "Template ainda nao esta aprovado para envio" });
+    const components = Array.isArray(req.body?.components) ? req.body.components : [];
+    recordWhatsAppCloudLog(tenantId, {
+      action: "template_test_requested",
+      status: "success",
+      message: "Envio de teste individual solicitado",
+      metadata: { to: maskPhone(phone), templateName, language, adminId: getAuthSession(req)?.sub || "" }
+    });
+    try {
+      const result = await createMetaWhatsAppCloudProvider(tenantId).sendTemplateTest({
+        to: phone,
+        templateName,
+        language,
+        components,
+        availableTemplates: templates
+      });
+      recordWhatsAppCloudLog(tenantId, {
+        action: "template_test_sent",
+        status: "success",
+        message: "Teste individual enviado pela Meta",
+        metadata: { to: maskPhone(phone), templateName, language, adminId: getAuthSession(req)?.sub || "", metaMessageId: result.data?.messages?.[0]?.id || "" }
+      });
+      schedulePersistentStateSave("whatsapp-cloud-template-test");
+      res.json({ success: true, to: maskPhone(phone), templateName, language, result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha no envio de teste individual";
+      recordWhatsAppCloudLog(tenantId, {
+        action: message.includes("configurado") || message.includes("desativado") ? "credential_error" : "meta_api_error",
+        status: "error",
+        message,
+        metadata: { to: maskPhone(phone), templateName, language, adminId: getAuthSession(req)?.sub || "" }
+      });
+      res.status(message.includes("configurado") || message.includes("desativado") ? 409 : 502).json({ error: message });
+    }
+  });
+
   app.get("/api/webhooks/meta/whatsapp", (req, res) => {
     const token = String(req.query["hub.verify_token"] || "");
     const config = findWhatsAppCloudConfigByVerifyToken(token);
@@ -16386,6 +16522,7 @@ async function startServer() {
       whatsappProviderConfigs,
       whatsappCloudConfigs,
       whatsappCloudLogs,
+      whatsappCloudTemplates,
       whatsappMessageQueue,
       automationFlows,
       automationRuns,
@@ -16473,6 +16610,7 @@ async function startServer() {
       case "whatsappProviderConfigs": whatsappProviderConfigs = Array.isArray(value) ? value : []; break;
       case "whatsappCloudConfigs": whatsappCloudConfigs = Array.isArray(value) ? value : []; break;
       case "whatsappCloudLogs": whatsappCloudLogs = Array.isArray(value) ? value : []; break;
+      case "whatsappCloudTemplates": whatsappCloudTemplates = Array.isArray(value) ? value : []; break;
       case "whatsappMessageQueue": whatsappMessageQueue = Array.isArray(value) ? value : []; break;
       case "automationFlows": automationFlows = Array.isArray(value) ? value : []; break;
       case "automationRuns": automationRuns = Array.isArray(value) ? value : []; break;
