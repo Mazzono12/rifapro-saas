@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
-import { createCipheriv, createDecipheriv, createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from "crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from "crypto";
 import { existsSync } from "fs";
 import { mkdir, writeFile } from "fs/promises";
 import { config as loadEnv } from "dotenv";
@@ -1212,6 +1212,7 @@ async function startServer() {
     whatsapp_business_account_id: string;
     phone_number_id: string;
     access_token_encrypted: string;
+    app_secret_encrypted: string;
     webhook_verify_token_encrypted: string;
     webhook_url: string;
     environment: "sandbox" | "production";
@@ -1221,7 +1222,7 @@ async function startServer() {
   type WhatsAppCloudLogRecord = {
     id: string;
     tenant_id: string;
-    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "template_sent" | "crm_campaign_created" | "crm_campaign_preview" | "crm_campaign_enqueued" | "crm_campaign_cancelled" | "crm_campaign_send_requested" | "crm_campaign_sent" | "crm_campaign_failed" | "crm_campaign_skipped" | "whatsapp_automation_rule_created" | "whatsapp_automation_rule_updated" | "whatsapp_automation_rule_deleted" | "whatsapp_automation_scheduled" | "whatsapp_automation_sent" | "whatsapp_automation_skipped" | "whatsapp_automation_failed" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "manual_reply_sent" | "manual_reply_failed" | "manual_template_sent" | "manual_template_failed" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
+    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "template_sent" | "crm_campaign_created" | "crm_campaign_preview" | "crm_campaign_enqueued" | "crm_campaign_cancelled" | "crm_campaign_send_requested" | "crm_campaign_sent" | "crm_campaign_failed" | "crm_campaign_skipped" | "whatsapp_automation_rule_created" | "whatsapp_automation_rule_updated" | "whatsapp_automation_rule_deleted" | "whatsapp_automation_scheduled" | "whatsapp_automation_sent" | "whatsapp_automation_skipped" | "whatsapp_automation_failed" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "manual_reply_sent" | "manual_reply_failed" | "manual_template_sent" | "manual_template_failed" | "webhook_validate" | "webhook_received" | "webhook_signature_missing" | "webhook_signature_invalid" | "credential_error" | "meta_api_error";
     status: "success" | "error" | "skipped";
     message: string;
     metadata: Record<string, unknown>;
@@ -12013,6 +12014,7 @@ async function startServer() {
         whatsapp_business_account_id: "",
         phone_number_id: "",
         access_token: "",
+        app_secret: "",
         webhook_verify_token: "",
         webhook_url: "/api/webhooks/meta/whatsapp",
         environment: "sandbox",
@@ -12029,6 +12031,7 @@ async function startServer() {
       whatsapp_business_account_id: config.whatsapp_business_account_id,
       phone_number_id: config.phone_number_id,
       access_token: config.access_token_encrypted ? maskGatewaySecret(config.access_token_encrypted) : "",
+      app_secret: config.app_secret_encrypted ? maskGatewaySecret(config.app_secret_encrypted) : "",
       webhook_verify_token: config.webhook_verify_token_encrypted ? maskGatewaySecret(config.webhook_verify_token_encrypted) : "",
       webhook_url: config.webhook_url || "/api/webhooks/meta/whatsapp",
       environment: config.environment,
@@ -13036,6 +13039,7 @@ async function startServer() {
       business_account_id: config.whatsapp_business_account_id,
       phone_number_id: config.phone_number_id,
       access_token: decryptGatewaySecret(config.access_token_encrypted || ""),
+      app_secret: decryptGatewaySecret(config.app_secret_encrypted || ""),
       webhook_verify_token: decryptGatewaySecret(config.webhook_verify_token_encrypted || ""),
       webhook_url: config.webhook_url
     };
@@ -13074,6 +13078,76 @@ async function startServer() {
       });
     });
     return whatsappCloudConfigs.find(config => phoneNumberIds.has(config.phone_number_id)) || null;
+  }
+
+  function getMetaWebhookSignatureHeader(req: express.Request) {
+    const raw = req.headers["x-hub-signature-256"];
+    return Array.isArray(raw) ? String(raw[0] || "") : String(raw || "");
+  }
+
+  function getMetaWebhookSignature(req: express.Request) {
+    const value = getMetaWebhookSignatureHeader(req);
+    const match = value.match(/^sha256=([a-f0-9]{64})$/i);
+    return match ? match[1].toLowerCase() : "";
+  }
+
+  function hasMetaWebhookSignatureHeader(req: express.Request) {
+    return Boolean(getMetaWebhookSignatureHeader(req).trim());
+  }
+
+  function getMetaWebhookRawBody(req: express.Request) {
+    return (req as express.Request & { rawBody?: string }).rawBody || JSON.stringify(req.body || {});
+  }
+
+  function allowUnsignedMetaWebhookForDevelopment() {
+    return Boolean(process.env.RIFAPRO_TEST_MODE) || (!isProductionRuntime && process.env.WHATSAPP_ALLOW_UNSIGNED_WEBHOOKS === "true");
+  }
+
+  function timingSafeCompareHex(leftHex: string, rightHex: string) {
+    const left = Buffer.from(leftHex, "hex");
+    const right = Buffer.from(rightHex, "hex");
+    return left.length === right.length && timingSafeEqual(left, right);
+  }
+
+  function validateMetaWebhookSignature(req: express.Request, config: WhatsAppCloudConfigRecord) {
+    const signature = getMetaWebhookSignature(req);
+    if (!signature) {
+      if (hasMetaWebhookSignatureHeader(req)) return { valid: false, reason: "Assinatura Meta invalida" };
+      if (allowUnsignedMetaWebhookForDevelopment()) return { valid: true, reason: "unsigned_dev" };
+      return { valid: false, reason: "Assinatura Meta ausente" };
+    }
+    const appSecret = decryptGatewaySecret(config.app_secret_encrypted || "");
+    if (!appSecret) return { valid: false, reason: "App Secret Meta nao configurado" };
+    const expected = createHmac("sha256", appSecret).update(getMetaWebhookRawBody(req), "utf8").digest("hex");
+    return timingSafeCompareHex(expected, signature)
+      ? { valid: true, reason: "signed" }
+      : { valid: false, reason: "Assinatura Meta invalida" };
+  }
+
+  function recordMetaWebhookSignatureBlock(req: express.Request, config: WhatsAppCloudConfigRecord | null, reason: string, signaturePresent: boolean) {
+    const tenantId = config?.tenant_id || "unknown";
+    const phoneNumberId = config?.phone_number_id ? maskSecretText(config.phone_number_id) : "";
+    recordSecurityEvent({
+      tenant_id: tenantId,
+      action: "WHATSAPP_CLOUD_WEBHOOK_SIGNATURE_BLOCKED",
+      ip: String(req.ip || req.socket.remoteAddress || ""),
+      status: "BLOCKED",
+      severity: "high",
+      actor: "meta-webhook",
+      detail: reason
+    });
+    if (config) {
+      recordWhatsAppCloudLog(tenantId, {
+        action: signaturePresent ? "webhook_signature_invalid" : "webhook_signature_missing",
+        status: "error",
+        message: reason,
+        metadata: {
+          signaturePresent,
+          phoneNumberId,
+          endpoint: "/api/webhooks/meta/whatsapp"
+        }
+      });
+    }
   }
 
   function requireWhatsAppCenterAccess(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -13678,6 +13752,7 @@ async function startServer() {
       whatsapp_business_account_id: String(req.body.whatsapp_business_account_id || existing?.whatsapp_business_account_id || "").trim().slice(0, 120),
       phone_number_id: String(req.body.phone_number_id || existing?.phone_number_id || "").trim().slice(0, 120),
       access_token_encrypted: mergeSecret(req.body.access_token, existing?.access_token_encrypted),
+      app_secret_encrypted: mergeSecret(req.body.app_secret ?? req.body.appSecret, existing?.app_secret_encrypted),
       webhook_verify_token_encrypted: mergeSecret(req.body.webhook_verify_token, existing?.webhook_verify_token_encrypted),
       webhook_url: String(req.body.webhook_url || existing?.webhook_url || "/api/webhooks/meta/whatsapp").trim().slice(0, 500),
       environment: String(req.body.environment || existing?.environment || "sandbox") === "production" ? "production" : "sandbox",
@@ -17247,7 +17322,21 @@ async function startServer() {
     const config = findWhatsAppCloudConfigByWebhookPayload(req.body);
     const body = req.body && typeof req.body === "object" ? req.body as Record<string, unknown> : {};
     const entries = Array.isArray(body.entry) ? body.entry : [];
+    const signaturePresent = hasMetaWebhookSignatureHeader(req);
+    if (signaturePresent && !getMetaWebhookSignature(req)) {
+      recordMetaWebhookSignatureBlock(req, config, "Assinatura Meta invalida", true);
+      return res.status(403).json({ error: "Assinatura Meta invalida" });
+    }
+    if (!signaturePresent && !allowUnsignedMetaWebhookForDevelopment()) {
+      recordMetaWebhookSignatureBlock(req, config, "Assinatura Meta ausente", false);
+      return res.status(403).json({ error: "Assinatura Meta ausente" });
+    }
     if (config) {
+      const signatureValidation = validateMetaWebhookSignature(req, config);
+      if (!signatureValidation.valid) {
+        recordMetaWebhookSignatureBlock(req, config, signatureValidation.reason, signaturePresent);
+        return res.status(403).json({ error: "Assinatura Meta invalida" });
+      }
       createMetaWhatsAppCloudProvider(config.tenant_id).handleWebhook(req.body);
       processWhatsAppCenterInboundWebhook(config.tenant_id, req.body);
     } else {

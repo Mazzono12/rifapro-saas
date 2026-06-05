@@ -38,7 +38,9 @@ includesAll(server, [
   "createMetaWhatsAppCloudProvider",
   "recordWhatsAppCloudLog",
   "findWhatsAppCloudConfigByVerifyToken",
-  "findWhatsAppCloudConfigByWebhookPayload"
+  "findWhatsAppCloudConfigByWebhookPayload",
+  "validateMetaWebhookSignature",
+  "recordMetaWebhookSignatureBlock"
 ], "modelo backend WhatsApp Cloud");
 
 includesAll(server, [
@@ -176,14 +178,32 @@ for (const sensitive of ["access_token: decryptGatewaySecret", "webhook_verify_t
 
 const webhookBlock = blockBetween(server, 'app.get("/api/webhooks/meta/whatsapp"', 'app.get("/api/admin/audit-logs"');
 includesAll(provider + webhookBlock, ["hub.verify_token", "validateWebhook", "hub.challenge", "result.challenge", "handleWebhook(req.body)", "res.status(200).json({ received: true"], "webhook Meta");
+includesAll(server + webhookBlock, [
+  "x-hub-signature-256",
+  "createHmac(\"sha256\", appSecret)",
+  "timingSafeEqual(left, right)",
+  "app_secret_encrypted",
+  "process.env.RIFAPRO_TEST_MODE",
+  "WHATSAPP_ALLOW_UNSIGNED_WEBHOOKS",
+  "WHATSAPP_CLOUD_WEBHOOK_SIGNATURE_BLOCKED",
+  "webhook_signature_missing",
+  "webhook_signature_invalid",
+  "return res.status(403).json({ error: \"Assinatura Meta ausente\" })",
+  "return res.status(403).json({ error: \"Assinatura Meta invalida\" })"
+], "assinatura HMAC do webhook Meta");
+const signatureValidationIndex = webhookBlock.indexOf("const signatureValidation = validateMetaWebhookSignature(req, config)");
+const handleWebhookIndex = webhookBlock.indexOf("handleWebhook(req.body)");
+const processInboundIndex = webhookBlock.indexOf("processWhatsAppCenterInboundWebhook(config.tenant_id, req.body)");
+assert.ok(signatureValidationIndex !== -1 && signatureValidationIndex < handleWebhookIndex && signatureValidationIndex < processInboundIndex, "Webhook Meta deve validar assinatura antes de processar inbound/status.");
+assert.ok(webhookBlock.indexOf("return res.status(403).json({ error: \"Assinatura Meta invalida\" })") < handleWebhookIndex, "Assinatura invalida deve bloquear antes de criar contato/conversa/status.");
 assert.ok(!webhookBlock.includes("sendQueuedWhatsAppMessage") && !webhookBlock.includes("queueN8nEvent"), "Webhook Meta nao pode disparar automacoes nesta etapa.");
 
 const sanitizeBlock = blockBetween(server, "function sanitizeWhatsAppCloudConfig", "function sanitizeWhatsAppCloudLog");
-includesAll(sanitizeBlock, ["maskGatewaySecret(config.access_token_encrypted)", "maskGatewaySecret(config.webhook_verify_token_encrypted)"], "mascaramento de token");
+includesAll(sanitizeBlock, ["maskGatewaySecret(config.access_token_encrypted)", "maskGatewaySecret(config.app_secret_encrypted)", "maskGatewaySecret(config.webhook_verify_token_encrypted)"], "mascaramento de token");
 
 const logBlock = blockBetween(server, "function recordWhatsAppCloudLog", "function decryptWhatsAppCloudConfig");
 includesAll(logBlock, ["maskSecretText(input.message", "maskLogValue(input.metadata"], "logs sem token claro");
-assert.ok(!logBlock.includes("access_token") && !logBlock.includes("webhook_verify_token"), "Logs Cloud nao devem gravar tokens explicitamente.");
+assert.ok(!logBlock.includes("access_token") && !logBlock.includes("app_secret") && !logBlock.includes("webhook_verify_token"), "Logs Cloud nao devem gravar tokens explicitamente.");
 
 includesAll(server, ["whatsappCloudConfigs,", "whatsappCloudLogs,", "whatsappCloudTemplates,", "whatsappPixRecoverySettings,", "case \"whatsappCloudConfigs\"", "case \"whatsappCloudLogs\"", "case \"whatsappCloudTemplates\"", "case \"whatsappPixRecoverySettings\""], "persistencia Cloud");
 
@@ -195,6 +215,8 @@ includesAll(ui, [
   "ID da Conta WhatsApp Business",
   "ID do Número de Telefone",
   "Token de Acesso",
+  "App Secret Meta",
+  "Usado para validar que os eventos recebidos vieram da Meta.",
   "Verify Token do Webhook",
   "URL do Webhook",
   "Salvar configuração",
