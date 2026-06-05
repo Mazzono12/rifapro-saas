@@ -47,7 +47,7 @@ export function roleHome(role?: string | null) {
   if (normalized === "superadmin") return "/superadmin";
   if (normalized === "admin") return "/dashboard";
   if (normalized === "operador") return "/painel";
-  return "/afiliado";
+  return "/afiliados";
 }
 
 export function isTokenExpiring(expiresAt?: number, skewSeconds = 90) {

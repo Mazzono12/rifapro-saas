@@ -230,6 +230,10 @@ function PageFallback() {
   );
 }
 
+function AffiliateAccessRoute() {
+  return <Affiliates />;
+}
+
 export default function App() {
   useDynamicBackground("dynamic-bg");
   const hydrateCustomer = useCustomerStore(state => state.hydrate);
@@ -274,8 +278,8 @@ export default function App() {
               <Route path="/perfil-saas" element={<ProtectedRoute roles={["superadmin", "admin", "operador", "afiliado"]}><Profile /></ProtectedRoute>} />
               <Route path="/minhas-cotas" element={<UserDashboard />} />
               <Route path="/perfil" element={<UserDashboard />} />
-              <Route path="/afiliado" element={<ProtectedRoute roles={["afiliado", "admin", "superadmin"]}><Affiliates /></ProtectedRoute>} />
-              <Route path="/afiliados" element={<Affiliates />} />
+              <Route path="/afiliado" element={<Navigate to="/afiliados" replace />} />
+              <Route path="/afiliados" element={<AffiliateAccessRoute />} />
               <Route path="/mensagens" element={<Messages />} />
               <Route path="/transparencia" element={<Transparency />} />
               <Route path="/sorteio/:raffleId/auditoria" element={<DrawAudit />} />

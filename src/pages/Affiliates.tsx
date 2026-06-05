@@ -195,7 +195,8 @@ export function Affiliates() {
         <div className="admin-card p-8 text-center">
           <Users className="mx-auto mb-4 h-12 w-12 text-[var(--admin-muted)]" />
           <h1 className="text-3xl font-bold text-[var(--admin-text)]">Programa de Afiliados</h1>
-          <p className="mt-3 text-sm text-[var(--admin-muted)]">Seu link único será criado automaticamente quando você fizer seu primeiro cadastro no checkout.</p>
+          <p className="mt-3 text-sm font-semibold text-[var(--admin-text)]">Você ainda não possui cadastro de afiliado.</p>
+          <p className="mt-2 text-sm text-[var(--admin-muted)]">Seu link único será criado automaticamente quando seu cadastro estiver habilitado no programa.</p>
         </div>
       </div>
     );
