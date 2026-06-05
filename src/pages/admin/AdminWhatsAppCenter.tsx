@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock3, MessageCircle, Search, Send, StickyNote, UserPlus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, FileText, MessageCircle, Search, Send, StickyNote, UserPlus, X } from "lucide-react";
 
 type Contact = {
   id: string;
@@ -31,6 +31,24 @@ type Message = {
   status?: string;
   receivedAt?: string;
   sentAt?: string;
+};
+
+type TemplateButton = {
+  index: number;
+  type: string;
+  text: string;
+  url?: string;
+  phoneNumber?: string;
+};
+
+type Template = {
+  id: string;
+  name: string;
+  language: string;
+  status: string;
+  category?: string;
+  components: Array<Record<string, any>>;
+  buttons?: TemplateButton[];
 };
 
 const filters = [
@@ -67,6 +85,12 @@ export function AdminWhatsAppCenter() {
   const [reply, setReply] = useState("");
   const [replyError, setReplyError] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [templateComponentsText, setTemplateComponentsText] = useState("[]");
+  const [templateError, setTemplateError] = useState("");
+  const [sendingTemplate, setSendingTemplate] = useState(false);
   const [assignedUserId, setAssignedUserId] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -94,8 +118,15 @@ export function AdminWhatsAppCenter() {
     await loadConversations();
   }
 
+  async function loadTemplates() {
+    const response = await fetch("/api/admin/whatsapp-center/templates");
+    const data = await response.json().catch(() => ({ templates: [] }));
+    if (response.ok) setTemplates(data.templates || []);
+  }
+
   useEffect(() => {
     void loadConversations();
+    void loadTemplates();
   }, []);
 
   useEffect(() => {
@@ -106,6 +137,8 @@ export function AdminWhatsAppCenter() {
   const activeConversation = useMemo(() => selected || conversations.find(item => item.id === selectedId) || null, [conversations, selected, selectedId]);
   const windowState = serviceWindowState(activeConversation?.serviceWindowExpiresAt);
   const replyDisabled = !activeConversation || windowState.expired || Boolean(contact?.optOut) || sendingReply || !reply.trim();
+  const selectedTemplate = useMemo(() => templates.find(item => item.id === selectedTemplateId) || templates[0] || null, [templates, selectedTemplateId]);
+  const templateDisabled = !activeConversation || Boolean(contact?.optOut) || !selectedTemplate || sendingTemplate;
 
   function outboundStatusLabel(status?: string) {
     const normalized = String(status || "").toLowerCase();
@@ -166,6 +199,48 @@ export function AdminWhatsAppCenter() {
       return;
     }
     setReply("");
+    await loadConversation(activeConversation.id);
+  }
+
+  function templateText(template: Template | null) {
+    const body = template?.components?.find(component => String(component.type || "").toUpperCase() === "BODY");
+    const header = template?.components?.find(component => String(component.type || "").toUpperCase() === "HEADER");
+    return [header?.text, body?.text].filter(Boolean).join("\n\n") || "Template aprovado sem texto de preview.";
+  }
+
+  function templateButtonLabel(button: TemplateButton) {
+    if (button.type === "URL") return "Abrir link";
+    if (button.type === "PHONE_NUMBER") return "Ligar";
+    if (button.type === "QUICK_REPLY") return "Resposta rapida";
+    return "Botao";
+  }
+
+  async function sendTemplate() {
+    if (!activeConversation || templateDisabled || !selectedTemplate) return;
+    let components: unknown[] = [];
+    try {
+      const parsed = JSON.parse(templateComponentsText || "[]");
+      if (!Array.isArray(parsed)) throw new Error("Use uma lista de variaveis valida.");
+      components = parsed;
+    } catch {
+      setTemplateError("Revise as variaveis do template antes de enviar.");
+      return;
+    }
+    setSendingTemplate(true);
+    setTemplateError("");
+    const response = await fetch(`/api/admin/whatsapp-center/conversations/${activeConversation.id}/template`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ templateName: selectedTemplate.name, language: selectedTemplate.language, components })
+    });
+    const data = await response.json().catch(() => ({}));
+    setSendingTemplate(false);
+    if (!response.ok) {
+      setTemplateError(data.error || "Falha ao enviar template");
+      return;
+    }
+    setTemplateOpen(false);
+    setTemplateComponentsText("[]");
     await loadConversation(activeConversation.id);
   }
 
@@ -313,9 +388,72 @@ export function AdminWhatsAppCenter() {
                   )}
                   {contact?.optOut && <p className="text-xs font-semibold text-rose-100">Contato em opt-out. Envio bloqueado.</p>}
                   {replyError && <p className="text-xs font-semibold text-rose-100">{replyError}</p>}
+                  <button type="button" onClick={() => setTemplateOpen(true)} disabled={!activeConversation || Boolean(contact?.optOut)} className="admin-button-secondary w-full justify-center disabled:cursor-not-allowed disabled:opacity-60">
+                    <FileText className="h-4 w-4" /> Usar template
+                  </button>
+                  {windowState.expired && (
+                    <p className="text-xs font-semibold text-[var(--admin-muted)]">
+                      Fora da janela de 24h, somente templates aprovados podem ser enviados.
+                    </p>
+                  )}
                 </div>
               </div>
             </footer>
+            {templateOpen && (
+              <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
+                <div className="admin-card max-h-[88vh] w-full max-w-3xl overflow-y-auto p-0">
+                  <div className="flex items-center justify-between border-b border-[var(--admin-border)] p-4">
+                    <div>
+                      <h3 className="mb-1 text-lg font-semibold text-[var(--admin-text)]">Usar template</h3>
+                      <p className="text-xs text-[var(--admin-muted)]">Escolha uma mensagem aprovada para este atendimento.</p>
+                    </div>
+                    <button type="button" className="admin-icon-button" onClick={() => setTemplateOpen(false)} aria-label="Fechar">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="grid gap-4 p-4 md:grid-cols-[260px_minmax(0,1fr)]">
+                    <div className="space-y-3">
+                      <select className="admin-input h-10 w-full" value={selectedTemplate?.id || ""} onChange={event => setSelectedTemplateId(event.target.value)}>
+                        {templates.map(template => (
+                          <option key={template.id} value={template.id}>{template.name} · {template.language}</option>
+                        ))}
+                      </select>
+                      {!templates.length && <p className="rounded-[8px] border border-amber-400/40 bg-amber-400/10 p-3 text-xs font-semibold text-amber-100">Nenhum template aprovado sincronizado.</p>}
+                      <div className="rounded-[8px] border border-[var(--admin-border)] bg-black/10 p-3">
+                        <p className="mb-2 text-xs font-semibold uppercase text-[var(--admin-muted)]">Botoes aprovados</p>
+                        <div className="space-y-2">
+                          {(selectedTemplate?.buttons || []).map(button => (
+                            <div key={`${button.index}-${button.type}`} className="rounded-[8px] border border-[var(--admin-border)] px-3 py-2 text-xs text-[var(--admin-text)]">
+                              <strong>{button.text || templateButtonLabel(button)}</strong>
+                              <span className="mt-1 block text-[var(--admin-muted)]">{templateButtonLabel(button)}</span>
+                            </div>
+                          ))}
+                          {selectedTemplate && !(selectedTemplate.buttons || []).length && <p className="text-xs text-[var(--admin-muted)]">Este template nao possui botoes.</p>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
+                        <p className="mb-2 text-xs font-semibold uppercase text-[var(--admin-muted)]">Preview</p>
+                        <p className="whitespace-pre-wrap text-sm text-[var(--admin-text)]">{templateText(selectedTemplate)}</p>
+                      </div>
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-semibold text-[var(--admin-muted)]">Variaveis do template</span>
+                        <textarea className="admin-input min-h-[120px] w-full resize-none font-mono text-xs" value={templateComponentsText} onChange={event => setTemplateComponentsText(event.target.value)} />
+                      </label>
+                      <p className="text-xs text-[var(--admin-muted)]">Use [] quando o template nao tiver variaveis.</p>
+                      {templateError && <p className="rounded-[8px] border border-rose-400/40 bg-rose-400/10 p-3 text-xs font-semibold text-rose-100">{templateError}</p>}
+                      <div className="flex justify-end gap-2">
+                        <button type="button" className="admin-button-secondary" onClick={() => setTemplateOpen(false)}>Cancelar</button>
+                        <button type="button" className="admin-button-primary" disabled={templateDisabled} onClick={() => void sendTemplate()}>
+                          <Send className="h-4 w-4" /> Enviar template
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="grid flex-1 place-items-center p-8 text-center">

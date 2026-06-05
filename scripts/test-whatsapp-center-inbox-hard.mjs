@@ -66,6 +66,8 @@ includesAll(server, [
   "app.put(\"/api/admin/whatsapp-center/conversations/:id/assign\"",
   "app.post(\"/api/admin/whatsapp-center/conversations/:id/notes\"",
   "app.post(\"/api/admin/whatsapp-center/conversations/:id/messages\"",
+  "app.get(\"/api/admin/whatsapp-center/templates\"",
+  "app.post(\"/api/admin/whatsapp-center/conversations/:id/template\"",
   "app.get(\"/api/admin/whatsapp-center/contacts/:id\"",
   "app.put(\"/api/admin/whatsapp-center/contacts/:id/consent\""
 ], "endpoints admin");
@@ -83,7 +85,7 @@ const noteEndpoint = blockBetween(server, "app.post(\"/api/admin/whatsapp-center
 includesAll(noteEndpoint, ["direction: \"internal_note\"", "status: \"internal\"", "schedulePersistentStateSave(\"whatsapp-center-note\")"], "nota interna");
 assert.ok(!noteEndpoint.includes("sendMetaCloudWhatsAppMessage") && !noteEndpoint.includes("sendQueuedWhatsAppMessage") && !noteEndpoint.includes("queueN8nEvent"), "Nota interna nao pode enviar mensagem ou automacao.");
 
-const manualEndpoint = blockBetween(server, "app.post(\"/api/admin/whatsapp-center/conversations/:id/messages\"", "app.get(\"/api/admin/whatsapp-center/contacts/:id\"");
+const manualEndpoint = blockBetween(server, "app.post(\"/api/admin/whatsapp-center/conversations/:id/messages\"", "app.get(\"/api/admin/whatsapp-center/templates\"");
 includesAll(manualEndpoint, [
   "item.id === req.params.id && item.tenantId === tenantId",
   "conversation.contactId && item.tenantId === tenantId",
@@ -111,6 +113,61 @@ assert.ok(!/metadata:\s*\{[^}]*access_token/.test(manualEndpoint) && !/res\.[\s\
 assert.ok(!manualEndpoint.includes("rawBody") && !manualEndpoint.includes("payload bruto"), "Endpoint manual nao deve salvar payload bruto.");
 assert.ok(!manualEndpoint.includes("queueN8nEvent") && !manualEndpoint.includes("scheduleAutomation") && !manualEndpoint.includes("crmContacts"), "Endpoint manual nao pode acionar n8n, automacoes ou CRM.");
 assert.ok(!manualEndpoint.includes("checkout") && !manualEndpoint.includes("gateway") && !manualEndpoint.includes("billing") && !manualEndpoint.includes("affiliate"), "Endpoint manual nao deve tocar checkout/gateway/billing/afiliados.");
+
+const templateEndpoint = blockBetween(server, "app.post(\"/api/admin/whatsapp-center/conversations/:id/template\"", "app.get(\"/api/admin/whatsapp-center/contacts/:id\"");
+includesAll(templateEndpoint, [
+  "item.id === req.params.id && item.tenantId === tenantId",
+  "conversation.contactId && item.tenantId === tenantId",
+  "contact.optOut",
+  "Envio em massa nao permitido",
+  "Template obrigatorio",
+  "Template nao encontrado",
+  "Template ainda nao esta aprovado para envio",
+  "Componentes invalidos",
+  "validateWhatsAppTemplateComponents(template, components)",
+  "sendTemplate({",
+  "availableTemplates: [template]",
+  "direction: \"outbound\"",
+  "type: \"template\"",
+  "status: \"queued\"",
+  "message.status = \"sent\"",
+  "message.status = \"failed\"",
+  "manual_template_sent",
+  "manual_template_failed",
+  "getTemplateButtons(template)",
+  "sanitizeTemplateComponentsForLog(components)",
+  "schedulePersistentStateSave(\"whatsapp-center-template-reply\")"
+], "template manual");
+includesAll(server, [
+  "function validateWhatsAppTemplateComponents",
+  "Botao nao aprovado neste template",
+  "Componente duplicado no template",
+  "Preencha todas as variaveis do template",
+  "Este template nao aceita variaveis no corpo",
+  "Botao de telefone nao aceita variaveis livres",
+  "function getTemplateButtons",
+  "PHONE_NUMBER",
+  "QUICK_REPLY",
+  "URL"
+], "validacao template/botoes");
+assert.ok(!/metadata:\s*\{[^}]*access_token/.test(templateEndpoint) && !/res\.[\s\S]{0,120}metaAccessToken/.test(templateEndpoint), "Endpoint template nao deve logar ou expor token.");
+assert.ok(!templateEndpoint.includes("rawBody") && !templateEndpoint.includes("payload bruto"), "Endpoint template nao deve salvar payload bruto.");
+assert.ok(!templateEndpoint.includes("queueN8nEvent") && !templateEndpoint.includes("scheduleAutomation") && !templateEndpoint.includes("crmContacts"), "Endpoint template nao pode acionar n8n, automacoes ou CRM.");
+assert.ok(!templateEndpoint.includes("checkout") && !templateEndpoint.includes("gateway") && !templateEndpoint.includes("billing") && !templateEndpoint.includes("affiliate"), "Endpoint template nao deve tocar checkout/gateway/billing/afiliados.");
+
+includesAll(server, [
+  "interactive.button_reply",
+  "type === \"button\"",
+  "buttonReply.id",
+  "buttonReply.title",
+  "button.payload",
+  "type: whatsappMessageType(message)"
+], "webhook botoes inbound");
+
+includesAll(server, [
+  "entry.action === \"template_sent\"",
+  "template_sent"
+], "log envio template manual");
 
 const webhookBlock = blockBetween(server, "app.post(\"/api/webhooks/meta/whatsapp\"", "app.get(\"/api/admin/audit-logs\"");
 assert.ok(!webhookBlock.includes("queueN8nEvent") && !webhookBlock.includes("scheduleAutomation") && !webhookBlock.includes("crmContacts") && !webhookBlock.includes("sendQueuedWhatsAppMessage"), "Webhook da Central nao pode acionar n8n, automacoes, CRM ou fila promocional.");
@@ -158,10 +215,16 @@ includesAll(page, [
   "/api/admin/whatsapp-center/conversations/${activeConversation.id}/assign",
   "/api/admin/whatsapp-center/conversations/${activeConversation.id}/notes",
   "/api/admin/whatsapp-center/conversations/${activeConversation.id}/messages",
+  "/api/admin/whatsapp-center/templates",
+  "/api/admin/whatsapp-center/conversations/${activeConversation.id}/template",
   "Opt-out registrado",
   "Janela 24h",
   "Responder cliente",
   "A janela de atendimento expirou. Utilize um template aprovado.",
+  "Fora da janela de 24h, somente templates aprovados podem ser enviados.",
+  "Usar template",
+  "Botoes aprovados",
+  "Variaveis do template",
   "outboundStatusLabel",
   "enviado",
   "entregue",

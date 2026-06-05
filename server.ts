@@ -1221,7 +1221,7 @@ async function startServer() {
   type WhatsAppCloudLogRecord = {
     id: string;
     tenant_id: string;
-    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "manual_reply_sent" | "manual_reply_failed" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
+    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "template_sent" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "manual_reply_sent" | "manual_reply_failed" | "manual_template_sent" | "manual_template_failed" | "webhook_validate" | "webhook_received" | "credential_error" | "meta_api_error";
     status: "success" | "error" | "skipped";
     message: string;
     metadata: Record<string, unknown>;
@@ -6035,6 +6035,110 @@ async function startServer() {
         metadata: { conversationId: conversation.id, messageId: message.id, to: maskPhone(contact.phone), adminId: getAuthSession(req)?.sub || "" }
       });
       schedulePersistentStateSave("whatsapp-center-manual-reply-failed");
+      res.status(502).json({ error: safeErrorMessage, message: publicWhatsAppMessage(message) });
+    }
+  });
+
+  app.get("/api/admin/whatsapp-center/templates", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const templates = getSavedWhatsAppCloudTemplates(tenantId)
+      .filter(template => String(template.status || "").toUpperCase() === "APPROVED")
+      .map(template => ({ ...sanitizeWhatsAppCloudTemplate(template), buttons: getTemplateButtons(template) }));
+    res.json({ templates });
+  });
+
+  app.post("/api/admin/whatsapp-center/conversations/:id/template", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const conversation = whatsappConversations.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!conversation) return res.status(404).json({ error: "Conversa nao encontrada" });
+    const contact = whatsappContacts.find(item => item.id === conversation.contactId && item.tenantId === tenantId);
+    if (!contact) return res.status(404).json({ error: "Contato nao encontrado" });
+    if (Array.isArray(req.body?.to) || Array.isArray(req.body?.recipients) || Array.isArray(req.body?.phones) || Array.isArray(req.body?.conversationIds)) {
+      return res.status(400).json({ error: "Envio em massa nao permitido" });
+    }
+    if (contact.optOut) return res.status(409).json({ error: "Contato em opt-out. Envio bloqueado." });
+    const templateName = String(req.body?.templateName || "").trim();
+    const language = String(req.body?.language || "pt_BR").trim() || "pt_BR";
+    if (!templateName) return res.status(400).json({ error: "Template obrigatorio" });
+    const template = getSavedWhatsAppCloudTemplates(tenantId).find(item => item.name === templateName && item.language === language);
+    if (!template) return res.status(404).json({ error: "Template nao encontrado" });
+    if (String(template.status || "").toUpperCase() !== "APPROVED") return res.status(409).json({ error: "Template ainda nao esta aprovado para envio" });
+    if (req.body?.components !== undefined && !Array.isArray(req.body.components)) {
+      return res.status(400).json({ error: "Componentes invalidos" });
+    }
+    const components = Array.isArray(req.body?.components) ? req.body.components : [];
+    try {
+      validateWhatsAppTemplateComponents(template, components);
+    } catch (error) {
+      return res.status(400).json({ error: error instanceof Error ? error.message : "Componentes invalidos" });
+    }
+
+    const now = new Date().toISOString();
+    const message: WhatsAppConversationMessageRecord = {
+      id: createPublicId("WAM_"),
+      tenantId,
+      conversationId: conversation.id,
+      direction: "outbound",
+      type: "template",
+      body: templateName,
+      status: "queued",
+      sentAt: now,
+      rawSummary: {
+        source: "admin_template_reply",
+        actor: getAuthSession(req)?.sub || "admin",
+        to: maskPhone(contact.phone),
+        templateName,
+        language,
+        components: sanitizeTemplateComponentsForLog(components),
+        buttons: getTemplateButtons(template)
+      }
+    };
+    whatsappConversationMessages.push(message);
+    let metaAccessToken = "";
+    try {
+      const config = decryptWhatsAppCloudConfig(getWhatsAppCloudConfig(tenantId));
+      metaAccessToken = config?.access_token || "";
+      const result = await createMetaWhatsAppCloudProvider(tenantId).sendTemplate({
+        to: contact.phone,
+        templateName,
+        language,
+        components,
+        availableTemplates: [template]
+      });
+      const sentAt = new Date().toISOString();
+      message.status = "sent";
+      message.metaMessageId = result.data?.messages?.[0]?.id || "";
+      message.sentAt = sentAt;
+      message.rawSummary = { ...message.rawSummary, metaMessageId: message.metaMessageId ? "present" : "missing" };
+      contact.lastOutboundAt = sentAt;
+      contact.updatedAt = sentAt;
+      conversation.lastMessageAt = sentAt;
+      conversation.updatedAt = sentAt;
+      whatsappContacts = whatsappContacts.map(item => item.id === contact.id ? contact : item);
+      whatsappConversations = whatsappConversations.map(item => item.id === conversation.id ? conversation : item);
+      recordWhatsAppCloudLog(tenantId, {
+        action: "manual_template_sent",
+        status: "success",
+        message: "Template enviado pela Central WhatsApp",
+        metadata: { conversationId: conversation.id, messageId: message.id, to: maskPhone(contact.phone), templateName, language, adminId: getAuthSession(req)?.sub || "", metaMessageId: message.metaMessageId || "" }
+      });
+      schedulePersistentStateSave("whatsapp-center-template-reply");
+      res.status(201).json({ message: publicWhatsAppMessage(message), conversation: publicWhatsAppConversation(conversation) });
+    } catch (error) {
+      const failedAt = new Date().toISOString();
+      const rawErrorMessage = error instanceof Error ? error.message : "Falha ao enviar template";
+      const safeErrorMessage = maskSecretText(metaAccessToken ? rawErrorMessage.split(metaAccessToken).join("[masked]") : rawErrorMessage);
+      message.status = "failed";
+      message.rawSummary = { ...message.rawSummary, error: safeErrorMessage.slice(0, 300) };
+      conversation.updatedAt = failedAt;
+      whatsappConversations = whatsappConversations.map(item => item.id === conversation.id ? conversation : item);
+      recordWhatsAppCloudLog(tenantId, {
+        action: "manual_template_failed",
+        status: "error",
+        message: safeErrorMessage,
+        metadata: { conversationId: conversation.id, messageId: message.id, to: maskPhone(contact.phone), templateName, language, adminId: getAuthSession(req)?.sub || "" }
+      });
+      schedulePersistentStateSave("whatsapp-center-template-reply-failed");
       res.status(502).json({ error: safeErrorMessage, message: publicWhatsAppMessage(message) });
     }
   });
@@ -12326,7 +12430,7 @@ async function startServer() {
     const config = getWhatsAppCloudConfig(tenantId);
     return new MetaWhatsAppCloudProvider(decryptWhatsAppCloudConfig(config) || { enabled: false, environment: "sandbox" }, {
       log: entry => recordWhatsAppCloudLog(tenantId, {
-        action: entry.action === "phone_info" ? "phone_info" : entry.action === "list_templates" ? "list_templates" : entry.action === "webhook_validate" ? "webhook_validate" : entry.action === "webhook_received" ? "webhook_received" : entry.action === "template_test_sent" ? "template_test_sent" : "test_connection",
+        action: entry.action === "phone_info" ? "phone_info" : entry.action === "list_templates" ? "list_templates" : entry.action === "webhook_validate" ? "webhook_validate" : entry.action === "webhook_received" ? "webhook_received" : entry.action === "template_test_sent" ? "template_test_sent" : entry.action === "template_sent" ? "template_sent" : "test_connection",
         status: entry.status,
         message: entry.message || entry.action,
         metadata: entry.metadata || {}
@@ -12379,19 +12483,27 @@ async function startServer() {
   function whatsappMessageType(message: Record<string, unknown>): WhatsAppConversationMessageRecord["type"] {
     const type = String(message.type || "").toLowerCase();
     if (["text", "template", "image", "audio", "document", "button"].includes(type)) return type as WhatsAppConversationMessageRecord["type"];
-    if (message.button) return "button";
+    const interactive = message.interactive && typeof message.interactive === "object" ? message.interactive as Record<string, unknown> : {};
+    if (message.button || interactive.button_reply) return "button";
     return "unknown";
   }
 
   function summarizeWhatsAppInbound(message: Record<string, unknown>) {
     const type = whatsappMessageType(message);
+    const button = message.button && typeof message.button === "object" ? message.button as Record<string, unknown> : {};
+    const interactive = message.interactive && typeof message.interactive === "object" ? message.interactive as Record<string, unknown> : {};
+    const buttonReply = interactive.button_reply && typeof interactive.button_reply === "object" ? interactive.button_reply as Record<string, unknown> : {};
     return {
       id: String(message.id || "").slice(0, 160),
       type,
       timestamp: String(message.timestamp || "").slice(0, 40),
       from: maskPhone(normalizeWhatsAppCenterPhone(message.from)),
       hasText: Boolean((message.text as Record<string, unknown> | undefined)?.body),
-      hasMedia: ["image", "audio", "document"].includes(type)
+      hasMedia: ["image", "audio", "document"].includes(type),
+      button: type === "button" ? {
+        id: String(button.payload || buttonReply.id || "").slice(0, 160),
+        title: String(button.text || buttonReply.title || "").slice(0, 160)
+      } : undefined
     };
   }
 
@@ -12411,7 +12523,79 @@ async function startServer() {
     const button = message.button && typeof message.button === "object" ? message.button as Record<string, unknown> : {};
     const interactive = message.interactive && typeof message.interactive === "object" ? message.interactive as Record<string, unknown> : {};
     const buttonReply = interactive.button_reply && typeof interactive.button_reply === "object" ? interactive.button_reply as Record<string, unknown> : {};
-    return String(text.body || button.text || buttonReply.title || "").trim().slice(0, 4000);
+    return String(text.body || button.text || buttonReply.title || button.payload || buttonReply.id || "").trim().slice(0, 4000);
+  }
+
+  function countTemplatePlaceholders(value: unknown) {
+    return new Set(String(value || "").match(/\{\{\s*\d+\s*\}\}/g) || []).size;
+  }
+
+  function templateComponentType(component: unknown) {
+    return String((component && typeof component === "object" ? (component as Record<string, unknown>).type : "") || "").toUpperCase();
+  }
+
+  function getTemplateButtons(template: WhatsAppCloudTemplateRecord) {
+    const buttonsComponent = (Array.isArray(template.components) ? template.components : []).find(component => templateComponentType(component) === "BUTTONS") as Record<string, unknown> | undefined;
+    const buttons = Array.isArray(buttonsComponent?.buttons) ? buttonsComponent.buttons as Array<Record<string, unknown>> : [];
+    return buttons.map((button, index) => ({
+      index,
+      type: String(button.type || "").toUpperCase(),
+      text: String(button.text || "").slice(0, 120),
+      url: String(button.url || "").slice(0, 500),
+      phoneNumber: String(button.phone_number || button.phoneNumber || "").slice(0, 80)
+    }));
+  }
+
+  function sanitizeTemplateComponentsForLog(components: unknown[]) {
+    return components.map(component => {
+      const item = component && typeof component === "object" ? component as Record<string, unknown> : {};
+      return {
+        type: String(item.type || "").slice(0, 40),
+        sub_type: String(item.sub_type || "").slice(0, 40),
+        index: String(item.index ?? "").slice(0, 10),
+        parameterCount: Array.isArray(item.parameters) ? item.parameters.length : 0
+      };
+    });
+  }
+
+  function validateWhatsAppTemplateComponents(template: WhatsAppCloudTemplateRecord, components: unknown[]) {
+    if (!Array.isArray(components)) throw new Error("Componentes invalidos");
+    const templateComponents = Array.isArray(template.components) ? template.components as Array<Record<string, unknown>> : [];
+    const bodyTemplate = templateComponents.find(component => templateComponentType(component) === "BODY");
+    const headerTemplate = templateComponents.find(component => templateComponentType(component) === "HEADER");
+    const bodyExpected = countTemplatePlaceholders(bodyTemplate?.text);
+    const headerExpected = countTemplatePlaceholders(headerTemplate?.text);
+    const approvedButtons = getTemplateButtons(template);
+    const bodyComponent = components.find(component => templateComponentType(component) === "BODY") as Record<string, unknown> | undefined;
+    const headerComponent = components.find(component => templateComponentType(component) === "HEADER") as Record<string, unknown> | undefined;
+    const seenComponentKeys = new Set<string>();
+    if (bodyExpected && (!bodyComponent || !Array.isArray(bodyComponent.parameters) || bodyComponent.parameters.length !== bodyExpected)) {
+      throw new Error("Preencha todas as variaveis do template");
+    }
+    if (!bodyExpected && bodyComponent && Array.isArray(bodyComponent.parameters) && bodyComponent.parameters.length) {
+      throw new Error("Este template nao aceita variaveis no corpo");
+    }
+    if (headerExpected && (!headerComponent || !Array.isArray(headerComponent.parameters) || headerComponent.parameters.length !== headerExpected)) {
+      throw new Error("Preencha todas as variaveis do cabecalho");
+    }
+    components.forEach(component => {
+      const item = component && typeof component === "object" ? component as Record<string, unknown> : {};
+      const type = templateComponentType(item);
+      if (!["BODY", "HEADER", "BUTTON"].includes(type)) throw new Error("Componente nao permitido para este template");
+      const componentKey = `${type}:${type === "BUTTON" ? String(item.index ?? "") : "main"}`;
+      if (seenComponentKeys.has(componentKey)) throw new Error("Componente duplicado no template");
+      seenComponentKeys.add(componentKey);
+      if (type !== "BUTTON") return;
+      const index = Number(item.index);
+      const subType = String(item.sub_type || "").toUpperCase();
+      const approved = approvedButtons.find(button => button.index === index);
+      if (!approved) throw new Error("Botao nao aprovado neste template");
+      const allowedSubTypes = approved.type === "URL" ? ["URL"] : approved.type === "QUICK_REPLY" ? ["QUICK_REPLY"] : approved.type === "PHONE_NUMBER" ? ["PHONE_NUMBER"] : [approved.type];
+      if (subType && !allowedSubTypes.includes(subType)) throw new Error("Botao nao aprovado neste template");
+      const parameters = Array.isArray(item.parameters) ? item.parameters : [];
+      if (approved.type === "PHONE_NUMBER" && parameters.length) throw new Error("Botao de telefone nao aceita variaveis livres");
+      if ((approved.type === "URL" || approved.type === "QUICK_REPLY") && parameters.length > 1) throw new Error("Botao nao aprovado neste template");
+    });
   }
 
   function isWhatsAppOptOutCommand(body: string) {

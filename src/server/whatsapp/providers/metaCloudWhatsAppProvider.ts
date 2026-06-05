@@ -147,6 +147,31 @@ export class MetaWhatsAppCloudProvider {
     this.log?.({ action: "template_test_sent", status: "success", metadata: { templateName, language } });
     return { ok: true, data };
   }
+
+  async sendTemplate(input: MetaWhatsAppCloudTemplateTestInput) {
+    this.requireCredentials("connection");
+    const templateName = String(input.templateName || "").trim();
+    const language = String(input.language || this.config.default_language || "pt_BR").trim() || "pt_BR";
+    if (!templateName) throw new Error("Template obrigatorio");
+    const templates = Array.isArray(input.availableTemplates) ? input.availableTemplates : [];
+    const template = templates.find(item => String(item.name || "") === templateName && String(item.language || "") === language);
+    if (!template) throw new Error("Template nao sincronizado para este tenant");
+    if (String(template.status || "").toUpperCase() !== "APPROVED") throw new Error("Template ainda nao esta aprovado para envio");
+    const components = Array.isArray(input.components) ? input.components : [];
+    const data = await this.graphPost(`${this.config.phone_number_id}/messages`, {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: input.to,
+      type: "template",
+      template: {
+        name: templateName,
+        language: { code: language },
+        ...(components.length ? { components } : {})
+      }
+    });
+    this.log?.({ action: "template_sent", status: "success", metadata: { templateName, language } });
+    return { ok: true, data };
+  }
 }
 
 export async function sendMetaCloudWhatsAppMessage(message: WhatsAppProviderMessage, config: MetaCloudWhatsAppConfig) {
