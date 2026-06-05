@@ -13,6 +13,7 @@ const app = read("src/App.tsx");
 const authSession = read("src/lib/authSession.ts");
 const affiliates = read("src/pages/Affiliates.tsx");
 const adminSales = read("src/pages/admin/AdminSales.tsx");
+const adminConfig = read("src/pages/admin/AdminConfig.tsx");
 const server = read("server.ts");
 const pkg = read("package.json");
 
@@ -34,7 +35,17 @@ includesAll(affiliates, [
   "/api/affiliates/${customer.affiliateRefCode}/dashboard",
   "dashboard?.metrics.commissionsPending",
   "dashboard?.metrics.commissionsReleased",
-  "dashboard?.metrics.commissionsPaid"
+  "dashboard?.metrics.commissionsPaid",
+  "Bônus de Performance",
+  "Meta atual",
+  "Próxima recompensa",
+  "Histórico de recompensas",
+  "Recompensas recebidas",
+  "Raspadinhas",
+  "Giros",
+  "Super Cotas",
+  "Números bônus",
+  "AffiliatePerformanceBonusPanel"
 ], "tela afiliado");
 
 includesAll(affiliates, [
@@ -181,6 +192,9 @@ const dashboardBuilderBlock = server.slice(server.indexOf("function buildAffilia
 for (const field of ["cpf", "phone", "accessPassword"]) {
   assert(!dashboardBuilderBlock.includes(field), `dashboard do afiliado nao deve expor ${field}`);
 }
+includesAll(dashboardBuilderBlock, [
+  "performanceRewards: buildAffiliatePerformanceRewardsDashboard(affiliate)"
+], "dashboard do afiliado inclui bonus de performance seguro");
 
 includesAll(server, [
   'app.get("/api/admin/affiliates/search"',
@@ -219,9 +233,41 @@ includesAll(commissionBlock, [
   "affiliateIsEligibleForCampaignCommission(affiliate",
   "`ineligible:${input.source}`",
   "affiliate.history.some",
-  "affiliate.commissionBalance += comm"
+  "affiliate.commissionBalance += comm",
+  "evaluateAffiliateRewards({ tenantId: input.tenantId, affiliate, source: input.source })"
 ], "comissao personalizada/idempotente");
 assert(!commissionBlock.includes("tenantScopedSettings.affiliateProgram.commissionRate"), "comissao deve passar pelo fallback personalizado/padrao");
+
+const performanceRewardsBlock = server.slice(server.indexOf("function evaluateAffiliateRewards"), server.indexOf("type AffiliatePaidOrder"));
+includesAll(performanceRewardsBlock, [
+  "affiliate.tenant_id !== input.tenantId",
+  "!affiliate.enabled",
+  "affiliatePerformanceRewards",
+  "rule.enabled",
+  "affiliateRewardProgressValue(affiliate, rule)",
+  "const rewardId = `${rule.id}:${current}`",
+  "affiliate.performanceRewards?.some(reward => reward.id === rewardId)",
+  "affiliate.performanceRewards.push(reward)",
+  "affiliate.performanceRewardBalances[rule.rewardType]"
+], "motor de bonus de performance idempotente e tenant-scoped");
+
+const pendingReleaseBlock = server.slice(server.indexOf("function releaseEligiblePendingAffiliateCommissions"), server.indexOf("function affiliateCommissionEntries"));
+includesAll(pendingReleaseBlock, [
+  "entry.type = entry.type.replace(/^pending:/, \"\")",
+  "evaluateAffiliateRewards({ tenantId: affiliate.tenant_id, affiliate, source: entry.type })"
+], "bonus de performance so avalia comissao pendente quando ela for liberada");
+
+const rewardProgressBlock = server.slice(server.indexOf("function isAffiliateRewardEligibleCommission"), server.indexOf("function evaluateAffiliateRewards"));
+includesAll(rewardProgressBlock, [
+  "isAffiliateRewardEligibleCommission(entry)",
+  "new Date(entry.date).getTime() >= createdAt",
+  "type.startsWith(\"conversion:\")",
+  "getAffiliatePaidOrders(affiliate.tenant_id, affiliate.refCode)",
+  "sourceIds.has(order.id)",
+  "rule.goalType === \"customers_count\"",
+  "rule.goalType === \"commission_amount\""
+], "progresso de bonus considera apenas comissoes validas futuras");
+assert(!rewardProgressBlock.includes("pending:conversion:"), "bonus de performance nao deve contar comissao pendente no progresso");
 
 const campaignEligibilityBlock = server.slice(server.indexOf("function affiliateOwnCampaignPaidAt"), server.indexOf("function isPendingAffiliateCommission"));
 includesAll(campaignEligibilityBlock, [
@@ -255,6 +301,13 @@ const publicAffiliateUpdateBlock = server.slice(server.indexOf('app.put("/api/af
 assert(!publicAffiliateUpdateBlock.includes("customCommissionRate"), "afiliado comum nao altera comissao personalizada");
 assert(!publicAffiliateUpdateBlock.includes("useCustomCommission ="), "afiliado comum nao ativa comissao personalizada");
 
+const publicAffiliateViewBlock = server.slice(server.indexOf("function publicAffiliateView"), server.indexOf("function ensureAffiliateForCustomer"));
+includesAll(publicAffiliateViewBlock, [
+  "performanceRewards",
+  "performanceRewardBalances",
+  "...publicAffiliate"
+], "visao publica remove historico de bonus de performance");
+
 includesAll(adminSales, [
   "Usa comissão padrão",
   "Usa comissão personalizada",
@@ -263,6 +316,23 @@ includesAll(adminSales, [
   "useCustomCommission",
   "customCommissionRate"
 ], "ui admin comissao personalizada");
+
+includesAll(adminConfig, [
+  "Premiações para Afiliados",
+  "Premiações automáticas",
+  "Criar regra",
+  "Quantidade de vendas",
+  "Quantidade de clientes",
+  "Valor vendido",
+  "Valor comissionado",
+  "Raspadinha",
+  "Giro na roleta",
+  "Super cota",
+  "Número bônus",
+  "Recompensa futura",
+  "affiliatePerformanceRewards",
+  "createdAt: new Date().toISOString()"
+], "ui admin bonus de performance");
 
 includesAll(affiliates, [
   "commissionStatusLabel",

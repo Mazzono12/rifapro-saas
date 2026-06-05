@@ -319,6 +319,27 @@ export interface AffiliateStats {
   customCommissionRate?: number;
   useBalanceForPurchases: boolean;
   enabled: boolean;
+  performanceRewardBalances?: {
+    scratchcard?: number;
+    wheel_spin?: number;
+    super_quota?: number;
+    bonus_number?: number;
+    future_reward?: number;
+  };
+  performanceRewards?: Array<{
+    id: string;
+    tenant_id?: string;
+    affiliateRefCode?: string;
+    ruleId: string;
+    ruleName: string;
+    goalType: string;
+    threshold: number;
+    milestone: number;
+    rewardType: string;
+    rewardQuantity: number;
+    source?: string;
+    createdAt: string;
+  }>;
   rules?: {
     commissionRate: number;
     minTicketsToJoin: number;

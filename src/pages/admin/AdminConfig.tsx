@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Settings, Save, Layout, Package, Users, Banknote, BadgeHelp, CheckCircle2, Gift, HandCoins, Link2, Medal, Percent, ShieldCheck, Wallet } from "lucide-react";
+import { Settings, Save, Layout, Package, Users, Banknote, BadgeHelp, CheckCircle2, Gift, HandCoins, Link2, Medal, Percent, Plus, ShieldCheck, Trash2, Trophy, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import { useTheme } from "../../context/theme/ThemeContext";
@@ -128,6 +128,10 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
       monthlyActivationAmount: 0,
       minWithdrawAmount: 50,
       allowBalancePayments: true
+    },
+    affiliatePerformanceRewards: {
+      enabled: false,
+      rules: []
     },
     mainVideoPlayer: defaultVideoConfig,
     affiliateInstructionVideo: {
@@ -388,6 +392,49 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     });
   };
 
+  const updateAffiliatePerformanceRewards = (patch: Record<string, any>) => {
+    setSettings({
+      ...settings,
+      affiliatePerformanceRewards: {
+        ...(settings.affiliatePerformanceRewards || { enabled: false, rules: [] }),
+        ...patch
+      }
+    });
+  };
+
+  const addAffiliateRewardRule = () => {
+    const current = settings.affiliatePerformanceRewards || { enabled: false, rules: [] };
+    const rules = Array.isArray(current.rules) ? current.rules : [];
+    updateAffiliatePerformanceRewards({
+      rules: [
+        ...rules,
+        {
+          id: `AFR_${Date.now()}`,
+          name: `Regra ${rules.length + 1}`,
+          enabled: true,
+          goalType: "sales_count",
+          threshold: 5,
+          rewardType: "scratchcard",
+          rewardQuantity: 1,
+          createdAt: new Date().toISOString()
+        }
+      ]
+    });
+  };
+
+  const updateAffiliateRewardRule = (index: number, patch: Record<string, any>) => {
+    const current = settings.affiliatePerformanceRewards || { enabled: false, rules: [] };
+    const rules = Array.isArray(current.rules) ? [...current.rules] : [];
+    rules[index] = { ...rules[index], ...patch };
+    updateAffiliatePerformanceRewards({ rules });
+  };
+
+  const removeAffiliateRewardRule = (index: number) => {
+    const current = settings.affiliatePerformanceRewards || { enabled: false, rules: [] };
+    const rules = Array.isArray(current.rules) ? current.rules.filter((_: any, itemIndex: number) => itemIndex !== index) : [];
+    updateAffiliatePerformanceRewards({ rules });
+  };
+
   if (initialTab === "branding") {
     return (
       <div className="space-y-6 fade-in">
@@ -430,6 +477,21 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
   const minTicketsToJoin = Math.max(0, Number(affiliateProgram.minTicketsToJoin || 0));
   const minWithdrawAmount = Math.max(0, Number(affiliateProgram.minWithdrawAmount || 0));
   const monthlyActivationAmount = Math.max(0, Number(affiliateProgram.monthlyActivationAmount || 0));
+  const performanceRewards = settings.affiliatePerformanceRewards || { enabled: false, rules: [] };
+  const performanceRewardRules = Array.isArray(performanceRewards.rules) ? performanceRewards.rules : [];
+  const rewardGoalOptions = [
+    ["sales_count", "Quantidade de vendas"],
+    ["customers_count", "Quantidade de clientes"],
+    ["revenue_amount", "Valor vendido"],
+    ["commission_amount", "Valor comissionado"]
+  ];
+  const rewardTypeOptions = [
+    ["scratchcard", "Raspadinha"],
+    ["wheel_spin", "Giro na roleta"],
+    ["super_quota", "Super cota"],
+    ["bonus_number", "Número bônus"],
+    ["future_reward", "Recompensa futura"]
+  ];
   const previewTicketValue = 100;
   const previewCommission = Number((previewTicketValue * (commissionRate / 100)).toFixed(2));
 
@@ -668,6 +730,82 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                        <AffiliateField label="Meta anual" help="Acompanhe a meta anual pelos relatórios de ranking e receita do afiliado.">
                          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-300">Acompanhamento no ranking anual</div>
                        </AffiliateField>
+                     </div>
+                   </AffiliateSection>
+
+                   <AffiliateSection icon={Trophy} title="Premiações para Afiliados" description="Crie bônus automáticos para afiliados que batem metas de vendas e indicações.">
+                     <div className="space-y-4">
+                       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4">
+                         <div>
+                           <p className="text-sm font-bold text-white">Premiações automáticas</p>
+                           <p className="mt-1 text-xs leading-5 text-slate-400">Este sistema complementa as comissões e vale apenas para novas vendas válidas.</p>
+                         </div>
+                         <label className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-200">
+                           <input
+                             type="checkbox"
+                             checked={Boolean(performanceRewards.enabled)}
+                             onChange={e => updateAffiliatePerformanceRewards({ enabled: e.target.checked })}
+                           />
+                           {performanceRewards.enabled ? "ON" : "OFF"}
+                         </label>
+                       </div>
+
+                       <div className="space-y-3">
+                         {performanceRewardRules.map((rule: any, index: number) => (
+                           <div key={rule.id || index} className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                               <div>
+                                 <p className="text-sm font-bold text-white">Regra {index + 1}</p>
+                                 <p className="mt-1 text-xs text-slate-500">A recompensa é gerada quando a venda indicada está paga, com comissão válida e afiliado liberado para a campanha.</p>
+                               </div>
+                               <div className="flex items-center gap-3">
+                                 <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-300">
+                                   <input
+                                     type="checkbox"
+                                     checked={Boolean(rule.enabled)}
+                                     onChange={e => updateAffiliateRewardRule(index, { enabled: e.target.checked })}
+                                   />
+                                   Ativa
+                                 </label>
+                                 <button type="button" onClick={() => removeAffiliateRewardRule(index)} className="rounded-xl border border-red-300/20 bg-red-400/10 p-2 text-red-200">
+                                   <Trash2 className="h-4 w-4" />
+                                 </button>
+                               </div>
+                             </div>
+                             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                               <AffiliateField label="Nome da regra" help="Nome comercial exibido para identificar a meta.">
+                                 <input value={rule.name || ""} onChange={e => updateAffiliateRewardRule(index, { name: e.target.value })} className="w-full p-3" />
+                               </AffiliateField>
+                               <AffiliateField label="Meta por" help="Escolha o indicador que libera a recompensa.">
+                                 <select value={rule.goalType || "sales_count"} onChange={e => updateAffiliateRewardRule(index, { goalType: e.target.value })} className="w-full p-3">
+                                   {rewardGoalOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                                 </select>
+                               </AffiliateField>
+                               <AffiliateField label="A cada" help="Quantidade, valor vendido ou valor comissionado necessário para liberar a recompensa.">
+                                 <input type="number" min="1" step="0.01" value={Math.max(1, Number(rule.threshold || 1))} onChange={e => updateAffiliateRewardRule(index, { threshold: Math.max(1, Number(e.target.value)) })} className="w-full p-3" />
+                               </AffiliateField>
+                               <AffiliateField label="Recompensa" help="Tipo de bônus entregue quando a meta for alcançada.">
+                                 <select value={rule.rewardType || "scratchcard"} onChange={e => updateAffiliateRewardRule(index, { rewardType: e.target.value })} className="w-full p-3">
+                                   {rewardTypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                                 </select>
+                               </AffiliateField>
+                               <AffiliateField label="Quantidade" help="Quantidade de recompensas entregues a cada meta concluída.">
+                                 <input type="number" min="1" step="1" value={Math.max(1, Number(rule.rewardQuantity || 1))} onChange={e => updateAffiliateRewardRule(index, { rewardQuantity: Math.max(1, Math.floor(Number(e.target.value))) })} className="w-full p-3" />
+                               </AffiliateField>
+                             </div>
+                           </div>
+                         ))}
+                         {!performanceRewardRules.length && (
+                           <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-5 text-sm text-slate-400">
+                             Nenhuma regra criada. Adicione uma meta para liberar bônus automaticamente.
+                           </div>
+                         )}
+                       </div>
+
+                       <button type="button" onClick={addAffiliateRewardRule} className="inline-flex items-center gap-2 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3 text-sm font-bold text-emerald-100">
+                         <Plus className="h-4 w-4" />
+                         Criar regra
+                       </button>
                      </div>
                    </AffiliateSection>
 

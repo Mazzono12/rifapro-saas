@@ -75,6 +75,32 @@ type AffiliateDashboard = {
   customers: Array<{ customer: string; plan: string; status: string; registeredAt: string; lastPaymentAt: string; commissionGenerated: number }>;
   commissions: Array<{ id: string; type: string; source: string; amount: number; status: string; createdAt: string }>;
   withdrawals: Array<{ id: string; amount: number; status: string; requestedAt: string; paidAt?: string; adminNote?: string }>;
+  performanceRewards?: {
+    enabled: boolean;
+    balances?: {
+      scratchcard: number;
+      wheel_spin: number;
+      super_quota: number;
+      bonus_number: number;
+      future_reward: number;
+    };
+    rules: Array<{
+      id: string;
+      name: string;
+      goalType: string;
+      goalLabel: string;
+      threshold: number;
+      progress: number;
+      currentProgress: number;
+      progressLabel: string;
+      percent: number;
+      completed: number;
+      nextReward: string;
+      rewardType: string;
+      rewardQuantity: number;
+    }>;
+    history: Array<{ id: string; ruleName: string; reward: string; goalLabel: string; milestone: number; createdAt: string }>;
+  };
   ranking: {
     month: Array<{ position: number; affiliate: string; customers: number; conversions: number; revenue: number; conversion: number }>;
     year: Array<{ position: number; affiliate: string; customers: number; conversions: number; revenue: number; conversion: number }>;
@@ -372,6 +398,7 @@ export function Affiliates() {
       </section>
 
       <AffiliateGamificationPanel summary={gamification} />
+      <AffiliatePerformanceBonusPanel rewards={dashboard?.performanceRewards} />
 
       {eligibility && (
         <section className={cn("admin-card border p-4 sm:p-5", eligibility.isEligibleThisMonth ? "border-[var(--admin-success)]/30" : "border-[var(--admin-warning)]/40")}>
@@ -576,6 +603,93 @@ export function Affiliates() {
         </div>
       </section>
     </div>
+  );
+}
+
+function AffiliatePerformanceBonusPanel({ rewards }: { rewards?: AffiliateDashboard["performanceRewards"] }) {
+  if (!rewards?.enabled) return null;
+  const rules = rewards.rules || [];
+  const history = rewards.history || [];
+  const balances = rewards.balances || { scratchcard: 0, wheel_spin: 0, super_quota: 0, bonus_number: 0, future_reward: 0 };
+  const receivedTotal = Object.values(balances).reduce((sum, value) => sum + Number(value || 0), 0);
+  return (
+    <section className="admin-card overflow-hidden p-0">
+      <div className="border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4 sm:p-5">
+        <p className="mb-2 flex items-center gap-2 text-xs font-black uppercase text-[var(--admin-primary)]">
+          <Gift className="h-4 w-4" />
+          Bônus de Performance
+        </p>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <h2 className="break-words text-2xl font-black text-[var(--admin-text)]">Premiações por metas</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--admin-muted)]">
+              Ganhe recompensas extras quando suas vendas indicadas atingirem as metas liberadas.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:min-w-[260px]">
+            <FinanceStat label="Metas concluídas" value={String(rules.reduce((sum, rule) => sum + Number(rule.completed || 0), 0))} />
+            <FinanceStat label="Recompensas recebidas" value={String(receivedTotal)} />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 p-4 sm:p-5 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid gap-3">
+          {rules.map(rule => (
+            <div key={rule.id} className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
+              <div className="mb-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="break-words text-sm font-black text-[var(--admin-text)]">{rule.name}</p>
+                  <p className="mt-1 text-xs text-[var(--admin-muted)]">Meta atual: {rule.goalLabel}</p>
+                </div>
+                <span className="rounded-full border border-[var(--admin-primary)]/25 bg-[var(--admin-primary)]/10 px-3 py-1 text-xs font-bold text-[var(--admin-primary)]">
+                  {rule.completed > 0 ? `${rule.completed} concluída(s)` : "Em andamento"}
+                </span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-black/30">
+                <div className="h-full rounded-full bg-[var(--admin-primary)] transition-all" style={{ width: `${Math.max(0, Math.min(100, rule.percent || 0))}%` }} />
+              </div>
+              <div className="mt-3 flex flex-col gap-2 text-xs text-[var(--admin-muted)] sm:flex-row sm:items-center sm:justify-between">
+                <span className="font-bold text-[var(--admin-text)]">{rule.progressLabel}</span>
+                <span>Próxima recompensa: {rule.nextReward}</span>
+              </div>
+            </div>
+          ))}
+          {!rules.length && (
+            <div className="rounded-[8px] border border-dashed border-[var(--admin-border)] p-5 text-sm text-[var(--admin-muted)]">
+              Nenhuma meta de performance está ativa no momento.
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            <FinanceStat label="Raspadinhas" value={String(balances.scratchcard || 0)} />
+            <FinanceStat label="Giros" value={String(balances.wheel_spin || 0)} />
+            <FinanceStat label="Super Cotas" value={String(balances.super_quota || 0)} />
+            <FinanceStat label="Números bônus" value={String(balances.bonus_number || 0)} />
+          </div>
+          <div className="mb-4 flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-[var(--admin-warning)]" />
+            <h3 className="text-lg font-black text-[var(--admin-text)]">Histórico de recompensas</h3>
+          </div>
+          <div className="grid gap-3">
+            {history.slice(0, 8).map(item => (
+              <div key={item.id} className="rounded-[8px] border border-[var(--admin-border)] bg-black/20 p-3">
+                <p className="text-sm font-bold text-[var(--admin-text)]">{item.reward}</p>
+                <p className="mt-1 text-xs text-[var(--admin-muted)]">{item.ruleName} • meta {item.milestone}</p>
+                <p className="mt-1 text-[11px] text-[var(--admin-muted)]">{new Date(item.createdAt).toLocaleDateString("pt-BR")}</p>
+              </div>
+            ))}
+            {!history.length && (
+              <p className="rounded-[8px] border border-dashed border-[var(--admin-border)] p-4 text-sm text-[var(--admin-muted)]">
+                Suas recompensas aparecerão aqui quando uma meta for concluída.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

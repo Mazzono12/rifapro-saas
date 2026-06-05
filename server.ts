@@ -515,6 +515,10 @@ async function startServer() {
       minWithdrawAmount: 50,
       allowBalancePayments: true
     },
+    affiliatePerformanceRewards: {
+      enabled: false,
+      rules: [] as AffiliatePerformanceRewardRule[]
+    },
     smsProvider: {
       enabled: false,
       provider: "local",
@@ -605,12 +609,39 @@ async function startServer() {
     return JSON.parse(JSON.stringify(value));
   }
 
+  function normalizeAffiliatePerformanceRewardsSettings(input: any) {
+    const validGoalTypes = new Set(["sales_count", "customers_count", "revenue_amount", "commission_amount"]);
+    const validRewardTypes = new Set(["scratchcard", "wheel_spin", "super_quota", "bonus_number", "future_reward"]);
+    const now = new Date().toISOString();
+    const rules = Array.isArray(input?.rules) ? input.rules : [];
+    return {
+      enabled: Boolean(input?.enabled),
+      rules: rules.map((rule: any, index: number): AffiliatePerformanceRewardRule => {
+        const goalType = validGoalTypes.has(String(rule?.goalType)) ? String(rule.goalType) as AffiliateRewardGoalType : "sales_count";
+        const rewardType = validRewardTypes.has(String(rule?.rewardType)) ? String(rule.rewardType) as AffiliateRewardType : "scratchcard";
+        const threshold = Math.max(1, Number(rule?.threshold || 1));
+        const rewardQuantity = Math.max(1, Math.floor(Number(rule?.rewardQuantity || 1)));
+        return {
+          id: String(rule?.id || createPublicId("AFR_")),
+          name: String(rule?.name || `Regra ${index + 1}`).slice(0, 80),
+          enabled: Boolean(rule?.enabled ?? true),
+          goalType,
+          threshold,
+          rewardType,
+          rewardQuantity,
+          createdAt: String(rule?.createdAt || now)
+        };
+      }).slice(0, 20)
+    };
+  }
+
   function normalizeSettingsShape(sourceSettings: typeof settings) {
     sourceSettings.affiliateProgram = {
       ...settings.affiliateProgram,
       ...(sourceSettings.affiliateProgram || {}),
       monthlyActivationAmount: Math.max(0, Number(sourceSettings.affiliateProgram?.monthlyActivationAmount || 0))
     };
+    sourceSettings.affiliatePerformanceRewards = normalizeAffiliatePerformanceRewardsSettings(sourceSettings.affiliatePerformanceRewards);
     sourceSettings.socialLinks = {
       whatsapp: "",
       instagram: "",
@@ -950,6 +981,32 @@ async function startServer() {
   type AffiliateCampaignType = "raffle" | "fazendinha" | "number_mode";
   type AffiliateCampaignRef = { type: AffiliateCampaignType; id: string };
   type AffiliateLedger = { amount: number; type: string; date: string; note?: string; campaignType?: AffiliateCampaignType; campaignId?: string };
+  type AffiliateRewardGoalType = "sales_count" | "customers_count" | "revenue_amount" | "commission_amount";
+  type AffiliateRewardType = "scratchcard" | "wheel_spin" | "super_quota" | "bonus_number" | "future_reward";
+  type AffiliatePerformanceRewardRule = {
+    id: string;
+    name: string;
+    enabled: boolean;
+    goalType: AffiliateRewardGoalType;
+    threshold: number;
+    rewardType: AffiliateRewardType;
+    rewardQuantity: number;
+    createdAt: string;
+  };
+  type AffiliatePerformanceRewardLedger = {
+    id: string;
+    tenant_id: string;
+    affiliateRefCode: string;
+    ruleId: string;
+    ruleName: string;
+    goalType: AffiliateRewardGoalType;
+    threshold: number;
+    milestone: number;
+    rewardType: AffiliateRewardType;
+    rewardQuantity: number;
+    source: string;
+    createdAt: string;
+  };
   type AffiliateWithdrawal = {
     tenant_id: string;
     id: string;
@@ -1360,6 +1417,8 @@ async function startServer() {
     useBalanceForPurchases: boolean;
     enabled: boolean;
     history: AffiliateLedger[];
+    performanceRewards?: AffiliatePerformanceRewardLedger[];
+    performanceRewardBalances?: Partial<Record<AffiliateRewardType, number>>;
   };
   type CustomerRecord = {
     id: string;
@@ -6368,7 +6427,7 @@ async function startServer() {
 
   function publicAffiliateView(affiliate?: AffiliateRecord | null) {
     if (!affiliate) return undefined;
-    const { useCustomCommission, customCommissionRate, tenant_id, customerId, ...publicAffiliate } = affiliate;
+    const { useCustomCommission, customCommissionRate, performanceRewards, performanceRewardBalances, tenant_id, customerId, ...publicAffiliate } = affiliate;
     return publicAffiliate;
   }
 
@@ -6391,7 +6450,9 @@ async function startServer() {
         customCommissionRate: undefined,
         useBalanceForPurchases: false,
         enabled: Boolean(options.forceEnable) || customer.totalTickets >= getTenantSettings(customer.tenant_id).affiliateProgram.minTicketsToJoin,
-        history: []
+        history: [],
+        performanceRewards: [],
+        performanceRewardBalances: {}
       };
       if (options.source) {
         affiliates[key].history.push({ amount: 0, type: options.source, date: new Date().toISOString() });
@@ -6401,6 +6462,8 @@ async function startServer() {
     affiliates[key].prizeBalance ??= 0;
     affiliates[key].useCustomCommission = Boolean(affiliates[key].useCustomCommission);
     affiliates[key].customCommissionRate = affiliates[key].useCustomCommission ? normalizeAffiliateCommissionRate(affiliates[key].customCommissionRate) : undefined;
+    affiliates[key].performanceRewards ||= [];
+    affiliates[key].performanceRewardBalances ||= {};
     affiliates[key].commission =
       affiliates[key].commissionBalance + affiliates[key].prizeBalance;
     affiliates[key].enabled =
@@ -11400,10 +11463,94 @@ async function startServer() {
       affiliate.commissionBalance += comm;
       affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
       affiliate.history.push({ amount: comm, type: input.source, date: new Date().toISOString(), campaignType: input.campaign?.type, campaignId: input.campaign?.id });
+      evaluateAffiliateRewards({ tenantId: input.tenantId, affiliate, source: input.source });
     } else {
       affiliate.history.push({ amount: comm, type: `pending:${input.source}`, date: new Date().toISOString(), campaignType: input.campaign?.type, campaignId: input.campaign?.id });
     }
     return affiliate;
+  }
+
+  function affiliateCommissionSourceId(entry: AffiliateLedger) {
+    return String(entry.type || "").replace(/^pending:/, "").replace(/^conversion:/, "");
+  }
+
+  function isAffiliateRewardEligibleCommission(entry: AffiliateLedger) {
+    const type = String(entry.type || "");
+    return Number(entry.amount || 0) > 0 && type.startsWith("conversion:");
+  }
+
+  function affiliateRewardLabel(type: AffiliateRewardType, quantity: number) {
+    const labels: Record<AffiliateRewardType, [string, string]> = {
+      scratchcard: ["raspadinha", "raspadinhas"],
+      wheel_spin: ["giro na roleta", "giros na roleta"],
+      super_quota: ["super cota", "super cotas"],
+      bonus_number: ["número bônus", "números bônus"],
+      future_reward: ["recompensa futura", "recompensas futuras"]
+    };
+    const [single, plural] = labels[type] || labels.future_reward;
+    return `${quantity} ${quantity === 1 ? single : plural}`;
+  }
+
+  function affiliateRewardGoalLabel(type: AffiliateRewardGoalType, threshold: number) {
+    const value = Number(threshold || 0);
+    if (type === "sales_count") return `${value} ${value === 1 ? "venda indicada" : "vendas indicadas"}`;
+    if (type === "customers_count") return `${value} ${value === 1 ? "cliente indicado" : "clientes indicados"}`;
+    if (type === "revenue_amount") return `R$ ${value.toFixed(2)} vendidos`;
+    return `R$ ${value.toFixed(2)} comissionados`;
+  }
+
+  function affiliateRewardProgressValue(affiliate: AffiliateRecord, rule: AffiliatePerformanceRewardRule) {
+    const createdAt = new Date(rule.createdAt || 0).getTime();
+    const entries = affiliate.history.filter(entry => isAffiliateRewardEligibleCommission(entry) && new Date(entry.date).getTime() >= createdAt);
+    if (rule.goalType === "sales_count") return entries.length;
+    if (rule.goalType === "commission_amount") return Number(entries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0).toFixed(2));
+    const sourceIds = new Set(entries.map(affiliateCommissionSourceId));
+    const orders = getAffiliatePaidOrders(affiliate.tenant_id, affiliate.refCode)
+      .filter(order => sourceIds.has(order.id));
+    if (rule.goalType === "customers_count") {
+      return new Set(orders.map(order => order.customer?.id || order.id).filter(Boolean)).size;
+    }
+    return Number(orders.reduce((sum, order) => sum + Number(order.amount || 0), 0).toFixed(2));
+  }
+
+  function evaluateAffiliateRewards(input: { tenantId: string; affiliate: AffiliateRecord; source: string }) {
+    const affiliate = input.affiliate;
+    if (!affiliate || affiliate.tenant_id !== input.tenantId || !affiliate.enabled) return [];
+    const settingsForTenant = getTenantSettings(input.tenantId).affiliatePerformanceRewards;
+    if (!settingsForTenant?.enabled) return [];
+    affiliate.performanceRewards ||= [];
+    affiliate.performanceRewardBalances ||= {};
+    const generated: AffiliatePerformanceRewardLedger[] = [];
+    const now = new Date().toISOString();
+    settingsForTenant.rules
+      .filter(rule => rule.enabled && Number(rule.threshold || 0) > 0 && Number(rule.rewardQuantity || 0) > 0)
+      .forEach(rule => {
+        const progress = affiliateRewardProgressValue(affiliate, rule);
+        const milestone = Math.floor(progress / Number(rule.threshold || 1));
+        if (milestone <= 0) return;
+        for (let current = 1; current <= milestone; current++) {
+          const rewardId = `${rule.id}:${current}`;
+          if (affiliate.performanceRewards?.some(reward => reward.id === rewardId)) continue;
+          const reward: AffiliatePerformanceRewardLedger = {
+            id: rewardId,
+            tenant_id: input.tenantId,
+            affiliateRefCode: affiliate.refCode,
+            ruleId: rule.id,
+            ruleName: rule.name,
+            goalType: rule.goalType,
+            threshold: rule.threshold,
+            milestone: current,
+            rewardType: rule.rewardType,
+            rewardQuantity: rule.rewardQuantity,
+            source: input.source,
+            createdAt: now
+          };
+          affiliate.performanceRewards.push(reward);
+          affiliate.performanceRewardBalances[rule.rewardType] = Number(affiliate.performanceRewardBalances[rule.rewardType] || 0) + rule.rewardQuantity;
+          generated.push(reward);
+        }
+      });
+    return generated;
   }
 
   type AffiliatePaidOrder = {
@@ -11565,6 +11712,7 @@ async function startServer() {
       if (!isPendingAffiliateCommission(entry)) return;
       releasedAmount += Number(entry.amount || 0);
       entry.type = entry.type.replace(/^pending:/, "");
+      evaluateAffiliateRewards({ tenantId: affiliate.tenant_id, affiliate, source: entry.type });
     });
     if (releasedAmount > 0) {
       affiliate.commissionBalance += Number(releasedAmount.toFixed(2));
@@ -11626,6 +11774,59 @@ async function startServer() {
         paidAt: item.paidAt || "",
         adminNote: item.status === "rejected" ? item.adminNote || "" : ""
       }));
+  }
+
+  function buildAffiliatePerformanceRewardsDashboard(affiliate: AffiliateRecord) {
+    const rewardSettings = getTenantSettings(affiliate.tenant_id).affiliatePerformanceRewards;
+    affiliate.performanceRewards ||= [];
+    const rules = (rewardSettings?.rules || [])
+      .filter(rule => rule.enabled)
+      .map(rule => {
+        const progress = affiliateRewardProgressValue(affiliate, rule);
+        const threshold = Math.max(1, Number(rule.threshold || 1));
+        const completed = Math.floor(progress / threshold);
+        const currentProgress = rule.goalType === "revenue_amount" || rule.goalType === "commission_amount"
+          ? Number((progress % threshold).toFixed(2))
+          : progress % threshold;
+        return {
+          id: rule.id,
+          name: rule.name,
+          goalType: rule.goalType,
+          goalLabel: affiliateRewardGoalLabel(rule.goalType, threshold),
+          threshold,
+          progress,
+          currentProgress,
+          progressLabel: `${currentProgress}/${threshold}`,
+          percent: Math.min(100, Number(((currentProgress / threshold) * 100).toFixed(2))),
+          completed,
+          nextReward: affiliateRewardLabel(rule.rewardType, rule.rewardQuantity),
+          rewardType: rule.rewardType,
+          rewardQuantity: rule.rewardQuantity
+        };
+      });
+    return {
+      enabled: Boolean(rewardSettings?.enabled),
+      balances: {
+        scratchcard: Number(affiliate.performanceRewardBalances?.scratchcard || 0),
+        wheel_spin: Number(affiliate.performanceRewardBalances?.wheel_spin || 0),
+        super_quota: Number(affiliate.performanceRewardBalances?.super_quota || 0),
+        bonus_number: Number(affiliate.performanceRewardBalances?.bonus_number || 0),
+        future_reward: Number(affiliate.performanceRewardBalances?.future_reward || 0)
+      },
+      rules,
+      history: affiliate.performanceRewards
+        .filter(reward => reward.tenant_id === affiliate.tenant_id && reward.affiliateRefCode === affiliate.refCode)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 50)
+        .map(reward => ({
+          id: reward.id,
+          ruleName: reward.ruleName,
+          reward: affiliateRewardLabel(reward.rewardType, reward.rewardQuantity),
+          goalLabel: affiliateRewardGoalLabel(reward.goalType, reward.threshold),
+          milestone: reward.milestone,
+          createdAt: reward.createdAt
+        }))
+    };
   }
 
   function buildAffiliateRanking(tenantId: string, period: "month" | "year") {
@@ -11709,6 +11910,7 @@ async function startServer() {
       customers: referredCustomers,
       commissions,
       withdrawals,
+      performanceRewards: buildAffiliatePerformanceRewardsDashboard(affiliate),
       ranking: {
         month: buildAffiliateRanking(affiliate.tenant_id, "month"),
         year: buildAffiliateRanking(affiliate.tenant_id, "year")
@@ -15962,6 +16164,10 @@ async function startServer() {
       smsProvider: { ...currentSettings.smsProvider, ...(req.body.smsProvider || {}) },
       n8nIntegration: { ...currentSettings.n8nIntegration, ...incomingN8n },
       affiliateProgram: { ...currentSettings.affiliateProgram, ...(req.body.affiliateProgram || {}) },
+      affiliatePerformanceRewards: {
+        ...currentSettings.affiliatePerformanceRewards,
+        ...(req.body.affiliatePerformanceRewards || {})
+      },
       affiliateInstructionVideo: {
         ...currentSettings.affiliateInstructionVideo,
         ...incomingAffiliateVideo,
