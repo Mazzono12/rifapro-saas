@@ -232,7 +232,8 @@ includesAll(page, [
   "falhou"
 ], "tela inbox");
 
-assert.ok(!page.includes("/api/admin/crm") && !page.includes("campanha") && !page.includes("n8n"), "Tela nao deve usar CRM/campanhas/n8n.");
+const inboxPageBlock = blockBetween(page, "export function AdminWhatsAppCenter", "function AdminWhatsAppDashboard");
+assert.ok(!inboxPageBlock.includes("/api/admin/crm") && !inboxPageBlock.includes("campanha") && !inboxPageBlock.includes("n8n"), "Tela de inbox nao deve usar CRM/campanhas/n8n.");
 assert.equal(pkg.scripts["test:whatsapp-center-inbox-hard"], "node scripts/test-whatsapp-center-inbox-hard.mjs", "script npm ausente");
 
 console.log("[whatsapp-center-inbox-hard] ok");

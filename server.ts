@@ -5902,6 +5902,11 @@ async function startServer() {
 
   app.use("/api/admin/whatsapp-center", rateLimiter, requireWhatsAppCenterAccess);
 
+  app.get("/api/admin/whatsapp-center/dashboard", requireWhatsAppCrmCampaignAccess, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json(buildWhatsAppCenterDashboard(tenantId));
+  });
+
   app.get("/api/admin/whatsapp-center/conversations", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const status = String(req.query.status || "");
@@ -11982,6 +11987,179 @@ async function startServer() {
       ...message,
       phone: maskPhone(message.phone),
       payload: maskLogValue(message.payload || {}) as Record<string, unknown>
+    };
+  }
+
+  function buildWhatsAppDashboardDaySeries(days: number) {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (days - 1));
+    return Array.from({ length: days }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      const key = date.toISOString().slice(0, 10);
+      return { date: key, label: date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) };
+    });
+  }
+
+  function whatsappDashboardTimestamp(value: unknown) {
+    const time = new Date(String(value || "")).getTime();
+    return Number.isFinite(time) ? time : 0;
+  }
+
+  function whatsappDashboardMessageTime(message: WhatsAppConversationMessageRecord | WhatsAppMessageQueueRecord) {
+    if ("tenantId" in message) return whatsappDashboardTimestamp(message.sentAt || message.receivedAt);
+    return whatsappDashboardTimestamp(message.sent_at || message.processed_at || message.updated_at || message.created_at);
+  }
+
+  function whatsappDashboardOrderAmount(tenantId: string, message: WhatsAppMessageQueueRecord) {
+    const orderType = (message.payload?.orderType === "fazendinha" || message.payload?.orderType === "number_mode" || message.payload?.orderType === "raffle")
+      ? message.payload.orderType as WhatsAppOrderType
+      : undefined;
+    const order = message.order_id ? findWhatsAppOrderSource(tenantId, message.order_id, orderType) : null;
+    if (!order) return { recovered: false, amount: 0, paidAt: "" };
+    const candidate = buildWhatsAppOrderCandidate(order);
+    const recovered = candidate.status === "paid" || candidate.paymentStatus === "paid";
+    return { recovered, amount: recovered ? Number(candidate.amount || 0) : 0, paidAt: candidate.paidAt || "" };
+  }
+
+  function whatsappDashboardStatusRank(status: string) {
+    const normalized = status.toLowerCase();
+    if (normalized === "read") return 4;
+    if (normalized === "delivered") return 3;
+    if (normalized === "sent") return 2;
+    if (normalized === "failed") return 1;
+    return 0;
+  }
+
+  function whatsappDashboardEffectiveQueueStatus(tenantId: string, message: WhatsAppMessageQueueRecord) {
+    const baseStatus = String(message.status || "").toLowerCase();
+    const metaMessageId = String(message.meta_message_id || "");
+    if (!metaMessageId) return baseStatus;
+    return whatsappConversationMessages
+      .filter(item => item.tenantId === tenantId && item.metaMessageId === metaMessageId)
+      .map(item => String(item.status || item.body || "").toLowerCase())
+      .reduce((best, status) => whatsappDashboardStatusRank(status) > whatsappDashboardStatusRank(best) ? status : best, baseStatus);
+  }
+
+  function buildWhatsAppCenterDashboard(tenantId: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    const outboundMessages = whatsappConversationMessages.filter(message => message.tenantId === tenantId && message.direction === "outbound");
+    const queueMessages = whatsappMessageQueue.filter(message => message.tenant_id === tenantId);
+    const queueStatus = (message: WhatsAppMessageQueueRecord) => whatsappDashboardEffectiveQueueStatus(tenantId, message);
+    const queueSent = queueMessages.filter(message => ["sent", "delivered", "read"].includes(queueStatus(message)));
+    const queueDelivered = queueMessages.filter(message => ["delivered", "read"].includes(queueStatus(message)));
+    const queueRead = queueMessages.filter(message => queueStatus(message) === "read");
+    const queueFailures = queueMessages.filter(message => queueStatus(message) === "failed");
+    const deliveredMessages = outboundMessages.filter(message => String(message.status || "").toLowerCase() === "delivered");
+    const readMessages = outboundMessages.filter(message => String(message.status || "").toLowerCase() === "read");
+    const failedMessages = outboundMessages.filter(message => String(message.status || "").toLowerCase() === "failed");
+    const sentToday = [
+      ...outboundMessages.filter(message => ["sent", "delivered", "read"].includes(String(message.status || "").toLowerCase())),
+      ...queueSent
+    ].filter(message => new Date(whatsappDashboardMessageTime(message)).toISOString().slice(0, 10) === today).length;
+    const sentTotal = outboundMessages.filter(message => ["sent", "delivered", "read"].includes(String(message.status || "").toLowerCase())).length + queueSent.length;
+    const deliveredTotal = deliveredMessages.length + readMessages.length + queueDelivered.length;
+    const readTotal = readMessages.length + queueRead.length;
+    const failedTotal = failedMessages.length + queueFailures.length;
+    const rate = (part: number, total: number) => total ? Number(((part / total) * 100).toFixed(1)) : 0;
+
+    const pixRecoveryMessages = getWhatsAppPixRecoveryQueue(tenantId);
+    const recoveredPix = pixRecoveryMessages
+      .filter(message => message.status === "sent")
+      .map(message => ({ message, order: whatsappDashboardOrderAmount(tenantId, message) }))
+      .filter(item => item.order.recovered);
+    const pixRecoveryCandidates = pixRecoveryMessages.filter(message => ["queued", "pending", "retrying", "sent"].includes(message.status)).length;
+    const recoveredPixValue = Number(recoveredPix.reduce((sum, item) => sum + item.order.amount, 0).toFixed(2));
+
+    const deliveryChart = buildWhatsAppDashboardDaySeries(7).map(day => {
+      const dayOutbound = outboundMessages.filter(message => new Date(whatsappDashboardMessageTime(message)).toISOString().slice(0, 10) === day.date);
+      const dayQueue = queueMessages.filter(message => new Date(whatsappDashboardMessageTime(message)).toISOString().slice(0, 10) === day.date);
+      return {
+        ...day,
+        enviados: dayOutbound.filter(message => ["sent", "delivered", "read"].includes(String(message.status || "").toLowerCase())).length + dayQueue.filter(message => ["sent", "delivered", "read"].includes(queueStatus(message))).length,
+        entregues: dayOutbound.filter(message => ["delivered", "read"].includes(String(message.status || "").toLowerCase())).length + dayQueue.filter(message => ["delivered", "read"].includes(queueStatus(message))).length,
+        lidos: dayOutbound.filter(message => String(message.status || "").toLowerCase() === "read").length + dayQueue.filter(message => queueStatus(message) === "read").length,
+        falhas: dayOutbound.filter(message => String(message.status || "").toLowerCase() === "failed").length + dayQueue.filter(message => queueStatus(message) === "failed").length
+      };
+    });
+
+    const pixChart = buildWhatsAppDashboardDaySeries(30).map(day => {
+      const recoveredForDay = recoveredPix.filter(item => {
+        const paidOrSent = item.order.paidAt || item.message.sent_at || item.message.processed_at || item.message.updated_at || item.message.created_at;
+        return new Date(paidOrSent).toISOString().slice(0, 10) === day.date;
+      });
+      return {
+        ...day,
+        recuperacoes: recoveredForDay.length,
+        valor: Number(recoveredForDay.reduce((sum, item) => sum + item.order.amount, 0).toFixed(2))
+      };
+    });
+
+    const templateStats = new Map<string, { template: string; envios: number; entregues: number; lidos: number }>();
+    const addTemplate = (name: string, status: string) => {
+      if (!name) return;
+      const current = templateStats.get(name) || { template: name, envios: 0, entregues: 0, lidos: 0 };
+      current.envios += ["sent", "delivered", "read"].includes(status) ? 1 : 0;
+      current.entregues += ["delivered", "read"].includes(status) ? 1 : 0;
+      current.lidos += status === "read" ? 1 : 0;
+      templateStats.set(name, current);
+    };
+    outboundMessages
+      .filter(message => message.type === "template")
+      .forEach(message => addTemplate(String(message.rawSummary?.templateName || message.body || ""), String(message.status || "").toLowerCase()));
+    queueMessages
+      .filter(message => message.template_name)
+      .forEach(message => addTemplate(String(message.template_name || ""), queueStatus(message)));
+
+    const campaigns = whatsappCrmCampaigns
+      .filter(campaign => campaign.tenant_id === tenantId)
+      .map(campaign => {
+        const queue = getWhatsAppCrmCampaignQueue(tenantId, campaign.id);
+        return {
+          id: campaign.id,
+          campanha: campaign.name,
+          destinatarios: campaign.predicted_recipients || queue.length,
+          enviados: queue.filter(message => ["sent", "delivered", "read"].includes(queueStatus(message))).length,
+          entregues: queue.filter(message => ["delivered", "read"].includes(queueStatus(message))).length,
+          lidos: queue.filter(message => queueStatus(message) === "read").length,
+          falhas: queue.filter(message => queueStatus(message) === "failed").length,
+          status: campaign.status,
+          updated_at: campaign.updated_at
+        };
+      })
+      .sort((a, b) => (b.entregues + b.lidos + b.enviados) - (a.entregues + a.lidos + a.enviados));
+
+    return {
+      metrics: {
+        sentToday,
+        delivered: deliveredTotal,
+        read: readTotal,
+        failures: failedTotal,
+        deliveryRate: rate(deliveredTotal, sentTotal),
+        readRate: rate(readTotal, deliveredTotal || sentTotal),
+        pixRecoveredCount: recoveredPix.length,
+        pixRecoveredValue: recoveredPixValue,
+        pixRecoveryRate: rate(recoveredPix.length, pixRecoveryCandidates),
+        campaignsSent: whatsappCrmCampaigns.filter(campaign => campaign.tenant_id === tenantId && ["queued", "sending", "completed"].includes(campaign.status)).length,
+        openConversations: whatsappConversations.filter(conversation => conversation.tenantId === tenantId && conversation.status === "open").length,
+        pendingConversations: whatsappConversations.filter(conversation => conversation.tenantId === tenantId && conversation.status === "pending").length,
+        waitingCustomerConversations: whatsappConversations.filter(conversation => conversation.tenantId === tenantId && conversation.status === "waiting_customer").length,
+        resolvedConversations: whatsappConversations.filter(conversation => conversation.tenantId === tenantId && conversation.status === "resolved").length,
+        optOuts: whatsappOptOutEvents.filter(event => event.tenantId === tenantId).length
+      },
+      charts: {
+        last7Days: deliveryChart,
+        pixRecoveryLast30Days: pixChart
+      },
+      campaigns: campaigns.slice(0, 12),
+      templates: Array.from(templateStats.values()).sort((a, b) => b.envios - a.envios).slice(0, 12),
+      conversations: {
+        abertas: whatsappConversations.filter(conversation => conversation.tenantId === tenantId && conversation.status === "open").length,
+        aguardandoCliente: whatsappConversations.filter(conversation => conversation.tenantId === tenantId && conversation.status === "waiting_customer").length,
+        pendentes: whatsappConversations.filter(conversation => conversation.tenantId === tenantId && conversation.status === "pending").length,
+        resolvidas: whatsappConversations.filter(conversation => conversation.tenantId === tenantId && conversation.status === "resolved").length
+      }
     };
   }
 

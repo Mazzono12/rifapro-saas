@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Ban, CheckCircle2, Clock3, Eye, FileText, ListChecks, Megaphone, MessageCircle, Play, RefreshCw, Search, Send, StickyNote, UserPlus, Users, X } from "lucide-react";
+import { AlertTriangle, Ban, BarChart3, CheckCircle2, Clock3, DollarSign, Eye, FileText, ListChecks, Megaphone, MessageCircle, Play, RefreshCw, Search, Send, StickyNote, TrendingUp, UserPlus, Users, X } from "lucide-react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type Contact = {
   id: string;
@@ -102,6 +103,33 @@ type CampaignRecipient = {
   statusComercial?: string;
 };
 
+type WhatsAppDashboard = {
+  metrics: {
+    sentToday: number;
+    delivered: number;
+    read: number;
+    failures: number;
+    deliveryRate: number;
+    readRate: number;
+    pixRecoveredCount: number;
+    pixRecoveredValue: number;
+    pixRecoveryRate: number;
+    campaignsSent: number;
+    openConversations: number;
+    pendingConversations: number;
+    waitingCustomerConversations: number;
+    resolvedConversations: number;
+    optOuts: number;
+  };
+  charts: {
+    last7Days: Array<{ date: string; label: string; enviados: number; entregues: number; lidos: number; falhas: number }>;
+    pixRecoveryLast30Days: Array<{ date: string; label: string; recuperacoes: number; valor: number }>;
+  };
+  campaigns: Array<{ id: string; campanha: string; destinatarios: number; enviados: number; entregues: number; lidos: number; falhas?: number; status: CampaignStatus; updated_at?: string }>;
+  templates: Array<{ template: string; envios: number; entregues: number; lidos: number }>;
+  conversations: { abertas: number; aguardandoCliente: number; pendentes: number; resolvidas: number };
+};
+
 const filters = [
   { key: "", label: "Todas" },
   { key: "open", label: "Abertas" },
@@ -124,8 +152,16 @@ function serviceWindowState(value?: string) {
   return { expired: false, label: `Janela 24h ativa: ${hours}h restantes` };
 }
 
+function money(value: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
+}
+
+function percent(value: number) {
+  return `${Number(value || 0).toFixed(1)}%`;
+}
+
 export function AdminWhatsAppCenter() {
-  const [centerView, setCenterView] = useState<"inbox" | "campaigns">("inbox");
+  const [centerView, setCenterView] = useState<"dashboard" | "inbox" | "campaigns">("dashboard");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [selected, setSelected] = useState<Conversation | null>(null);
@@ -299,6 +335,9 @@ export function AdminWhatsAppCenter() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={() => setCenterView("dashboard")} className={centerView === "dashboard" ? "admin-button-primary" : "admin-button-secondary"}>
+          <BarChart3 className="h-4 w-4" /> Dashboard WhatsApp
+        </button>
         <button type="button" onClick={() => setCenterView("inbox")} className={centerView === "inbox" ? "admin-button-primary" : "admin-button-secondary"}>
           <MessageCircle className="h-4 w-4" /> Atendimento
         </button>
@@ -306,7 +345,7 @@ export function AdminWhatsAppCenter() {
           <Megaphone className="h-4 w-4" /> Campanhas CRM
         </button>
       </div>
-      {centerView === "campaigns" ? <AdminWhatsAppCampaigns /> : (
+      {centerView === "dashboard" ? <AdminWhatsAppDashboard /> : centerView === "campaigns" ? <AdminWhatsAppCampaigns /> : (
     <div className="grid min-h-[calc(100vh-190px)] gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
       <aside className="admin-card flex min-h-[620px] flex-col overflow-hidden p-0">
         <div className="border-b border-[var(--admin-border)] p-4">
@@ -529,6 +568,187 @@ export function AdminWhatsAppCenter() {
       </section>
     </div>
       )}
+    </div>
+  );
+}
+
+function AdminWhatsAppDashboard() {
+  const [dashboard, setDashboard] = useState<WhatsAppDashboard | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function loadDashboard() {
+    setLoading(true);
+    setError("");
+    const response = await fetch("/api/admin/whatsapp-center/dashboard");
+    const data = await response.json().catch(() => null);
+    setLoading(false);
+    if (!response.ok || !data) {
+      setError(data?.error || "Nao foi possivel carregar o dashboard");
+      return;
+    }
+    setDashboard(data);
+  }
+
+  useEffect(() => {
+    void loadDashboard();
+  }, []);
+
+  const metrics = dashboard?.metrics;
+  const cards = [
+    { label: "Enviadas hoje", value: metrics?.sentToday || 0, detail: "movimento do dia", icon: Send },
+    { label: "Entregues", value: metrics?.delivered || 0, detail: percent(metrics?.deliveryRate || 0), icon: CheckCircle2 },
+    { label: "Lidas", value: metrics?.read || 0, detail: percent(metrics?.readRate || 0), icon: Eye },
+    { label: "Recuperacoes PIX", value: metrics?.pixRecoveredCount || 0, detail: percent(metrics?.pixRecoveryRate || 0), icon: TrendingUp },
+    { label: "Valor recuperado", value: money(metrics?.pixRecoveredValue || 0), detail: "compras pagas", icon: DollarSign },
+    { label: "Campanhas", value: metrics?.campaignsSent || 0, detail: "ativas ou finalizadas", icon: Megaphone },
+    { label: "Opt-outs", value: metrics?.optOuts || 0, detail: "clientes que sairam", icon: Ban }
+  ];
+
+  return (
+    <div className="space-y-4">
+      <section className="admin-card">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--admin-muted)]">Resultados comerciais</p>
+            <h2 className="mb-1 text-2xl font-bold text-[var(--admin-text)]">Dashboard WhatsApp</h2>
+            <p className="text-sm text-[var(--admin-muted)]">Vendas recuperadas, campanhas e conversas em um painel executivo.</p>
+          </div>
+          <button type="button" onClick={() => void loadDashboard()} className="admin-button-secondary" disabled={loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Atualizar
+          </button>
+        </div>
+        {error && <div className="mt-4 rounded-[8px] border border-rose-400/35 bg-rose-500/10 p-3 text-sm font-semibold text-rose-200">{error}</div>}
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map(card => {
+          const Icon = card.icon;
+          return (
+            <div key={card.label} className="admin-card min-h-[132px]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--admin-muted)]">{card.label}</p>
+                  <p className="mt-3 text-3xl font-black text-[var(--admin-text)]">{card.value}</p>
+                </div>
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] bg-[var(--admin-primary)] text-[var(--admin-button-text)]">
+                  <Icon className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="mt-3 text-sm font-semibold text-[var(--admin-muted)]">{card.detail}</p>
+            </div>
+          );
+        })}
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <div className="admin-card">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h3 className="mb-0 text-lg font-bold text-[var(--admin-text)]">Ultimos 7 dias</h3>
+            <StatusPill status={`${metrics?.failures || 0} falhas`} />
+          </div>
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={dashboard?.charts.last7Days || []}>
+                <CartesianGrid stroke="rgba(148,163,184,0.18)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fill: "var(--admin-muted)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "var(--admin-muted)", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ background: "var(--admin-surface)", border: "1px solid var(--admin-border)", borderRadius: 8, color: "var(--admin-text)" }} />
+                <Area type="monotone" dataKey="enviados" name="Enviadas" stroke="#22c55e" fill="#22c55e33" strokeWidth={2} />
+                <Area type="monotone" dataKey="entregues" name="Entregues" stroke="#38bdf8" fill="#38bdf833" strokeWidth={2} />
+                <Area type="monotone" dataKey="lidos" name="Lidas" stroke="#a78bfa" fill="#a78bfa26" strokeWidth={2} />
+                <Area type="monotone" dataKey="falhas" name="Falhas" stroke="#fb7185" fill="#fb718526" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="admin-card">
+          <div className="mb-4">
+            <h3 className="mb-0 text-lg font-bold text-[var(--admin-text)]">Recuperacao PIX</h3>
+            <p className="text-sm text-[var(--admin-muted)]">Ultimos 30 dias</p>
+          </div>
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dashboard?.charts.pixRecoveryLast30Days || []}>
+                <CartesianGrid stroke="rgba(148,163,184,0.18)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fill: "var(--admin-muted)", fontSize: 11 }} axisLine={false} tickLine={false} interval={5} />
+                <YAxis tick={{ fill: "var(--admin-muted)", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip formatter={(value: any, name: any) => name === "valor" ? money(Number(value)) : value} contentStyle={{ background: "var(--admin-surface)", border: "1px solid var(--admin-border)", borderRadius: 8, color: "var(--admin-text)" }} />
+                <Bar dataKey="recuperacoes" name="Recuperacoes" fill="#22c55e" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-4">
+        <div className="admin-card">
+          <p className="text-sm font-bold text-[var(--admin-muted)]">Abertas</p>
+          <p className="mt-2 text-3xl font-black text-[var(--admin-text)]">{dashboard?.conversations.abertas || 0}</p>
+        </div>
+        <div className="admin-card">
+          <p className="text-sm font-bold text-[var(--admin-muted)]">Aguardando cliente</p>
+          <p className="mt-2 text-3xl font-black text-[var(--admin-text)]">{dashboard?.conversations.aguardandoCliente || 0}</p>
+        </div>
+        <div className="admin-card">
+          <p className="text-sm font-bold text-[var(--admin-muted)]">Pendentes</p>
+          <p className="mt-2 text-3xl font-black text-[var(--admin-text)]">{dashboard?.conversations.pendentes || 0}</p>
+        </div>
+        <div className="admin-card">
+          <p className="text-sm font-bold text-[var(--admin-muted)]">Resolvidas</p>
+          <p className="mt-2 text-3xl font-black text-[var(--admin-text)]">{dashboard?.conversations.resolvidas || 0}</p>
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <DashboardTable
+          title="Campanhas com melhor desempenho"
+          empty="Nenhuma campanha encontrada."
+          headers={["Campanha", "Destinatarios", "Enviadas", "Entregues", "Lidas", "Status"]}
+          rows={(dashboard?.campaigns || []).map(campaign => [
+            campaign.campanha,
+            campaign.destinatarios,
+            campaign.enviados,
+            campaign.entregues,
+            campaign.lidos,
+            campaignStatusLabel(campaign.status)
+          ])}
+        />
+        <DashboardTable
+          title="Templates mais usados"
+          empty="Nenhum template utilizado ainda."
+          headers={["Template", "Envios", "Entregues", "Lidos"]}
+          rows={(dashboard?.templates || []).map(template => [template.template, template.envios, template.entregues, template.lidos])}
+        />
+      </section>
+    </div>
+  );
+}
+
+function DashboardTable({ title, headers, rows, empty }: { title: string; headers: string[]; rows: Array<Array<string | number>>; empty: string }) {
+  return (
+    <div className="admin-card overflow-hidden p-0">
+      <div className="border-b border-[var(--admin-border)] p-4">
+        <h3 className="mb-0 text-lg font-bold text-[var(--admin-text)]">{title}</h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-left text-sm">
+          <thead className="text-xs uppercase tracking-[0.12em] text-[var(--admin-muted)]">
+            <tr>
+              {headers.map(header => <th key={header} className="px-4 py-3 font-bold">{header}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr key={`${title}-${rowIndex}`} className="border-t border-[var(--admin-border)] text-[var(--admin-text)]">
+                {row.map((cell, cellIndex) => <td key={`${title}-${rowIndex}-${cellIndex}`} className="px-4 py-3 font-semibold">{cell}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!rows.length && <p className="p-4 text-sm font-semibold text-[var(--admin-muted)]">{empty}</p>}
+      </div>
     </div>
   );
 }
