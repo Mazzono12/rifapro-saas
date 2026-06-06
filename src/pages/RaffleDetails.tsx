@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   Clock3,
   Copy,
-  Download,
   Gift,
   Headphones,
   Heart,
@@ -33,7 +32,6 @@ import { PostPurchaseLootboxModal } from "../components/PostPurchaseLootboxModal
 import { PixPaymentResultModal } from "../components/PixPaymentResultModal";
 import { GamificationPanel } from "../components/GamificationPanel";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
-import { CheckoutCampaignMedia } from "../components/checkout/CheckoutCampaignMedia";
 import { CheckoutModalShell, CheckoutPrimaryActionButton } from "../components/premium/PremiumUI";
 import { checkoutService } from "../services/api";
 import { GeoPrefillService } from "../services/GeoPrefillService";
@@ -507,7 +505,6 @@ function RafflePremiumPage({
   const totalTickets = Math.max(1, Number(raffle.totalTickets || 1));
   const soldTickets = Math.max(0, Number(raffle.soldTickets || 0));
   const remaining = Math.max(0, totalTickets - soldTickets);
-  const selectedNumbers = buildSelectedNumbers(tickets);
   const isVideo = ["video", "bunny"].includes(String(mediaType || "").toLowerCase());
   const unitPrice = Number(raffle.price || 0);
 
@@ -531,10 +528,9 @@ function RafflePremiumPage({
       <div className="rdp-mobile-countdown">
         <CountdownPrizeCard raffle={raffle} countdown={countdown} />
       </div>
-      <NumberSelectionPanel
-        selectedNumbers={selectedNumbers}
-        tickets={tickets}
-        unitPrice={unitPrice}
+            <NumberSelectionPanel
+              tickets={tickets}
+              unitPrice={unitPrice}
         totalValue={totalValue}
         onSelectTickets={onSelectTickets}
         onQuickSelect={onQuickSelect}
@@ -657,7 +653,6 @@ function CountdownPrizeCard({ raffle, countdown, compact = false }: { raffle: Ra
 }
 
 function NumberSelectionPanel({
-  selectedNumbers,
   tickets,
   unitPrice,
   totalValue,
@@ -666,7 +661,6 @@ function NumberSelectionPanel({
   onParticipate,
   isSubmitting
 }: {
-  selectedNumbers: number[];
   tickets: number;
   unitPrice: number;
   totalValue: number;
@@ -675,32 +669,26 @@ function NumberSelectionPanel({
   onParticipate: () => void;
   isSubmitting: boolean;
 }) {
-  const selectedSet = new Set(selectedNumbers);
   return (
     <section className="rdp-card rdp-selection">
       <header>
-        <span><h2>Escolha seus números</h2><p>Selecione de 1 a 20 números</p></span>
+        <span><h2>Escolha suas cotas</h2><p>Selecione a quantidade desejada antes do PIX</p></span>
         <button type="button" onClick={() => onQuickSelect(6)}><Plus /> Seleção rápida</button>
       </header>
       <div className="rdp-number-grid">
-        {Array.from({ length: 50 }, (_, index) => index + 1).map(number => {
-          const active = selectedSet.has(number);
+        {Array.from({ length: 20 }, (_, index) => index + 1).map(number => {
+          const active = tickets === number;
           return (
             <button
               type="button"
               key={number}
               className={active ? "is-selected" : undefined}
-              onClick={() => onSelectTickets(active ? Math.max(1, tickets - 1) : Math.min(20, tickets + 1))}
+              onClick={() => onSelectTickets(number)}
             >
               {String(number).padStart(2, "0")}
             </button>
           );
         })}
-      </div>
-      <div className="rdp-selected-strip">
-        <strong>Números selecionados</strong>
-        <span>{selectedNumbers.map(number => <b key={number}>{String(number).padStart(2, "0")}</b>)}</span>
-        <em>Qtd: {tickets}</em>
       </div>
       <div className="rdp-checkout-row">
         <span><small>Total de cotas</small><strong>{tickets}</strong></span>
@@ -740,11 +728,6 @@ function TrustFooter() {
 
 function TrustItem({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
   return <div className="rdp-trust-item"><span>{icon}</span><p><strong>{title}</strong><small>{text}</small></p></div>;
-}
-
-function buildSelectedNumbers(tickets: number) {
-  const preferred = [3, 7, 15, 23, 31, 42, 4, 11, 18, 29, 36, 48, 2, 9, 21, 35, 40, 44, 49, 50];
-  return preferred.slice(0, Math.min(20, Math.max(1, Math.floor(tickets || 1))));
 }
 
 function CheckoutModal(props: {
@@ -791,24 +774,12 @@ function CheckoutModal(props: {
         {/* CheckoutModalHeader and checkout-modal-overlay are rendered by CheckoutModalShell for the checkout-modal-shell contract. */}
         <CheckoutModalShell
           open={props.open}
-          title={`${props.tickets.toLocaleString("pt-BR")} cotas - ${formatCurrency(props.totalValue)}`}
-          eyebrow={props.step === "review" ? "Confirmar participacao" : props.step === "payment" ? "Pagamento PIX" : "Bilhete premium"}
+          title={props.step === "review" ? "Checkout" : props.step === "payment" ? "Pagamento PIX" : "Status do Pagamento"}
+          eyebrow={props.step === "review" ? "Escolha e dados" : props.step === "payment" ? "PIX instantaneo" : "Pagamento confirmado"}
           onClose={props.onClose}
           compact={props.step !== "review"}
-          shellClassName="checkout-screen checkout-modal-shell"
+          shellClassName="checkout-screen checkout-modal-shell cp-checkout-shell"
         >
-              <div className="px-4 pt-4 sm:px-5 sm:pt-5">
-                <CheckoutCampaignMedia
-                  raffle={props.raffle}
-                  fallbackTitle={props.raffle.title}
-                  compact
-                  showStatus
-                  showPrice
-                  statusLabel={props.step === "payment" ? "Aguardando pagamento" : props.step === "ticket" ? "Bilhete confirmado" : "Checkout seguro"}
-                  priceLabel={`${props.tickets.toLocaleString("pt-BR")} cotas - ${formatCurrency(props.totalValue)}`}
-                />
-              </div>
-
               {props.step === "review" && <CheckoutReview {...props} />}
               {props.step === "payment" && <PaymentPix {...props} />}
               {props.step === "ticket" && <PremiumTicket {...props} />}
@@ -821,30 +792,57 @@ function CheckoutModal(props: {
 
 function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
   return (
-    <form onSubmit={props.onSubmit} className="checkout-form space-y-4 p-4">
-      <div className="rounded-3xl border border-white/10 bg-white/[0.045] p-4">
-        <div className="checkout-info-grid grid grid-cols-2 gap-3">
-          <InfoCard label="Cotas" value={props.tickets.toLocaleString("pt-BR")} />
-          <InfoCard label="Total PIX" value={formatCurrency(props.totalValue)} />
+    <form onSubmit={props.onSubmit} className="cp-checkout-form">
+      <section className="cp-stepper" aria-label="Etapas do checkout">
+        {["Escolha", "Dados", "Pagamento"].map((label, index) => (
+          <span key={label} className={index === 0 ? "is-active" : ""}>
+            <strong>{index + 1}</strong>
+            <small>{label}</small>
+          </span>
+        ))}
+      </section>
+
+      <section className="cp-panel cp-order-card">
+        <div className="cp-panel-head">
+          <span className="cp-icon-bubble"><Ticket /></span>
+          <div>
+            <p>Resumo da compra</p>
+            <h3>{props.raffle.title}</h3>
+          </div>
         </div>
-      </div>
+        <div className="cp-order-lines">
+          <InfoCard label="Quantidade" value={props.tickets.toLocaleString("pt-BR")} />
+          <InfoCard label="Valor unitario" value={formatCurrency(props.raffle.price)} />
+          <InfoCard label="Total" value={formatCurrency(props.totalValue)} />
+        </div>
+        <p className="cp-safe-line"><ShieldCheck /> Ambiente seguro</p>
+      </section>
+
+      <section className="cp-panel">
+        <div className="cp-panel-head">
+          <span className="cp-icon-bubble"><WalletCards /></span>
+          <div>
+            <p>Dados do comprador</p>
+            <h3>{props.customer && !props.requireIdentity ? "Cliente identificado" : "Informe seus dados"}</h3>
+          </div>
+        </div>
 
       {props.customer && !props.requireIdentity ? (
-        <div className="customer-identified-card rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.08] p-4">
-          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--theme-primary)]">Cliente identificado</p>
-          <p className="mt-1 text-xl font-black">Ola, {(props.customer.name || "cliente").split(/\s+/)[0]}</p>
+        <div className="cp-identified">
+          <CheckCircle2 />
+          <span>Olá, {(props.customer.name || "cliente").split(/\s+/)[0]}. Seus dados estão protegidos.</span>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/25 p-1">
-            <button type="button" onClick={() => props.setCustomerMode("register")} className={cn("rounded-xl py-3 text-xs font-black uppercase", props.customerMode === "register" ? "bg-white text-slate-950" : "text-slate-400")}>Novo</button>
-            <button type="button" onClick={() => props.setCustomerMode("login")} className={cn("rounded-xl py-3 text-xs font-black uppercase", props.customerMode === "login" ? "bg-white text-slate-950" : "text-slate-400")}>Ja tenho</button>
+          <div className="cp-segmented">
+            <button type="button" onClick={() => props.setCustomerMode("register")} className={props.customerMode === "register" ? "is-active" : ""}>Novo</button>
+            <button type="button" onClick={() => props.setCustomerMode("login")} className={props.customerMode === "login" ? "is-active" : ""}>Já tenho</button>
           </div>
           {props.customerMode === "register" && (
             <>
               <Field label="Nome completo" value={props.customerForm.name} onChange={value => props.setCustomerForm((current: any) => ({ ...current, name: value }))} required />
               <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value }))} required />
-          <div className="grid gap-2 sm:grid-cols-[1fr_88px]">
+              <div className="cp-field-grid">
                 <Field label="Cidade" value={props.customerForm.city} onChange={value => props.setCustomerForm((current: any) => ({ ...current, city: value }))} required />
                 <Field label="UF" value={props.customerForm.state} onChange={value => props.setCustomerForm((current: any) => ({ ...current, state: value.toUpperCase().slice(0, 2) }))} />
               </div>
@@ -857,15 +855,27 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
       {(!props.customer || props.requireIdentity) && (
         <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} required inputMode="numeric" maxLength={6} />
       )}
+      </section>
 
-      <div className="rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] p-4">
-        <p className="mb-2 text-[11px] font-black uppercase tracking-[0.22em] text-[var(--theme-primary)]">Cupom</p>
-        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-          <input value={props.couponCode} onChange={e => props.setCouponCode(e.target.value.toUpperCase())} placeholder="BEMVINDO10" className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm font-bold uppercase outline-none" />
-          <button type="button" onClick={props.validateCoupon} className="rounded-2xl border border-[var(--theme-border)] px-4 py-3 text-sm font-black text-[var(--theme-text)]">Aplicar</button>
+      <section className="cp-panel">
+        <div className="cp-panel-head">
+          <span className="cp-icon-bubble"><QrCode /></span>
+          <div>
+            <p>Pagamento</p>
+            <h3>PIX Instantâneo</h3>
+          </div>
         </div>
-        {props.couponPreview && <p className="mt-2 text-xs text-emerald-100">Cupom aplicado no resumo.</p>}
-      </div>
+        <div className="cp-payment-option is-active">
+          <span>PIX</span>
+          <small>Aprovação automática</small>
+          <CheckCircle2 />
+        </div>
+        <div className="cp-coupon-row">
+          <input value={props.couponCode} onChange={e => props.setCouponCode(e.target.value.toUpperCase())} placeholder="Cupom" />
+          <button type="button" onClick={props.validateCoupon}>Aplicar</button>
+        </div>
+        {props.couponPreview && <p className="cp-safe-line"><CheckCircle2 /> Cupom aplicado no resumo.</p>}
+      </section>
 
       {props.addonSuggestion && (
         <ToggleCard checked={props.acceptAddon} onChange={props.setAcceptAddon} title={`Adicionar ${props.addonSuggestion.tickets} cotas extras`} description={`${props.addonSuggestion.raffle.title} por + ${formatCurrency(props.addonSuggestion.amount)}`} />
@@ -877,8 +887,8 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         <ToggleCard checked={props.useBalance} onChange={props.setUseBalance} title="Usar saldo afiliado" description="Abater valor com saldo disponivel." />
       )}
 
-      <CheckoutPrimaryActionButton type="submit" disabled={props.isSubmitting} className="flex min-h-14 w-full items-center justify-center gap-2 disabled:opacity-60">
-        <WalletCards className="h-5 w-5" /> {props.isSubmitting ? "Calculando resumo..." : "Revisar compra"}
+      <CheckoutPrimaryActionButton type="submit" disabled={props.isSubmitting} className="cp-main-cta disabled:opacity-60">
+        <WalletCards className="h-5 w-5" /> {props.isSubmitting ? "Calculando resumo..." : "Continuar"}
       </CheckoutPrimaryActionButton>
     </form>
   );
@@ -891,35 +901,41 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
   const expiresIn = useCountdown(expiresAt);
   const gateway = props.purchase?.pixGateway || props.purchase?.gateway || props.purchase?.paymentGateway || "PIX";
   return (
-    <div className="space-y-5 p-4 text-center">
-      <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-primary)]">
+    <div className="cp-pix-screen text-center">
+      <div className="cp-pix-icon mx-auto grid h-16 w-16 place-items-center rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-primary)]">
         <QrCode className="h-8 w-8" />
       </div>
-      <div>
+      <div className="cp-pix-title">
         <h3 className="text-3xl font-black">Pague com PIX</h3>
         <p className="mt-2 text-sm text-slate-400">Confirmacao automatica em tempo real. Pedido #{props.purchase?.purchaseId}</p>
       </div>
-      <div className="checkout-info-grid grid gap-2 rounded-3xl border border-white/10 bg-white/[0.045] p-3 text-left sm:grid-cols-3">
+      <div className="cp-pix-meta checkout-info-grid grid gap-2 rounded-3xl border border-white/10 bg-white/[0.045] p-3 text-left sm:grid-cols-3">
         <InfoCard label="Status" value={props.purchase?.status === "paid" ? "Pago" : "Aguardando"} />
         <InfoCard label="Gateway" value={String(gateway).toUpperCase()} />
         <InfoCard label="Total" value={formatCurrency(props.totalValue)} />
       </div>
       {props.purchase?.pixPayload ? (
-        <div className="mx-auto w-full max-w-[min(18rem,calc(100vw-3rem))] rounded-[1.35rem] bg-white p-3 shadow-[0_0_42px_rgba(34,211,238,0.18)] sm:w-fit sm:max-w-none sm:rounded-[1.75rem] sm:p-5">
+        <div className="cp-qr-wrap mx-auto w-full max-w-[min(18rem,calc(100vw-3rem))] rounded-[1.35rem] bg-white p-3 shadow-[0_0_42px_rgba(34,211,238,0.18)] sm:w-fit sm:max-w-none sm:rounded-[1.75rem] sm:p-5">
           <QRCodeSVG value={props.purchase.pixPayload} className="h-auto w-full sm:h-[250px] sm:w-[250px]" bgColor="#ffffff" fgColor="#0f172a" level="M" />
         </div>
       ) : (
         <div className="rounded-2xl border border-red-300/20 bg-red-500/10 p-4 text-sm text-red-100">Pagamento indisponível no momento. Tente novamente em instantes.</div>
       )}
-      <div className="rounded-3xl border border-white/10 bg-white/[0.045] p-4">
+      <div className="cp-pix-expiry rounded-3xl border border-white/10 bg-white/[0.045] p-4">
         <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Tempo para pagar</p>
         <p className="mt-1 text-2xl font-black text-[var(--theme-primary)]">{String(expiresIn.minutes).padStart(2, "0")}:{String(expiresIn.seconds).padStart(2, "0")}</p>
         <p className="mt-2 text-xs text-slate-400">A tela atualiza sozinha quando o pagamento for confirmado.</p>
       </div>
-      <button type="button" onClick={props.onCopyPix} className={cn("checkout-primary-button flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-black transition", props.copied ? "premium-button" : "border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]")}>
+      {props.purchase?.pixPayload && (
+        <div className="cp-pix-code">
+          <p>Ou copie o codigo PIX</p>
+          <code>{props.purchase.pixPayload}</code>
+        </div>
+      )}
+      <button type="button" onClick={props.onCopyPix} className={cn("cp-copy-pix-button checkout-primary-button flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-black transition", props.copied ? "premium-button" : "border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]")}>
         <Copy className="h-5 w-5" /> {props.copied ? "PIX copiado" : "Copiar PIX copia e cola"}
       </button>
-      <div className="checkout-actions grid gap-2 sm:grid-cols-2">
+      <div className="cp-actions-row checkout-actions grid gap-2 sm:grid-cols-2">
         <button type="button" onClick={props.onBackToReview} className="min-h-12 rounded-2xl border border-white/10 py-3 text-sm font-bold text-slate-300">Alterar dados</button>
         <CheckoutPrimaryActionButton onClick={props.onConfirmPix} disabled={props.confirmingPix} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black disabled:opacity-60">
           <CheckCircle2 className="h-4 w-4" /> {props.confirmingPix ? "Consultando status..." : "Confirmar PIX"}
@@ -935,21 +951,22 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
   const gateway = props.purchase?.pixGateway || props.purchase?.gateway || props.purchase?.paymentGateway || "PIX";
   const paidAt = props.purchase?.paidAt || props.purchase?.paid_at || props.purchase?.createdAt || props.purchase?.created_at;
   return (
-    <div className="space-y-5 p-4">
-      <div className="premium-card relative overflow-hidden rounded-[1.75rem] border-emerald-200/25 bg-gradient-to-br from-emerald-300/14 via-white/[0.055] to-cyan-300/10 p-5">
+    <div className="cp-success-screen">
+      <div className="cp-success-card premium-card relative overflow-hidden rounded-[1.75rem] border-emerald-200/25 bg-gradient-to-br from-emerald-300/14 via-white/[0.055] to-cyan-300/10 p-5">
         <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-emerald-200/12 blur-2xl" />
         <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-white/12" />
-        <div className="flex items-start justify-between gap-4">
+        <div className="cp-success-hero flex items-start justify-between gap-4">
           <div>
+            <span className="cp-success-check"><CheckCircle2 /></span>
             <p className="inline-flex rounded-full border border-emerald-200/25 bg-emerald-300/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.25em] text-emerald-100">Compra Confirmada</p>
-            <h3 className="mt-2 text-3xl font-black">{props.raffle.title}</h3>
-            <p className="mt-2 text-sm text-slate-300">Pedido #{props.purchase?.purchaseId}</p>
+            <h3 className="mt-2 text-3xl font-black">Pagamento confirmado</h3>
+            <p className="mt-2 text-sm text-slate-300">Cotas liberadas para {props.raffle.title}. Pedido #{props.purchase?.purchaseId}</p>
           </div>
           <div className="rounded-2xl bg-white p-2">
             <QRCodeSVG value={String(props.purchase?.purchaseId || "rifapro")} size={86} bgColor="#ffffff" fgColor="#0f172a" />
           </div>
         </div>
-        <div className="checkout-info-grid mt-6 grid gap-2 sm:grid-cols-2">
+        <div className="cp-success-grid checkout-info-grid mt-6 grid gap-2 sm:grid-cols-2">
           <InfoCard label="Comprador" value={buyer.name || props.customerForm.name || "Cliente"} />
           <InfoCard label="WhatsApp" value={maskPhone(buyer.phone || props.customerForm.phone || props.purchase?.contact)} />
           <InfoCard label="E-mail" value={maskEmail(buyer.email || props.purchase?.email || "")} />
@@ -959,7 +976,7 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
           <InfoCard label="Data" value={formatReceiptDate(paidAt)} />
           <InfoCard label="Validacao" value={String(props.purchase?.purchaseId || "").slice(0, 12) || "rifapro"} />
         </div>
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="cp-ticket-list mt-5 flex flex-wrap gap-2">
           {numbers.slice(0, 18).map((number: number) => (
             <span key={number} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs font-black">{String(number).padStart(6, "0")}</span>
           ))}
@@ -975,11 +992,11 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
           </p>
         </div>
       )}
-      <div className="checkout-actions grid grid-cols-2 gap-2">
+      <div className="cp-actions-row checkout-actions grid grid-cols-2 gap-2">
         <button type="button" onClick={props.onShare} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold"><Share2 className="h-4 w-4" /> Compartilhar</button>
-        <button type="button" onClick={() => toast.info("PDF sera gerado no modulo de comprovantes.")} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold"><Download className="h-4 w-4" /> PDF</button>
+        <button type="button" onClick={props.onClose} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold">Voltar ao sorteio</button>
       </div>
-      <CheckoutPrimaryActionButton onClick={props.onShowNumbers} className="flex min-h-14 w-full items-center justify-center gap-2">
+      <CheckoutPrimaryActionButton onClick={props.onShowNumbers} className="cp-main-cta flex min-h-14 w-full items-center justify-center gap-2">
         <Ticket className="h-5 w-5" /> Ver meus numeros
       </CheckoutPrimaryActionButton>
     </div>

@@ -6527,6 +6527,395 @@ html[data-admin-theme="light"] .admin-shell {
   background: linear-gradient(180deg, rgba(16,20,23,.97), rgba(7,9,10,.97)) !important;
 }
 
+/* Premium checkout + PIX reconstruction. */
+.cp-checkout-shell,
+.cp-receipt-shell {
+  max-width: min(94vw, 520px) !important;
+  border-color: rgba(255,255,255,.08) !important;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(34,197,94,.14), transparent 18rem),
+    linear-gradient(180deg, #0B0F10, #050607) !important;
+  box-shadow: 0 28px 110px rgba(0,0,0,.7), 0 0 42px rgba(34,197,94,.12) !important;
+}
+
+.cp-checkout-form,
+.cp-pix-screen,
+.cp-success-screen {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.cp-stepper {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 4px 4px 10px;
+}
+
+.cp-stepper span {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  color: #A1A1AA;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.cp-stepper strong {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  background: #101417;
+  color: #fff;
+}
+
+.cp-stepper .is-active strong {
+  border-color: rgba(34,197,94,.7);
+  background: linear-gradient(180deg, #22C55E, #15803D);
+  color: #050607;
+  box-shadow: 0 0 24px rgba(34,197,94,.34);
+}
+
+.cp-panel,
+.cp-receipt-body .checkout-card {
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 18px !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34,197,94,.08), transparent 11rem),
+    linear-gradient(180deg, rgba(20,26,30,.95), rgba(11,15,16,.98)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 18px 42px rgba(0,0,0,.34);
+  padding: 14px;
+}
+
+.cp-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  margin-bottom: 12px;
+}
+
+.cp-panel-head p {
+  margin: 0;
+  color: #22C55E;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.cp-panel-head h3 {
+  margin: 2px 0 0;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.cp-icon-bubble,
+.cp-pix-icon,
+.cp-result-icon {
+  flex-shrink: 0;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 14px;
+  border: 1px solid rgba(34,197,94,.26);
+  background: rgba(34,197,94,.14);
+  color: #22C55E;
+}
+
+.cp-icon-bubble svg,
+.cp-pix-icon svg,
+.cp-result-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.cp-order-lines,
+.cp-pix-meta,
+.cp-success-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cp-order-lines .checkout-info-card,
+.cp-pix-meta .checkout-info-card,
+.cp-success-grid .checkout-info-card {
+  border-color: rgba(255,255,255,.08) !important;
+  background: rgba(5,6,7,.56) !important;
+  border-radius: 13px !important;
+  padding: 10px !important;
+}
+
+.cp-order-lines .checkout-info-card p:last-child,
+.cp-pix-meta .checkout-info-card p:last-child,
+.cp-success-grid .checkout-info-card p:last-child {
+  font-size: 15px !important;
+  line-height: 1.15;
+}
+
+.cp-pix-code p {
+  color: #A1A1AA;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.cp-ticket-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.cp-ticket-list span {
+  border: 1px solid rgba(34,197,94,.42);
+  border-radius: 9px;
+  background: rgba(34,197,94,.18);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+  padding: 7px 10px;
+}
+
+.cp-safe-line,
+.cp-identified {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: #86EFAC;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cp-safe-line svg,
+.cp-identified svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+
+.cp-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(5,6,7,.55);
+  padding: 5px;
+}
+
+.cp-segmented button,
+.cp-coupon-row button,
+.cp-actions-row > button,
+.cp-actions-row .checkout-primary-action-button,
+.cp-main-cta,
+.cp-copy-pix-button,
+.cp-copy-card button {
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.cp-segmented button {
+  color: #A1A1AA;
+}
+
+.cp-segmented button.is-active,
+.cp-coupon-row button,
+.cp-main-cta,
+.cp-copy-card button {
+  border: 1px solid rgba(134,239,172,.42) !important;
+  background: linear-gradient(180deg, #22C55E, #15803D) !important;
+  color: #fff !important;
+  box-shadow: 0 15px 38px rgba(34,197,94,.25), 0 0 26px rgba(34,197,94,.18);
+}
+
+.cp-field-grid,
+.cp-coupon-row,
+.cp-actions-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.cp-coupon-row input,
+.cp-checkout-form input,
+.cp-receipt-body input {
+  min-height: 44px !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 13px !important;
+  background: rgba(5,6,7,.58) !important;
+  color: #fff !important;
+}
+
+.cp-payment-option {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  align-items: center;
+  border: 1px solid rgba(34,197,94,.4);
+  border-radius: 14px;
+  background: rgba(34,197,94,.16);
+  padding: 14px;
+}
+
+.cp-payment-option span {
+  color: #fff;
+  font-weight: 950;
+}
+
+.cp-payment-option small {
+  color: #A1A1AA;
+  font-weight: 700;
+}
+
+.cp-payment-option svg {
+  grid-row: span 2;
+  color: #22C55E;
+}
+
+.cp-pix-screen {
+  text-align: center;
+}
+
+.cp-pix-title h3,
+.cp-pix-hero h3 {
+  color: #fff;
+  font-size: clamp(1.8rem, 7vw, 2.8rem);
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.cp-qr-wrap {
+  width: min(270px, calc(100vw - 64px)) !important;
+  max-width: 100% !important;
+  border-radius: 18px !important;
+  box-shadow: 0 0 48px rgba(34,197,94,.22) !important;
+}
+
+.cp-pix-code,
+.cp-copy-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(20,26,30,.95), rgba(11,15,16,.98));
+  padding: 14px;
+}
+
+.cp-pix-code code,
+.cp-copy-card code {
+  display: block;
+  max-height: 78px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  border-radius: 12px;
+  background: rgba(5,6,7,.72);
+  color: #E4E4E7;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 12px;
+}
+
+.cp-pix-expiry p:nth-child(2) {
+  color: #FACC15 !important;
+}
+
+.cp-actions-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cp-actions-row > button {
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(16,20,23,.9);
+  color: #fff;
+}
+
+.cp-success-card {
+  text-align: left;
+}
+
+.cp-success-check,
+.cp-result-icon {
+  display: grid;
+  width: 86px;
+  height: 86px;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #22C55E, #15803D);
+  color: #fff;
+  box-shadow: 0 0 44px rgba(34,197,94,.38);
+  margin-bottom: 16px;
+}
+
+.cp-success-check svg,
+.cp-result-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.cp-result-card {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(34,197,94,.20), transparent 18rem),
+    linear-gradient(180deg, #101417, #050607) !important;
+}
+
+.cp-result-icon {
+  margin: 0 auto 20px;
+}
+
+.cp-result-icon.is-rejected {
+  background: linear-gradient(180deg, #EF4444, #991B1B);
+  box-shadow: 0 0 44px rgba(239,68,68,.32);
+}
+
+@media (max-width: 520px) {
+  .cp-checkout-shell,
+  .cp-receipt-shell {
+    width: min(100%, 390px) !important;
+    margin-block: 6px !important;
+    border-radius: 20px !important;
+  }
+
+  .cp-checkout-form,
+  .cp-pix-screen,
+  .cp-success-screen {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .cp-order-lines,
+  .cp-pix-meta,
+  .cp-success-grid,
+  .cp-field-grid,
+  .cp-coupon-row,
+  .cp-actions-row {
+    grid-template-columns: 1fr;
+  }
+
+  .cp-panel {
+    padding: 12px;
+  }
+
+  .cp-stepper strong {
+    width: 30px;
+    height: 30px;
+  }
+}
+
 /* Rebuilt raffle details page from reference. */
 .raffle-reference-page {
   --rdp-bg: #050607;
