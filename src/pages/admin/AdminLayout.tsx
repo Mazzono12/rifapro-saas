@@ -127,6 +127,7 @@ function AdminLayoutContent() {
     { name: "Aparência", path: "/admin/config/aparencia", icon: Palette, group: "Configuração" },
     { name: "Domínios", path: "/admin/dominios", icon: Globe2, group: "Configuração" },
     { name: "PIX", path: "/admin/pagamentos", icon: CreditCard, group: "Configuração" },
+    { name: "Custos da Plataforma", path: "/admin/custos-plataforma", icon: FileBarChart, group: "Configuração" },
     { name: "Integrações", path: "/admin/integracoes", icon: Plug, group: "Configuração" },
     { name: "Automações", path: "/admin/automacoes", icon: Bot, group: "Configuração" },
     { name: "Configurações", path: "/admin/config", icon: Settings, group: "Configuração" },

@@ -118,6 +118,7 @@ const AdminAutomations = lazy(() => import("./pages/admin/AdminAutomations").the
 const AdminDomains = lazy(() => import("./pages/admin/AdminDomains").then(module => ({ default: module.AdminDomains })));
 const AdminComplianceCenter = lazy(() => import("./pages/admin/AdminComplianceCenter").then(module => ({ default: module.AdminComplianceCenter })));
 const AdminMyPlan = lazy(() => import("./pages/admin/AdminMyPlan").then(module => ({ default: module.AdminMyPlan })));
+const AdminPlatformBilling = lazy(() => import("./pages/admin/AdminPlatformBilling").then(module => ({ default: module.AdminPlatformBilling })));
 const SuperAdminLayout = lazy(() => import("./pages/superadmin/SuperAdminLayout").then(module => ({ default: module.SuperAdminLayout })));
 const SuperAdminDashboard = lazy(() => import("./pages/superadmin/SuperAdminDashboard").then(module => ({ default: module.SuperAdminDashboard })));
 const SuperAdminClients = lazy(() => import("./pages/superadmin/SuperAdminClients").then(module => ({ default: module.SuperAdminClients })));
@@ -129,6 +130,7 @@ const SuperAdminAntifraud = lazy(() => import("./pages/superadmin/SuperAdminAnti
 const SuperAdminTenantDetail = lazy(() => import("./pages/superadmin/SuperAdminTenantDetail").then(module => ({ default: module.SuperAdminTenantDetail })));
 const SuperAdminTenantBranding = lazy(() => import("./pages/superadmin/SuperAdminTenantBranding").then(module => ({ default: module.SuperAdminTenantBranding })));
 const SuperAdminTenantPlanResources = lazy(() => import("./pages/superadmin/SuperAdminTenantPlanResources").then(module => ({ default: module.SuperAdminTenantPlanResources })));
+const SuperAdminPlatformBilling = lazy(() => import("./pages/superadmin/SuperAdminPlatformBilling").then(module => ({ default: module.SuperAdminPlatformBilling })));
 const Transparency = lazy(() => import("./pages/Transparency").then(module => ({ default: module.Transparency })));
 const DrawAudit = lazy(() => import("./pages/DrawAudit").then(module => ({ default: module.DrawAudit })));
 
@@ -326,6 +328,7 @@ export default function App() {
                 <Route path="antifraude" element={adminSection("Antifraude", <AdminComplianceCenter view="antifraud" />)} />
                 <Route path="gerenciar-cotas" element={adminSection("Gerenciar Cotas", <AdminComplianceCenter view="tickets" />)} />
                 <Route path="meu-plano" element={adminSection("Meu Plano", <AdminMyPlan />)} />
+                <Route path="custos-plataforma" element={adminSection("Custos da Plataforma", <AdminPlatformBilling />)} />
                 <Route path="config" element={adminSection("Configurações", <AdminConfig />)} />
                 <Route path="config/aparencia" element={adminSection("Aparência", <AdminConfig initialTab="branding" />)} />
               </Route>
@@ -337,6 +340,7 @@ export default function App() {
                 <Route path="dominios" element={<SuperAdminDomains />} />
                 <Route path="auditoria" element={<SuperAdminAudit />} />
                 <Route path="relatorios" element={<SuperAdminReports />} />
+                <Route path="platform-billing" element={<SuperAdminPlatformBilling />} />
                 <Route path="antifraude" element={<SuperAdminAntifraud />} />
                 <Route path="aparencia" element={<SuperAdminTenantBranding />} />
                 <Route path="tenants/:tenantId/financeiro" element={<SuperAdminTenantDetail />} />

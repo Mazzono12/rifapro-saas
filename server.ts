@@ -292,8 +292,69 @@ async function startServer() {
     cor_primaria: string;
     plano: string;
     percentual_plataforma: number;
+    platformCommissionEnabled?: boolean;
+    platformCommissionRate?: number;
+    platformCommissionMode?: PlatformCommissionMode;
     criado_em: string;
     atualizado_em: string;
+  };
+  type PlatformCommissionMode = "gross_revenue" | "net_after_gateway_fee";
+  type PlatformOrderType = "rifa" | "fazendinha" | "number_mode";
+  type PlatformCommissionEntryStatus = "active" | "cancelled" | "reversed";
+  type PlatformAddonKey = "whatsapp_advanced" | "whatsapp_bulk" | "multi_attendant" | "crm_advanced" | "custom_domain" | "white_label" | "affiliates_advanced" | "priority_support";
+  type PlatformAddonBillingStatus = "active" | "pending" | "overdue" | "cancelled";
+  type PlatformAddonChargeStatus = "pending" | "paid" | "overdue" | "cancelled";
+  type PlatformBillingStatementStatus = "open" | "closed" | "paid" | "overdue";
+  type PlatformCommissionEntry = {
+    id: string;
+    tenant_id: string;
+    order_type: PlatformOrderType;
+    order_id: string;
+    gross_amount: number;
+    gateway_fee_amount: number;
+    commission_mode: PlatformCommissionMode;
+    commission_rate: number;
+    commission_amount: number;
+    status: PlatformCommissionEntryStatus;
+    created_at: string;
+    cancelled_at?: string;
+    reversal_of_entry_id?: string;
+  };
+  type PlatformAddonSubscription = {
+    id: string;
+    tenant_id: string;
+    addon_key: PlatformAddonKey;
+    enabled: boolean;
+    monthly_price: number;
+    billing_status: PlatformAddonBillingStatus;
+    created_at: string;
+    updated_at: string;
+    cancelled_at?: string;
+  };
+  type PlatformAddonCharge = {
+    id: string;
+    tenant_id: string;
+    addon_key: PlatformAddonKey;
+    amount: number;
+    period_start: string;
+    period_end: string;
+    status: PlatformAddonChargeStatus;
+    created_at: string;
+    paid_at?: string;
+  };
+  type PlatformBillingStatement = {
+    id: string;
+    tenant_id: string;
+    period_start: string;
+    period_end: string;
+    gross_revenue: number;
+    revenue_share_amount: number;
+    add_ons_amount: number;
+    total_due: number;
+    status: PlatformBillingStatementStatus;
+    paid_at?: string;
+    created_at: string;
+    closed_at?: string;
   };
   type SaaSPlanId = "starter" | "pro" | "premium" | "enterprise" | "white-label";
   type TenantFeatureFlag = "crm" | "automations" | "advanced_affiliates" | "wallet" | "provably_fair" | "reports_pdf" | "public_api" | "pwa" | "custom_theme" | "whatsapp_automation" | "realtime_social_proof";
@@ -2246,6 +2307,10 @@ async function startServer() {
   let crmContactOverrides: Record<string, CrmContactOverride> = {};
   let customerMessages: CustomerMessage[] = [];
   let notifications: NotificationRecord[] = [];
+  let platformCommissionEntries: PlatformCommissionEntry[] = [];
+  let platformAddonSubscriptions: PlatformAddonSubscription[] = [];
+  let platformAddonCharges: PlatformAddonCharge[] = [];
+  let platformBillingStatements: PlatformBillingStatement[] = [];
   let affiliateWithdrawals: AffiliateWithdrawal[] = [];
   let passwordResetCodes: PasswordResetCode[] = [];
   let supportTickets: SupportTicket[] = [];
@@ -4595,6 +4660,98 @@ async function startServer() {
 
   app.use("/api/superadmin", rateLimiter, requireSuperAdmin);
 
+  app.get("/api/superadmin/platform-billing/summary", (req, res) => {
+    const { periodStart, periodEnd } = platformBillingPeriod({ periodStart: String(req.query.periodStart || ""), periodEnd: String(req.query.periodEnd || "") });
+    const rows = tenants.map(tenant => buildPlatformBillingSummary(tenant.id, periodStart, periodEnd));
+    res.json({
+      periodStart,
+      periodEnd,
+      addonCatalog: platformAddonCatalog,
+      totals: {
+        grossRevenue: rows.reduce((sum, row) => sum + row.grossRevenue, 0),
+        revenueShareAmount: rows.reduce((sum, row) => sum + row.revenueShareAmount, 0),
+        addOnsAmount: rows.reduce((sum, row) => sum + row.addOnsAmount, 0),
+        totalDue: rows.reduce((sum, row) => sum + row.totalDue, 0)
+      },
+      tenants: rows.map(row => ({
+        tenant: row.tenant ? buildTenantSummary(row.tenant) : null,
+        settings: row.settings,
+        grossRevenue: row.grossRevenue,
+        revenueShareAmount: row.revenueShareAmount,
+        addOnsAmount: row.addOnsAmount,
+        totalDue: row.totalDue,
+        activeAddons: row.addonSubscriptions.filter(item => item.enabled),
+        statement: row.statement
+      }))
+    });
+  });
+
+  app.get("/api/superadmin/platform-billing/tenants/:tenantId", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant not found" });
+    const { periodStart, periodEnd } = platformBillingPeriod({ periodStart: String(req.query.periodStart || ""), periodEnd: String(req.query.periodEnd || "") });
+    const summary = buildPlatformBillingSummary(tenant.id, periodStart, periodEnd);
+    res.json({ ...summary, tenant: buildTenantSummary(tenant), addonCatalog: platformAddonCatalog, statements: platformBillingStatements.filter(item => item.tenant_id === tenant.id) });
+  });
+
+  app.put("/api/superadmin/platform-billing/tenants/:tenantId/settings", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant not found" });
+    tenant.platformCommissionEnabled = Boolean(req.body.platformCommissionEnabled);
+    tenant.platformCommissionRate = Math.max(0, Math.min(100, Number(req.body.platformCommissionRate ?? req.body.commissionRate ?? tenant.percentual_plataforma ?? 0)));
+    tenant.platformCommissionMode = normalizePlatformCommissionMode(req.body.platformCommissionMode);
+    tenant.percentual_plataforma = tenant.platformCommissionRate;
+    tenant.atualizado_em = new Date().toISOString();
+    recordSuperadminAudit(req, "PLATFORM_BILLING_SETTINGS_UPDATED", { tenant_id: tenant.id, metadata: getTenantPlatformBillingSettings(tenant) });
+    schedulePersistentStateSave("platform-billing-settings");
+    res.json({ tenant: buildTenantSummary(tenant), settings: getTenantPlatformBillingSettings(tenant) });
+  });
+
+  app.put("/api/superadmin/platform-billing/tenants/:tenantId/addons", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId);
+    if (!tenant) return res.status(404).json({ error: "Tenant not found" });
+    const addons = Array.isArray(req.body.addons) ? req.body.addons : [req.body];
+    try {
+      const updated = addons.map((addon: any) => upsertPlatformAddonSubscription(tenant.id, String(addon.addOnKey || addon.addonKey) as PlatformAddonKey, {
+        enabled: Boolean(addon.enabled),
+        monthly_price: Number(addon.monthlyPrice ?? addon.monthly_price ?? 0),
+        billing_status: String(addon.billingStatus || addon.billing_status || (addon.enabled ? "active" : "cancelled")) as PlatformAddonBillingStatus
+      }));
+      recordSuperadminAudit(req, "PLATFORM_BILLING_ADDONS_UPDATED", { tenant_id: tenant.id, metadata: { addons: updated.map(item => item.addon_key) } });
+      res.json({ addons: updated });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Addon invalido" });
+    }
+  });
+
+  app.post("/api/superadmin/platform-billing/statements/generate", (req, res) => {
+    const { periodStart, periodEnd } = platformBillingPeriod({ periodStart: req.body.periodStart, periodEnd: req.body.periodEnd });
+    const tenantIds = req.body.tenantId ? [String(req.body.tenantId)] : tenants.map(tenant => tenant.id);
+    const statements = tenantIds
+      .filter(tenantId => tenants.some(tenant => tenant.id === tenantId))
+      .map(tenantId => generatePlatformBillingStatement(tenantId, periodStart, periodEnd));
+    res.json({ periodStart, periodEnd, statements });
+  });
+
+  app.post("/api/superadmin/platform-billing/statements/:id/mark-paid", (req, res) => {
+    const statement = platformBillingStatements.find(item => item.id === req.params.id);
+    if (!statement) return res.status(404).json({ error: "Statement not found" });
+    statement.status = "paid";
+    statement.paid_at = new Date().toISOString();
+    createNotification({ tenantId: statement.tenant_id, roleTarget: "admin", type: "platform_statement_paid", title: "Fechamento marcado como pago", message: `Fechamento ${statement.id} foi marcado como pago.`, severity: "success", actionUrl: "/admin/custos-plataforma", entityType: "platform_billing_statement", entityId: statement.id, dedupeKey: `platform_statement_paid:${statement.id}` });
+    schedulePersistentStateSave("platform-billing-statement-paid");
+    res.json(statement);
+  });
+
+  app.post("/api/superadmin/platform-billing/statements/:id/mark-overdue", (req, res) => {
+    const statement = platformBillingStatements.find(item => item.id === req.params.id);
+    if (!statement) return res.status(404).json({ error: "Statement not found" });
+    statement.status = "overdue";
+    createNotification({ tenantId: statement.tenant_id, roleTarget: "admin", type: "platform_statement_overdue", title: "Fechamento vencido", message: `Fechamento ${statement.id} foi marcado como vencido.`, severity: "warning", actionUrl: "/admin/custos-plataforma", entityType: "platform_billing_statement", entityId: statement.id, dedupeKey: `platform_statement_overdue:${statement.id}` });
+    schedulePersistentStateSave("platform-billing-statement-overdue");
+    res.json(statement);
+  });
+
   app.get("/api/superadmin/tenants", (req, res) => {
     res.json(tenants);
   });
@@ -6870,6 +7027,52 @@ async function startServer() {
     });
   });
 
+  app.get("/api/admin/platform-billing/summary", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const { periodStart, periodEnd } = platformBillingPeriod({ periodStart: String(req.query.periodStart || ""), periodEnd: String(req.query.periodEnd || "") });
+    generatePlatformAddonCharges(tenantId, periodStart, periodEnd);
+    const summary = buildPlatformBillingSummary(tenantId, periodStart, periodEnd);
+    res.json({
+      periodStart,
+      periodEnd,
+      grossRevenue: summary.grossRevenue,
+      platformCommissionRate: summary.settings?.platformCommissionRate || 0,
+      platformCommissionMode: summary.settings?.platformCommissionMode || "gross_revenue",
+      revenueShareAmount: summary.revenueShareAmount,
+      addOnsAmount: summary.addOnsAmount,
+      totalDue: summary.totalDue,
+      activeAddons: summary.addonSubscriptions.filter(item => item.enabled),
+      statement: summary.statement
+    });
+  });
+
+  app.get("/api/admin/platform-billing/entries", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({
+      entries: platformCommissionEntries
+        .filter(entry => entry.tenant_id === tenantId)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    });
+  });
+
+  app.get("/api/admin/platform-billing/addons", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({
+      addonCatalog: platformAddonCatalog,
+      addons: platformAddonSubscriptions.filter(item => item.tenant_id === tenantId),
+      charges: platformAddonCharges.filter(item => item.tenant_id === tenantId)
+    });
+  });
+
+  app.get("/api/admin/platform-billing/statements", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({
+      statements: platformBillingStatements
+        .filter(item => item.tenant_id === tenantId)
+        .sort((a, b) => b.period_start.localeCompare(a.period_start))
+    });
+  });
+
   app.get("/api/admin/plan", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const tenant = tenants.find(item => item.id === tenantId);
@@ -7564,6 +7767,297 @@ async function startServer() {
     return created[0] || null;
   }
 
+  const platformAddonCatalog: Array<{ key: PlatformAddonKey; label: string; defaultMonthlyPrice: number }> = [
+    { key: "whatsapp_advanced", label: "WhatsApp avancado", defaultMonthlyPrice: 67 },
+    { key: "whatsapp_bulk", label: "Disparos WhatsApp", defaultMonthlyPrice: 97 },
+    { key: "multi_attendant", label: "Multiatendente", defaultMonthlyPrice: 79 },
+    { key: "crm_advanced", label: "CRM avancado", defaultMonthlyPrice: 89 },
+    { key: "custom_domain", label: "Dominio proprio", defaultMonthlyPrice: 49 },
+    { key: "white_label", label: "White label", defaultMonthlyPrice: 197 },
+    { key: "affiliates_advanced", label: "Afiliados avancado", defaultMonthlyPrice: 87 },
+    { key: "priority_support", label: "Suporte prioritario", defaultMonthlyPrice: 149 }
+  ];
+
+  function normalizePlatformCommissionMode(value: unknown): PlatformCommissionMode {
+    return value === "net_after_gateway_fee" ? "net_after_gateway_fee" : "gross_revenue";
+  }
+
+  function getTenantPlatformBillingSettings(tenant: TenantRecord) {
+    const rate = Number.isFinite(Number(tenant.platformCommissionRate))
+      ? Number(tenant.platformCommissionRate)
+      : Number(tenant.percentual_plataforma || 0);
+    return {
+      platformCommissionEnabled: tenant.platformCommissionEnabled ?? rate > 0,
+      platformCommissionRate: Math.max(0, Math.min(100, rate)),
+      platformCommissionMode: normalizePlatformCommissionMode(tenant.platformCommissionMode)
+    };
+  }
+
+  function platformBillingPeriod(input?: { periodStart?: string; periodEnd?: string }) {
+    const now = new Date();
+    const start = input?.periodStart ? new Date(input.periodStart) : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const end = input?.periodEnd ? new Date(input.periodEnd) : new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+    return { periodStart: start.toISOString(), periodEnd: end.toISOString() };
+  }
+
+  function inPlatformBillingPeriod(value: string | undefined, periodStart: string, periodEnd: string) {
+    const time = value ? new Date(value).getTime() : 0;
+    return time >= new Date(periodStart).getTime() && time <= new Date(periodEnd).getTime();
+  }
+
+  function recordPlatformCommissionForPaidOrder(input: {
+    tenantId: string;
+    orderType: PlatformOrderType;
+    orderId: string;
+    grossAmount: number;
+    gatewayFeeAmount?: number;
+  }) {
+    const tenant = tenants.find(item => item.id === input.tenantId);
+    if (!tenant) return null;
+    const settings = getTenantPlatformBillingSettings(tenant);
+    if (!settings.platformCommissionEnabled || settings.platformCommissionRate <= 0) return null;
+    const existing = platformCommissionEntries.find(entry =>
+      entry.tenant_id === input.tenantId &&
+      entry.order_type === input.orderType &&
+      entry.order_id === input.orderId &&
+      entry.status === "active"
+    );
+    if (existing) return existing;
+    const grossAmount = Math.max(0, Number(input.grossAmount || 0));
+    const gatewayFee = Math.max(0, Number(input.gatewayFeeAmount || 0));
+    const baseAmount = settings.platformCommissionMode === "net_after_gateway_fee"
+      ? Math.max(0, grossAmount - gatewayFee)
+      : grossAmount;
+    const commissionAmount = Number((baseAmount * (settings.platformCommissionRate / 100)).toFixed(2));
+    const entry: PlatformCommissionEntry = {
+      id: createPublicId("PCE_"),
+      tenant_id: input.tenantId,
+      order_type: input.orderType,
+      order_id: input.orderId,
+      gross_amount: grossAmount,
+      gateway_fee_amount: gatewayFee,
+      commission_mode: settings.platformCommissionMode,
+      commission_rate: settings.platformCommissionRate,
+      commission_amount: commissionAmount,
+      status: "active",
+      created_at: new Date().toISOString()
+    };
+    platformCommissionEntries.unshift(entry);
+    createNotification({
+      tenantId: input.tenantId,
+      roleTarget: "superadmin",
+      type: "platform_commission_generated",
+      title: "Comissao da plataforma gerada",
+      message: `Lancamento ${entry.order_type} ${entry.order_id} gerou R$ ${entry.commission_amount.toFixed(2)}.`,
+      severity: "success",
+      actionUrl: "/superadmin/platform-billing",
+      entityType: "platform_commission_entry",
+      entityId: entry.id,
+      dedupeKey: `platform_commission_generated:${entry.tenant_id}:${entry.order_type}:${entry.order_id}`
+    });
+    schedulePersistentStateSave("platform-commission-entry");
+    return entry;
+  }
+
+  function reversePlatformCommissionEntry(tenantId: string, orderType: PlatformOrderType, orderId: string, reason = "cancelamento_ou_estorno") {
+    const existing = platformCommissionEntries.find(entry =>
+      entry.tenant_id === tenantId &&
+      entry.order_type === orderType &&
+      entry.order_id === orderId &&
+      entry.status === "active"
+    );
+    if (!existing) return null;
+    existing.status = "cancelled";
+    existing.cancelled_at = new Date().toISOString();
+    createNotification({
+      tenantId,
+      roleTarget: "superadmin",
+      type: "platform_commission_reversed",
+      title: "Comissao da plataforma revertida",
+      message: `Lancamento ${orderType} ${orderId} revertido por ${reason}.`,
+      severity: "warning",
+      actionUrl: "/superadmin/platform-billing",
+      entityType: "platform_commission_entry",
+      entityId: existing.id,
+      dedupeKey: `platform_commission_reversed:${tenantId}:${orderType}:${orderId}`
+    });
+    schedulePersistentStateSave("platform-commission-reversal");
+    return existing;
+  }
+
+  function reversePlatformCommissionForOrder(tenantId: string, orderId: string, reason = "cancelamento_ou_estorno") {
+    const reversed: PlatformCommissionEntry[] = [];
+    const rafflePurchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === orderId);
+    const farmPurchase = fazendinhaCompras.find(item => item.tenant_id === tenantId && item.id === orderId);
+    const numberModePurchase = numberModePurchases.find(item => item.tenant_id === tenantId && item.id === orderId);
+    if (rafflePurchase) {
+      const entry = reversePlatformCommissionEntry(tenantId, "rifa", rafflePurchase.purchaseId, reason);
+      if (entry) reversed.push(entry);
+    }
+    if (farmPurchase) {
+      const entry = reversePlatformCommissionEntry(tenantId, "fazendinha", farmPurchase.id, reason);
+      if (entry) reversed.push(entry);
+    }
+    if (numberModePurchase) {
+      const entry = reversePlatformCommissionEntry(tenantId, "number_mode", numberModePurchase.id, reason);
+      if (entry) reversed.push(entry);
+    }
+    return reversed;
+  }
+
+  function upsertPlatformAddonSubscription(tenantId: string, addonKey: PlatformAddonKey, patch: Partial<PlatformAddonSubscription>) {
+    const catalog = platformAddonCatalog.find(item => item.key === addonKey);
+    if (!catalog) throw new Error("Addon invalido");
+    const now = new Date().toISOString();
+    let subscription = platformAddonSubscriptions.find(item => item.tenant_id === tenantId && item.addon_key === addonKey);
+    const wasEnabled = Boolean(subscription?.enabled);
+    if (!subscription) {
+      subscription = {
+        id: createPublicId("PAS_"),
+        tenant_id: tenantId,
+        addon_key: addonKey,
+        enabled: false,
+        monthly_price: catalog.defaultMonthlyPrice,
+        billing_status: "cancelled",
+        created_at: now,
+        updated_at: now
+      };
+      platformAddonSubscriptions.push(subscription);
+    }
+    const addonPatch = patch as Partial<PlatformAddonSubscription> & { monthlyPrice?: number; billingStatus?: PlatformAddonBillingStatus };
+    subscription.enabled = Boolean(patch.enabled ?? subscription.enabled);
+    subscription.monthly_price = Math.max(0, Number(addonPatch.monthly_price ?? addonPatch.monthlyPrice ?? subscription.monthly_price));
+    subscription.billing_status = (addonPatch.billing_status || addonPatch.billingStatus || (subscription.enabled ? "active" : "cancelled")) as PlatformAddonBillingStatus;
+    subscription.updated_at = now;
+    subscription.cancelled_at = subscription.enabled ? "" : now;
+    if (subscription.enabled !== wasEnabled) {
+      createNotification({
+        tenantId,
+        roleTarget: "admin",
+        type: subscription.enabled ? "platform_addon_activated" : "platform_addon_deactivated",
+        title: subscription.enabled ? "Add-on ativado" : "Add-on desativado",
+        message: `${catalog.label} foi ${subscription.enabled ? "ativado" : "desativado"} para este tenant.`,
+        severity: subscription.enabled ? "success" : "warning",
+        actionUrl: "/admin/custos-plataforma",
+        entityType: "platform_addon_subscription",
+        entityId: subscription.id,
+        dedupeKey: `platform_addon_toggle:${tenantId}:${addonKey}:${subscription.enabled}:${now.slice(0, 10)}`
+      });
+    }
+    schedulePersistentStateSave("platform-addon-subscription");
+    return subscription;
+  }
+
+  function generatePlatformAddonCharges(tenantId: string, periodStart: string, periodEnd: string) {
+    const charges: PlatformAddonCharge[] = [];
+    platformAddonSubscriptions
+      .filter(item => item.tenant_id === tenantId && item.enabled && item.billing_status !== "cancelled")
+      .forEach(subscription => {
+        const existing = platformAddonCharges.find(charge =>
+          charge.tenant_id === tenantId &&
+          charge.addon_key === subscription.addon_key &&
+          charge.period_start === periodStart &&
+          charge.period_end === periodEnd
+        );
+        if (existing) {
+          charges.push(existing);
+          return;
+        }
+        const charge: PlatformAddonCharge = {
+          id: createPublicId("PAC_"),
+          tenant_id: tenantId,
+          addon_key: subscription.addon_key,
+          amount: Number(Number(subscription.monthly_price || 0).toFixed(2)),
+          period_start: periodStart,
+          period_end: periodEnd,
+          status: "pending",
+          created_at: new Date().toISOString()
+        };
+        platformAddonCharges.unshift(charge);
+        charges.push(charge);
+      });
+    if (charges.length) schedulePersistentStateSave("platform-addon-charges");
+    return charges;
+  }
+
+  function buildPlatformBillingSummary(tenantId: string, periodStart: string, periodEnd: string) {
+    const commissionEntries = platformCommissionEntries.filter(entry =>
+      entry.tenant_id === tenantId &&
+      inPlatformBillingPeriod(entry.created_at, periodStart, periodEnd) &&
+      entry.status !== "cancelled"
+    );
+    const grossRevenue = commissionEntries
+      .filter(entry => entry.status === "active")
+      .reduce((sum, entry) => sum + Number(entry.gross_amount || 0), 0);
+    const revenueShareAmount = commissionEntries.reduce((sum, entry) => sum + Number(entry.commission_amount || 0), 0);
+    const addonCharges = platformAddonCharges.filter(charge =>
+      charge.tenant_id === tenantId &&
+      charge.period_start === periodStart &&
+      charge.period_end === periodEnd &&
+      charge.status !== "cancelled"
+    );
+    const addOnsAmount = addonCharges.reduce((sum, charge) => sum + Number(charge.amount || 0), 0);
+    const tenant = tenants.find(item => item.id === tenantId);
+    return {
+      tenant,
+      periodStart,
+      periodEnd,
+      grossRevenue: Number(grossRevenue.toFixed(2)),
+      revenueShareAmount: Number(revenueShareAmount.toFixed(2)),
+      addOnsAmount: Number(addOnsAmount.toFixed(2)),
+      totalDue: Number((revenueShareAmount + addOnsAmount).toFixed(2)),
+      commissionEntries,
+      addonSubscriptions: platformAddonSubscriptions.filter(item => item.tenant_id === tenantId),
+      addonCharges,
+      settings: tenant ? getTenantPlatformBillingSettings(tenant) : null,
+      statement: platformBillingStatements.find(item => item.tenant_id === tenantId && item.period_start === periodStart && item.period_end === periodEnd) || null
+    };
+  }
+
+  function generatePlatformBillingStatement(tenantId: string, periodStart: string, periodEnd: string) {
+    generatePlatformAddonCharges(tenantId, periodStart, periodEnd);
+    const summary = buildPlatformBillingSummary(tenantId, periodStart, periodEnd);
+    const now = new Date().toISOString();
+    let statement = platformBillingStatements.find(item => item.tenant_id === tenantId && item.period_start === periodStart && item.period_end === periodEnd);
+    if (!statement) {
+      statement = {
+        id: createPublicId("PBS_"),
+        tenant_id: tenantId,
+        period_start: periodStart,
+        period_end: periodEnd,
+        gross_revenue: summary.grossRevenue,
+        revenue_share_amount: summary.revenueShareAmount,
+        add_ons_amount: summary.addOnsAmount,
+        total_due: summary.totalDue,
+        status: "closed",
+        created_at: now,
+        closed_at: now
+      };
+      platformBillingStatements.unshift(statement);
+    } else {
+      statement.gross_revenue = summary.grossRevenue;
+      statement.revenue_share_amount = summary.revenueShareAmount;
+      statement.add_ons_amount = summary.addOnsAmount;
+      statement.total_due = summary.totalDue;
+      statement.status = statement.status === "paid" ? "paid" : "closed";
+      statement.closed_at = statement.closed_at || now;
+    }
+    createNotification({
+      tenantId,
+      roleTarget: "admin",
+      type: "platform_statement_generated",
+      title: "Fechamento da plataforma gerado",
+      message: `Fechamento de ${new Date(periodStart).toLocaleDateString("pt-BR")} a ${new Date(periodEnd).toLocaleDateString("pt-BR")} gerado.`,
+      severity: "info",
+      actionUrl: "/admin/custos-plataforma",
+      entityType: "platform_billing_statement",
+      entityId: statement.id,
+      dedupeKey: `platform_statement_generated:${tenantId}:${periodStart}:${periodEnd}`
+    });
+    schedulePersistentStateSave("platform-billing-statement");
+    return statement;
+  }
+
   function getVisibleNotifications(req: express.Request) {
     const session = getAuthSession(req);
     if (!session) return [];
@@ -8087,7 +8581,8 @@ async function startServer() {
         status,
         message: "Payment record atualizado"
       });
-      if (["expired", "expirado", "overdue", "canceled", "cancelled"].includes(String(status || "").toLowerCase())) {
+      const normalizedStatus = String(status || "").toLowerCase();
+      if (["expired", "expirado", "overdue", "canceled", "cancelled", "refunded", "charged_back", "chargeback", "estornado"].includes(normalizedStatus)) {
         notifyTenantAdmins({
           tenantId,
           type: "pix_expired",
@@ -8099,6 +8594,9 @@ async function startServer() {
           entityId: payment.order_id,
           dedupeKey: `pix_expired:${tenantId}:${payment.order_id}`
         });
+      }
+      if (["canceled", "cancelled", "refunded", "charged_back", "chargeback", "estornado"].includes(normalizedStatus)) {
+        reversePlatformCommissionForOrder(tenantId, payment.order_id, normalizedStatus);
       }
     }
     return payment;
@@ -11898,6 +12396,12 @@ async function startServer() {
         campaign: { type: "fazendinha", id: "fazendinha" },
         saleCreatedAt: purchase.dataCompra
       });
+      recordPlatformCommissionForPaidOrder({
+        tenantId: purchase.tenant_id,
+        orderType: "fazendinha",
+        orderId: purchase.id,
+        grossAmount: purchase.valorPago
+      });
       purchase.earnedLootboxes = config.lootboxEnabled
         ? processFazendinhaLootboxDrops(purchase.customer.phone, groups.map(group => group.id), purchase.id, purchase.tenant_id)
         : 0;
@@ -11937,6 +12441,12 @@ async function startServer() {
       source: `conversion:${purchase.id}`,
       campaign: { type: "number_mode", id: purchase.mode },
       saleCreatedAt: purchase.createdAt
+    });
+    recordPlatformCommissionForPaidOrder({
+      tenantId: purchase.tenant_id,
+      orderType: "number_mode",
+      orderId: purchase.id,
+      grossAmount: purchase.amount
     });
     const config = getNumberModeConfig(purchase.tenant_id, purchase.mode);
     purchase.earnedLootboxes = config?.lootboxEnabled
@@ -14999,6 +15509,12 @@ async function startServer() {
 
   function confirmPurchase(purchase: PurchaseRecord) {
     if (purchase.status === "paid" && purchase.numeros.length > 0) {
+      recordPlatformCommissionForPaidOrder({
+        tenantId: purchase.tenant_id,
+        orderType: "rifa",
+        orderId: purchase.purchaseId,
+        grossAmount: purchase.amount
+      });
       if (purchase.customer) {
         ensureAffiliateForCustomer(purchase.customer, { forceEnable: true, source: "affiliate_auto_first_paid_purchase" });
       }
@@ -15032,6 +15548,12 @@ async function startServer() {
     purchase.status = "paid";
     purchase.numeros = assignedNumbers;
     purchase.premiosInstantaneos = premiosWon;
+    recordPlatformCommissionForPaidOrder({
+      tenantId: purchase.tenant_id,
+      orderType: "rifa",
+      orderId: purchase.purchaseId,
+      grossAmount: purchase.amount
+    });
     notifyTenantAdmins({
       tenantId: purchase.tenant_id,
       type: "payment_confirmed",
@@ -19976,6 +20498,10 @@ async function startServer() {
       crmContactOverrides,
       customerMessages,
       notifications,
+      platformCommissionEntries,
+      platformAddonSubscriptions,
+      platformAddonCharges,
+      platformBillingStatements,
       affiliateWithdrawals,
       passwordResetCodes,
       supportTickets,
@@ -20074,6 +20600,10 @@ async function startServer() {
       case "crmContactOverrides": crmContactOverrides = value || {}; break;
       case "customerMessages": customerMessages = Array.isArray(value) ? value : []; break;
       case "notifications": notifications = Array.isArray(value) ? value : []; break;
+      case "platformCommissionEntries": platformCommissionEntries = Array.isArray(value) ? value : []; break;
+      case "platformAddonSubscriptions": platformAddonSubscriptions = Array.isArray(value) ? value : []; break;
+      case "platformAddonCharges": platformAddonCharges = Array.isArray(value) ? value : []; break;
+      case "platformBillingStatements": platformBillingStatements = Array.isArray(value) ? value : []; break;
       case "affiliateWithdrawals": affiliateWithdrawals = Array.isArray(value) ? value : []; break;
       case "passwordResetCodes": passwordResetCodes = Array.isArray(value) ? value : []; break;
       case "supportTickets": supportTickets = Array.isArray(value) ? value : []; break;
