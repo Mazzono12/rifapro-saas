@@ -12,6 +12,7 @@ import {
   Heart,
   Lock,
   Maximize2,
+  Minus,
   Plus,
   PlayCircle,
   QrCode,
@@ -182,7 +183,8 @@ export function RaffleDetails() {
   const mediaType = raffle?.checkoutMediaUrl ? raffle.checkoutMediaType : raffle?.mediaType;
 
   const setQuantity = (value: number) => {
-    const next = Math.min(100000, Math.max(1, Math.floor(Number(value) || 1)));
+    const remaining = raffle ? Math.max(1, Number(raffle.totalTickets || 1) - Number(raffle.soldTickets || 0)) : 100000;
+    const next = Math.min(remaining, Math.max(1, Math.floor(Number(value) || 1)));
     setTickets(next);
     setCouponPreview(null);
   };
@@ -528,9 +530,13 @@ function RafflePremiumPage({
       <div className="rdp-mobile-countdown">
         <CountdownPrizeCard raffle={raffle} countdown={countdown} />
       </div>
-            <NumberSelectionPanel
-              tickets={tickets}
-              unitPrice={unitPrice}
+      <NumberSelectionPanel
+        tickets={tickets}
+        remaining={remaining}
+        soldTickets={soldTickets}
+        totalTickets={totalTickets}
+        progress={progress}
+        unitPrice={unitPrice}
         totalValue={totalValue}
         onSelectTickets={onSelectTickets}
         onQuickSelect={onQuickSelect}
@@ -654,6 +660,10 @@ function CountdownPrizeCard({ raffle, countdown, compact = false }: { raffle: Ra
 
 function NumberSelectionPanel({
   tickets,
+  remaining,
+  soldTickets,
+  totalTickets,
+  progress,
   unitPrice,
   totalValue,
   onSelectTickets,
@@ -662,6 +672,10 @@ function NumberSelectionPanel({
   isSubmitting
 }: {
   tickets: number;
+  remaining: number;
+  soldTickets: number;
+  totalTickets: number;
+  progress: number;
   unitPrice: number;
   totalValue: number;
   onSelectTickets: (value: number) => void;
@@ -669,26 +683,52 @@ function NumberSelectionPanel({
   onParticipate: () => void;
   isSubmitting: boolean;
 }) {
+  const maxQuantity = Math.max(1, Math.floor(remaining || 1));
+  const quickAmounts = [5, 10, 20, 50, 100];
+  const updateQuantity = (value: number) => onSelectTickets(Math.min(maxQuantity, Math.max(1, Math.floor(Number(value) || 1))));
+
   return (
-    <section className="rdp-card rdp-selection">
+    <section className="rdp-card rdp-quantity-card" data-random-raffle-checkout="quantity-only">
       <header>
-        <span><h2>Escolha suas cotas</h2><p>Selecione a quantidade desejada antes do PIX</p></span>
-        <button type="button" onClick={() => onQuickSelect(6)}><Plus /> Seleção rápida</button>
+        <span>
+          <h2>Escolha a quantidade</h2>
+          <p>Seus números serão gerados automaticamente após a confirmação do pagamento.</p>
+        </span>
       </header>
-      <div className="rdp-number-grid">
-        {Array.from({ length: 20 }, (_, index) => index + 1).map(number => {
-          const active = tickets === number;
-          return (
-            <button
-              type="button"
-              key={number}
-              className={active ? "is-selected" : undefined}
-              onClick={() => onSelectTickets(number)}
-            >
-              {String(number).padStart(2, "0")}
-            </button>
-          );
-        })}
+
+      <div className="rdp-quantity-stats" aria-label="Disponibilidade da rifa">
+        <span><small>Total disponível</small><strong>{totalTickets.toLocaleString("pt-BR")}</strong></span>
+        <span><small>Cotas vendidas</small><strong>{soldTickets.toLocaleString("pt-BR")}</strong></span>
+        <span><small>Cotas restantes</small><strong>{remaining.toLocaleString("pt-BR")}</strong></span>
+        <span><small>Percentual</small><strong>{progress.toFixed(0)}%</strong></span>
+      </div>
+
+      <div className="rdp-quick-amounts" aria-label="Adicionar cotas">
+        {quickAmounts.map(amount => (
+          <button type="button" key={amount} onClick={() => onQuickSelect(tickets + amount)} disabled={tickets >= maxQuantity}>
+            +{amount}
+          </button>
+        ))}
+      </div>
+
+      <div className="rdp-quantity-control">
+        <button type="button" onClick={() => updateQuantity(tickets - 1)} disabled={tickets <= 1} aria-label="Diminuir quantidade">
+          <Minus />
+        </button>
+        <label>
+          <span>Quantidade de bilhetes</span>
+          <input
+            type="number"
+            min={1}
+            max={maxQuantity}
+            value={tickets}
+            onChange={event => updateQuantity(Number(event.target.value))}
+            inputMode="numeric"
+          />
+        </label>
+        <button type="button" onClick={() => updateQuantity(tickets + 1)} disabled={tickets >= maxQuantity} aria-label="Aumentar quantidade">
+          <Plus />
+        </button>
       </div>
       <div className="rdp-checkout-row">
         <span><small>Total de cotas</small><strong>{tickets}</strong></span>

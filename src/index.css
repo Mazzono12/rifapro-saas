@@ -7201,7 +7201,7 @@ html[data-admin-theme="light"] .admin-shell {
 
 .rdp-actions svg,
 .rdp-trust-item svg,
-.rdp-selection header svg,
+.rdp-quantity-card header svg,
 .rdp-checkout-row button svg {
   width: 22px;
   height: 22px;
@@ -7340,106 +7340,122 @@ html[data-admin-theme="light"] .admin-shell {
   font-size: 1.05rem;
 }
 
-.rdp-selection {
+.rdp-quantity-card {
   margin-top: 16px;
   padding: 16px;
 }
 
-.rdp-selection header {
+.rdp-quantity-card header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
-.rdp-selection h2,
-.rdp-selection p {
+.rdp-quantity-card h2,
+.rdp-quantity-card p {
   margin: 0;
 }
 
-.rdp-selection h2 {
+.rdp-quantity-card h2 {
   color: #fff;
   font-size: 1rem;
   font-weight: 1000;
   text-transform: uppercase;
 }
 
-.rdp-selection p {
+.rdp-quantity-card p {
   margin-top: 5px;
   color: var(--rdp-muted);
   font-size: .82rem;
 }
 
-.rdp-selection header button {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid var(--rdp-border);
-  border-radius: 10px;
-  background: rgba(16,20,23,.86);
-  padding: 0 12px;
-  color: #fff;
-  font-weight: 900;
-}
-
-.rdp-number-grid {
+.rdp-quantity-stats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-top: 16px;
 }
 
-.rdp-number-grid button {
-  min-height: 44px;
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 9px;
-  background: rgba(5,6,7,.54);
-  color: #fff;
-  font-size: .95rem;
-  font-weight: 1000;
-}
-
-.rdp-number-grid button.is-selected {
-  border-color: #22C55E;
-  background: linear-gradient(180deg, #176B13, #0F5B0D);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 20px rgba(34,197,94,.26);
-}
-
-.rdp-selected-strip {
+.rdp-quantity-stats span {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  margin-top: 16px;
-  border: 1px solid var(--rdp-border);
+  gap: 5px;
+  border: 1px solid rgba(255,255,255,.08);
   border-radius: 12px;
-  padding: 12px;
+  background: rgba(5,6,7,.48);
+  padding: 11px;
 }
 
-.rdp-selected-strip strong {
-  font-size: .76rem;
+.rdp-quantity-stats small,
+.rdp-quantity-control label span {
+  color: var(--rdp-muted);
+  font-size: .72rem;
+  font-weight: 900;
   text-transform: uppercase;
 }
 
-.rdp-selected-strip span {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.rdp-selected-strip b {
-  border-radius: 7px;
-  background: #176B13;
-  padding: 6px 9px;
-  font-size: .72rem;
-}
-
-.rdp-selected-strip em {
+.rdp-quantity-stats strong {
   color: #fff;
-  font-style: normal;
-  font-weight: 900;
+  font-size: 1.05rem;
+  font-weight: 1000;
+}
+
+.rdp-quick-amounts {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.rdp-quick-amounts button,
+.rdp-quantity-control > button {
+  display: grid;
+  min-height: 46px;
+  place-items: center;
+  border: 1px solid var(--rdp-border);
+  border-radius: 12px;
+  background: rgba(16,20,23,.9);
+  color: #fff;
+  font-weight: 1000;
+}
+
+.rdp-quick-amounts button:not(:disabled):hover,
+.rdp-quantity-control > button:not(:disabled):hover {
+  border-color: rgba(34,197,94,.45);
+  background: rgba(34,197,94,.14);
+}
+
+.rdp-quick-amounts button:disabled,
+.rdp-quantity-control > button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.rdp-quantity-control {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 52px;
+  gap: 10px;
+  margin-top: 14px;
+  align-items: end;
+}
+
+.rdp-quantity-control label {
+  display: grid;
+  gap: 7px;
+}
+
+.rdp-quantity-control input {
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid rgba(34,197,94,.34);
+  border-radius: 13px;
+  background: rgba(5,6,7,.68);
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 1000;
+  outline: none;
+  padding: 0 14px;
+  text-align: center;
 }
 
 .rdp-checkout-row {
@@ -7608,14 +7624,13 @@ html[data-admin-theme="light"] .admin-shell {
   }
 
   .rdp-progress-card,
-  .rdp-selection,
+  .rdp-quantity-card,
   .rdp-trust-footer {
     margin-top: 22px;
   }
 
-  .rdp-number-grid {
-    grid-template-columns: repeat(10, minmax(0, 1fr));
-    gap: 12px;
+  .rdp-quantity-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .rdp-checkout-row {
@@ -7643,13 +7658,8 @@ html[data-admin-theme="light"] .admin-shell {
     display: none;
   }
 
-  .rdp-number-grid {
-    gap: 7px;
-  }
-
-  .rdp-number-grid button {
-    min-height: 40px;
-    font-size: .85rem;
+  .rdp-quick-amounts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
