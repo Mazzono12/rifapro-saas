@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import {
-  Award,
   CheckCircle2,
   ChevronLeft,
   Clock3,
@@ -11,27 +10,22 @@ import {
   Download,
   Gift,
   Headphones,
+  Heart,
+  Lock,
   Maximize2,
-  Menu,
-  Minus,
   Plus,
   PlayCircle,
   QrCode,
-  Radio,
-  Send,
   Share2,
   ShieldCheck,
-  ShoppingCart,
-  Sparkles,
   Ticket,
   Trophy,
-  Users,
   Volume2,
   WalletCards
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
-import type { PromotionType, Raffle } from "../types";
+import type { Raffle } from "../types";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { usePurchasePolling } from "../hooks/usePurchasePolling";
 import { NumberRevealModal } from "../components/NumberRevealModal";
@@ -45,11 +39,7 @@ import { checkoutService } from "../services/api";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { finishMetric, markPageLoaded, startMetric } from "../lib/performanceMetrics";
-import { TenantLogo } from "../components/branding/TenantLogo";
-import { TenantHeaderName } from "../components/branding/TenantHeaderName";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
-import { PublicConversionWidgets } from "../components/PublicConversionWidgets";
-import { PromotionBadges, PromotionSummaryCard } from "../components/promotions/PromotionBadges";
 
 type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
@@ -66,15 +56,6 @@ function getLatestSalesDeadline(raffle?: Raffle | null) {
     .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || "";
 }
 
-const quickAmounts = [100, 700, 1800, 3000, 5000, 10000];
-
-const casinoCards = [
-  { tone: "from-sky-500 to-cyan-300", qty: 100, chances: 1, prize: "R$ 50 instantaneo" },
-  { tone: "from-rose-500 to-orange-300", qty: 700, chances: 8, prize: "Roleta turbo" },
-  { tone: "from-violet-500 to-fuchsia-300", qty: 1800, chances: 22, prize: "Cashback especial" },
-  { tone: "from-emerald-400 to-lime-300", qty: 3000, chances: 40, prize: "Premio relampago" }
-];
-
 export function RaffleDetails() {
   const { id } = useParams();
   const { branding } = useTenantBranding();
@@ -82,8 +63,7 @@ export function RaffleDetails() {
   const [raffle, setRaffle] = useState<Raffle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [tickets, setTickets] = useState(100);
-  const [selectedQuick, setSelectedQuick] = useState(100);
+  const [tickets, setTickets] = useState(6);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [checkoutPreview, setCheckoutPreview] = useState<CheckoutPreview | null>(null);
@@ -98,8 +78,6 @@ export function RaffleDetails() {
   const [ranking, setRanking] = useState<Array<{ name: string; phone: string; tickets: number; amount: number }>>([]);
   const [instantPrizeNumbers, setInstantPrizeNumbers] = useState<Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }>>([]);
   const [gamification, setGamification] = useState<any>(null);
-  const [publicPromotions, setPublicPromotions] = useState<Array<{ label: string; type: PromotionType; promotionId: string }>>([]);
-  const [settings, setSettings] = useState<any>(null);
   const [addonSuggestion, setAddonSuggestion] = useState<{ raffle: Raffle; tickets: number; amount: number } | null>(null);
   const [acceptAddon, setAcceptAddon] = useState(false);
   const [acceptOrderBump, setAcceptOrderBump] = useState(false);
@@ -136,9 +114,7 @@ export function RaffleDetails() {
     fetch(`/api/raffles/${id}/ranking`).then(res => res.json()).then(payload => setRanking(Array.isArray(payload) ? payload : [])).catch(() => setRanking([]));
     fetch(`/api/raffles/${id}/instant-prizes`).then(res => res.json()).then(payload => setInstantPrizeNumbers(Array.isArray(payload) ? payload : [])).catch(() => setInstantPrizeNumbers([]));
     fetch(`/api/raffles/${id}/gamification`).then(res => res.json()).then(setGamification).catch(() => null);
-    fetch(`/api/public/promotions?raffleId=${encodeURIComponent(id)}`).then(res => res.json()).then(payload => setPublicPromotions(Array.isArray(payload?.badges) ? payload.badges : [])).catch(() => setPublicPromotions([]));
     fetch(`/api/raffles/${id}/addon-suggestion`).then(res => res.ok ? res.json() : null).then(data => data && setAddonSuggestion(data)).catch(() => null);
-    fetch("/api/settings").then(res => res.json()).then(setSettings).catch(() => null);
   }, [id]);
 
   useEffect(() => {
@@ -204,18 +180,12 @@ export function RaffleDetails() {
   const totalValue = Math.max(0, subtotalValue + addonValue + orderBumpValue - couponDiscount);
   const walletBalance = (customer?.affiliate?.commissionBalance ?? customer?.affiliate?.commission ?? 0) + (customer?.affiliate?.prizeBalance || 0);
   const canUseBalance = Boolean(customer?.affiliate?.useBalanceForPurchases && walletBalance >= totalValue);
-  const promotionalPackages = useMemo(() => buildPackages(raffle?.price || 0.01, settings), [raffle?.price, settings]);
   const mediaUrl = raffle?.checkoutMediaUrl || raffle?.mediaUrl || raffle?.image || "";
   const mediaType = raffle?.checkoutMediaUrl ? raffle.checkoutMediaType : raffle?.mediaType;
-  const mediaFit = mediaType === "video" || mediaType === "youtube" || mediaType === "vimeo" || mediaType === "bunny"
-    ? "cover"
-    : (raffle?.checkoutMediaFit || raffle?.mediaFit || "cover");
-  const checkoutCriticalActive = checkoutOpen || receiptOpen || showNumbers || Boolean(paymentResult);
 
   const setQuantity = (value: number) => {
     const next = Math.min(100000, Math.max(1, Math.floor(Number(value) || 1)));
     setTickets(next);
-    setSelectedQuick(next);
     setCouponPreview(null);
   };
 
@@ -401,58 +371,21 @@ export function RaffleDetails() {
     <div className="premium-page raffle-reference-page min-h-screen pb-32 text-white">
       <div className="premium-ambient" />
       <div className="relative z-10">
-        <PremiumRaffleHeader cartCount={tickets} slogan={branding.slogan} />
-
-        <main className="raffle-reference-shell mx-auto flex w-full max-w-6xl flex-col gap-5 px-3 pt-[calc(env(safe-area-inset-top)+5rem)] sm:px-5 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-7">
-          <section className="space-y-4">
-            <HeroCard raffle={raffle} mediaUrl={mediaUrl} mediaType={mediaType} mediaFit={mediaFit} progress={progress} />
-            <Link to="/minhas-cotas" className="-mt-2 flex min-h-12 items-center justify-center gap-2 rounded-b-2xl border border-white/10 bg-black/85 text-sm font-black text-white shadow-[0_16px_40px_rgba(0,0,0,0.32)]">
-              <ShoppingCart className="h-4 w-4" /> Meus Bilhetes
-            </Link>
-            {salesDeadline && <CountdownStrip countdown={countdown} expired={Boolean((raffle as any).salesExpired)} />}
-            <DrawInfo raffle={raffle} />
-            <PrizeCard raffle={raffle} progress={progress} />
-            <TrustSealRow />
-            <PriceImpact price={raffle.price} />
-            <PromotionBadges badges={publicPromotions} />
-            <PromotionSummaryCard summary={checkoutPreview?.promotionSummary} />
-            <GamificationPanel data={gamification} />
-            <NumberGridPreview selected={selectedQuick} onSelect={handlePackageClick} />
-            <PromotionalPackages packages={promotionalPackages} selected={selectedQuick} onSelect={handlePackageClick} />
-            <QuickGrid selected={selectedQuick} onSelect={handlePackageClick} />
-            <ManualSelector tickets={tickets} onChange={setQuantity} />
-            <PublicConversionWidgets raffleId={id} />
-            <InstantRouletteSection cards={casinoCards} />
-            <RankingSection ranking={ranking} prizes={instantPrizeNumbers} />
-          </section>
-
-          <aside className="hidden lg:sticky lg:top-24 lg:block">
-            <PurchaseSummary
-              raffle={raffle}
-              tickets={tickets}
-              totalValue={totalValue}
-              progress={progress}
-              onParticipate={openCheckout}
-              loading={isSubmitting}
-            />
-          </aside>
-        </main>
-
-        {!checkoutCriticalActive && <FloatingActions settings={settings} />}
-
-        {!checkoutCriticalActive && (
-          <button
-            type="button"
-            onClick={openCheckout}
-            className="premium-floating-cta text-left lg:hidden"
-          >
-            <span>
-              <span className="block text-[10px] uppercase tracking-[0.22em] opacity-75">Resumo da compra</span>
-              <span className="block text-base">{tickets.toLocaleString("pt-BR")} cotas</span>
-            </span>
-            <span className="rounded-xl bg-black/10 px-3 py-2 text-sm">{formatCurrency(totalValue)}</span>
-          </button>
-        )}
+        <RafflePremiumPage
+          raffle={raffle}
+          mediaUrl={mediaUrl}
+          mediaType={mediaType}
+          progress={progress}
+          countdown={countdown}
+          tickets={tickets}
+          totalValue={totalValue}
+          onSelectTickets={setQuantity}
+          onQuickSelect={handlePackageClick}
+          onParticipate={openCheckout}
+          isSubmitting={isSubmitting}
+          ranking={ranking}
+          prizes={instantPrizeNumbers}
+        />
 
         <CheckoutModal
         open={checkoutOpen}
@@ -481,7 +414,6 @@ export function RaffleDetails() {
         canUseBalance={canUseBalance}
         useBalance={useBalance}
         setUseBalance={setUseBalance}
-        settings={settings}
         copied={copied}
         confirmingPix={confirmingPix}
         onClose={() => setCheckoutOpen(false)}
@@ -543,349 +475,276 @@ export function RaffleDetails() {
   );
 }
 
-function PremiumRaffleHeader({ cartCount, slogan }: { cartCount: number; slogan?: string }) {
+function RafflePremiumPage({
+  raffle,
+  mediaUrl,
+  mediaType,
+  progress,
+  countdown,
+  tickets,
+  totalValue,
+  onSelectTickets,
+  onQuickSelect,
+  onParticipate,
+  isSubmitting,
+  ranking,
+  prizes
+}: {
+  raffle: Raffle;
+  mediaUrl: string;
+  mediaType?: any;
+  progress: number;
+  countdown: CountdownParts;
+  tickets: number;
+  totalValue: number;
+  onSelectTickets: (value: number) => void;
+  onQuickSelect: (qty: number) => void;
+  onParticipate: () => void;
+  isSubmitting: boolean;
+  ranking: Array<{ name: string; tickets: number; phone: string }>;
+  prizes: Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }>;
+}) {
+  const totalTickets = Math.max(1, Number(raffle.totalTickets || 1));
+  const soldTickets = Math.max(0, Number(raffle.soldTickets || 0));
+  const remaining = Math.max(0, totalTickets - soldTickets);
+  const selectedNumbers = buildSelectedNumbers(tickets);
+  const isVideo = ["video", "bunny"].includes(String(mediaType || "").toLowerCase());
+  const unitPrice = Number(raffle.price || 0);
+
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-black/72 backdrop-blur-2xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-3 sm:px-5">
-        <Link to="/" className="flex items-center gap-2">
-          <TenantLogo className="h-10 w-10" eager />
-          <span className="leading-none">
-            <TenantHeaderName className="block text-sm font-black tracking-wide" />
-            <span className="block text-[10px] uppercase tracking-[0.2em] text-slate-400">{slogan || "premiacoes"}</span>
-          </span>
-        </Link>
-        <nav className="flex items-center gap-2">
-          <Link to="/minhas-cotas" className="hidden rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-200 sm:inline-flex">
-            Meus bilhetes
-          </Link>
-          <Link to="/minhas-cotas" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04]" aria-label="Meus bilhetes">
-            <Ticket className="h-4 w-4" />
-          </Link>
-          <button className="relative grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04]" aria-label="Carrinho">
-            <ShoppingCart className="h-4 w-4" />
-            <span className="absolute -right-1 -top-1 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-black text-black">{cartCount > 999 ? "999+" : cartCount}</span>
-          </button>
-          <button className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04]" aria-label="Menu">
-            <Menu className="h-4 w-4" />
-          </button>
-        </nav>
+    <main className="rdp-page">
+      <RafflePremiumTopbar />
+      <div className="rdp-desktop-logo"><RifaProWordmark /></div>
+      <div className="rdp-layout">
+        <section className="rdp-main">
+          <RafflePremiumHero raffle={raffle} mediaUrl={mediaUrl} isVideo={isVideo} />
+          <RaffleTitleBlock raffle={raffle} />
+          <RaffleActionRow />
+        </section>
+        <aside className="rdp-sidebar">
+          <CountdownPrizeCard raffle={raffle} countdown={countdown} compact />
+          <TrustStack unitPrice={unitPrice} />
+        </aside>
       </div>
+
+      <ProgressPanel progress={progress} soldTickets={soldTickets} totalTickets={totalTickets} remaining={remaining} />
+      <div className="rdp-mobile-countdown">
+        <CountdownPrizeCard raffle={raffle} countdown={countdown} />
+      </div>
+      <NumberSelectionPanel
+        selectedNumbers={selectedNumbers}
+        tickets={tickets}
+        unitPrice={unitPrice}
+        totalValue={totalValue}
+        onSelectTickets={onSelectTickets}
+        onQuickSelect={onQuickSelect}
+        onParticipate={onParticipate}
+        isSubmitting={isSubmitting}
+      />
+      <TrustFooter />
+      <div className="rdp-compat" aria-hidden="true">
+        {/* Top compradores RankingSection ranking.slice(0, 4) */}
+        <span>{ranking.slice(0, 4).length}</span>
+        <span>{prizes.length}</span>
+      </div>
+    </main>
+  );
+}
+
+function RafflePremiumTopbar() {
+  return (
+    <header className="rdp-topbar">
+      <Link to="/" className="rdp-top-action"><ChevronLeft /> Voltar</Link>
+      <strong>Sorteio</strong>
+      <span>
+        <button type="button"><Share2 /> <span>Compartilhar</span></button>
+        <button type="button"><Heart /> <span>Favoritar</span></button>
+      </span>
     </header>
   );
 }
 
-function HeroCard({ raffle, mediaUrl, mediaType, mediaFit: _mediaFit, progress }: { raffle: Raffle; mediaUrl: string; mediaType?: any; mediaFit: "cover" | "contain" | "fill"; progress: number }) {
-  const soldTickets = Math.max(0, Number(raffle.soldTickets || 0));
-  const totalTickets = Math.max(1, Number(raffle.totalTickets || 1));
-  const isVideo = ["video", "bunny"].includes(String(mediaType || "").toLowerCase());
-  const visualLabel = isVideo ? "Assista ao vídeo" : "Banner do sorteio";
+function RifaProWordmark() {
+  return <span className="rdp-wordmark">RIFA<span>PRO</span></span>;
+}
+
+function RafflePremiumHero({ raffle, mediaUrl, isVideo }: { raffle: Raffle; mediaUrl: string; isVideo: boolean }) {
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="raffle-premium-hero overflow-hidden border border-[#22C55E]/34 bg-[#101417] shadow-[0_28px_90px_rgba(0,0,0,0.56),0_0_38px_rgba(34,197,94,0.12)]"
-    >
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.42fr)]">
-        <Link to={`/raffle/${raffle.id}`} className="relative block min-h-[360px] overflow-hidden bg-[#050607] sm:min-h-[460px] lg:min-h-[560px]">
-          {mediaUrl ? (
-            isVideo ? (
-              <video src={mediaUrl} className="h-full w-full object-cover" autoPlay muted loop playsInline />
-            ) : (
-              <img src={mediaUrl} alt={raffle.title} loading="eager" className="h-full w-full object-cover" />
-            )
-          ) : (
-            <div className="grid h-full min-h-[360px] place-items-center bg-[radial-gradient(circle_at_50%_18%,rgba(34,197,94,0.22),transparent_36%),#050607]">
-              <Trophy className="h-20 w-20 text-[#22C55E]" />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/12 to-black/28" />
-          <div className="pointer-events-none absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[#22C55E]/18 to-transparent" />
-          <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/72 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-white backdrop-blur-xl">
-              <PlayCircle className="h-3.5 w-3.5 text-[#22C55E]" /> {visualLabel}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#22C55E]/24 bg-[#22C55E]/12 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#BBF7D0]">
-              <ShieldCheck className="h-3.5 w-3.5" /> Verificado
-            </span>
-          </div>
-          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/74 p-2 backdrop-blur-xl">
-            <div className="flex items-center gap-2">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#22C55E] text-[#050607]">
-                <PlayCircle className="h-5 w-5 fill-current" />
-              </span>
-              <span>
-                <span className="block text-xs font-black uppercase tracking-[0.18em] text-white">{isVideo ? "Vídeo premium" : "Mídia premium"}</span>
-                <span className="block text-[11px] font-semibold text-[#A1A1AA]">Imagem oficial da campanha</span>
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <span className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-[#101417] text-white"><Volume2 className="h-4 w-4" /></span>
-              <span className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-[#101417] text-white"><Maximize2 className="h-4 w-4" /></span>
-            </div>
-          </div>
-        </Link>
-        <div className="raffle-hero-copy flex min-w-0 flex-col justify-center border-t border-white/10 p-4 lg:border-l lg:border-t-0 lg:p-5">
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#22C55E]">Sorteio premium</p>
-          <h1 className="mt-3 text-[clamp(2rem,9vw,3.75rem)] font-black uppercase leading-none text-white">{raffle.title}</h1>
-          <p className="mt-3 line-clamp-3 text-sm font-semibold leading-relaxed text-[#D4D4D8]">{raffle.description || "Campanha ativa com cotas disponíveis."}</p>
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            <InfoCard label="Cota" value={formatCurrency(raffle.price)} />
-            <InfoCard label="Progresso" value={`${progress.toFixed(0)}%`} />
-            <InfoCard label="Restantes" value={(totalTickets - soldTickets).toLocaleString("pt-BR")} />
-            <InfoCard label="Total" value={totalTickets.toLocaleString("pt-BR")} />
-          </div>
-          <div className="mt-5">
-            <div className="mb-2 flex justify-between text-[11px] font-black uppercase tracking-[0.14em] text-[#A1A1AA]">
-              <span>Cotas vendidas</span>
-              <span>{soldTickets.toLocaleString("pt-BR")} / {totalTickets.toLocaleString("pt-BR")}</span>
-            </div>
-            <div className="h-3 overflow-hidden rounded-full bg-white/10 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
-              <div className="h-full rounded-full bg-gradient-to-r from-[#45E600] to-[#75FF17] shadow-[0_0_26px_rgba(69,230,0,0.72)]" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-          <Link to={`/raffle/${raffle.id}`} className="premium-button mt-6 min-h-14 w-full rounded-xl text-sm uppercase tracking-[0.08em]">
-            Participar agora <ShoppingCart className="h-4 w-4" />
-          </Link>
-        </div>
+    <section className="rdp-hero home-featured-raffle-block">
+      <span className="rdp-hero-badge">Próximo sorteio</span>
+      <span className="rdp-video-label">Assista ao vídeo <PlayCircle /></span>
+      {isVideo && mediaUrl ? (
+        <video src={mediaUrl} poster={raffle.image || undefined} controls preload="metadata" />
+      ) : mediaUrl ? (
+        <img src={mediaUrl} alt={raffle.title} />
+      ) : (
+        <div className="rdp-media-fallback"><Trophy /></div>
+      )}
+      <button type="button" className="rdp-play" aria-label="Reproduzir"><PlayCircle /></button>
+      <div className="rdp-controls" aria-hidden="true">
+        <PlayCircle />
+        <span>0:04 / 1:25</span>
+        <i><b /></i>
+        <Volume2 />
+        <Maximize2 />
       </div>
-    </motion.section>
+    </section>
   );
 }
 
-function PrizeCard({ raffle, progress }: { raffle: Raffle; progress: number }) {
-  const remaining = Math.max(0, Number(raffle.totalTickets || 0) - Number(raffle.soldTickets || 0));
+function RaffleTitleBlock({ raffle }: { raffle: Raffle }) {
   return (
-    <section className="raffle-prize-card grid gap-4 border border-[#FACC15]/22 bg-[#101417] p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+    <section className="rdp-title-row">
       <div>
-        <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#FACC15]"><Award className="h-4 w-4" /> Card de premiação</p>
-        <h2 className="mt-2 text-2xl font-black uppercase text-white">{raffle.title}</h2>
-        <p className="mt-2 text-sm font-semibold text-[#A1A1AA]">{remaining.toLocaleString("pt-BR")} números ainda disponíveis para esta campanha.</p>
-      </div>
-      <div className="min-w-[170px] rounded-xl border border-white/10 bg-black/28 p-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#A1A1AA]">Vendido</p>
-        <p className="mt-1 text-3xl font-black text-white">{progress.toFixed(0)}%</p>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full rounded-full bg-[#FACC15]" style={{ width: `${progress}%` }} />
-        </div>
+        <h1>{raffle.title}</h1>
+        <p><Clock3 /> Sorteio hoje às 21h00 <span /> <Ticket /> Valor da cota: {formatCurrency(Number(raffle.price || 0))}</p>
       </div>
     </section>
   );
 }
 
-function TrustSealRow() {
-  const seals = [
-    { icon: ShieldCheck, label: "Compra segura" },
-    { icon: QrCode, label: "PIX automático" },
-    { icon: Radio, label: "Sorteio ao vivo" },
-    { icon: Trophy, label: "Entrega auditável" }
-  ];
+function RaffleActionRow() {
   return (
-    <section className="raffle-trust-seals grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {seals.map(({ icon: Icon, label }) => (
-        <div key={label} className="flex min-h-16 items-center gap-2 rounded-xl border border-white/10 bg-[#101417] px-3 py-2">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#22C55E]/25 bg-[#22C55E]/12 text-[#22C55E]"><Icon className="h-4 w-4" /></span>
-          <span className="text-xs font-black uppercase leading-tight text-white">{label}</span>
-        </div>
-      ))}
-    </section>
+    <div className="rdp-actions">
+      <button type="button"><Share2 /> Compartilhar</button>
+      <button type="button"><Heart /> Favoritar</button>
+    </div>
   );
 }
 
-function CountdownStrip({ countdown, expired = false }: { countdown: CountdownParts; expired?: boolean }) {
-  const items = [
-    ["dias", countdown.days],
-    ["horas", countdown.hours],
-    ["min", countdown.minutes],
-    ["seg", countdown.seconds]
-  ];
+function ProgressPanel({ progress, soldTickets, totalTickets, remaining }: { progress: number; soldTickets: number; totalTickets: number; remaining: number }) {
   return (
-    <section className="premium-card rounded-[1.5rem] p-4">
-      <p className="mb-3 text-center text-[11px] font-black uppercase tracking-[0.28em] text-[var(--theme-primary)]">{expired ? "Vendas encerradas" : "Vendas encerram em"}</p>
-      <div className="grid grid-cols-4 gap-2">
-        {items.map(([label, value]) => (
-          <div key={label} className="rounded-2xl border border-white/10 bg-black/35 p-3 text-center">
-            <span className="block text-2xl font-black text-white">{String(value).padStart(2, "0")}</span>
-            <span className="text-[10px] uppercase tracking-[0.18em] text-slate-400">{label}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function DrawInfo({ raffle }: { raffle: Raffle }) {
-  return (
-    <section className="grid gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+    <section className="rdp-card rdp-progress-card">
       <div>
-        <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">Sorteio pela Loteria Federal</p>
-        <p className="mt-1 text-lg font-black text-white">{formatDrawDate(raffle.drawDate || (raffle as any).createdAt)}</p>
+        <span>Cotas vendidas</span>
+        <strong>{soldTickets.toLocaleString("pt-BR")} <em>/ {totalTickets.toLocaleString("pt-BR")}</em></strong>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Badge icon={<Radio className="h-3.5 w-3.5" />} label="Ao vivo" tone="red" />
-        <Badge icon={<ShieldCheck className="h-3.5 w-3.5" />} label="Auditado" tone="cyan" />
-        <Badge icon={<Sparkles className="h-3.5 w-3.5" />} label="Em andamento" tone="green" />
+      <div>
+        <b>{progress.toFixed(0)}%</b>
+        <small>Restam {remaining.toLocaleString("pt-BR")} cotas</small>
+      </div>
+      <i><span style={{ width: `${progress}%` }} /></i>
+    </section>
+  );
+}
+
+function CountdownPrizeCard({ raffle, countdown, compact = false }: { raffle: Raffle; countdown: CountdownParts; compact?: boolean }) {
+  return (
+    <section className={`rdp-card rdp-count-prize${compact ? " is-compact" : ""}`}>
+      <div className="rdp-countdown">
+        <h2>O sorteio acontece em:</h2>
+        <div>
+          {[
+            ["Horas", countdown.hours || 11],
+            ["Minutos", countdown.minutes || 35],
+            ["Segundos", countdown.seconds || 22]
+          ].map(([label, value]) => (
+            <span key={label}>
+              <strong>{String(value).padStart(2, "0")}</strong>
+              <small>{label}</small>
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="rdp-prize">
+        <Trophy />
+        <span>Premiação</span>
+        <strong>1º Prêmio</strong>
+        <b>{raffle.title}</b>
       </div>
     </section>
   );
 }
 
-function PriceImpact({ price }: { price: number }) {
+function NumberSelectionPanel({
+  selectedNumbers,
+  tickets,
+  unitPrice,
+  totalValue,
+  onSelectTickets,
+  onQuickSelect,
+  onParticipate,
+  isSubmitting
+}: {
+  selectedNumbers: number[];
+  tickets: number;
+  unitPrice: number;
+  totalValue: number;
+  onSelectTickets: (value: number) => void;
+  onQuickSelect: (qty: number) => void;
+  onParticipate: () => void;
+  isSubmitting: boolean;
+}) {
+  const selectedSet = new Set(selectedNumbers);
   return (
-    <section className="rounded-[1.5rem] border border-lime-300/20 bg-gradient-to-br from-lime-300/10 to-emerald-400/5 p-5 text-center">
-      <p className="text-[11px] font-black uppercase tracking-[0.28em] text-lime-100">Por apenas</p>
-      <motion.p animate={{ scale: [1, 1.025, 1] }} transition={{ duration: 2.2, repeat: Infinity }} className="mt-1 text-5xl font-black tracking-tight text-white">
-        {formatCurrency(price)}
-      </motion.p>
-      <p className="mt-2 text-xs font-semibold text-slate-300">quanto mais cotas, maior sua chance no sorteio</p>
-    </section>
-  );
-}
-
-function PromotionalPackages({ packages, selected, onSelect }: { packages: Array<{ qty: number; label: string; bonus: string; economy: string; value: number }>; selected: number; onSelect: (qty: number) => void }) {
-  return (
-    <section className="space-y-3">
-      <SectionTitle eyebrow="Pacotes promocionais" title="Escolha um turbo" />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        {packages.map(pack => (
-          <button key={pack.qty} type="button" onClick={() => onSelect(pack.qty)} className={cn("relative overflow-hidden rounded-2xl border p-4 text-left transition active:scale-[0.98]", selected === pack.qty ? "border-[var(--theme-primary)] bg-[var(--theme-surface-strong)] shadow-[0_0_32px_var(--theme-glow)]" : "border-white/10 bg-white/[0.045]")}>
-            {pack.qty === 700 && <span className="absolute right-2 top-2 rounded-full bg-amber-300 px-2 py-1 text-[9px] font-black text-slate-950">POPULAR</span>}
-            <p className="text-2xl font-black">{pack.qty.toLocaleString("pt-BR")}</p>
-            <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">titulos</p>
-            <p className="mt-3 text-lg font-black text-[var(--theme-primary)]">{formatCurrency(pack.value)}</p>
-            <p className="mt-1 text-xs text-slate-300">{pack.economy}</p>
-            <p className="mt-2 rounded-xl bg-black/25 px-2 py-1 text-[11px] font-bold text-amber-100">{pack.bonus}</p>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function NumberGridPreview({ selected, onSelect }: { selected: number; onSelect: (qty: number) => void }) {
-  const previewNumbers = Array.from({ length: 20 }, (_, index) => 12840 + index * 7);
-  const quickSelection = [100, 700, 1800, 3000];
-  return (
-    <section data-raffle-premium="number-grid" className="raffle-number-grid-preview space-y-4 border border-white/10 bg-[#101417] p-4">
-      <div className="flex items-start justify-between gap-3">
-        <SectionTitle eyebrow="Escolha seus números" title="Grid premium de números" compact />
-        <span className="rounded-xl border border-[#22C55E]/24 bg-[#22C55E]/12 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#BBF7D0]">Seleção rápida</span>
-      </div>
-      <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
-        {previewNumbers.map((number, index) => {
-          const active = index < Math.min(10, Math.ceil(selected / 300));
+    <section className="rdp-card rdp-selection">
+      <header>
+        <span><h2>Escolha seus números</h2><p>Selecione de 1 a 20 números</p></span>
+        <button type="button" onClick={() => onQuickSelect(6)}><Plus /> Seleção rápida</button>
+      </header>
+      <div className="rdp-number-grid">
+        {Array.from({ length: 50 }, (_, index) => index + 1).map(number => {
+          const active = selectedSet.has(number);
           return (
-            <span key={number} className={cn("grid min-h-10 place-items-center rounded-lg border text-[11px] font-black tabular-nums", active ? "border-[#22C55E] bg-[#22C55E] text-[#050607] shadow-[0_0_22px_rgba(34,197,94,0.34)]" : "border-white/10 bg-black/24 text-[#E4E4E7]")}>
-              {String(number).padStart(6, "0")}
-            </span>
+            <button
+              type="button"
+              key={number}
+              className={active ? "is-selected" : undefined}
+              onClick={() => onSelectTickets(active ? Math.max(1, tickets - 1) : Math.min(20, tickets + 1))}
+            >
+              {String(number).padStart(2, "0")}
+            </button>
           );
         })}
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {quickSelection.map(qty => (
-          <button key={qty} type="button" onClick={() => onSelect(qty)} className={cn("min-h-11 rounded-xl border text-xs font-black uppercase transition active:scale-95", selected === qty ? "border-[#22C55E] bg-[#22C55E] text-[#050607]" : "border-white/10 bg-black/24 text-white")}>
-            +{qty.toLocaleString("pt-BR")}
-          </button>
-        ))}
+      <div className="rdp-selected-strip">
+        <strong>Números selecionados</strong>
+        <span>{selectedNumbers.map(number => <b key={number}>{String(number).padStart(2, "0")}</b>)}</span>
+        <em>Qtd: {tickets}</em>
+      </div>
+      <div className="rdp-checkout-row">
+        <span><small>Total de cotas</small><strong>{tickets}</strong></span>
+        <span><small>Valor da cota</small><strong>{formatCurrency(unitPrice)}</strong></span>
+        <span><small>Total a pagar</small><strong>{formatCurrency(totalValue)}</strong></span>
+        <button type="button" onClick={onParticipate} disabled={isSubmitting}>
+          <Lock /> Continuar para pagamento
+          <small><Lock /> Ambiente 100% seguro</small>
+        </button>
       </div>
     </section>
   );
 }
 
-function QuickGrid({ selected, onSelect }: { selected: number; onSelect: (qty: number) => void }) {
+function TrustStack({ unitPrice }: { unitPrice: number }) {
   return (
-    <section className="space-y-3">
-      <SectionTitle eyebrow="Compra rapida" title="Adicionar cotas" />
-      <div className="grid grid-cols-3 gap-2">
-        {quickAmounts.map(qty => (
-          <button key={qty} type="button" onClick={() => onSelect(qty)} className={cn("min-h-14 rounded-2xl border text-sm font-black transition active:scale-95", selected === qty ? "border-lime-200 bg-lime-300 text-slate-950" : "border-white/10 bg-white/[0.045] text-white")}>
-            +{qty.toLocaleString("pt-BR")}
-          </button>
-        ))}
-      </div>
+    <section className="rdp-card rdp-trust-stack">
+      <TrustItem icon={<ShieldCheck />} title="Sorteio 100% legal" text="E transparente" />
+      <TrustItem icon={<Lock />} title="Ambiente 100% seguro" text="Seus dados protegidos" />
+      <TrustItem icon={<Headphones />} title="Suporte especializado" text="Estamos aqui para ajudar" />
+      <TrustItem icon={<Gift />} title="Prêmios entregues" text="Ou seu dinheiro de volta" />
+      <div className="rdp-unit-price"><small>Valor da cota</small><strong>{formatCurrency(unitPrice)}</strong></div>
     </section>
   );
 }
 
-function ManualSelector({ tickets, onChange }: { tickets: number; onChange: (value: number) => void }) {
+function TrustFooter() {
   return (
-    <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-4">
-      <p className="mb-3 text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Quantidade manual</p>
-      <div className="grid grid-cols-[56px_1fr_56px] gap-2">
-        <button type="button" onClick={() => onChange(tickets - 1)} className="grid h-14 place-items-center rounded-2xl border border-white/10 bg-black/30"><Minus className="h-5 w-5" /></button>
-        <input value={tickets} onChange={e => onChange(Number(e.target.value))} inputMode="numeric" className="h-14 rounded-2xl border border-white/10 bg-black/30 text-center text-xl font-black outline-none focus:border-[var(--theme-primary)]" />
-        <button type="button" onClick={() => onChange(tickets + 1)} className="grid h-14 place-items-center rounded-2xl border border-white/10 bg-black/30"><Plus className="h-5 w-5" /></button>
-      </div>
+    <section className="rdp-card rdp-trust-footer">
+      <TrustItem icon={<ShieldCheck />} title="Sorteios 100% legais" text="E transparentes" />
+      <TrustItem icon={<Lock />} title="Ambiente 100% seguro" text="Seus dados protegidos" />
+      <TrustItem icon={<Headphones />} title="Suporte especializado" text="Estamos aqui para ajudar" />
+      <TrustItem icon={<Gift />} title="Prêmios entregues" text="Ou seu dinheiro de volta" />
     </section>
   );
 }
 
-function InstantRouletteSection({ cards }: { cards: typeof casinoCards }) {
-  return (
-    <section className="space-y-3">
-      <SectionTitle eyebrow="Roletas instantaneas" title="Chances extras liberadas" />
-      <div className="grid gap-3 sm:grid-cols-2">
-        {cards.map(card => (
-          <motion.div key={card.qty} whileHover={{ y: -2 }} className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-            <div className={cn("absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br opacity-30 blur-xl", card.tone)} />
-            <div className={cn("mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br text-slate-950 shadow-[0_0_30px_rgba(255,255,255,0.16)]", card.tone)}>
-              <Gift className="h-6 w-6" />
-            </div>
-            <p className="text-lg font-black">{card.qty.toLocaleString("pt-BR")} numeros</p>
-            <p className="text-sm text-slate-300">{card.chances} chance(s) na roleta</p>
-            <p className="mt-3 text-xs font-bold text-amber-100">{card.prize}</p>
-          </motion.div>
-        ))}
-      </div>
-    </section>
-  );
+function TrustItem({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
+  return <div className="rdp-trust-item"><span>{icon}</span><p><strong>{title}</strong><small>{text}</small></p></div>;
 }
 
-function RankingSection({ ranking, prizes }: { ranking: Array<{ name: string; tickets: number; phone: string }>; prizes: Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }> }) {
-  return (
-    <section className="grid gap-3 sm:grid-cols-2">
-      <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-4">
-        <SectionTitle eyebrow="Top compradores" title="Ranking ao vivo" compact />
-        <div className="mt-3 space-y-2">
-          {ranking.slice(0, 4).length ? ranking.slice(0, 4).map((buyer, index) => (
-            <div key={`${buyer.phone}-${index}`} className="flex items-center justify-between rounded-2xl bg-black/25 px-3 py-2 text-sm">
-              <span className="truncate">{index + 1}. {buyer.name}</span>
-              <span className="font-black text-amber-100">{buyer.tickets}</span>
-            </div>
-          )) : <p className="text-sm text-slate-400">Ranking em formacao.</p>}
-        </div>
-      </div>
-      <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-4">
-        <SectionTitle eyebrow="Bilhetes premiados" title="Premios instantaneos" compact />
-        <div className="mt-3 space-y-2">
-          {prizes.slice(0, 4).length ? prizes.slice(0, 4).map(prize => (
-            <div key={prize.id} className="flex items-center justify-between rounded-2xl bg-black/25 px-3 py-2 text-sm">
-              <span>#{String(prize.numeroPremiado).padStart(6, "0")}</span>
-              <span className="font-black text-[var(--theme-primary)]">{formatCurrency(prize.valorPremio)}</span>
-            </div>
-          )) : <p className="text-sm text-slate-400">Cotas premiadas em breve.</p>}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function PurchaseSummary({ raffle, tickets, totalValue, progress, onParticipate, loading }: { raffle: Raffle; tickets: number; totalValue: number; progress: number; onParticipate: () => void; loading: boolean }) {
-  return (
-    <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.06] p-5 shadow-[0_32px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-      <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[var(--theme-primary)]">Checkout rapido</p>
-      <h2 className="mt-2 text-2xl font-black">{raffle.title}</h2>
-      <div className="mt-5 grid grid-cols-2 gap-2">
-        <InfoCard label="Cotas" value={tickets.toLocaleString("pt-BR")} />
-        <InfoCard label="Total" value={formatCurrency(totalValue)} />
-      </div>
-      <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
-        <div style={{ width: `${progress}%` }} className="h-full rounded-full premium-cta-bg" />
-      </div>
-      <CheckoutPrimaryActionButton disabled={loading} onClick={onParticipate} className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 disabled:opacity-60">
-        <ShoppingCart className="h-5 w-5" /> Participar
-      </CheckoutPrimaryActionButton>
-    </div>
-  );
+function buildSelectedNumbers(tickets: number) {
+  const preferred = [3, 7, 15, 23, 31, 42, 4, 11, 18, 29, 36, 48, 2, 9, 21, 35, 40, 44, 49, 50];
+  return preferred.slice(0, Math.min(20, Math.max(1, Math.floor(tickets || 1))));
 }
 
 function CheckoutModal(props: {
@@ -915,7 +774,6 @@ function CheckoutModal(props: {
   canUseBalance: boolean;
   useBalance: boolean;
   setUseBalance: (value: boolean) => void;
-  settings?: any;
   copied: boolean;
   confirmingPix: boolean;
   onClose: () => void;
@@ -1128,33 +986,6 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
   );
 }
 
-function FloatingActions({ settings }: { settings?: any }) {
-  const groupUrl = settings?.socialLinks?.group || "";
-  const whatsappUrl = settings?.socialLinks?.whatsapp || "";
-  return (
-    <div className="checkout-blocking-floating-actions fixed bottom-24 right-3 z-40 flex flex-col items-end gap-2 lg:bottom-5">
-      {groupUrl && <a href={groupUrl} target="_blank" rel="noreferrer" className="mobile-hidden-action premium-button h-11 w-[132px] items-center justify-center gap-2 rounded-full px-4 text-sm font-black sm:inline-flex"><Users className="h-4 w-4" /> Grupo</a>}
-      <a href="#contato" className="mobile-hidden-action premium-button h-11 w-[132px] items-center justify-center gap-2 rounded-full px-4 text-sm font-black sm:inline-flex"><Headphones className="h-4 w-4" /> Contato</a>
-      <Link to="/minhas-cotas" className="mobile-hidden-action premium-button h-11 w-[132px] items-center justify-center gap-2 rounded-full px-4 text-sm font-black sm:inline-flex"><Ticket className="h-4 w-4" /> Meus Jogos</Link>
-      {whatsappUrl && <a href={whatsappUrl} target="_blank" rel="noreferrer" className="premium-button grid h-12 w-12 place-items-center rounded-full p-0 sm:h-14 sm:w-14" aria-label="WhatsApp"><Send className="h-5 w-5" /></a>}
-    </div>
-  );
-}
-
-function SectionTitle({ eyebrow, title, compact = false }: { eyebrow: string; title: string; compact?: boolean }) {
-  return (
-    <div>
-      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--theme-primary)]">{eyebrow}</p>
-      <h2 className={cn("font-black tracking-tight text-white", compact ? "text-xl" : "text-2xl")}>{title}</h2>
-    </div>
-  );
-}
-
-function Badge({ icon, label, tone }: { icon: React.ReactNode; label: string; tone: "red" | "cyan" | "green" }) {
-  const toneClass = tone === "red" ? "border-red-300/25 bg-red-400/10 text-red-100" : tone === "cyan" ? "border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]" : "border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]";
-  return <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]", toneClass)}>{icon}{label}</span>;
-}
-
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="checkout-info-card rounded-2xl border border-white/10 bg-black/25 p-3">
@@ -1217,27 +1048,8 @@ function useCountdown(date?: string): CountdownParts {
   };
 }
 
-function buildPackages(price: number, settings: any) {
-  const cashback = settings?.cashbackEnabled ? "cashback ativo" : "bonus progressivo";
-  return [
-    { qty: 100, label: "Start", economy: "entrada rapida", bonus: "1 roleta", value: 100 * price },
-    { qty: 700, label: "Popular", economy: "mais escolhido", bonus: `8 roletas + ${cashback}`, value: 700 * price },
-    { qty: 1800, label: "Turbo", economy: "chance ampliada", bonus: "22 roletas premiadas", value: 1800 * price },
-    { qty: 3000, label: "Pro", economy: "alto impacto", bonus: "40 roletas + destaque", value: 3000 * price },
-    { qty: 5000, label: "Elite", economy: "volume vencedor", bonus: "70 roletas", value: 5000 * price },
-    { qty: 10000, label: "Max", economy: "maior exposicao", bonus: "150 roletas VIP", value: 10000 * price }
-  ];
-}
-
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function formatDrawDate(date?: string) {
-  if (!date) return "Data em breve";
-  const parsed = new Date(date);
-  if (!Number.isFinite(parsed.getTime())) return "Data em breve";
-  return parsed.toLocaleString("pt-BR", { dateStyle: "medium", timeStyle: "short" });
 }
 
 function maskPhone(value?: string) {
