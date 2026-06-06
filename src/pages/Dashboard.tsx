@@ -161,7 +161,7 @@ export function Dashboard() {
   ];
 
   return (
-    <PremiumPageLayout className="px-4 pb-8 pt-4">
+    <PremiumPageLayout className="customer-premium px-4 pb-24 pt-4 md:pb-8" data-premium-surface="customer">
     <div className="container mx-auto max-w-6xl">
       <div className="mb-6">
         <SectionTitle eyebrow="Área do cliente" title="Meus bilhetes e perfil" description="Comprovantes, histórico e dados protegidos em uma experiência mobile-first." compact />
@@ -261,6 +261,13 @@ export function Dashboard() {
           ) : (
             <div className="glass-card p-6 md:p-8 min-h-[500px]">
               <h1 className="text-2xl font-display font-bold mb-6 flex items-center gap-3"><Package className="w-6 h-6 text-neon-cyan" /> Minhas Cotas</h1>
+              <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-6">
+                {["Compras", "Favoritos", "Prêmios", "Tickets", "Notificações", "Afiliado"].map(item => (
+                  <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-4 text-center">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{item}</p>
+                  </div>
+                ))}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5"><Wallet className="w-5 h-5 text-emerald-400 mb-3" /><p className="text-xs text-slate-500 font-mono uppercase">Comissões</p><p className="text-2xl text-white">R$ {(customer.affiliate?.commissionBalance ?? customer.affiliate?.commission ?? 0).toFixed(2)}</p></div>
                 <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5"><Wallet className="w-5 h-5 text-amber-300 mb-3" /><p className="text-xs text-slate-500 font-mono uppercase">Prêmios</p><p className="text-2xl text-white">R$ {(customer.affiliate?.prizeBalance || 0).toFixed(2)}</p></div>

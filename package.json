@@ -182,6 +182,7 @@
     ,"test:tenant-automations": "node scripts/test-tenant-automations.mjs"
     ,"test:public-conversion": "node scripts/test-public-conversion-widgets.mjs"
     ,"test:public-checkout-no-close-x": "node scripts/test-public-checkout-no-close-x.mjs"
+    ,"test:public-affiliate-ux-premium-hard": "node scripts/test-public-affiliate-ux-premium-hard.mjs"
     ,"test:public-debug-routes": "node scripts/test-public-debug-routes.mjs"
     ,"test:no-public-debug-production": "node scripts/test-no-public-debug-production.mjs"
     ,"test:coupon-consume-after-pix": "node scripts/test-coupon-consume-after-pix.mjs"

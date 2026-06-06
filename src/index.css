@@ -4471,3 +4471,266 @@ html[data-admin-theme="light"] .admin-shell {
     font-size: 14px !important;
   }
 }
+
+/* Public, customer and affiliate premium UX refresh. UI-only: no business rules or endpoints. */
+.public-shell,
+.public-shell .premium-page {
+  --theme-bg: #0B0B0D;
+  --theme-bg-soft: #101014;
+  --theme-surface: rgba(20, 20, 23, 0.86);
+  --theme-surface-strong: rgba(26, 26, 31, 0.94);
+  --theme-border: rgba(255, 255, 255, 0.12);
+  --theme-text: #FFFFFF;
+  --theme-muted: #A1A1AA;
+  --theme-primary: #22C55E;
+  --theme-secondary: #86efac;
+  --theme-accent: #38bdf8;
+  --theme-glow: rgba(34, 197, 94, 0.34);
+  --theme-glow-2: rgba(56, 189, 248, 0.13);
+  --theme-button-bg: #22C55E;
+  --theme-button-text: #07110A;
+  --theme-grid: rgba(255, 255, 255, 0.035);
+  --theme-radius: 20px;
+}
+
+.premium-page {
+  background:
+    radial-gradient(circle at 16% 4%, rgba(34, 197, 94, 0.18), transparent 25rem),
+    radial-gradient(circle at 84% 12%, rgba(56, 189, 248, 0.10), transparent 24rem),
+    linear-gradient(180deg, #0B0B0D 0%, #101014 46%, #0B0B0D 100%) !important;
+}
+
+.premium-site-header {
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  background: rgba(11, 11, 13, 0.84) !important;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.36);
+}
+
+.public-shell .premium-card,
+.public-shell .glass-card,
+.public-shell .home-featured-raffle-block,
+.public-shell [data-premium-section],
+.public-shell .checkout-card,
+.public-shell .checkout-info-card,
+.public-shell .checkout-summary-card {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.public-shell .premium-card,
+.public-shell .glass-card,
+.public-shell .home-featured-raffle-block {
+  border-radius: 20px !important;
+  background: linear-gradient(180deg, rgba(26, 26, 31, 0.88), rgba(20, 20, 23, 0.82)) !important;
+  box-shadow: 0 22px 80px rgba(0, 0, 0, 0.42);
+}
+
+.public-shell .home-featured-raffle-block,
+.public-shell [data-premium-section="modalidades"] article,
+.public-shell [data-premium-section="fazendinha"] article {
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.public-shell .home-featured-raffle-block:hover,
+.public-shell [data-premium-section="modalidades"] article:hover,
+.public-shell [data-premium-section="fazendinha"] article:hover {
+  border-color: rgba(34, 197, 94, 0.36) !important;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.52), 0 0 38px rgba(34, 197, 94, 0.12);
+  transform: translateY(-2px);
+}
+
+.public-shell .premium-button,
+.public-shell .neon-button,
+.public-shell .checkout-primary-button,
+.public-shell .checkout-primary-action-button {
+  border-color: rgba(134, 239, 172, 0.42) !important;
+  background: linear-gradient(135deg, #22C55E, #86efac) !important;
+  color: #07110A !important;
+  box-shadow: 0 18px 44px rgba(34, 197, 94, 0.30), 0 0 42px rgba(34, 197, 94, 0.22) !important;
+}
+
+.checkout-modal-shell,
+.checkout-receipt-shell {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: #0B0B0D !important;
+  box-shadow: 0 30px 120px rgba(0, 0, 0, 0.62), 0 0 70px rgba(34, 197, 94, 0.13) !important;
+}
+
+.checkout-modal-header,
+.checkout-receipt-header {
+  background: rgba(20, 20, 23, 0.96) !important;
+}
+
+.checkout-info-grid > *,
+.checkout-summary-card,
+.customer-identified-card {
+  border-radius: 16px !important;
+  background: rgba(26, 26, 31, 0.82) !important;
+}
+
+.checkout-screen input,
+.checkout-screen select,
+.checkout-screen textarea,
+.customer-premium input,
+.customer-premium select,
+.customer-premium textarea {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 14px !important;
+  background: #141417 !important;
+  color: #FFFFFF !important;
+}
+
+.customer-premium .glass-card {
+  border-radius: 20px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: linear-gradient(180deg, rgba(26, 26, 31, 0.90), rgba(20, 20, 23, 0.86)) !important;
+  box-shadow: 0 22px 80px rgba(0, 0, 0, 0.42);
+}
+
+.customer-premium .bg-white\/\[0\.03\],
+.customer-premium .bg-cyber-900\/50 {
+  background-color: rgba(26, 26, 31, 0.76) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.affiliate-premium {
+  --admin-bg: #0B0B0D;
+  --admin-bg-soft: #101014;
+  --admin-bg-deep: #0B0B0D;
+  --admin-surface: rgba(20, 20, 23, 0.88);
+  --admin-surface-strong: rgba(26, 26, 31, 0.94);
+  --admin-border: rgba(255, 255, 255, 0.12);
+  --admin-text: #FFFFFF;
+  --admin-secondary-text: #E4E4E7;
+  --admin-muted: #A1A1AA;
+  --admin-primary: #22C55E;
+  --admin-success: #22C55E;
+  --admin-warning: #FBBF24;
+  --admin-danger: #FB7185;
+  --admin-accent: #38BDF8;
+  --admin-button: linear-gradient(135deg, #22C55E, #86efac);
+  --admin-button-text: #07110A;
+  --admin-glow: rgba(34, 197, 94, 0.24);
+}
+
+.affiliate-premium .admin-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background:
+    linear-gradient(180deg, rgba(26, 26, 31, 0.92), rgba(20, 20, 23, 0.88)) !important;
+  box-shadow: 0 22px 80px rgba(0, 0, 0, 0.42) !important;
+}
+
+.affiliate-premium .admin-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.56), transparent);
+  pointer-events: none;
+}
+
+.affiliate-premium [data-affiliate-premium="dashboard-metrics"] .admin-card {
+  min-height: 148px;
+  background:
+    radial-gradient(circle at 88% 16%, rgba(34, 197, 94, 0.18), transparent 8rem),
+    linear-gradient(180deg, rgba(26, 26, 31, 0.94), rgba(20, 20, 23, 0.88)) !important;
+}
+
+.affiliate-premium [data-affiliate-premium="link-center"] {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(56, 189, 248, 0.14), transparent 12rem),
+    linear-gradient(180deg, rgba(26, 26, 31, 0.94), rgba(20, 20, 23, 0.88)) !important;
+}
+
+.affiliate-premium [data-affiliate-premium="gamification"] .admin-card,
+.affiliate-premium [data-affiliate-premium="performance-bonus"],
+.affiliate-premium [data-affiliate-premium="rewards-wallet"] {
+  background:
+    radial-gradient(circle at 88% 8%, rgba(251, 191, 36, 0.12), transparent 10rem),
+    linear-gradient(180deg, rgba(26, 26, 31, 0.94), rgba(20, 20, 23, 0.88)) !important;
+}
+
+.affiliate-premium .admin-button-primary,
+.affiliate-premium .admin-button,
+.affiliate-premium .neon-button {
+  border-radius: 14px !important;
+  border-color: rgba(134, 239, 172, 0.42) !important;
+  background: linear-gradient(135deg, #22C55E, #86efac) !important;
+  color: #07110A !important;
+  box-shadow: 0 16px 38px rgba(34, 197, 94, 0.24) !important;
+}
+
+.affiliate-premium .admin-button-secondary,
+.affiliate-premium a.admin-button-secondary,
+.affiliate-premium button.admin-button-secondary {
+  border-radius: 14px !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(26, 26, 31, 0.86) !important;
+  color: #FFFFFF !important;
+}
+
+.affiliate-premium input,
+.affiliate-premium select,
+.affiliate-premium textarea,
+.affiliate-premium .admin-input {
+  min-height: 46px !important;
+  border-radius: 14px !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: #141417 !important;
+  color: #FFFFFF !important;
+}
+
+.affiliate-premium table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.affiliate-premium thead {
+  background: #1A1A1F !important;
+}
+
+.affiliate-premium tbody tr:hover {
+  background: rgba(34, 197, 94, 0.08) !important;
+}
+
+.affiliate-premium [data-affiliate-premium="commissions-withdrawals"] .md\:hidden article,
+.affiliate-premium [data-affiliate-premium="marketing-materials"] article {
+  border-radius: 18px !important;
+  background: rgba(26, 26, 31, 0.86) !important;
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.32);
+}
+
+.affiliate-premium [data-affiliate-premium="ranking"] .admin-card:first-child {
+  border-color: rgba(251, 191, 36, 0.28) !important;
+}
+
+.affiliate-premium [data-affiliate-premium="ranking"] .admin-card:last-child {
+  border-color: rgba(161, 161, 170, 0.28) !important;
+}
+
+@media (max-width: 640px) {
+  .public-mobile-bottom-nav {
+    left: max(0.75rem, env(safe-area-inset-left));
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .public-mobile-bottom-nav a {
+    min-height: 58px;
+  }
+
+  .public-mobile-bottom-nav svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .affiliate-premium {
+    padding-inline: 0.75rem;
+  }
+
+  .affiliate-premium .admin-card {
+    border-radius: 18px !important;
+  }
+}

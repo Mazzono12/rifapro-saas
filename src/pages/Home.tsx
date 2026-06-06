@@ -349,12 +349,16 @@ function HomeContent() {
           </section>
       )}
 
-      <HomeSectionBoundary section="modalidades">
-        <ModalidadesSection />
-      </HomeSectionBoundary>
-      <HomeSectionBoundary section="fazendinha">
-        <FazendinhaSection />
-      </HomeSectionBoundary>
+      <section id="sorteios" className="scroll-mt-24" data-premium-section="modalidades">
+        <HomeSectionBoundary section="modalidades">
+          <ModalidadesSection />
+        </HomeSectionBoundary>
+      </section>
+      <section id="fazendinha" className="scroll-mt-24" data-premium-section="fazendinha">
+        <HomeSectionBoundary section="fazendinha">
+          <FazendinhaSection />
+        </HomeSectionBoundary>
+      </section>
 
       <section aria-label="Beneficios do ambiente" className="home-benefit-chips grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
         {[
@@ -446,7 +450,7 @@ function HomeContent() {
         })}
       </div>
 
-      <section className="mb-0">
+      <section id="ganhadores" className="mb-0 scroll-mt-24" data-premium-section="ganhadores">
         <HomeSectionBoundary section="winners">
           <WinnersGallery />
         </HomeSectionBoundary>

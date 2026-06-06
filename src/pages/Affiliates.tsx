@@ -386,7 +386,7 @@ export function Affiliates() {
   }));
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 px-3 pb-10 pt-3 text-[var(--admin-text)] sm:space-y-6 sm:px-4 sm:pt-4">
+    <div className="affiliate-premium mx-auto w-full max-w-7xl space-y-5 px-3 pb-24 pt-3 text-[var(--admin-text)] sm:space-y-6 sm:px-4 sm:pt-4 md:pb-10" data-premium-surface="affiliate">
       <section className="admin-card p-4 sm:p-5">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
@@ -419,7 +419,7 @@ export function Affiliates() {
         </div>
       )}
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6" data-affiliate-premium="dashboard-metrics">
         <MetricCard icon={DollarSign} label="Comissões Totais" value={<MetricValue>{money(totalCommissions)}</MetricValue>} trend="histórico estimado" tone="success" />
         <MetricCard icon={CalendarClock} label="Comissões Pendentes" value={<MetricValue>{money(pendingCommissions)}</MetricValue>} trend="a liberar" tone="warning" />
         <MetricCard icon={CheckCircle2} label="Comissões Liberadas" value={<MetricValue>{money(releasedCommissions)}</MetricValue>} trend="saldo disponível" tone="primary" />
@@ -478,7 +478,7 @@ export function Affiliates() {
           </div>
         </ChartCard>
 
-        <section className="admin-card p-4 sm:p-5">
+        <section className="admin-card p-4 sm:p-5" data-affiliate-premium="link-center">
           <div className="mb-5 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-lg font-bold text-[var(--admin-text)]">Central de Links</h2>
@@ -514,7 +514,7 @@ export function Affiliates() {
         onCopy={copyValue}
       />
 
-      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]" data-affiliate-premium="commissions-withdrawals">
         <div className="admin-card p-4 sm:p-5">
           <div className="mb-5 flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -590,7 +590,7 @@ export function Affiliates() {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-6 xl:grid-cols-2" data-affiliate-premium="ranking">
         <RankingCard title="Top afiliados do mês" rows={rankingMonth} />
         <RankingCard title="Top afiliados do ano" rows={rankingYear} />
       </section>
@@ -649,7 +649,7 @@ function AffiliatePerformanceBonusPanel({ rewards }: { rewards?: AffiliateDashbo
   const balances = rewards.balances || { scratchcard: 0, wheel_spin: 0, super_quota: 0, bonus_number: 0, future_reward: 0 };
   const receivedTotal = Object.values(balances).reduce((sum, value) => sum + Number(value || 0), 0);
   return (
-    <section className="admin-card overflow-hidden p-0">
+    <section className="admin-card overflow-hidden p-0" data-affiliate-premium="performance-bonus">
       <div className="border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4 sm:p-5">
         <p className="mb-2 flex items-center gap-2 text-xs font-black uppercase text-[var(--admin-primary)]">
           <Gift className="h-4 w-4" />
@@ -702,8 +702,8 @@ function AffiliatePerformanceBonusPanel({ rewards }: { rewards?: AffiliateDashbo
           <div className="mb-4 grid grid-cols-2 gap-2">
             <FinanceStat label="Raspadinhas" value={String(balances.scratchcard || 0)} />
             <FinanceStat label="Giros" value={String(balances.wheel_spin || 0)} />
-            <FinanceStat label="Super Cotas" value={String(balances.super_quota || 0)} />
-            <FinanceStat label="Números bônus" value={String(balances.bonus_number || 0)} />
+            <FinanceStat label="Super cota" value={String(balances.super_quota || 0)} />
+            <FinanceStat label="Número bônus" value={String(balances.bonus_number || 0)} />
           </div>
           <div className="mb-4 flex items-center gap-2">
             <Trophy className="h-5 w-5 text-[var(--admin-warning)]" />
@@ -743,12 +743,12 @@ function AffiliateRewardsWalletPanel({
   const items = [
     { type: "scratchcard", title: "Raspadinhas", balance: balances.scratchcard || 0, description: "Use para liberar uma raspadinha no módulo de premiação." },
     { type: "wheel_spin", title: "Roletas", balance: balances.wheel_spin || 0, description: "Use para liberar um giro na roleta premiada." },
-    { type: "super_quota", title: "Super Cotas", balance: balances.super_quota || 0, description: "Use para registrar uma super cota para atendimento pela operação." },
-    { type: "bonus_number", title: "Números bônus", balance: balances.bonus_number || 0, description: "Use para registrar um número bônus disponível." }
+    { type: "super_quota", title: "Super cota", balance: balances.super_quota || 0, description: "Use para registrar uma super cota para atendimento pela operação." },
+    { type: "bonus_number", title: "Número bônus", balance: balances.bonus_number || 0, description: "Use para registrar um número bônus disponível." }
   ];
   const consumptions = rewards.consumptions || [];
   return (
-    <section className="admin-card overflow-hidden p-0">
+    <section className="admin-card overflow-hidden p-0" data-affiliate-premium="rewards-wallet">
       <div className="border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4 sm:p-5">
         <p className="mb-2 flex items-center gap-2 text-xs font-black uppercase text-[var(--admin-primary)]">
           <Gift className="h-4 w-4" />
@@ -800,7 +800,7 @@ function AffiliateRewardsWalletPanel({
 
 function AffiliateGamificationPanel({ summary }: { summary: AffiliateGamificationSummary }) {
   return (
-    <section className="grid min-w-0 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+    <section className="grid min-w-0 gap-4 xl:grid-cols-[1.15fr_0.85fr]" data-affiliate-premium="gamification">
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <RankingOverviewCard summary={summary} />
         <LevelProgressCard summary={summary} />
@@ -972,7 +972,7 @@ function MarketingCenterSection({
   onCopy: (value: string, message: string) => Promise<void>;
 }) {
   return (
-    <section className="admin-card p-4 sm:p-5">
+    <section className="admin-card p-4 sm:p-5" data-affiliate-premium="marketing-materials">
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase text-[var(--admin-primary)]">Material pronto para divulgar</p>

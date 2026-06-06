@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Bell, Instagram, MessageCircle, User, Users, Ticket } from "lucide-react";
+import { Bell, Home, Instagram, MessageCircle, Trophy, User, Users, Ticket } from "lucide-react";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { TenantLogo } from "./branding/TenantLogo";
 import { TenantHeaderName } from "./branding/TenantHeaderName";
@@ -16,6 +16,13 @@ export function Navbar() {
   const [heroVideoCinema, setHeroVideoCinema] = useState(false);
   const notifiedMessageIds = useRef<Set<string>>(new Set());
   const { customer } = useCustomerStore();
+  const bottomNavItems = [
+    { label: "Início", to: "/", icon: Home, active: location.pathname === "/" && !location.hash },
+    { label: "Sorteios", to: "/#sorteios", icon: Ticket, active: location.hash === "#sorteios" },
+    { label: "Ganhadores", to: "/#ganhadores", icon: Trophy, active: location.hash === "#ganhadores" },
+    { label: "Afiliado", to: "/afiliados", icon: Users, active: location.pathname.startsWith("/afiliad") },
+    { label: "Minha Conta", to: "/perfil", icon: User, active: location.pathname === "/perfil" || location.pathname === "/minhas-cotas" || location.pathname === "/mensagens" }
+  ];
 
   useEffect(() => {
     fetch("/api/settings")
@@ -158,7 +165,7 @@ export function Navbar() {
       </nav>
 
       {!isAdmin && !heroVideoCinema && (settings?.socialLinks || branding.support_whatsapp) && (
-        <div className="public-floating-actions fixed right-4 bottom-24 z-50 flex flex-col gap-3 transition duration-200">
+        <div className="public-floating-actions fixed right-4 bottom-28 z-50 flex flex-col gap-3 transition duration-200 md:bottom-24">
           {settings?.socialLinks?.group && (
             <a href={settings.socialLinks.group} target="_blank" rel="noreferrer" className="premium-button h-12 w-12 rounded-full p-0" aria-label="Participar do grupo">
               <Users className="w-5 h-5" />
@@ -171,6 +178,27 @@ export function Navbar() {
             <Instagram className="w-6 h-6" />
           </a>}
         </div>
+      )}
+
+      {!isAdmin && !heroVideoCinema && (
+        <nav className="public-mobile-bottom-nav fixed inset-x-3 bottom-3 z-50 rounded-[20px] border border-white/10 bg-[#141417]/92 p-1.5 shadow-[0_22px_70px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:hidden" aria-label="Menu inferior">
+          <div className="grid grid-cols-5 gap-1">
+            {bottomNavItems.map(item => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  onClick={() => setOpen(false)}
+                  className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-black transition ${item.active ? "bg-[#22C55E] text-black shadow-[0_10px_30px_rgba(34,197,94,0.35)]" : "text-[#A1A1AA] hover:bg-white/5 hover:text-white"}`}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="max-w-full truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
       )}
     </>
   );
