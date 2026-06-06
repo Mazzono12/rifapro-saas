@@ -108,6 +108,7 @@ const AdminPromotions = lazy(() => import("./pages/admin/AdminPromotions").then(
 const AdminLiveDraw = lazy(() => import("./pages/admin/AdminLiveDraw").then(module => ({ default: module.AdminLiveDraw })));
 const AdminMessages = lazy(() => import("./pages/admin/AdminMessages").then(module => ({ default: module.AdminMessages })));
 const AdminWhatsAppCenter = lazy(() => import("./pages/admin/AdminWhatsAppCenter").then(module => ({ default: module.AdminWhatsAppCenter })));
+const AdminNotifications = lazy(() => import("./pages/admin/AdminNotifications").then(module => ({ default: module.AdminNotifications })));
 const AdminUsers = lazy(() => import("./pages/admin/AdminCRM").then(module => ({ default: module.AdminUsers })));
 const AdminCRM = lazy(() => import("./pages/admin/AdminCRM").then(module => ({ default: module.AdminCRM })));
 const AdminReports = lazy(() => import("./pages/admin/AdminReports").then(module => ({ default: module.AdminReports })));
@@ -290,6 +291,9 @@ export default function App() {
               <Route path="/admin/whatsapp-center" element={<ProtectedRoute roles={["superadmin", "admin", "operador"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={adminSection("Central WhatsApp", <AdminWhatsAppCenter />)} />
               </Route>
+              <Route path="/admin/notificacoes" element={<ProtectedRoute roles={["superadmin", "admin", "operador"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
+                <Route index element={adminSection("Notificações", <AdminNotifications />)} />
+              </Route>
               <Route path="/admin" element={<ProtectedRoute roles={["superadmin", "admin"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={adminSection("Dashboard", <AdminDashboard />)} />
                 <Route path="crm" element={adminSection("CRM", <AdminCRM />)} />
@@ -311,6 +315,7 @@ export default function App() {
                 <Route path="sorteio" element={adminSection("Sorteio Ao Vivo", <AdminLiveDraw />)} />
                 <Route path="mensagens" element={adminSection("Mensagens", <AdminMessages />)} />
                 <Route path="whatsapp-center" element={adminSection("Central WhatsApp", <AdminWhatsAppCenter />)} />
+                <Route path="notificacoes" element={adminSection("Notificações", <AdminNotifications />)} />
                 <Route path="relatorios" element={adminSection("Relatórios e Afiliados", <AdminReports />)} />
                 <Route path="operacoes" element={adminSection("Operações", <AdminOperations />)} />
                 <Route path="integracoes" element={adminSection("Integrações", <AdminIntegrations />)} />
@@ -328,6 +333,7 @@ export default function App() {
                 <Route index element={<SuperAdminDashboard />} />
                 <Route path="clientes" element={<SuperAdminClients />} />
                 <Route path="integracoes" element={<SuperAdminIntegrations />} />
+                <Route path="notificacoes" element={<AdminNotifications />} />
                 <Route path="dominios" element={<SuperAdminDomains />} />
                 <Route path="auditoria" element={<SuperAdminAudit />} />
                 <Route path="relatorios" element={<SuperAdminReports />} />

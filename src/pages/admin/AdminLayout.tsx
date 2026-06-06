@@ -2,7 +2,6 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import {
   Activity,
-  Bell,
   Bot,
   ChevronLeft,
   ChevronRight,
@@ -39,6 +38,7 @@ import { CollapsibleSidebar, type SidebarNavItem } from "../../components/admin/
 import { cn } from "../../lib/utils";
 import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
 import { supportSessionStorageKey } from "../../lib/authSession";
+import { NotificationBell } from "../../components/notifications/NotificationBell";
 
 // Compatibilidade de auditoria hard: rotas historicas "Rifas", "Relatórios", "CRM" e "Pagamentos PIX" permanecem em App.tsx; menu visivel usa rotulos curtos.
 
@@ -47,7 +47,6 @@ function AdminLayoutContent() {
   const { theme } = useAdminTheme();
   const [settingsData, setSettingsData] = useState<any>(null);
   const { branding } = useTenantBranding();
-  const [notificationCount, setNotificationCount] = useState(0);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("cifher.admin.sidebar") === "collapsed" || localStorage.getItem("rifapro.admin.sidebar") === "collapsed");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [supportSessionId, setSupportSessionId] = useState(() => localStorage.getItem(supportSessionStorageKey) || "");
@@ -64,18 +63,6 @@ function AdminLayoutContent() {
       setSupportSessionId(sessionId);
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, []);
-
-  useEffect(() => {
-    const loadNotifications = () => {
-      fetch("/api/admin/notifications")
-        .then(res => res.json())
-        .then(data => setNotificationCount(Number(data.total || 0)))
-        .catch(() => null);
-    };
-    loadNotifications();
-    const interval = window.setInterval(loadNotifications, 15000);
-    return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -131,6 +118,7 @@ function AdminLayoutContent() {
     { name: "Afiliados", path: "/admin/relatorios", icon: FileBarChart, group: "Crescimento" },
     { name: "Mensagens", path: "/admin/mensagens", icon: MessageSquare, group: "Crescimento" },
     { name: "Central WhatsApp", path: "/admin/whatsapp-center", icon: MessageSquare, group: "Crescimento" },
+    { name: "Notificações", path: "/admin/notificacoes", icon: Activity, group: "Crescimento" },
     { name: "Ganhadores", path: "/admin/ganhadores", icon: Trophy, group: "Crescimento" },
     { name: "Auditoria", path: "/admin/auditoria", icon: FileSearch, group: "Segurança" },
     { name: "Compliance", path: "/admin/compliance", icon: ShieldAlert, group: "Segurança" },
@@ -191,14 +179,7 @@ function AdminLayoutContent() {
             <Link to="/" className="admin-icon-button" aria-label="Abrir site" title="Abrir site">
               <ExternalLink className="h-5 w-5" />
             </Link>
-            <Link to="/admin/mensagens" className="admin-icon-button relative" aria-label="Mensagens">
-              <Bell className="h-5 w-5" />
-              {notificationCount > 0 && (
-                <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-amber-300 px-1 text-[10px] font-black text-black">
-                  {notificationCount > 99 ? "99+" : notificationCount}
-                </span>
-              )}
-            </Link>
+            <NotificationBell />
             <div className="hidden items-center gap-3 rounded-[10px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-1.5 xl:flex">
               <div className="grid h-8 w-8 place-items-center rounded-[8px] bg-[var(--admin-primary)] text-xs font-semibold text-[var(--admin-button-text)]">AD</div>
               <div className="text-right">

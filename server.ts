@@ -373,6 +373,43 @@ async function startServer() {
     email: string;
     provider?: "local" | "supabase";
   };
+  type NotificationSeverity = "info" | "success" | "warning" | "error";
+  type NotificationStatus = "unread" | "read" | "archived";
+  type NotificationRecord = {
+    id: string;
+    tenant_id: string;
+    user_id?: string;
+    role_target?: AuthRole | SaaSAuthRole | string;
+    type: string;
+    title: string;
+    message: string;
+    severity: NotificationSeverity;
+    status: NotificationStatus;
+    action_url?: string;
+    entity_type?: string;
+    entity_id?: string;
+    dedupe_key?: string;
+    created_at: string;
+    read_at?: string;
+    archived_at?: string;
+  };
+  const INTERNAL_NOTIFICATION_TYPES = [
+    "payment_confirmed",
+    "pix_pending",
+    "pix_expired",
+    "new_sale",
+    "new_affiliate",
+    "affiliate_withdrawal_requested",
+    "whatsapp_inbound_message",
+    "whatsapp_campaign_completed",
+    "whatsapp_send_failed",
+    "gateway_error",
+    "tenant_plan_expiring",
+    "tenant_blocked",
+    "raffle_closed",
+    "winner_defined",
+    "stock_low"
+  ] as const;
   type TenantApiKeyScope = "raffles:read" | "raffles:write" | "orders:read" | "customers:read" | "affiliates:read" | "reports:read" | "webhooks:write";
   type TenantApiKeyRecord = {
     id: string;
@@ -2208,6 +2245,7 @@ async function startServer() {
   let crmContacts: CrmContactRecord[] = [];
   let crmContactOverrides: Record<string, CrmContactOverride> = {};
   let customerMessages: CustomerMessage[] = [];
+  let notifications: NotificationRecord[] = [];
   let affiliateWithdrawals: AffiliateWithdrawal[] = [];
   let passwordResetCodes: PasswordResetCode[] = [];
   let supportTickets: SupportTicket[] = [];
@@ -5953,6 +5991,76 @@ async function startServer() {
 
   app.use(resolveTenant);
 
+  function requireNotificationSession(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const session = getAuthSession(req);
+    if (!session || !["superadmin", "tenant_admin", "admin", "operador", "afiliado", "tenant_user"].includes(String(session.role))) {
+      res.status(401).json({ error: "Login obrigatorio" });
+      return;
+    }
+    next();
+  }
+
+  app.get("/api/notifications", requireNotificationSession, (req, res) => {
+    const status = String(req.query.status || "all");
+    const severity = String(req.query.severity || "");
+    const important = String(req.query.important || "") === "true";
+    const visible = getVisibleNotifications(req)
+      .filter(item => status === "all" || !status || item.status === status)
+      .filter(item => !severity || item.severity === severity)
+      .filter(item => !important || ["warning", "error"].includes(item.severity))
+      .slice(0, 100)
+      .map(publicNotification);
+    res.json({ notifications: visible });
+  });
+
+  app.get("/api/notifications/unread-count", requireNotificationSession, (req, res) => {
+    const unread = getVisibleNotifications(req).filter(item => item.status === "unread").length;
+    res.json({ unread });
+  });
+
+  app.put("/api/notifications/:id/read", requireNotificationSession, (req, res) => {
+    const notification = getVisibleNotifications(req).find(item => item.id === req.params.id);
+    if (!notification) return res.status(404).json({ error: "Notificacao nao encontrada" });
+    const now = new Date().toISOString();
+    notification.status = "read";
+    notification.read_at ||= now;
+    schedulePersistentStateSave("notification-read");
+    res.json({ notification: publicNotification(notification) });
+  });
+
+  app.put("/api/notifications/read-all", requireNotificationSession, (req, res) => {
+    const now = new Date().toISOString();
+    let updated = 0;
+    getVisibleNotifications(req).forEach(notification => {
+      if (notification.status === "unread") {
+        notification.status = "read";
+        notification.read_at ||= now;
+        updated += 1;
+      }
+    });
+    if (updated) schedulePersistentStateSave("notifications-read-all");
+    res.json({ updated });
+  });
+
+  app.put("/api/notifications/:id/archive", requireNotificationSession, (req, res) => {
+    const notification = getVisibleNotifications(req).find(item => item.id === req.params.id);
+    if (!notification) return res.status(404).json({ error: "Notificacao nao encontrada" });
+    const now = new Date().toISOString();
+    notification.status = "archived";
+    notification.archived_at = now;
+    notification.read_at ||= now;
+    schedulePersistentStateSave("notification-archived");
+    res.json({ notification: publicNotification(notification) });
+  });
+
+  app.delete("/api/notifications/:id", requireNotificationSession, (req, res) => {
+    const visible = getVisibleNotifications(req).find(item => item.id === req.params.id);
+    if (!visible) return res.status(404).json({ error: "Notificacao nao encontrada" });
+    notifications = notifications.filter(item => item.id !== visible.id);
+    schedulePersistentStateSave("notification-deleted");
+    res.json({ deleted: true });
+  });
+
   app.use("/api/admin/whatsapp-center", rateLimiter, requireWhatsAppCenterAccess);
 
   app.get("/api/admin/whatsapp-center/dashboard", requireWhatsAppCrmCampaignAccess, async (req, res) => {
@@ -6482,7 +6590,23 @@ async function startServer() {
       campaign.sent_count = queue.filter(item => item.status === "sent").length;
       campaign.failed_count = queue.filter(item => item.status === "failed").length;
       campaign.skipped_count = queue.filter(item => item.status === "skipped").length;
-      if (queue.length && !queue.some(item => item.status === "queued") && campaign.status !== "cancelled") campaign.status = "completed";
+      if (queue.length && !queue.some(item => item.status === "queued") && campaign.status !== "cancelled") {
+        const wasCompleted = campaign.status === "completed";
+        campaign.status = "completed";
+        if (!wasCompleted) {
+          notifyTenantAdmins({
+            tenantId,
+            type: "whatsapp_campaign_completed",
+            title: "Campanha WhatsApp concluida",
+            message: "A campanha terminou o envio das mensagens preparadas.",
+            severity: campaign.failed_count > 0 ? "warning" : "success",
+            actionUrl: "/admin/whatsapp-center",
+            entityType: "whatsapp_campaign",
+            entityId: campaign.id,
+            dedupeKey: `whatsapp_campaign_completed:${tenantId}:${campaign.id}`
+          });
+        }
+      }
       campaign.updated_at = new Date().toISOString();
     });
     schedulePersistentStateSave("whatsapp-crm-campaign-run");
@@ -7336,6 +7460,119 @@ async function startServer() {
     ));
   }
 
+  function sanitizeNotificationText(value: unknown, fallback = "") {
+    return maskSecretText(String(value || fallback).replace(/\s+/g, " ").trim()).slice(0, 500);
+  }
+
+  function normalizeNotificationSeverity(value: unknown): NotificationSeverity {
+    return value === "success" || value === "warning" || value === "error" ? value : "info";
+  }
+
+  function sanitizeNotificationActionUrl(value: unknown) {
+    const url = String(value || "").trim();
+    if (!url || !url.startsWith("/") || url.startsWith("//") || /[\r\n]/.test(url)) return "";
+    return url.slice(0, 300);
+  }
+
+  function createNotification(input: {
+    tenantId: string;
+    userId?: string;
+    roleTarget?: AuthRole | SaaSAuthRole | string;
+    type: string;
+    title: string;
+    message: string;
+    severity?: NotificationSeverity;
+    actionUrl?: string;
+    entityType?: string;
+    entityId?: string;
+    dedupeKey?: string;
+  }) {
+    const tenantId = String(input.tenantId || "").trim();
+    if (!tenantId) return null;
+    const dedupeKey = String(input.dedupeKey || "").trim();
+    if (dedupeKey) {
+      const existing = notifications.find(item => item.tenant_id === tenantId && item.dedupe_key === dedupeKey && item.status !== "archived");
+      if (existing) return existing;
+    }
+    const now = new Date().toISOString();
+    const notification: NotificationRecord = {
+      id: createPublicId("NOT_"),
+      tenant_id: tenantId,
+      user_id: input.userId ? String(input.userId) : "",
+      role_target: input.roleTarget ? String(input.roleTarget) : "",
+      type: sanitizeNotificationText(input.type, "system"),
+      title: sanitizeNotificationText(input.title, "Nova notificacao"),
+      message: sanitizeNotificationText(input.message, "Ha uma atualizacao importante no painel."),
+      severity: normalizeNotificationSeverity(input.severity),
+      status: "unread",
+      action_url: sanitizeNotificationActionUrl(input.actionUrl),
+      entity_type: String(input.entityType || "").slice(0, 80),
+      entity_id: String(input.entityId || "").slice(0, 120),
+      dedupe_key: dedupeKey,
+      created_at: now,
+      read_at: "",
+      archived_at: ""
+    };
+    notifications.unshift(notification);
+    notifications = notifications.slice(0, 5000);
+    schedulePersistentStateSave("notification-created");
+    return notification;
+  }
+
+  function notificationVisibleForSession(notification: NotificationRecord, session: AuthSession, tenantId = resolveTenantIdFromSession(session)) {
+    if (notification.tenant_id !== tenantId) return false;
+    if (notification.user_id && notification.user_id !== session.sub) return false;
+    if (notification.role_target) {
+      const target = normalizeAuthRole(notification.role_target);
+      const role = normalizeAuthRole(session.role);
+      if (target !== role && notification.role_target !== session.role) return false;
+    }
+    return true;
+  }
+
+  function resolveTenantIdFromSession(session: AuthSession) {
+    return session.role === "superadmin" ? (session.tenant_id || legacyTenantId) : (session.tenant_id || legacyTenantId);
+  }
+
+  function publicNotification(notification: NotificationRecord) {
+    return {
+      id: notification.id,
+      tenantId: notification.tenant_id,
+      userId: notification.user_id || "",
+      roleTarget: notification.role_target || "",
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      severity: notification.severity,
+      status: notification.status,
+      actionUrl: notification.action_url || "",
+      entityType: notification.entity_type || "",
+      entityId: notification.entity_id || "",
+      createdAt: notification.created_at,
+      readAt: notification.read_at || "",
+      archivedAt: notification.archived_at || ""
+    };
+  }
+
+  function notifyTenantAdmins(input: Omit<Parameters<typeof createNotification>[0], "roleTarget">) {
+    const roles: Array<AuthRole | SaaSAuthRole | string> = ["admin", "operador"];
+    const created = roles.map(roleTarget => createNotification({
+      ...input,
+      roleTarget,
+      dedupeKey: input.dedupeKey ? `${input.dedupeKey}:${roleTarget}` : undefined
+    }));
+    return created[0] || null;
+  }
+
+  function getVisibleNotifications(req: express.Request) {
+    const session = getAuthSession(req);
+    if (!session) return [];
+    const tenantId = resolveRequestTenantId(req);
+    return notifications
+      .filter(notification => notificationVisibleForSession(notification, session, tenantId))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+
   function notifyCustomer(customer: CustomerRecord | undefined, title: string, body: string, ctaLabel = "", ctaUrl = "") {
     if (!customer) return;
     customerMessages.unshift({
@@ -7850,6 +8087,19 @@ async function startServer() {
         status,
         message: "Payment record atualizado"
       });
+      if (["expired", "expirado", "overdue", "canceled", "cancelled"].includes(String(status || "").toLowerCase())) {
+        notifyTenantAdmins({
+          tenantId,
+          type: "pix_expired",
+          title: "PIX vencido",
+          message: `Venda ${payment.order_id} saiu da janela de pagamento.`,
+          severity: "warning",
+          actionUrl: "/admin/vendas",
+          entityType: "purchase",
+          entityId: payment.order_id,
+          dedupeKey: `pix_expired:${tenantId}:${payment.order_id}`
+        });
+      }
     }
     return payment;
   }
@@ -11106,8 +11356,30 @@ async function startServer() {
     purchases.push(purchase);
     if (purchase.linkedPurchases) purchases.push(...purchase.linkedPurchases);
     schedulePersistentStateSave("checkout-purchase-created", 0);
+    notifyTenantAdmins({
+      tenantId,
+      type: "new_sale",
+      title: "Nova venda",
+      message: `Venda ${purchase.purchaseId} registrada no painel.`,
+      severity: purchase.status === "paid" ? "success" : "info",
+      actionUrl: "/admin/vendas",
+      entityType: "purchase",
+      entityId: purchase.purchaseId,
+      dedupeKey: `new_sale:${tenantId}:${purchase.purchaseId}`
+    });
     persistAppliedPromotions({ tenantId, raffleId: id, orderId: purchase.purchaseId, customer, amount, quantity: effectiveTickets }, promotionSummary);
     if (purchase.status === "pending") {
+      notifyTenantAdmins({
+        tenantId,
+        type: "pix_pending",
+        title: "PIX pendente",
+        message: `Venda ${purchase.purchaseId} aguardando pagamento.`,
+        severity: "warning",
+        actionUrl: "/admin/vendas",
+        entityType: "purchase",
+        entityId: purchase.purchaseId,
+        dedupeKey: `pix_pending:${tenantId}:${purchase.purchaseId}`
+      });
       scheduleAutomation("abandoned_pix_recovery", { tenant_id: tenantId, customer_id: customer.id, order_id: purchase.purchaseId, purchase, customer });
     }
     recordPublicActivityEvent({
@@ -12126,6 +12398,32 @@ async function startServer() {
     };
     whatsappCloudLogs.unshift(log);
     whatsappCloudLogs = whatsappCloudLogs.slice(0, 1000);
+    if (input.action === "crm_campaign_failed" || input.action === "manual_reply_failed" || input.action === "manual_template_failed" || input.action === "whatsapp_automation_failed") {
+      notifyTenantAdmins({
+        tenantId,
+        type: "whatsapp_send_failed",
+        title: "Falha no envio WhatsApp",
+        message: maskSecretText(input.message || "Uma mensagem nao foi enviada."),
+        severity: "error",
+        actionUrl: "/admin/whatsapp-center",
+        entityType: "whatsapp",
+        entityId: String(input.metadata?.campaignId || input.metadata?.messageId || input.metadata?.executionId || log.id),
+        dedupeKey: `whatsapp_send_failed:${tenantId}:${input.action}:${String(input.metadata?.campaignId || input.metadata?.messageId || input.metadata?.executionId || log.id)}`
+      });
+    }
+    if (input.action === "credential_error" || input.action === "meta_api_error") {
+      notifyTenantAdmins({
+        tenantId,
+        type: "gateway_error",
+        title: "Integração precisa de atenção",
+        message: maskSecretText(input.message || "Uma integração retornou erro."),
+        severity: "error",
+        actionUrl: "/admin/integracoes",
+        entityType: "integration",
+        entityId: input.action,
+        dedupeKey: `gateway_error:${tenantId}:whatsapp:${input.action}`
+      });
+    }
     return log;
   }
 
@@ -14152,7 +14450,7 @@ async function startServer() {
           const contact = upsertWhatsAppContact(tenantId, phone, contactNames.get(phone) || "", "meta_webhook", receivedAt);
           const conversation = ensureWhatsAppConversation(tenantId, contact, receivedAt);
           const bodyText = getWhatsAppInboundBody(message);
-          whatsappConversationMessages.push({
+          const inboundMessage: WhatsAppConversationMessageRecord = {
             id: createPublicId("WAM_"),
             tenantId,
             conversationId: conversation.id,
@@ -14163,6 +14461,18 @@ async function startServer() {
             metaMessageId: String(message.id || ""),
             receivedAt,
             rawSummary: summarizeWhatsAppInbound(message)
+          };
+          whatsappConversationMessages.push(inboundMessage);
+          notifyTenantAdmins({
+            tenantId,
+            type: "whatsapp_inbound_message",
+            title: "Nova mensagem WhatsApp",
+            message: contact.displayName ? `${contact.displayName} enviou uma mensagem.` : "Uma nova mensagem chegou no WhatsApp.",
+            severity: "info",
+            actionUrl: "/admin/whatsapp-center",
+            entityType: "whatsapp_conversation",
+            entityId: conversation.id,
+            dedupeKey: `whatsapp_inbound_message:${tenantId}:${inboundMessage.metaMessageId || inboundMessage.id}`
           });
           conversation.unreadCount += 1;
           conversation.lastMessageAt = receivedAt;
@@ -14722,6 +15032,17 @@ async function startServer() {
     purchase.status = "paid";
     purchase.numeros = assignedNumbers;
     purchase.premiosInstantaneos = premiosWon;
+    notifyTenantAdmins({
+      tenantId: purchase.tenant_id,
+      type: "payment_confirmed",
+      title: "Pagamento confirmado",
+      message: `Venda ${purchase.purchaseId} confirmada com sucesso.`,
+      severity: "success",
+      actionUrl: "/admin/vendas",
+      entityType: "purchase",
+      entityId: purchase.purchaseId,
+      dedupeKey: `payment_confirmed:${purchase.tenant_id}:${purchase.purchaseId}`
+    });
     recordPublicActivityEvent({
       tenant_id: purchase.tenant_id,
       raffle_id: purchase.raffleId,
@@ -15630,6 +15951,32 @@ async function startServer() {
       statusCode: entry.statusCode,
       message: entry.message
     });
+    if (entry.status === "confirmed" && entry.purchaseId) {
+      notifyTenantAdmins({
+        tenantId: entry.tenant_id,
+        type: "payment_confirmed",
+        title: "Pagamento confirmado",
+        message: `Venda ${entry.purchaseId} confirmada com sucesso.`,
+        severity: "success",
+        actionUrl: "/admin/vendas",
+        entityType: "purchase",
+        entityId: entry.purchaseId,
+        dedupeKey: `payment_confirmed:${entry.tenant_id}:${entry.purchaseId}`
+      });
+    }
+    if (entry.status === "failed" || entry.status === "invalid") {
+      notifyTenantAdmins({
+        tenantId: entry.tenant_id,
+        type: "gateway_error",
+        title: "Gateway com erro",
+        message: maskSecretText(entry.message || "Um gateway retornou erro."),
+        severity: "error",
+        actionUrl: "/admin/pagamentos",
+        entityType: "payment_gateway",
+        entityId: entry.gateway,
+        dedupeKey: `gateway_error:${entry.tenant_id}:${entry.gateway}:${entry.eventStatus || entry.status}:${entry.purchaseId || "global"}`
+      });
+    }
     if (entry.status === "failed" || entry.status === "invalid") {
       const recentFailures = paymentWebhookLogs.filter(item => item.tenant_id === entry.tenant_id && item.gateway === entry.gateway && ["failed", "invalid"].includes(item.status) && new Date(item.createdAt).getTime() >= Date.now() - 60 * 60 * 1000).length;
       if (recentFailures >= 3) {
@@ -17340,26 +17687,19 @@ async function startServer() {
   });
 
   app.get("/api/admin/notifications", (req, res) => {
-    const tenantPurchases = scoped(purchases, req);
-    const tenantWithdrawals = scoped(affiliateWithdrawals, req);
-    const tenantTickets = scoped(supportTickets, req);
-    const pendingPix = tenantPurchases.filter(item => item.status === "pending").length;
-    const pendingWithdrawals = tenantWithdrawals.filter(item => item.status === "pending").length;
-    const openSupport = tenantTickets.filter(item => item.status !== "closed").length;
-    const unreadSupport = tenantTickets.filter(ticket => ticket.messages.some(message => message.sender === "customer" && !message.readByAdmin)).length;
-    const pixIssues = gateways.pix?.enabled ? 0 : 1;
+    const visible = getVisibleNotifications(req);
+    const pendingPix = visible.filter(item => item.type === "pix_pending").length;
+    const pendingWithdrawals = visible.filter(item => item.type === "affiliate_withdrawal_requested").length;
+    const unreadSupport = visible.filter(item => item.status === "unread").length;
+    const pixIssues = visible.filter(item => item.type === "gateway_error").length;
     res.json({
-      total: pendingPix + pendingWithdrawals + unreadSupport + pixIssues,
+      total: visible.filter(item => item.status === "unread").length,
       pendingPix,
       pendingWithdrawals,
-      openSupport,
+      openSupport: 0,
       unreadSupport,
       pixIssues,
-      latest: [
-        ...tenantPurchases.filter(item => item.status === "pending").slice(-5).map(item => ({ type: "pix", title: "PIX pendente", detail: item.purchaseId, date: item.createdAt })),
-        ...tenantWithdrawals.filter(item => item.status === "pending").slice(0, 5).map(item => ({ type: "withdrawal", title: "Saque solicitado", detail: item.customerName, date: item.requestedAt })),
-        ...tenantTickets.filter(item => item.status !== "closed").slice(0, 5).map(item => ({ type: "support", title: "Atendimento aberto", detail: item.customerName, date: item.updatedAt }))
-      ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8)
+      latest: visible.slice(0, 8).map(item => ({ type: item.type, title: item.title, detail: item.message, date: item.created_at }))
     });
   });
 
@@ -19635,6 +19975,7 @@ async function startServer() {
       crmContacts,
       crmContactOverrides,
       customerMessages,
+      notifications,
       affiliateWithdrawals,
       passwordResetCodes,
       supportTickets,
@@ -19732,6 +20073,7 @@ async function startServer() {
       case "crmContacts": crmContacts = Array.isArray(value) ? value : []; break;
       case "crmContactOverrides": crmContactOverrides = value || {}; break;
       case "customerMessages": customerMessages = Array.isArray(value) ? value : []; break;
+      case "notifications": notifications = Array.isArray(value) ? value : []; break;
       case "affiliateWithdrawals": affiliateWithdrawals = Array.isArray(value) ? value : []; break;
       case "passwordResetCodes": passwordResetCodes = Array.isArray(value) ? value : []; break;
       case "supportTickets": supportTickets = Array.isArray(value) ? value : []; break;
@@ -20825,6 +21167,17 @@ async function startServer() {
     };
     affiliateWithdrawals.unshift(withdrawal);
     affiliate.history.push({ amount: 0, type: `withdrawal_requested:${withdrawal.id}`, date: withdrawal.requestedAt });
+    notifyTenantAdmins({
+      tenantId: affiliate.tenant_id,
+      type: "affiliate_withdrawal_requested",
+      title: "Saque de afiliado solicitado",
+      message: `${customer.name} solicitou saque PIX de R$ ${amount.toFixed(2)}.`,
+      severity: "warning",
+      actionUrl: "/admin/relatorios",
+      entityType: "affiliate_withdrawal",
+      entityId: withdrawal.id,
+      dedupeKey: `affiliate_withdrawal_requested:${affiliate.tenant_id}:${withdrawal.id}`
+    });
     notifyCustomer(customer, "Saque solicitado", `Recebemos sua solicitacao de saque PIX de R$ ${amount.toFixed(2)}. O admin fará a transferencia manual pelo banco.`);
     res.json({ withdrawal, affiliate: { ...affiliate, rules: settings.affiliateProgram } });
   });

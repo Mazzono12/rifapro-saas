@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import {
   Building2,
+  Bell,
   ChevronLeft,
   ChevronRight,
   Crown,
@@ -21,6 +22,7 @@ import { AdminPageTransition } from "../../components/admin/AdminPremium";
 import { CollapsibleSidebar, type SidebarNavItem } from "../../components/admin/CollapsibleSidebar";
 import { useAuth } from "../../context/auth/AuthContext";
 import { cn } from "../../lib/utils";
+import { NotificationBell } from "../../components/notifications/NotificationBell";
 
 // Compatibilidade de auditoria hard: o rótulo histórico "Financeiro executivo" segue coberto pela rota de Financeiro.
 
@@ -65,6 +67,7 @@ function SuperAdminLayoutContent() {
     { name: "Aparência", path: "/superadmin/aparencia", icon: Palette, group: "Ambiente" },
     { name: "Domínios", path: "/superadmin/dominios", icon: Globe2, group: "Ambiente" },
     { name: "Integrações", path: "/superadmin/integracoes", icon: Plug, group: "Ambiente" },
+    { name: "Notificações", path: "/superadmin/notificacoes", icon: Bell, group: "Ambiente" },
     { name: "Auditoria", path: "/superadmin/auditoria", icon: FileSearch, group: "Segurança" },
     { name: "Antifraude", path: "/superadmin/antifraude", icon: ShieldAlert, group: "Segurança" }
   ], []);
@@ -113,6 +116,7 @@ function SuperAdminLayoutContent() {
               <Link to="/" className="admin-icon-button" title="Abrir site" aria-label="Abrir site">
                 <ExternalLink className="h-5 w-5" />
               </Link>
+              <NotificationBell centerPath="/superadmin/notificacoes" />
               <button type="button" onClick={() => void signOut()} className="admin-icon-button" title="Sair" aria-label="Sair">
                 <LogOut className="h-5 w-5" />
               </button>
