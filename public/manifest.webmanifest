@@ -1,0 +1,26 @@
+{
+  "id": "/rifapro",
+  "name": "CIFHER Plataforma",
+  "short_name": "CIFHER",
+  "description": "Aplicativo instalavel para operacao de rifas, CRM, WhatsApp, tickets e notificacoes.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#00d66b",
+  "background_color": "#050807",
+  "icons": [
+    {
+      "src": "/icons/pwa-icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/pwa-maskable.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

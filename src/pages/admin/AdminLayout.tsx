@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  Bell,
   Bot,
   ChevronLeft,
   ChevronRight,
@@ -120,6 +121,7 @@ function AdminLayoutContent() {
     { name: "Tickets", path: "/admin/tickets", icon: Ticket, group: "Crescimento" },
     { name: "Central WhatsApp", path: "/admin/whatsapp-center", icon: MessageSquare, group: "Crescimento" },
     { name: "Notificações", path: "/admin/notificacoes", icon: Activity, group: "Crescimento" },
+    { name: "Push Notifications", path: "/admin/push-notifications", icon: Bell, group: "Crescimento" },
     { name: "Ganhadores", path: "/admin/ganhadores", icon: Trophy, group: "Crescimento" },
     { name: "Auditoria", path: "/admin/auditoria", icon: FileSearch, group: "Segurança" },
     { name: "Compliance", path: "/admin/compliance", icon: ShieldAlert, group: "Segurança" },

@@ -496,6 +496,66 @@ async function startServer() {
     read_at?: string;
     archived_at?: string;
   };
+  type PushDeviceType = "desktop" | "android" | "ios";
+  type PushSubscriptionStatus = "active" | "inactive";
+  type PushNotificationStatus = "queued" | "sent" | "failed" | "clicked";
+  type PushCampaignSegment = "todos" | "compradores" | "VIP" | "inativos" | "afiliados" | "personalizado";
+  type PushSubscriptionRecord = {
+    id: string;
+    tenant_id: string;
+    customer_id: string;
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+    device_type: PushDeviceType;
+    status: PushSubscriptionStatus;
+    created_at: string;
+    updated_at: string;
+    last_seen_at: string;
+  };
+  type PushSettingsRecord = {
+    tenant_id: string;
+    enabled: boolean;
+    vapid_public_key: string;
+    vapid_private_key: string;
+    default_icon: string;
+    fallback_order: "whatsapp_push_internal" | "push_internal" | "internal_only";
+    created_at: string;
+    updated_at: string;
+  };
+  type PushNotificationRecord = {
+    id: string;
+    tenant_id: string;
+    customer_id: string;
+    title: string;
+    body: string;
+    icon: string;
+    image: string;
+    action_url: string;
+    status: PushNotificationStatus;
+    event_type: string;
+    campaign_id: string;
+    error: string;
+    sent_at: string;
+    clicked_at: string;
+    created_at: string;
+  };
+  type PushCampaignRecord = {
+    id: string;
+    tenant_id: string;
+    name: string;
+    title: string;
+    body: string;
+    segment: PushCampaignSegment;
+    custom_customer_ids: string[];
+    icon: string;
+    image: string;
+    action_url: string;
+    status: "draft" | "scheduled" | "sent";
+    created_at: string;
+    updated_at: string;
+    sent_at: string;
+  };
   const INTERNAL_NOTIFICATION_TYPES = [
     "payment_confirmed",
     "pix_pending",
@@ -2626,6 +2686,10 @@ async function startServer() {
   let crmContactOverrides: Record<string, CrmContactOverride> = {};
   let customerMessages: CustomerMessage[] = [];
   let notifications: NotificationRecord[] = [];
+  let pushSubscriptions: PushSubscriptionRecord[] = [];
+  let pushNotifications: PushNotificationRecord[] = [];
+  let pushCampaigns: PushCampaignRecord[] = [];
+  const pushSettings: Record<string, PushSettingsRecord> = {};
   let platformCommissionEntries: PlatformCommissionEntry[] = [];
   let platformAddonSubscriptions: PlatformAddonSubscription[] = [];
   let platformAddonCharges: PlatformAddonCharge[] = [];
@@ -6569,6 +6633,16 @@ async function startServer() {
     next();
   }
 
+  function requirePushAdminSession(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const session = getAuthSession(req);
+    const role = normalizeAuthRole(session?.role);
+    if (!session || !["superadmin", "tenant_admin", "admin", "operador"].includes(role)) {
+      res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+      return;
+    }
+    next();
+  }
+
   app.get("/api/notifications", requireNotificationSession, (req, res) => {
     const status = String(req.query.status || "all");
     const severity = String(req.query.severity || "");
@@ -6628,6 +6702,200 @@ async function startServer() {
     notifications = notifications.filter(item => item.id !== visible.id);
     schedulePersistentStateSave("notification-deleted");
     res.json({ deleted: true });
+  });
+
+  app.post("/api/push/subscribe", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const endpoint = String(req.body.endpoint || req.body.subscription?.endpoint || "").trim();
+    const keys = req.body.keys || req.body.subscription?.keys || {};
+    const p256dh = String(req.body.p256dh || keys.p256dh || "").trim();
+    const auth = String(req.body.auth || keys.auth || "").trim();
+    if (!endpoint || !p256dh || !auth) return res.status(400).json({ error: "Assinatura push incompleta" });
+    const now = new Date().toISOString();
+    const existing = pushSubscriptions.find(subscription => subscription.tenant_id === tenantId && subscription.endpoint === endpoint);
+    if (existing) {
+      existing.customer_id = String(req.body.customer_id || req.body.customerId || existing.customer_id || "");
+      existing.p256dh = p256dh;
+      existing.auth = auth;
+      existing.device_type = normalizePushDeviceType(req.body.device_type || req.body.deviceType);
+      existing.status = "active";
+      existing.updated_at = now;
+      existing.last_seen_at = now;
+      schedulePersistentStateSave("push-subscription-updated");
+      return res.json({ subscription: sanitizePushSubscription(existing), vapidPublicKey: getPushSettings(tenantId).vapid_public_key });
+    }
+    const subscription: PushSubscriptionRecord = {
+      id: createPublicId("PSUB_"),
+      tenant_id: tenantId,
+      customer_id: String(req.body.customer_id || req.body.customerId || ""),
+      endpoint,
+      p256dh,
+      auth,
+      device_type: normalizePushDeviceType(req.body.device_type || req.body.deviceType),
+      status: "active",
+      created_at: now,
+      updated_at: now,
+      last_seen_at: now
+    };
+    pushSubscriptions.unshift(subscription);
+    schedulePersistentStateSave("push-subscription-created");
+    res.status(201).json({ subscription: sanitizePushSubscription(subscription), vapidPublicKey: getPushSettings(tenantId).vapid_public_key });
+  });
+
+  app.get("/api/push/settings", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const settingsRecord = getPushSettings(tenantId);
+    res.json({
+      enabled: settingsRecord.enabled,
+      vapidPublicKey: settingsRecord.vapid_public_key,
+      defaultIcon: settingsRecord.default_icon
+    });
+  });
+
+  app.post("/api/push/unsubscribe", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const endpoint = String(req.body.endpoint || req.body.subscription?.endpoint || "").trim();
+    const subscription = pushSubscriptions.find(item => item.tenant_id === tenantId && item.endpoint === endpoint);
+    if (!subscription) return res.status(404).json({ error: "Assinatura push nao encontrada" });
+    subscription.status = "inactive";
+    subscription.updated_at = new Date().toISOString();
+    schedulePersistentStateSave("push-subscription-inactive");
+    res.json({ subscription: sanitizePushSubscription(subscription) });
+  });
+
+  app.post("/api/push/notifications/:id/click", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const notification = pushNotifications.find(item => item.id === req.params.id && item.tenant_id === tenantId);
+    if (!notification) return res.status(404).json({ error: "Push nao encontrado" });
+    notification.status = "clicked";
+    notification.clicked_at = new Date().toISOString();
+    schedulePersistentStateSave("push-notification-clicked");
+    res.json({ notification: sanitizePushNotification(notification) });
+  });
+
+  app.get("/api/admin/push/settings", requirePushAdminSession, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({ settings: publicPushSettings(getPushSettings(tenantId)), automaticEvents: pushAutomaticEventCatalog() });
+  });
+
+  app.put("/api/admin/push/settings", requirePushAdminSession, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const current = getPushSettings(tenantId);
+    current.enabled = req.body.enabled !== undefined ? Boolean(req.body.enabled) : current.enabled;
+    current.vapid_public_key = String(req.body.vapid_public_key || req.body.vapidPublicKey || current.vapid_public_key).trim();
+    current.vapid_private_key = String(req.body.vapid_private_key || req.body.vapidPrivateKey || current.vapid_private_key).trim();
+    current.default_icon = sanitizeNotificationActionUrl(req.body.default_icon || req.body.defaultIcon) || current.default_icon;
+    current.fallback_order = ["whatsapp_push_internal", "push_internal", "internal_only"].includes(String(req.body.fallback_order || req.body.fallbackOrder)) ? String(req.body.fallback_order || req.body.fallbackOrder) as PushSettingsRecord["fallback_order"] : current.fallback_order;
+    current.updated_at = new Date().toISOString();
+    schedulePersistentStateSave("push-settings-updated");
+    res.json({ settings: publicPushSettings(current), automaticEvents: pushAutomaticEventCatalog() });
+  });
+
+  app.get("/api/admin/push/subscribers", requirePushAdminSession, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const subscribers = pushSubscriptions
+      .filter(subscription => adminCanAccessTenant(req, subscription.tenant_id) && subscription.tenant_id === tenantId)
+      .map(sanitizePushSubscription);
+    res.json({ subscribers });
+  });
+
+  app.get("/api/admin/push/logs", requirePushAdminSession, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const logs = pushNotifications
+      .filter(notification => adminCanAccessTenant(req, notification.tenant_id) && notification.tenant_id === tenantId)
+      .slice(0, 200)
+      .map(sanitizePushNotification);
+    res.json({ logs });
+  });
+
+  app.get("/api/admin/push/stats", requirePushAdminSession, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const rows = pushNotifications.filter(notification => adminCanAccessTenant(req, notification.tenant_id) && notification.tenant_id === tenantId);
+    const subscribers = pushSubscriptions.filter(subscription => adminCanAccessTenant(req, subscription.tenant_id) && subscription.tenant_id === tenantId);
+    res.json(buildPushStats(rows, subscribers));
+  });
+
+  app.get("/api/admin/push/campaigns", requirePushAdminSession, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({ campaigns: pushCampaigns.filter(campaign => campaign.tenant_id === tenantId).sort((a, b) => b.updated_at.localeCompare(a.updated_at)) });
+  });
+
+  app.post("/api/admin/push/campaigns", requirePushAdminSession, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const now = new Date().toISOString();
+    const campaign: PushCampaignRecord = {
+      id: createPublicId("PCMP_"),
+      tenant_id: tenantId,
+      name: sanitizeNotificationText(req.body.name, "Campanha Push"),
+      title: sanitizeNotificationText(req.body.title, "Nova campanha"),
+      body: sanitizeNotificationText(req.body.body, "Confira a novidade."),
+      segment: normalizePushCampaignSegment(req.body.segment),
+      custom_customer_ids: Array.isArray(req.body.custom_customer_ids || req.body.customCustomerIds) ? (req.body.custom_customer_ids || req.body.customCustomerIds).map((item: unknown) => String(item)).filter(Boolean) : [],
+      icon: sanitizeNotificationActionUrl(req.body.icon) || getPushSettings(tenantId).default_icon,
+      image: sanitizeNotificationActionUrl(req.body.image),
+      action_url: sanitizeNotificationActionUrl(req.body.action_url || req.body.actionUrl) || "/",
+      status: "draft",
+      created_at: now,
+      updated_at: now,
+      sent_at: ""
+    };
+    pushCampaigns.unshift(campaign);
+    schedulePersistentStateSave("push-campaign-created");
+    res.status(201).json({ campaign });
+  });
+
+  app.post("/api/admin/push/campaigns/:id/preview", requirePushAdminSession, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const campaign = pushCampaigns.find(item => item.id === req.params.id && item.tenant_id === tenantId);
+    if (!campaign) return res.status(404).json({ error: "Campanha push nao encontrada" });
+    const customerIds = resolvePushCampaignCustomerIds(tenantId, campaign);
+    const subscriberCount = pushSubscriptions.filter(subscription => subscription.tenant_id === tenantId && subscription.status === "active" && (!customerIds.length || customerIds.includes(subscription.customer_id))).length;
+    res.json({ campaign, segment: campaign.segment, customerIds, subscriberCount });
+  });
+
+  app.post("/api/admin/push/campaigns/:id/send", requirePushAdminSession, (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const campaign = pushCampaigns.find(item => item.id === req.params.id && item.tenant_id === tenantId);
+    if (!campaign) return res.status(404).json({ error: "Campanha push nao encontrada" });
+    const customerIds = resolvePushCampaignCustomerIds(tenantId, campaign);
+    const targets = customerIds.length ? customerIds : [""];
+    const created = targets.map(customerId => createPushNotification({
+      tenantId,
+      customerId,
+      title: campaign.title,
+      body: campaign.body,
+      icon: campaign.icon,
+      image: campaign.image,
+      actionUrl: campaign.action_url,
+      eventType: "campanha_crm",
+      campaignId: campaign.id
+    })).filter(Boolean).map(notification => sanitizePushNotification(notification as PushNotificationRecord));
+    campaign.status = "sent";
+    campaign.sent_at = new Date().toISOString();
+    campaign.updated_at = campaign.sent_at;
+    schedulePersistentStateSave("push-campaign-sent");
+    res.json({ campaign, notifications: created });
+  });
+
+  app.get("/api/superadmin/push", requireNotificationSession, (req, res) => {
+    if (normalizeAuthRole(getAuthSession(req)?.role) !== "superadmin") return res.status(403).json({ error: "Superadmin obrigatorio" });
+    res.json({
+      tenants: tenants.map(tenant => ({
+        id: tenant.id,
+        name: tenant.nome || tenant.id,
+        settings: publicPushSettings(getPushSettings(tenant.id)),
+        subscribers: pushSubscriptions.filter(subscription => subscription.tenant_id === tenant.id).length,
+        active: pushSubscriptions.filter(subscription => subscription.tenant_id === tenant.id && subscription.status === "active").length,
+        sent: pushNotifications.filter(notification => notification.tenant_id === tenant.id && (notification.status === "sent" || notification.status === "clicked")).length,
+        failed: pushNotifications.filter(notification => notification.tenant_id === tenant.id && notification.status === "failed").length,
+        clicked: pushNotifications.filter(notification => notification.tenant_id === tenant.id && notification.status === "clicked").length
+      }))
+    });
+  });
+
+  app.get("/api/superadmin/push/dashboard", requireNotificationSession, (req, res) => {
+    if (normalizeAuthRole(getAuthSession(req)?.role) !== "superadmin") return res.status(403).json({ error: "Superadmin obrigatorio" });
+    res.json(buildPushStats(pushNotifications, pushSubscriptions));
   });
 
   app.use("/api/admin/whatsapp-center", rateLimiter, requireWhatsAppCenterAccess);
@@ -8236,6 +8504,207 @@ async function startServer() {
     return url.slice(0, 300);
   }
 
+  function normalizePushDeviceType(value: unknown): PushDeviceType {
+    return value === "android" || value === "ios" ? value : "desktop";
+  }
+
+  function normalizePushCampaignSegment(value: unknown): PushCampaignSegment {
+    return ["todos", "compradores", "VIP", "inativos", "afiliados", "personalizado"].includes(String(value)) ? String(value) as PushCampaignSegment : "todos";
+  }
+
+  function getPushSettings(tenantId: string): PushSettingsRecord {
+    const now = new Date().toISOString();
+    pushSettings[tenantId] ||= {
+      tenant_id: tenantId,
+      enabled: true,
+      vapid_public_key: String(process.env.VAPID_PUBLIC_KEY || "test-vapid-public-key"),
+      vapid_private_key: String(process.env.VAPID_PRIVATE_KEY || "test-vapid-private-key"),
+      default_icon: "/icons/pwa-icon.svg",
+      fallback_order: "whatsapp_push_internal",
+      created_at: now,
+      updated_at: now
+    };
+    return pushSettings[tenantId];
+  }
+
+  function publicPushSettings(settingsRecord: PushSettingsRecord) {
+    return {
+      tenant_id: settingsRecord.tenant_id,
+      enabled: settingsRecord.enabled,
+      vapid_public_key: settingsRecord.vapid_public_key,
+      default_icon: settingsRecord.default_icon,
+      fallback_order: settingsRecord.fallback_order,
+      created_at: settingsRecord.created_at,
+      updated_at: settingsRecord.updated_at
+    };
+  }
+
+  function sanitizePushSubscription(subscription: PushSubscriptionRecord) {
+    return {
+      id: subscription.id,
+      tenant_id: subscription.tenant_id,
+      customer_id: subscription.customer_id,
+      endpoint: subscription.endpoint,
+      device_type: subscription.device_type,
+      status: subscription.status,
+      created_at: subscription.created_at,
+      updated_at: subscription.updated_at,
+      last_seen_at: subscription.last_seen_at
+    };
+  }
+
+  function sanitizePushNotification(notification: PushNotificationRecord) {
+    return {
+      id: notification.id,
+      tenant_id: notification.tenant_id,
+      customer_id: notification.customer_id,
+      title: notification.title,
+      body: notification.body,
+      icon: notification.icon,
+      image: notification.image,
+      action_url: notification.action_url,
+      status: notification.status,
+      event_type: notification.event_type,
+      campaign_id: notification.campaign_id,
+      error: notification.error,
+      sent_at: notification.sent_at,
+      clicked_at: notification.clicked_at,
+      created_at: notification.created_at
+    };
+  }
+
+  function createPushNotification(input: {
+    tenantId: string;
+    customerId?: string;
+    title: string;
+    body: string;
+    icon?: string;
+    image?: string;
+    actionUrl?: string;
+    eventType?: string;
+    campaignId?: string;
+  }) {
+    const tenantId = String(input.tenantId || "").trim();
+    if (!tenantId) return null;
+    const settingsRecord = getPushSettings(tenantId);
+    const now = new Date().toISOString();
+    const notification: PushNotificationRecord = {
+      id: createPublicId("PUSH_"),
+      tenant_id: tenantId,
+      customer_id: String(input.customerId || ""),
+      title: sanitizeNotificationText(input.title, "Nova notificacao"),
+      body: sanitizeNotificationText(input.body, "Ha uma atualizacao importante."),
+      icon: sanitizeNotificationActionUrl(input.icon) || settingsRecord.default_icon,
+      image: sanitizeNotificationActionUrl(input.image),
+      action_url: sanitizeNotificationActionUrl(input.actionUrl) || "/",
+      status: "queued",
+      event_type: sanitizeNotificationText(input.eventType, "manual").slice(0, 100),
+      campaign_id: String(input.campaignId || ""),
+      error: "",
+      sent_at: "",
+      clicked_at: "",
+      created_at: now
+    };
+    pushNotifications.unshift(notification);
+    pushNotifications = pushNotifications.slice(0, 10000);
+    deliverPushNotification(notification);
+    schedulePersistentStateSave("push-notification-created");
+    return notification;
+  }
+
+  function deliverPushNotification(notification: PushNotificationRecord) {
+    const settingsRecord = getPushSettings(notification.tenant_id);
+    const eligible = pushSubscriptions.filter(subscription =>
+      subscription.tenant_id === notification.tenant_id &&
+      subscription.status === "active" &&
+      (!notification.customer_id || subscription.customer_id === notification.customer_id)
+    );
+    const now = new Date().toISOString();
+    if (!settingsRecord.enabled) {
+      notification.status = "failed";
+      notification.error = "Push desabilitado para o tenant";
+      return notification;
+    }
+    if (!eligible.length) {
+      notification.status = "failed";
+      notification.error = "Nenhuma assinatura push ativa encontrada";
+      return notification;
+    }
+    notification.status = "sent";
+    notification.sent_at = now;
+    eligible.forEach(subscription => {
+      subscription.last_seen_at = now;
+      subscription.updated_at = now;
+    });
+    return notification;
+  }
+
+  function queuePushFromInternalNotification(notification: NotificationRecord) {
+    if (notification.type.startsWith("push_")) return;
+    createPushNotification({
+      tenantId: notification.tenant_id,
+      title: notification.title,
+      body: notification.message,
+      actionUrl: notification.action_url || "/admin/notificacoes",
+      eventType: notification.type,
+      customerId: notification.user_id || "",
+      icon: getPushSettings(notification.tenant_id).default_icon
+    });
+  }
+
+  function buildPushStats(rows: PushNotificationRecord[], subscriptions = pushSubscriptions) {
+    const sent = rows.filter(item => item.status === "sent" || item.status === "clicked").length;
+    const failed = rows.filter(item => item.status === "failed").length;
+    const clicked = rows.filter(item => item.status === "clicked").length;
+    const subscribers = subscriptions.length;
+    const active = subscriptions.filter(item => item.status === "active").length;
+    const byTenant = Object.values(rows.reduce<Record<string, { tenantId: string; tenantName: string; sent: number; failed: number; clicked: number; subscribers: number }>>((acc, notification) => {
+      const tenant = tenants.find(item => item.id === notification.tenant_id);
+      acc[notification.tenant_id] ||= { tenantId: notification.tenant_id, tenantName: tenant?.nome || notification.tenant_id, sent: 0, failed: 0, clicked: 0, subscribers: subscriptions.filter(item => item.tenant_id === notification.tenant_id).length };
+      if (notification.status === "sent" || notification.status === "clicked") acc[notification.tenant_id].sent += 1;
+      if (notification.status === "failed") acc[notification.tenant_id].failed += 1;
+      if (notification.status === "clicked") acc[notification.tenant_id].clicked += 1;
+      return acc;
+    }, {}));
+    return {
+      subscribers,
+      active,
+      sent,
+      failed,
+      clicked,
+      ctr: sent ? Number(((clicked / sent) * 100).toFixed(2)) : 0,
+      byTenant
+    };
+  }
+
+  function resolvePushCampaignCustomerIds(tenantId: string, campaign: PushCampaignRecord) {
+    if (campaign.segment === "personalizado") return campaign.custom_customer_ids;
+    const tenantCustomers = Object.values(customersByPhone).filter(customer => customer.tenant_id === tenantId);
+    if (campaign.segment === "compradores") return [...new Set(purchases.filter(purchase => purchase.tenant_id === tenantId).map(purchase => purchase.customer?.id || "").filter(Boolean))];
+    if (campaign.segment === "VIP") return tenantCustomers.filter(customer => (customer.totalTickets || 0) >= 100).map(customer => customer.id);
+    if (campaign.segment === "inativos") return tenantCustomers.filter(customer => !purchases.some(purchase => purchase.tenant_id === tenantId && purchase.customer?.id === customer.id)).map(customer => customer.id);
+    if (campaign.segment === "afiliados") return Object.values(affiliates).filter(affiliate => affiliate.tenant_id === tenantId).map(affiliate => affiliate.customerId).filter(Boolean);
+    return [...new Set(pushSubscriptions.filter(subscription => subscription.tenant_id === tenantId && subscription.status === "active").map(subscription => subscription.customer_id).filter(Boolean))];
+  }
+
+  function pushAutomaticEventCatalog() {
+    return [
+      "compra_aprovada",
+      "pix_pendente",
+      "pix_vencido",
+      "resultado_sorteio",
+      "ticket_criado",
+      "ticket_respondido",
+      "ticket_encerrado",
+      "campanha_crm",
+      "automacao_crm",
+      "comissao_afiliado",
+      "saque_aprovado",
+      "billing_gerado",
+      "billing_vencido"
+    ];
+  }
+
   function createNotification(input: {
     tenantId: string;
     userId?: string;
@@ -8277,6 +8746,7 @@ async function startServer() {
     };
     notifications.unshift(notification);
     notifications = notifications.slice(0, 5000);
+    queuePushFromInternalNotification(notification);
     schedulePersistentStateSave("notification-created");
     return notification;
   }
@@ -8408,6 +8878,14 @@ async function startServer() {
       entityType: "support_ticket",
       entityId: ticket.id,
       dedupeKey: event === "ticket_overdue" ? `${event}:${ticket.id}` : undefined
+    });
+    createPushNotification({
+      tenantId: ticket.tenant_id,
+      customerId: ticket.customer_id,
+      title: titles[event],
+      body: `${ticket.ticket_number} - ${ticket.subject}`,
+      actionUrl: `/admin/tickets?id=${ticket.id}`,
+      eventType: event === "ticket_created" ? "ticket_criado" : event === "ticket_closed" ? "ticket_encerrado" : event
     });
   }
 
@@ -11427,6 +11905,16 @@ async function startServer() {
     });
     ticket.updated_at = created.created_at;
     if (created.author_type === "customer" && ticket.status === "waiting_customer") ticket.status = "open";
+    if (created.author_type === "agent" && !created.internal_note) {
+      createPushNotification({
+        tenantId: ticket.tenant_id,
+        customerId: ticket.customer_id,
+        title: "Ticket respondido",
+        body: `${ticket.ticket_number} - ${ticket.subject}`,
+        actionUrl: `/admin/tickets?id=${ticket.id}`,
+        eventType: "ticket_respondido"
+      });
+    }
     schedulePersistentStateSave("support-ticket-message");
     res.status(201).json({ ticket: sanitizeSupportTicket(ticket), message: created });
   });
@@ -21758,6 +22246,10 @@ async function startServer() {
       crmContactOverrides,
       customerMessages,
       notifications,
+      pushSubscriptions,
+      pushNotifications,
+      pushCampaigns,
+      pushSettings,
       platformCommissionEntries,
       platformAddonSubscriptions,
       platformAddonCharges,
@@ -21868,6 +22360,10 @@ async function startServer() {
       case "crmContactOverrides": crmContactOverrides = value || {}; break;
       case "customerMessages": customerMessages = Array.isArray(value) ? value : []; break;
       case "notifications": notifications = Array.isArray(value) ? value : []; break;
+      case "pushSubscriptions": pushSubscriptions = Array.isArray(value) ? value : []; break;
+      case "pushNotifications": pushNotifications = Array.isArray(value) ? value : []; break;
+      case "pushCampaigns": pushCampaigns = Array.isArray(value) ? value : []; break;
+      case "pushSettings": replaceObject(pushSettings, value); break;
       case "platformCommissionEntries": platformCommissionEntries = Array.isArray(value) ? value : []; break;
       case "platformAddonSubscriptions": platformAddonSubscriptions = Array.isArray(value) ? value : []; break;
       case "platformAddonCharges": platformAddonCharges = Array.isArray(value) ? value : []; break;

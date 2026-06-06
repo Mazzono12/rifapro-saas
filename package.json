@@ -159,6 +159,7 @@
     ,"test:whatsapp-multi-numbers-hard": "node scripts/test-whatsapp-multi-numbers-hard.mjs"
     ,"test:notifications-center-hard": "node scripts/test-notifications-center-hard.mjs"
     ,"test:support-tickets-hard": "node scripts/test-support-tickets-hard.mjs"
+    ,"test:push-pwa-hard": "node scripts/test-push-pwa-hard.mjs"
     ,"test:platform-billing-hybrid-hard": "node scripts/test-platform-billing-hybrid-hard.mjs"
     ,"test:pix-confirmation-safety": "node scripts/test-pix-confirmation-safety.mjs"
     ,"test:asaas-pix-hard": "node scripts/test-asaas-pix-hard.mjs"

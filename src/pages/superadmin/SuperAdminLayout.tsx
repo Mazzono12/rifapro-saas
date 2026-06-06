@@ -73,6 +73,7 @@ function SuperAdminLayoutContent() {
     { name: "Integrações", path: "/superadmin/integracoes", icon: Plug, group: "Ambiente" },
     { name: "WhatsApp Enterprise", path: "/superadmin/whatsapp-enterprise", icon: MessageCircle, group: "Ambiente" },
     { name: "Tickets", path: "/superadmin/tickets", icon: Ticket, group: "Ambiente" },
+    { name: "Push", path: "/superadmin/push", icon: Bell, group: "Ambiente" },
     { name: "Notificações", path: "/superadmin/notificacoes", icon: Bell, group: "Ambiente" },
     { name: "Auditoria", path: "/superadmin/auditoria", icon: FileSearch, group: "Segurança" },
     { name: "Antifraude", path: "/superadmin/antifraude", icon: ShieldAlert, group: "Segurança" }
