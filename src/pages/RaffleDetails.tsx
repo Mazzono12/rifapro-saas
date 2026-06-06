@@ -6,13 +6,16 @@ import {
   Award,
   CheckCircle2,
   ChevronLeft,
+  Clock3,
   Copy,
   Download,
   Gift,
   Headphones,
+  Maximize2,
   Menu,
   Minus,
   Plus,
+  PlayCircle,
   QrCode,
   Radio,
   Send,
@@ -23,6 +26,7 @@ import {
   Ticket,
   Trophy,
   Users,
+  Volume2,
   WalletCards
 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,7 +37,6 @@ import { usePurchasePolling } from "../hooks/usePurchasePolling";
 import { NumberRevealModal } from "../components/NumberRevealModal";
 import { PostPurchaseLootboxModal } from "../components/PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "../components/PixPaymentResultModal";
-import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
 import { GamificationPanel } from "../components/GamificationPanel";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 import { CheckoutCampaignMedia } from "../components/checkout/CheckoutCampaignMedia";
@@ -395,12 +398,12 @@ export function RaffleDetails() {
   if (error || !raffle) return <div className="premium-page min-h-screen px-6 py-28 text-center text-red-200">{error}</div>;
 
   return (
-    <div className="premium-page min-h-screen pb-32 text-white">
+    <div className="premium-page raffle-reference-page min-h-screen pb-32 text-white">
       <div className="premium-ambient" />
       <div className="relative z-10">
         <PremiumRaffleHeader cartCount={tickets} slogan={branding.slogan} />
 
-        <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-3 pt-[calc(env(safe-area-inset-top)+5rem)] sm:px-5 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-7">
+        <main className="raffle-reference-shell mx-auto flex w-full max-w-6xl flex-col gap-5 px-3 pt-[calc(env(safe-area-inset-top)+5rem)] sm:px-5 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-7">
           <section className="space-y-4">
             <HeroCard raffle={raffle} mediaUrl={mediaUrl} mediaType={mediaType} mediaFit={mediaFit} progress={progress} />
             <Link to="/minhas-cotas" className="-mt-2 flex min-h-12 items-center justify-center gap-2 rounded-b-2xl border border-white/10 bg-black/85 text-sm font-black text-white shadow-[0_16px_40px_rgba(0,0,0,0.32)]">
@@ -408,10 +411,13 @@ export function RaffleDetails() {
             </Link>
             {salesDeadline && <CountdownStrip countdown={countdown} expired={Boolean((raffle as any).salesExpired)} />}
             <DrawInfo raffle={raffle} />
+            <PrizeCard raffle={raffle} progress={progress} />
+            <TrustSealRow />
             <PriceImpact price={raffle.price} />
             <PromotionBadges badges={publicPromotions} />
             <PromotionSummaryCard summary={checkoutPreview?.promotionSummary} />
             <GamificationPanel data={gamification} />
+            <NumberGridPreview selected={selectedQuick} onSelect={handlePackageClick} />
             <PromotionalPackages packages={promotionalPackages} selected={selectedQuick} onSelect={handlePackageClick} />
             <QuickGrid selected={selectedQuick} onSelect={handlePackageClick} />
             <ManualSelector tickets={tickets} onChange={setQuantity} />
@@ -569,24 +575,119 @@ function PremiumRaffleHeader({ cartCount, slogan }: { cartCount: number; slogan?
 }
 
 function HeroCard({ raffle, mediaUrl, mediaType, mediaFit: _mediaFit, progress }: { raffle: Raffle; mediaUrl: string; mediaType?: any; mediaFit: "cover" | "contain" | "fill"; progress: number }) {
+  const soldTickets = Math.max(0, Number(raffle.soldTickets || 0));
+  const totalTickets = Math.max(1, Number(raffle.totalTickets || 1));
+  const isVideo = ["video", "bunny"].includes(String(mediaType || "").toLowerCase());
+  const visualLabel = isVideo ? "Assista ao vídeo" : "Banner do sorteio";
   return (
-    <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
-      <StandardRaffleMediaBlock
-        mediaUrl={mediaUrl}
-        mediaType={(mediaType || "image") as any}
-        title={raffle.title}
-        description={raffle.description || (raffle as any).subtitle || "Premio principal"}
-        price={raffle.price}
-        showDescriptionBelow
-        noOverlay
-        progress={progress}
-        soldTickets={raffle.soldTickets}
-        totalTickets={raffle.totalTickets}
-        href={`/raffle/${raffle.id}`}
-        priority
-        className="border-white/10 bg-white/[0.045] shadow-[0_34px_120px_rgba(0,0,0,0.45)]"
-      />
-    </motion.div>
+    <motion.section
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="raffle-premium-hero overflow-hidden border border-[#22C55E]/34 bg-[#101417] shadow-[0_28px_90px_rgba(0,0,0,0.56),0_0_38px_rgba(34,197,94,0.12)]"
+    >
+      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.42fr)]">
+        <Link to={`/raffle/${raffle.id}`} className="relative block min-h-[360px] overflow-hidden bg-[#050607] sm:min-h-[460px] lg:min-h-[560px]">
+          {mediaUrl ? (
+            isVideo ? (
+              <video src={mediaUrl} className="h-full w-full object-cover" autoPlay muted loop playsInline />
+            ) : (
+              <img src={mediaUrl} alt={raffle.title} loading="eager" className="h-full w-full object-cover" />
+            )
+          ) : (
+            <div className="grid h-full min-h-[360px] place-items-center bg-[radial-gradient(circle_at_50%_18%,rgba(34,197,94,0.22),transparent_36%),#050607]">
+              <Trophy className="h-20 w-20 text-[#22C55E]" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/12 to-black/28" />
+          <div className="pointer-events-none absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[#22C55E]/18 to-transparent" />
+          <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/72 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-white backdrop-blur-xl">
+              <PlayCircle className="h-3.5 w-3.5 text-[#22C55E]" /> {visualLabel}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#22C55E]/24 bg-[#22C55E]/12 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#BBF7D0]">
+              <ShieldCheck className="h-3.5 w-3.5" /> Verificado
+            </span>
+          </div>
+          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/74 p-2 backdrop-blur-xl">
+            <div className="flex items-center gap-2">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#22C55E] text-[#050607]">
+                <PlayCircle className="h-5 w-5 fill-current" />
+              </span>
+              <span>
+                <span className="block text-xs font-black uppercase tracking-[0.18em] text-white">{isVideo ? "Vídeo premium" : "Mídia premium"}</span>
+                <span className="block text-[11px] font-semibold text-[#A1A1AA]">Imagem oficial da campanha</span>
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <span className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-[#101417] text-white"><Volume2 className="h-4 w-4" /></span>
+              <span className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-[#101417] text-white"><Maximize2 className="h-4 w-4" /></span>
+            </div>
+          </div>
+        </Link>
+        <div className="raffle-hero-copy flex min-w-0 flex-col justify-center border-t border-white/10 p-4 lg:border-l lg:border-t-0 lg:p-5">
+          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#22C55E]">Sorteio premium</p>
+          <h1 className="mt-3 text-[clamp(2rem,9vw,3.75rem)] font-black uppercase leading-none text-white">{raffle.title}</h1>
+          <p className="mt-3 line-clamp-3 text-sm font-semibold leading-relaxed text-[#D4D4D8]">{raffle.description || "Campanha ativa com cotas disponíveis."}</p>
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <InfoCard label="Cota" value={formatCurrency(raffle.price)} />
+            <InfoCard label="Progresso" value={`${progress.toFixed(0)}%`} />
+            <InfoCard label="Restantes" value={(totalTickets - soldTickets).toLocaleString("pt-BR")} />
+            <InfoCard label="Total" value={totalTickets.toLocaleString("pt-BR")} />
+          </div>
+          <div className="mt-5">
+            <div className="mb-2 flex justify-between text-[11px] font-black uppercase tracking-[0.14em] text-[#A1A1AA]">
+              <span>Cotas vendidas</span>
+              <span>{soldTickets.toLocaleString("pt-BR")} / {totalTickets.toLocaleString("pt-BR")}</span>
+            </div>
+            <div className="h-3 overflow-hidden rounded-full bg-white/10 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
+              <div className="h-full rounded-full bg-gradient-to-r from-[#45E600] to-[#75FF17] shadow-[0_0_26px_rgba(69,230,0,0.72)]" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+          <Link to={`/raffle/${raffle.id}`} className="premium-button mt-6 min-h-14 w-full rounded-xl text-sm uppercase tracking-[0.08em]">
+            Participar agora <ShoppingCart className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+function PrizeCard({ raffle, progress }: { raffle: Raffle; progress: number }) {
+  const remaining = Math.max(0, Number(raffle.totalTickets || 0) - Number(raffle.soldTickets || 0));
+  return (
+    <section className="raffle-prize-card grid gap-4 border border-[#FACC15]/22 bg-[#101417] p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+      <div>
+        <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#FACC15]"><Award className="h-4 w-4" /> Card de premiação</p>
+        <h2 className="mt-2 text-2xl font-black uppercase text-white">{raffle.title}</h2>
+        <p className="mt-2 text-sm font-semibold text-[#A1A1AA]">{remaining.toLocaleString("pt-BR")} números ainda disponíveis para esta campanha.</p>
+      </div>
+      <div className="min-w-[170px] rounded-xl border border-white/10 bg-black/28 p-3">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#A1A1AA]">Vendido</p>
+        <p className="mt-1 text-3xl font-black text-white">{progress.toFixed(0)}%</p>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-[#FACC15]" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TrustSealRow() {
+  const seals = [
+    { icon: ShieldCheck, label: "Compra segura" },
+    { icon: QrCode, label: "PIX automático" },
+    { icon: Radio, label: "Sorteio ao vivo" },
+    { icon: Trophy, label: "Entrega auditável" }
+  ];
+  return (
+    <section className="raffle-trust-seals grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {seals.map(({ icon: Icon, label }) => (
+        <div key={label} className="flex min-h-16 items-center gap-2 rounded-xl border border-white/10 bg-[#101417] px-3 py-2">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#22C55E]/25 bg-[#22C55E]/12 text-[#22C55E]"><Icon className="h-4 w-4" /></span>
+          <span className="text-xs font-black uppercase leading-tight text-white">{label}</span>
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -653,6 +754,36 @@ function PromotionalPackages({ packages, selected, onSelect }: { packages: Array
             <p className="mt-3 text-lg font-black text-[var(--theme-primary)]">{formatCurrency(pack.value)}</p>
             <p className="mt-1 text-xs text-slate-300">{pack.economy}</p>
             <p className="mt-2 rounded-xl bg-black/25 px-2 py-1 text-[11px] font-bold text-amber-100">{pack.bonus}</p>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function NumberGridPreview({ selected, onSelect }: { selected: number; onSelect: (qty: number) => void }) {
+  const previewNumbers = Array.from({ length: 20 }, (_, index) => 12840 + index * 7);
+  const quickSelection = [100, 700, 1800, 3000];
+  return (
+    <section data-raffle-premium="number-grid" className="raffle-number-grid-preview space-y-4 border border-white/10 bg-[#101417] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <SectionTitle eyebrow="Escolha seus números" title="Grid premium de números" compact />
+        <span className="rounded-xl border border-[#22C55E]/24 bg-[#22C55E]/12 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#BBF7D0]">Seleção rápida</span>
+      </div>
+      <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+        {previewNumbers.map((number, index) => {
+          const active = index < Math.min(10, Math.ceil(selected / 300));
+          return (
+            <span key={number} className={cn("grid min-h-10 place-items-center rounded-lg border text-[11px] font-black tabular-nums", active ? "border-[#22C55E] bg-[#22C55E] text-[#050607] shadow-[0_0_22px_rgba(34,197,94,0.34)]" : "border-white/10 bg-black/24 text-[#E4E4E7]")}>
+              {String(number).padStart(6, "0")}
+            </span>
+          );
+        })}
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {quickSelection.map(qty => (
+          <button key={qty} type="button" onClick={() => onSelect(qty)} className={cn("min-h-11 rounded-xl border text-xs font-black uppercase transition active:scale-95", selected === qty ? "border-[#22C55E] bg-[#22C55E] text-[#050607]" : "border-white/10 bg-black/24 text-white")}>
+            +{qty.toLocaleString("pt-BR")}
           </button>
         ))}
       </div>
