@@ -12,6 +12,7 @@ import {
   Globe2,
   LogOut,
   Menu,
+  MessageCircle,
   Palette,
   Plug,
   Search,
@@ -69,6 +70,7 @@ function SuperAdminLayoutContent() {
     { name: "Aparência", path: "/superadmin/aparencia", icon: Palette, group: "Ambiente" },
     { name: "Domínios", path: "/superadmin/dominios", icon: Globe2, group: "Ambiente" },
     { name: "Integrações", path: "/superadmin/integracoes", icon: Plug, group: "Ambiente" },
+    { name: "WhatsApp Enterprise", path: "/superadmin/whatsapp-enterprise", icon: MessageCircle, group: "Ambiente" },
     { name: "Notificações", path: "/superadmin/notificacoes", icon: Bell, group: "Ambiente" },
     { name: "Auditoria", path: "/superadmin/auditoria", icon: FileSearch, group: "Segurança" },
     { name: "Antifraude", path: "/superadmin/antifraude", icon: ShieldAlert, group: "Segurança" }

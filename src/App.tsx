@@ -124,6 +124,7 @@ const SuperAdminLayout = lazy(() => import("./pages/superadmin/SuperAdminLayout"
 const SuperAdminDashboard = lazy(() => import("./pages/superadmin/SuperAdminDashboard").then(module => ({ default: module.SuperAdminDashboard })));
 const SuperAdminClients = lazy(() => import("./pages/superadmin/SuperAdminClients").then(module => ({ default: module.SuperAdminClients })));
 const SuperAdminIntegrations = lazy(() => import("./pages/superadmin/SuperAdminIntegrations").then(module => ({ default: module.SuperAdminIntegrations })));
+const SuperAdminWhatsAppNumbers = lazy(() => import("./pages/superadmin/SuperAdminWhatsAppNumbers").then(module => ({ default: module.SuperAdminWhatsAppNumbers })));
 const SuperAdminDomains = lazy(() => import("./pages/superadmin/SuperAdminDomains").then(module => ({ default: module.SuperAdminDomains })));
 const SuperAdminAudit = lazy(() => import("./pages/superadmin/SuperAdminAudit").then(module => ({ default: module.SuperAdminAudit })));
 const SuperAdminReports = lazy(() => import("./pages/superadmin/SuperAdminReports").then(module => ({ default: module.SuperAdminReports })));
@@ -339,6 +340,7 @@ export default function App() {
                 <Route index element={<SuperAdminDashboard />} />
                 <Route path="clientes" element={<SuperAdminClients />} />
                 <Route path="integracoes" element={<SuperAdminIntegrations />} />
+                <Route path="whatsapp-enterprise" element={<SuperAdminWhatsAppNumbers />} />
                 <Route path="notificacoes" element={<AdminNotifications />} />
                 <Route path="dominios" element={<SuperAdminDomains />} />
                 <Route path="auditoria" element={<SuperAdminAudit />} />
