@@ -16,7 +16,8 @@ import {
   Palette,
   Plug,
   Search,
-  ShieldAlert
+  ShieldAlert,
+  Ticket
 } from "lucide-react";
 import { AdminThemeProvider } from "../../context/admin/AdminThemeContext";
 import { AdminPageTransition } from "../../components/admin/AdminPremium";
@@ -71,6 +72,7 @@ function SuperAdminLayoutContent() {
     { name: "Domínios", path: "/superadmin/dominios", icon: Globe2, group: "Ambiente" },
     { name: "Integrações", path: "/superadmin/integracoes", icon: Plug, group: "Ambiente" },
     { name: "WhatsApp Enterprise", path: "/superadmin/whatsapp-enterprise", icon: MessageCircle, group: "Ambiente" },
+    { name: "Tickets", path: "/superadmin/tickets", icon: Ticket, group: "Ambiente" },
     { name: "Notificações", path: "/superadmin/notificacoes", icon: Bell, group: "Ambiente" },
     { name: "Auditoria", path: "/superadmin/auditoria", icon: FileSearch, group: "Segurança" },
     { name: "Antifraude", path: "/superadmin/antifraude", icon: ShieldAlert, group: "Segurança" }

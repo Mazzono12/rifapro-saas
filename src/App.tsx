@@ -108,6 +108,7 @@ const AdminPromotions = lazy(() => import("./pages/admin/AdminPromotions").then(
 const AdminLiveDraw = lazy(() => import("./pages/admin/AdminLiveDraw").then(module => ({ default: module.AdminLiveDraw })));
 const AdminMessages = lazy(() => import("./pages/admin/AdminMessages").then(module => ({ default: module.AdminMessages })));
 const AdminWhatsAppCenter = lazy(() => import("./pages/admin/AdminWhatsAppCenter").then(module => ({ default: module.AdminWhatsAppCenter })));
+const AdminTickets = lazy(() => import("./pages/admin/AdminTickets").then(module => ({ default: module.AdminTickets })));
 const AdminNotifications = lazy(() => import("./pages/admin/AdminNotifications").then(module => ({ default: module.AdminNotifications })));
 const AdminUsers = lazy(() => import("./pages/admin/AdminCRM").then(module => ({ default: module.AdminUsers })));
 const AdminCRM = lazy(() => import("./pages/admin/AdminCRM").then(module => ({ default: module.AdminCRM })));
@@ -125,6 +126,7 @@ const SuperAdminDashboard = lazy(() => import("./pages/superadmin/SuperAdminDash
 const SuperAdminClients = lazy(() => import("./pages/superadmin/SuperAdminClients").then(module => ({ default: module.SuperAdminClients })));
 const SuperAdminIntegrations = lazy(() => import("./pages/superadmin/SuperAdminIntegrations").then(module => ({ default: module.SuperAdminIntegrations })));
 const SuperAdminWhatsAppNumbers = lazy(() => import("./pages/superadmin/SuperAdminWhatsAppNumbers").then(module => ({ default: module.SuperAdminWhatsAppNumbers })));
+const SuperAdminTickets = lazy(() => import("./pages/superadmin/SuperAdminTickets").then(module => ({ default: module.SuperAdminTickets })));
 const SuperAdminDomains = lazy(() => import("./pages/superadmin/SuperAdminDomains").then(module => ({ default: module.SuperAdminDomains })));
 const SuperAdminAudit = lazy(() => import("./pages/superadmin/SuperAdminAudit").then(module => ({ default: module.SuperAdminAudit })));
 const SuperAdminReports = lazy(() => import("./pages/superadmin/SuperAdminReports").then(module => ({ default: module.SuperAdminReports })));
@@ -319,6 +321,7 @@ export default function App() {
                 <Route path="modalidades" element={adminSection("Modalidades", <AdminModalidades />)} />
                 <Route path="sorteio" element={adminSection("Sorteio Ao Vivo", <AdminLiveDraw />)} />
                 <Route path="mensagens" element={adminSection("Mensagens", <AdminMessages />)} />
+                <Route path="tickets" element={adminSection("Tickets", <AdminTickets />)} />
                 <Route path="whatsapp-center" element={adminSection("Central WhatsApp", <AdminWhatsAppCenter />)} />
                 <Route path="notificacoes" element={adminSection("Notificações", <AdminNotifications />)} />
                 <Route path="relatorios" element={adminSection("Relatórios e Afiliados", <AdminReports />)} />
@@ -341,6 +344,7 @@ export default function App() {
                 <Route path="clientes" element={<SuperAdminClients />} />
                 <Route path="integracoes" element={<SuperAdminIntegrations />} />
                 <Route path="whatsapp-enterprise" element={<SuperAdminWhatsAppNumbers />} />
+                <Route path="tickets" element={<SuperAdminTickets />} />
                 <Route path="notificacoes" element={<AdminNotifications />} />
                 <Route path="dominios" element={<SuperAdminDomains />} />
                 <Route path="auditoria" element={<SuperAdminAudit />} />

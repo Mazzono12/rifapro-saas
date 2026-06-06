@@ -550,6 +550,13 @@ function ContactPanel({ selected, history, note, setNote, saveNote, saveContact 
     );
   }
 
+  const crmSupportTickets = Array.isArray(history?.supportTickets) ? history.supportTickets : [];
+  const supportTicketCounters = {
+    abertos: crmSupportTickets.filter((item: any) => item.status === "open" || item.status === "in_progress").length,
+    pendentes: crmSupportTickets.filter((item: any) => item.status === "pending" || item.status === "waiting_customer").length,
+    resolvidos: crmSupportTickets.filter((item: any) => item.status === "resolved" || item.status === "closed").length
+  };
+
   return (
     <aside className="admin-card p-5">
       <div className="flex items-start gap-4">
@@ -593,6 +600,12 @@ function ContactPanel({ selected, history, note, setNote, saveNote, saveContact 
       </div>
 
       <div className="mt-5 space-y-3">
+        <div className="grid grid-cols-3 gap-2 rounded-2xl border border-[var(--admin-border)] bg-white/[0.03] p-3">
+          <MiniBuyerMetric label="Tickets abertos" value={supportTicketCounters.abertos} />
+          <MiniBuyerMetric label="Pendentes" value={supportTicketCounters.pendentes} />
+          <MiniBuyerMetric label="Resolvidos" value={supportTicketCounters.resolvidos} />
+        </div>
+        <HistoryBlock icon={Ticket} title="Tickets" items={(history?.supportTickets || []).slice(0, 4).map((item: any) => `${item.ticket_number || item.id} · ${item.status} · ${item.subject}`)} />
         <HistoryBlock icon={Ticket} title="Compras" items={(history?.purchases || []).slice(0, 4).map((item: any) => `${item.type} · R$ ${Number(item.amount || 0).toFixed(2)}`)} />
         <HistoryBlock icon={MessageSquare} title="WhatsApp" items={(history?.whatsapp || []).slice(0, 4).map((item: any) => `${item.status} · ${item.template || item.message || item.order_id || "mensagem"}`)} />
         <HistoryBlock icon={Tag} title="Marcadores" items={selected.tags.length ? selected.tags : ["sem marcadores"]} />

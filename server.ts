@@ -1976,6 +1976,49 @@ async function startServer() {
       readByAdmin?: boolean;
     }>;
   };
+  type SupportTicketSource = "whatsapp" | "crm" | "manual" | "email_future";
+  type SupportTicketStatus = "open" | "pending" | "in_progress" | "waiting_customer" | "resolved" | "closed";
+  type SupportTicketPriority = "low" | "medium" | "high" | "urgent";
+  type SupportTicketCategory = "financial" | "technical" | "sales" | "affiliate" | "other";
+  type SupportTicketAuthorType = "customer" | "agent" | "system";
+  type SupportTicketRecord = {
+    id: string;
+    tenant_id: string;
+    ticket_number: string;
+    customer_id: string;
+    contact_id: string;
+    source: SupportTicketSource;
+    subject: string;
+    description: string;
+    status: SupportTicketStatus;
+    priority: SupportTicketPriority;
+    category: SupportTicketCategory;
+    assigned_user_id: string;
+    created_at: string;
+    updated_at: string;
+    resolved_at: string;
+    closed_at: string;
+    sla_due_at: string;
+    whatsapp_conversation_id?: string;
+  };
+  type SupportTicketMessageRecord = {
+    id: string;
+    tenant_id: string;
+    ticket_id: string;
+    author_type: SupportTicketAuthorType;
+    author_id: string;
+    message: string;
+    internal_note: boolean;
+    created_at: string;
+  };
+  type SupportTicketSlaSettingsRecord = {
+    tenant_id: string;
+    low: number;
+    medium: number;
+    high: number;
+    urgent: number;
+    updated_at: string;
+  };
   type CustomerMessage = {
     id: string;
     tenant_id: string;
@@ -2590,6 +2633,9 @@ async function startServer() {
   let affiliateWithdrawals: AffiliateWithdrawal[] = [];
   let passwordResetCodes: PasswordResetCode[] = [];
   let supportTickets: SupportTicket[] = [];
+  let enterpriseSupportTickets: SupportTicketRecord[] = [];
+  let supportTicketMessages: SupportTicketMessageRecord[] = [];
+  const supportTicketSlaSettings: Record<string, SupportTicketSlaSettingsRecord> = {};
   let auditLogs: AuditLog[] = [];
   let paymentWebhookLogs: PaymentWebhookLog[] = [];
   let paymentLogs: PaymentLog[] = [];
@@ -8280,6 +8326,190 @@ async function startServer() {
     return created[0] || null;
   }
 
+  const supportTicketSlaHours: Record<SupportTicketPriority, number> = {
+    low: 48,
+    medium: 24,
+    high: 8,
+    urgent: 2
+  };
+
+  function getSupportTicketSlaSettings(tenantId: string): SupportTicketSlaSettingsRecord {
+    supportTicketSlaSettings[tenantId] ||= {
+      tenant_id: tenantId,
+      ...supportTicketSlaHours,
+      updated_at: new Date().toISOString()
+    };
+    return supportTicketSlaSettings[tenantId];
+  }
+
+  function normalizeSupportTicketStatus(value: unknown): SupportTicketStatus {
+    return ["open", "pending", "in_progress", "waiting_customer", "resolved", "closed"].includes(String(value)) ? String(value) as SupportTicketStatus : "open";
+  }
+
+  function normalizeSupportTicketPriority(value: unknown): SupportTicketPriority {
+    return ["low", "medium", "high", "urgent"].includes(String(value)) ? String(value) as SupportTicketPriority : "medium";
+  }
+
+  function normalizeSupportTicketCategory(value: unknown): SupportTicketCategory {
+    return ["financial", "technical", "sales", "affiliate", "other"].includes(String(value)) ? String(value) as SupportTicketCategory : "other";
+  }
+
+  function normalizeSupportTicketSource(value: unknown): SupportTicketSource {
+    return ["whatsapp", "crm", "manual", "email_future"].includes(String(value)) ? String(value) as SupportTicketSource : "manual";
+  }
+
+  function normalizeSupportTicketAuthorType(value: unknown): SupportTicketAuthorType {
+    return ["customer", "agent", "system"].includes(String(value)) ? String(value) as SupportTicketAuthorType : "agent";
+  }
+
+  function calculateSupportTicketSlaDueAt(tenantId: string, priority: SupportTicketPriority, createdAt = new Date().toISOString()) {
+    const settingsRecord = getSupportTicketSlaSettings(tenantId);
+    return new Date(new Date(createdAt).getTime() + settingsRecord[priority] * 60 * 60 * 1000).toISOString();
+  }
+
+  function nextSupportTicketNumber(tenantId: string) {
+    const year = new Date().getFullYear();
+    let count = enterpriseSupportTickets.filter(ticket => ticket.tenant_id === tenantId).length + 1;
+    let ticketNumber = `TKT-${year}-${String(count).padStart(5, "0")}`;
+    while (enterpriseSupportTickets.some(ticket => ticket.tenant_id === tenantId && ticket.ticket_number === ticketNumber)) {
+      count += 1;
+      ticketNumber = `TKT-${year}-${String(count).padStart(5, "0")}`;
+    }
+    return ticketNumber;
+  }
+
+  function sanitizeSupportTicket(ticket: SupportTicketRecord) {
+    const messages = supportTicketMessages
+      .filter(message => message.tenant_id === ticket.tenant_id && message.ticket_id === ticket.id)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    return {
+      ...ticket,
+      messages,
+      overdue: ticket.status !== "resolved" && ticket.status !== "closed" && Boolean(ticket.sla_due_at) && new Date(ticket.sla_due_at).getTime() < Date.now()
+    };
+  }
+
+  function notifySupportTicketEvent(ticket: SupportTicketRecord, event: "ticket_created" | "ticket_assigned" | "ticket_overdue" | "ticket_resolved" | "ticket_closed") {
+    const titles: Record<typeof event, string> = {
+      ticket_created: "Ticket criado",
+      ticket_assigned: "Ticket atribuido",
+      ticket_overdue: "Ticket com SLA vencido",
+      ticket_resolved: "Ticket resolvido",
+      ticket_closed: "Ticket fechado"
+    };
+    const severity: NotificationSeverity = event === "ticket_overdue" ? "error" : event === "ticket_created" ? "warning" : "info";
+    notifyTenantAdmins({
+      tenantId: ticket.tenant_id,
+      type: event,
+      title: titles[event],
+      message: `${ticket.ticket_number} - ${ticket.subject}`,
+      severity,
+      actionUrl: `/admin/tickets?id=${ticket.id}`,
+      entityType: "support_ticket",
+      entityId: ticket.id,
+      dedupeKey: event === "ticket_overdue" ? `${event}:${ticket.id}` : undefined
+    });
+  }
+
+  function appendSupportTicketMessage(ticket: SupportTicketRecord, input: { authorType: SupportTicketAuthorType; authorId?: string; message: string; internalNote?: boolean }) {
+    const message: SupportTicketMessageRecord = {
+      id: createPublicId("STM_"),
+      tenant_id: ticket.tenant_id,
+      ticket_id: ticket.id,
+      author_type: input.authorType,
+      author_id: String(input.authorId || ""),
+      message: String(input.message || "").trim().slice(0, 4000),
+      internal_note: Boolean(input.internalNote),
+      created_at: new Date().toISOString()
+    };
+    if (message.message) supportTicketMessages.unshift(message);
+    return message;
+  }
+
+  function createSupportTicketRecord(req: express.Request, input: {
+    tenantId?: string;
+    customerId?: string;
+    contactId?: string;
+    source?: SupportTicketSource;
+    subject: string;
+    description: string;
+    priority?: SupportTicketPriority;
+    category?: SupportTicketCategory;
+    assignedUserId?: string;
+    whatsappConversationId?: string;
+  }) {
+    const tenantId = input.tenantId || resolveRequestTenantId(req);
+    const priority = normalizeSupportTicketPriority(input.priority);
+    const now = new Date().toISOString();
+    const ticket: SupportTicketRecord = {
+      id: createPublicId("TKT_"),
+      tenant_id: tenantId,
+      ticket_number: nextSupportTicketNumber(tenantId),
+      customer_id: String(input.customerId || ""),
+      contact_id: String(input.contactId || ""),
+      source: normalizeSupportTicketSource(input.source),
+      subject: String(input.subject || "Novo chamado").trim().slice(0, 180) || "Novo chamado",
+      description: String(input.description || "").trim().slice(0, 4000),
+      status: "open",
+      priority,
+      category: normalizeSupportTicketCategory(input.category),
+      assigned_user_id: String(input.assignedUserId || ""),
+      created_at: now,
+      updated_at: now,
+      resolved_at: "",
+      closed_at: "",
+      sla_due_at: calculateSupportTicketSlaDueAt(tenantId, priority, now),
+      whatsapp_conversation_id: input.whatsappConversationId || ""
+    };
+    enterpriseSupportTickets.unshift(ticket);
+    appendSupportTicketMessage(ticket, { authorType: "system", message: "Ticket criado com SLA Enterprise calculado automaticamente." });
+    if (ticket.description) appendSupportTicketMessage(ticket, { authorType: ticket.source === "whatsapp" ? "customer" : "agent", authorId: getAuthSession(req)?.sub || ticket.customer_id, message: ticket.description });
+    notifySupportTicketEvent(ticket, "ticket_created");
+    schedulePersistentStateSave("support-ticket-created");
+    return ticket;
+  }
+
+  function markOverdueSupportTickets(tenantId?: string) {
+    const now = Date.now();
+    enterpriseSupportTickets
+      .filter(ticket => (!tenantId || ticket.tenant_id === tenantId) && !["resolved", "closed"].includes(ticket.status) && ticket.sla_due_at && new Date(ticket.sla_due_at).getTime() < now)
+      .forEach(ticket => notifySupportTicketEvent(ticket, "ticket_overdue"));
+  }
+
+  function buildSupportTicketsDashboard(tickets: SupportTicketRecord[]) {
+    markOverdueSupportTickets();
+    const visible = tickets.map(sanitizeSupportTicket);
+    const closedOrResolved = visible.filter(ticket => ticket.status === "resolved" || ticket.status === "closed");
+    const resolutionMs = closedOrResolved
+      .map(ticket => new Date(ticket.resolved_at || ticket.closed_at || ticket.updated_at).getTime() - new Date(ticket.created_at).getTime())
+      .filter(value => Number.isFinite(value) && value >= 0);
+    const firstResponseMs = visible
+      .map(ticket => {
+        const firstAgent = ticket.messages.find(message => message.author_type === "agent" && !message.internal_note);
+        return firstAgent ? new Date(firstAgent.created_at).getTime() - new Date(ticket.created_at).getTime() : null;
+      })
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0);
+    const byAgent = Object.values(visible.reduce<Record<string, { assignedUserId: string; open: number; resolved: number; overdue: number }>>((acc, ticket) => {
+      const key = ticket.assigned_user_id || "unassigned";
+      acc[key] ||= { assignedUserId: key, open: 0, resolved: 0, overdue: 0 };
+      if (ticket.status === "resolved" || ticket.status === "closed") acc[key].resolved += 1;
+      else acc[key].open += 1;
+      if (ticket.overdue) acc[key].overdue += 1;
+      return acc;
+    }, {}));
+    const average = (items: number[]) => items.length ? Math.round(items.reduce((sum, item) => sum + item, 0) / items.length / 60000) : 0;
+    return {
+      open: visible.filter(ticket => !["resolved", "closed"].includes(ticket.status)).length,
+      resolved: visible.filter(ticket => ticket.status === "resolved").length,
+      overdue: visible.filter(ticket => ticket.overdue).length,
+      averageFirstResponseMinutes: average(firstResponseMs),
+      averageResolutionMinutes: average(resolutionMs),
+      byAgent
+    };
+  }
+
+  setInterval(() => markOverdueSupportTickets(), 15 * 60 * 1000).unref?.();
+
   const platformAddonCatalog: Array<{ key: PlatformAddonKey; label: string; defaultMonthlyPrice: number }> = [
     { key: "whatsapp_advanced", label: "WhatsApp avancado", defaultMonthlyPrice: 67 },
     { key: "whatsapp_bulk", label: "Disparos WhatsApp", defaultMonthlyPrice: 97 },
@@ -11098,6 +11328,201 @@ async function startServer() {
     res.send(rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n"));
   });
 
+  app.get("/api/admin/tickets", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    markOverdueSupportTickets(tenantId);
+    const status = String(req.query.status || "");
+    const priority = String(req.query.priority || "");
+    const category = String(req.query.category || "");
+    const assignedUserId = String(req.query.assignedUserId || req.query.assigned_user_id || "");
+    const tickets = enterpriseSupportTickets
+      .filter(ticket => adminCanAccessTenant(req, ticket.tenant_id))
+      .filter(ticket => normalizeAuthRole(getAuthSession(req)?.role) === "superadmin" || ticket.tenant_id === tenantId)
+      .filter(ticket => !status || ticket.status === status)
+      .filter(ticket => !priority || ticket.priority === priority)
+      .filter(ticket => !category || ticket.category === category)
+      .filter(ticket => !assignedUserId || ticket.assigned_user_id === assignedUserId)
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+      .map(sanitizeSupportTicket);
+    res.json({ tickets });
+  });
+
+  app.post("/api/admin/tickets", (req, res) => {
+    const ticket = createSupportTicketRecord(req, {
+      customerId: String(req.body.customer_id || req.body.customerId || ""),
+      contactId: String(req.body.contact_id || req.body.contactId || ""),
+      source: normalizeSupportTicketSource(req.body.source || "manual"),
+      subject: String(req.body.subject || ""),
+      description: String(req.body.description || req.body.message || ""),
+      priority: normalizeSupportTicketPriority(req.body.priority),
+      category: normalizeSupportTicketCategory(req.body.category),
+      assignedUserId: String(req.body.assigned_user_id || req.body.assignedUserId || "")
+    });
+    res.status(201).json({ ticket: sanitizeSupportTicket(ticket) });
+  });
+
+  app.get("/api/admin/tickets/dashboard", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const tickets = enterpriseSupportTickets.filter(ticket => adminCanAccessTenant(req, ticket.tenant_id) && (normalizeAuthRole(getAuthSession(req)?.role) === "superadmin" || ticket.tenant_id === tenantId));
+    res.json(buildSupportTicketsDashboard(tickets));
+  });
+
+  app.get("/api/admin/tickets/search", (req, res) => {
+    const raffleId = String(req.query.raffleId || "");
+    const number = Number(req.query.number);
+    const raffle = raffles.find(r => r.id === raffleId && adminCanAccessTenant(req, r.tenant_id));
+    if (!raffle || !Number.isInteger(number)) {
+      res.status(400).json({ error: "Informe rifa e numero validos" });
+      return;
+    }
+    const purchase = purchases.find(p => p.tenant_id === raffle.tenant_id && p.raffleId === raffleId && p.numeros.includes(number));
+    if (!purchase) {
+      res.json({ status: "available", raffleId, number, raffle: sanitizeRaffleForAdmin(raffle) });
+      return;
+    }
+    res.json({
+      status: purchase.status === "paid" ? "sold" : "reserved",
+      raffleId,
+      number,
+      raffle: sanitizeRaffleForAdmin(raffle),
+      purchase,
+      customer: purchase.customer
+    });
+  });
+
+  app.get("/api/admin/tickets/:id", (req, res) => {
+    const ticket = enterpriseSupportTickets.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!ticket) return res.status(404).json({ error: "Ticket nao encontrado" });
+    res.json({ ticket: sanitizeSupportTicket(ticket) });
+  });
+
+  app.put("/api/admin/tickets/:id", (req, res) => {
+    const ticket = enterpriseSupportTickets.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!ticket) return res.status(404).json({ error: "Ticket nao encontrado" });
+    const previousAssigned = ticket.assigned_user_id;
+    ticket.subject = req.body.subject !== undefined ? String(req.body.subject).trim().slice(0, 180) : ticket.subject;
+    ticket.description = req.body.description !== undefined ? String(req.body.description).trim().slice(0, 4000) : ticket.description;
+    ticket.status = req.body.status !== undefined ? normalizeSupportTicketStatus(req.body.status) : ticket.status;
+    ticket.priority = req.body.priority !== undefined ? normalizeSupportTicketPriority(req.body.priority) : ticket.priority;
+    ticket.category = req.body.category !== undefined ? normalizeSupportTicketCategory(req.body.category) : ticket.category;
+    ticket.assigned_user_id = req.body.assigned_user_id !== undefined || req.body.assignedUserId !== undefined ? String(req.body.assigned_user_id || req.body.assignedUserId || "") : ticket.assigned_user_id;
+    ticket.updated_at = new Date().toISOString();
+    if (ticket.status === "resolved" && !ticket.resolved_at) ticket.resolved_at = ticket.updated_at;
+    if (ticket.status === "closed" && !ticket.closed_at) ticket.closed_at = ticket.updated_at;
+    if (previousAssigned !== ticket.assigned_user_id && ticket.assigned_user_id) notifySupportTicketEvent(ticket, "ticket_assigned");
+    schedulePersistentStateSave("support-ticket-updated");
+    res.json({ ticket: sanitizeSupportTicket(ticket) });
+  });
+
+  app.post("/api/admin/tickets/:id/messages", (req, res) => {
+    const ticket = enterpriseSupportTickets.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!ticket) return res.status(404).json({ error: "Ticket nao encontrado" });
+    const message = String(req.body.message || "").trim();
+    if (!message) return res.status(400).json({ error: "Mensagem obrigatoria" });
+    const created = appendSupportTicketMessage(ticket, {
+      authorType: normalizeSupportTicketAuthorType(req.body.author_type || req.body.authorType || "agent"),
+      authorId: String(req.body.author_id || getAuthSession(req)?.sub || ""),
+      message,
+      internalNote: Boolean(req.body.internal_note || req.body.internalNote)
+    });
+    ticket.updated_at = created.created_at;
+    if (created.author_type === "customer" && ticket.status === "waiting_customer") ticket.status = "open";
+    schedulePersistentStateSave("support-ticket-message");
+    res.status(201).json({ ticket: sanitizeSupportTicket(ticket), message: created });
+  });
+
+  app.post("/api/admin/tickets/:id/assign", (req, res) => {
+    const ticket = enterpriseSupportTickets.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!ticket) return res.status(404).json({ error: "Ticket nao encontrado" });
+    ticket.assigned_user_id = String(req.body.assigned_user_id || req.body.assignedUserId || getAuthSession(req)?.sub || "");
+    ticket.status = ticket.status === "open" || ticket.status === "pending" ? "in_progress" : ticket.status;
+    ticket.updated_at = new Date().toISOString();
+    appendSupportTicketMessage(ticket, { authorType: "system", message: `Ticket atribuido para ${ticket.assigned_user_id || "responsavel nao informado"}.` });
+    notifySupportTicketEvent(ticket, "ticket_assigned");
+    schedulePersistentStateSave("support-ticket-assigned");
+    res.json({ ticket: sanitizeSupportTicket(ticket) });
+  });
+
+  app.post("/api/admin/tickets/:id/resolve", (req, res) => {
+    const ticket = enterpriseSupportTickets.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!ticket) return res.status(404).json({ error: "Ticket nao encontrado" });
+    const now = new Date().toISOString();
+    ticket.status = "resolved";
+    ticket.resolved_at = now;
+    ticket.updated_at = now;
+    appendSupportTicketMessage(ticket, { authorType: "system", message: String(req.body.message || "Ticket resolvido.") });
+    notifySupportTicketEvent(ticket, "ticket_resolved");
+    schedulePersistentStateSave("support-ticket-resolved");
+    res.json({ ticket: sanitizeSupportTicket(ticket) });
+  });
+
+  app.post("/api/admin/tickets/:id/close", (req, res) => {
+    const ticket = enterpriseSupportTickets.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!ticket) return res.status(404).json({ error: "Ticket nao encontrado" });
+    const now = new Date().toISOString();
+    ticket.status = "closed";
+    ticket.closed_at = now;
+    ticket.updated_at = now;
+    appendSupportTicketMessage(ticket, { authorType: "system", message: String(req.body.message || "Ticket fechado.") });
+    notifySupportTicketEvent(ticket, "ticket_closed");
+    schedulePersistentStateSave("support-ticket-closed");
+    res.json({ ticket: sanitizeSupportTicket(ticket) });
+  });
+
+  app.post("/api/admin/tickets/from-whatsapp", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const conversationId = String(req.body.conversationId || req.body.conversation_id || "");
+    const conversation = whatsappConversations.find(item => item.id === conversationId && item.tenantId === tenantId);
+    if (!conversation) return res.status(404).json({ error: "Conversa WhatsApp nao encontrada" });
+    const contact = whatsappContacts.find(item => item.id === conversation.contactId && item.tenantId === tenantId);
+    const existing = enterpriseSupportTickets.find(ticket => ticket.tenant_id === tenantId && ticket.whatsapp_conversation_id === conversation.id && ticket.status !== "closed");
+    if (existing) return res.json({ ticket: sanitizeSupportTicket(existing), existing: true });
+    const history = whatsappConversationMessages
+      .filter(message => message.tenantId === tenantId && message.conversationId === conversation.id)
+      .sort((a, b) => String(a.receivedAt || a.sentAt || "").localeCompare(String(b.receivedAt || b.sentAt || "")))
+      .map(message => `${message.direction}: ${message.body || message.type}`)
+      .join("\n")
+      .slice(0, 3500);
+    const ticket = createSupportTicketRecord(req, {
+      tenantId,
+      customerId: contact?.customerId || "",
+      contactId: contact?.id || conversation.contactId || "",
+      source: "whatsapp",
+      subject: String(req.body.subject || `WhatsApp - ${contact?.displayName || conversation.phone}`),
+      description: String(req.body.description || history || "Conversa WhatsApp convertida em ticket."),
+      priority: normalizeSupportTicketPriority(req.body.priority),
+      category: normalizeSupportTicketCategory(req.body.category),
+      assignedUserId: conversation.assignedUserId || "",
+      whatsappConversationId: conversation.id
+    });
+    appendSupportTicketMessage(ticket, { authorType: "system", message: "Historico da conversa WhatsApp vinculado ao ticket." });
+    res.status(201).json({ ticket: sanitizeSupportTicket(ticket) });
+  });
+
+  app.get("/api/superadmin/tickets", (req, res) => {
+    markOverdueSupportTickets();
+    const tickets = enterpriseSupportTickets
+      .filter(ticket => adminCanAccessTenant(req, ticket.tenant_id))
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+      .map(ticket => ({ ...sanitizeSupportTicket(ticket), tenant: buildTenantSummary(tenants.find(tenant => tenant.id === ticket.tenant_id) || tenants.find(tenant => tenant.id === legacyTenantId)!) }));
+    res.json({ tickets });
+  });
+
+  app.get("/api/superadmin/tickets/dashboard", (req, res) => {
+    const tickets = enterpriseSupportTickets.filter(ticket => adminCanAccessTenant(req, ticket.tenant_id));
+    const dashboard = buildSupportTicketsDashboard(tickets);
+    const byTenant = Object.values(tickets.reduce<Record<string, { tenantId: string; tenantName: string; open: number; overdue: number; resolved: number }>>((acc, ticket) => {
+      const tenant = tenants.find(item => item.id === ticket.tenant_id);
+      acc[ticket.tenant_id] ||= { tenantId: ticket.tenant_id, tenantName: tenant?.nome || ticket.tenant_id, open: 0, overdue: 0, resolved: 0 };
+      const safe = sanitizeSupportTicket(ticket);
+      if (safe.status === "resolved" || safe.status === "closed") acc[ticket.tenant_id].resolved += 1;
+      else acc[ticket.tenant_id].open += 1;
+      if (safe.overdue) acc[ticket.tenant_id].overdue += 1;
+      return acc;
+    }, {}));
+    res.json({ ...dashboard, byTenant });
+  });
+
   app.get("/api/admin/messages", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     res.json(scoped(customerMessages, req).map(message => ({
@@ -11427,7 +11852,7 @@ async function startServer() {
   function buildCrmContactHistory(contact: CrmContactRecord, req: express.Request) {
     const customer = contact.customer_id ? Object.values(customersByPhone).find(item => item.id === contact.customer_id && adminCanAccessTenant(req, item.tenant_id)) : undefined;
     if (!customer) {
-      return { purchases: [], tickets: [], whatsapp: [], affiliate: null, wallet: [], notes: contact.notes ? [{ body: contact.notes, created_at: contact.updated_at }] : [], audit: [] };
+      return { purchases: [], tickets: [], supportTickets: enterpriseSupportTickets.filter(ticket => ticket.tenant_id === contact.tenant_id && (ticket.contact_id === contact.id || ticket.customer_id === contact.customer_id)).map(sanitizeSupportTicket), whatsapp: [], affiliate: null, wallet: [], notes: contact.notes ? [{ body: contact.notes, created_at: contact.updated_at }] : [], audit: [] };
     }
     return {
       purchases: getCustomerPaidActivity(customer),
@@ -11436,6 +11861,7 @@ async function startServer() {
         ...numberModePurchases.filter(purchase => purchase.tenant_id === customer.tenant_id && purchase.customer.id === customer.id).flatMap(purchase => purchase.numbers.map(number => ({ order_id: purchase.id, number, type: purchase.mode }))),
         ...fazendinhaCompras.filter(purchase => purchase.tenant_id === customer.tenant_id && purchase.usuarioId === customer.id).flatMap(purchase => purchase.numeros.map(number => ({ order_id: purchase.id, number, type: "fazendinha" })))
       ],
+      supportTickets: enterpriseSupportTickets.filter(ticket => ticket.tenant_id === customer.tenant_id && (ticket.customer_id === customer.id || ticket.contact_id === contact.id)).map(sanitizeSupportTicket),
       whatsapp: whatsappMessageQueue.filter(message => message.tenant_id === customer.tenant_id && message.customer_id === customer.id).map(message => ({ ...message, phone: maskPhone(message.phone) })),
       affiliate: getAffiliateForCustomer(customer) || null,
       wallet: walletLedger.filter(item => item.tenant_id === customer.tenant_id && item.customer_id === customer.id),
@@ -21339,6 +21765,9 @@ async function startServer() {
       affiliateWithdrawals,
       passwordResetCodes,
       supportTickets,
+      enterpriseSupportTickets,
+      supportTicketMessages,
+      supportTicketSlaSettings,
       auditLogs,
       auditEventLedger,
       ticketAdjustments,
@@ -21446,6 +21875,9 @@ async function startServer() {
       case "affiliateWithdrawals": affiliateWithdrawals = Array.isArray(value) ? value : []; break;
       case "passwordResetCodes": passwordResetCodes = Array.isArray(value) ? value : []; break;
       case "supportTickets": supportTickets = Array.isArray(value) ? value : []; break;
+      case "enterpriseSupportTickets": enterpriseSupportTickets = Array.isArray(value) ? value : []; break;
+      case "supportTicketMessages": supportTicketMessages = Array.isArray(value) ? value : []; break;
+      case "supportTicketSlaSettings": replaceObject(supportTicketSlaSettings, value); break;
       case "auditLogs": auditLogs = Array.isArray(value) ? value : []; break;
       case "auditEventLedger": auditEventLedger = Array.isArray(value) ? value : []; break;
       case "ticketAdjustments": ticketAdjustments = Array.isArray(value) ? value : []; break;

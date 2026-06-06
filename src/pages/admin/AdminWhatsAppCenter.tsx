@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Ban, BarChart3, CheckCircle2, Clock3, DollarSign, Eye, FileText, ListChecks, Megaphone, MessageCircle, Phone, Play, RefreshCw, Search, Send, StickyNote, TrendingUp, UserPlus, Users, X } from "lucide-react";
+import { AlertTriangle, Ban, BarChart3, CheckCircle2, Clock3, DollarSign, Eye, FileText, ListChecks, Megaphone, MessageCircle, Phone, Play, RefreshCw, Search, Send, StickyNote, Ticket as TicketIcon, TrendingUp, UserPlus, Users, X } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type Contact = {
@@ -243,6 +243,7 @@ export function AdminWhatsAppCenter() {
   const [sendingTemplate, setSendingTemplate] = useState(false);
   const [assignedUserId, setAssignedUserId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [convertingTicket, setConvertingTicket] = useState(false);
 
   async function loadConversations(nextFilter = filter, nextQuery = query) {
     const params = new URLSearchParams();
@@ -350,6 +351,28 @@ export function AdminWhatsAppCenter() {
     }
     setReply("");
     await loadConversation(activeConversation.id);
+  }
+
+  async function convertConversationToTicket() {
+    if (!activeConversation) return;
+    setConvertingTicket(true);
+    const response = await fetch("/api/admin/tickets/from-whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        conversationId: activeConversation.id,
+        subject: `WhatsApp - ${contact?.displayName || activeConversation.contact?.displayName || activeConversation.phoneMasked || activeConversation.phone}`,
+        priority: "medium",
+        category: "other"
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    setConvertingTicket(false);
+    if (!response.ok) {
+      setReplyError(data.error || "Falha ao converter conversa em ticket");
+      return;
+    }
+    window.location.href = `/admin/tickets?id=${data.ticket?.id || ""}`;
   }
 
   function templateText(template: Template | null) {
@@ -491,6 +514,9 @@ export function AdminWhatsAppCenter() {
                       <UserPlus className="h-4 w-4" />
                     </button>
                   </div>
+                  <button type="button" onClick={() => void convertConversationToTicket()} disabled={convertingTicket} className="admin-button-secondary">
+                    <TicketIcon className="h-4 w-4" /> Converter em Ticket
+                  </button>
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">

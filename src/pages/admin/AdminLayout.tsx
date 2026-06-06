@@ -117,6 +117,7 @@ function AdminLayoutContent() {
     { name: "Promoções", path: "/admin/promocoes", icon: Zap, group: "Crescimento" },
     { name: "Afiliados", path: "/admin/relatorios", icon: FileBarChart, group: "Crescimento" },
     { name: "Mensagens", path: "/admin/mensagens", icon: MessageSquare, group: "Crescimento" },
+    { name: "Tickets", path: "/admin/tickets", icon: Ticket, group: "Crescimento" },
     { name: "Central WhatsApp", path: "/admin/whatsapp-center", icon: MessageSquare, group: "Crescimento" },
     { name: "Notificações", path: "/admin/notificacoes", icon: Activity, group: "Crescimento" },
     { name: "Ganhadores", path: "/admin/ganhadores", icon: Trophy, group: "Crescimento" },
