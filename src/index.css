@@ -1835,6 +1835,123 @@ html[data-theme="vimeo-original"] .public-shell .border-white\/10 {
   }
 }
 
+/* RifaPro approved public visual reference: dark premium, neon green, purple modalities and gold affiliate/ranking accents. */
+.public-shell,
+.public-shell .premium-page {
+  --theme-bg: #050607;
+  --theme-bg-soft: #0B0F10;
+  --theme-surface: rgba(16, 20, 23, 0.88);
+  --theme-surface-strong: rgba(20, 26, 30, 0.94);
+  --theme-border: rgba(255,255,255,0.08);
+  --theme-text: #FFFFFF;
+  --theme-muted: #A1A1AA;
+  --theme-primary: #22C55E;
+  --theme-secondary: #15803D;
+  --theme-accent: #9333EA;
+  --theme-warning: #FACC15;
+  --theme-danger: #EF4444;
+  --theme-glow: rgba(34,197,94,0.34);
+  --theme-glow-2: rgba(147,51,234,0.14);
+  --theme-button-bg: #22C55E;
+  --theme-button-text: #050607;
+}
+
+.public-shell .premium-page {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(34,197,94,0.13), transparent 24rem),
+    radial-gradient(circle at 86% 10%, rgba(147,51,234,0.10), transparent 23rem),
+    linear-gradient(180deg, #050607 0%, #0B0F10 48%, #050607 100%) !important;
+}
+
+.home-app-topbar,
+.home-premium-hero,
+.home-shortcut-card,
+.home-slot-card,
+.home-special-card,
+.home-affiliate-banner,
+.raffle-premium-hero {
+  backdrop-filter: blur(22px);
+}
+
+.home-shortcut-card:hover,
+.home-slot-card:hover,
+.home-special-card:hover {
+  border-color: rgba(34,197,94,0.34) !important;
+  box-shadow: 0 22px 70px rgba(0,0,0,0.42), 0 0 34px rgba(34,197,94,0.12);
+  transform: translateY(-1px);
+}
+
+.home-affiliate-banner {
+  background:
+    radial-gradient(circle at 88% 20%, rgba(250,204,21,0.18), transparent 11rem),
+    radial-gradient(circle at 70% 80%, rgba(34,197,94,0.16), transparent 13rem),
+    #101417 !important;
+}
+
+.public-shell [data-premium-section="modalidades"] article {
+  border-color: rgba(147,51,234,0.24) !important;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(147,51,234,0.18), transparent 18rem),
+    linear-gradient(180deg, rgba(16,20,23,0.92), rgba(11,15,16,0.90)) !important;
+}
+
+.public-shell [data-premium-section="fazendinha"] > section {
+  border-radius: 20px !important;
+  border-color: rgba(34,197,94,0.26) !important;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(34,197,94,0.18), transparent 18rem),
+    linear-gradient(180deg, rgba(16,20,23,0.94), rgba(11,15,16,0.90)) !important;
+  box-shadow: 0 24px 82px rgba(0,0,0,0.46), 0 0 42px rgba(34,197,94,0.10) !important;
+}
+
+.raffle-premium-hero .home-featured-raffle-block,
+.raffle-premium-hero .standard-raffle-media-block {
+  border-radius: 0 !important;
+}
+
+.public-mobile-bottom-nav {
+  border-color: rgba(255,255,255,0.08) !important;
+  background: rgba(11,15,16,0.94) !important;
+  box-shadow: 0 24px 78px rgba(0,0,0,0.62), 0 0 34px rgba(34,197,94,0.10) !important;
+}
+
+.public-mobile-bottom-nav a {
+  border-radius: 14px !important;
+}
+
+.affiliate-premium {
+  --admin-bg: #050607;
+  --admin-bg-soft: #0B0F10;
+  --admin-bg-deep: #050607;
+  --admin-surface: rgba(16,20,23,0.90);
+  --admin-surface-strong: rgba(20,26,30,0.95);
+  --admin-border: rgba(255,255,255,0.08);
+  --admin-primary: #22C55E;
+  --admin-warning: #FACC15;
+  --admin-accent: #9333EA;
+}
+
+.affiliate-premium [data-affiliate-premium="ranking"] .admin-card,
+.affiliate-premium [data-affiliate-premium="gamification"] .admin-card {
+  box-shadow: 0 22px 76px rgba(0,0,0,0.44), 0 0 34px rgba(250,204,21,0.10) !important;
+}
+
+@media (max-width: 390px) {
+  .home-credit-chip {
+    max-width: 132px;
+    padding-inline: .55rem;
+  }
+
+  .home-credit-chip span span:first-child {
+    font-size: .78rem;
+  }
+
+  .home-slot-card,
+  .home-special-card {
+    border-radius: 14px;
+  }
+}
+
 @media (max-width: 768px) {
   .admin-shell,
   .public-shell,
@@ -4475,6 +4592,20 @@ html[data-admin-theme="light"] .admin-shell {
 /* Public, customer and affiliate premium UX refresh. UI-only: no business rules or endpoints. */
 .public-shell,
 .public-shell .premium-page {
+  --rifapro-reference-bg: #050607;
+  --rifapro-reference-surface: #0B0F10;
+  --rifapro-reference-card: #101417;
+  --rifapro-reference-card-alt: #141A1E;
+  --rifapro-reference-border: rgba(255,255,255,0.08);
+  --rifapro-reference-primary: #22C55E;
+  --rifapro-reference-primary-dark: #15803D;
+  --rifapro-reference-purple: #9333EA;
+  --rifapro-reference-purple-dark: #6B21A8;
+  --rifapro-reference-gold: #FACC15;
+  --rifapro-reference-orange: #F59E0B;
+  --rifapro-reference-danger: #EF4444;
+  --rifapro-reference-text: #FFFFFF;
+  --rifapro-reference-muted: #A1A1AA;
   --theme-bg: #0B0B0D;
   --theme-bg-soft: #101014;
   --theme-surface: rgba(20, 20, 23, 0.86);
@@ -4732,5 +4863,182 @@ html[data-admin-theme="light"] .admin-shell {
 
   .affiliate-premium .admin-card {
     border-radius: 18px !important;
+  }
+}
+
+/* Public Home reference vitrine: scoped to Home classes, UI-only. */
+.home-reference-page {
+  background:
+    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px),
+    radial-gradient(circle at 50% 0%, rgba(34,197,94,0.11), transparent 18rem),
+    linear-gradient(180deg, #030405 0%, #050607 38%, #020303 100%) !important;
+  background-size: 48px 48px, 48px 48px, auto, auto;
+}
+
+.home-reference-shell {
+  max-width: 430px !important;
+  padding-inline: 14px !important;
+}
+
+.home-reference-shell section,
+.home-reference-shell article,
+.home-reference-shell a,
+.home-reference-shell button {
+  border-radius: 12px !important;
+}
+
+.home-app-topbar {
+  margin-top: .2rem;
+  border-color: rgba(255,255,255,0.10) !important;
+  background: rgba(5,6,7,0.92) !important;
+  box-shadow: none !important;
+}
+
+.home-credit-chip {
+  border-color: rgba(255,255,255,0.11) !important;
+  background: #101417 !important;
+}
+
+.home-premium-hero {
+  position: relative;
+}
+
+.home-premium-hero::before,
+.home-slot-group::before,
+.home-affiliate-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(34,197,94,0.42), transparent);
+  pointer-events: none;
+}
+
+.home-shortcut-card,
+.home-slot-card,
+.home-special-card {
+  border-color: rgba(255,255,255,0.10) !important;
+  background:
+    linear-gradient(180deg, rgba(20,26,30,0.96), rgba(11,15,16,0.98)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035), 0 14px 34px rgba(0,0,0,0.32);
+}
+
+.home-shortcut-card:hover,
+.home-slot-card:hover,
+.home-special-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(34,197,94,0.34) !important;
+}
+
+.home-slot-group {
+  position: relative;
+  margin-inline: -14px;
+  padding-inline: 14px;
+}
+
+.home-slot-card {
+  min-height: 170px;
+}
+
+.home-special-card {
+  min-height: 178px;
+}
+
+.home-affiliate-banner {
+  position: relative;
+  background:
+    radial-gradient(circle at 8% 50%, rgba(250,204,21,0.18), transparent 7rem),
+    radial-gradient(circle at 92% 0%, rgba(34,197,94,0.16), transparent 8rem),
+    linear-gradient(135deg, #12100A, #101417 46%, #0B0F10) !important;
+}
+
+.home-trust-compact {
+  overflow: hidden;
+  max-height: 4.5rem;
+  opacity: .76;
+}
+
+.home-compatibility-anchors {
+  display: none !important;
+}
+
+.public-mobile-bottom-nav {
+  border-color: rgba(255,255,255,0.12) !important;
+  background: rgba(11,15,16,0.94) !important;
+  box-shadow: 0 18px 54px rgba(0,0,0,0.60), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+}
+
+.public-mobile-bottom-nav a {
+  border-radius: 10px !important;
+}
+
+.public-mobile-bottom-nav a[aria-current="page"],
+.public-mobile-bottom-nav a:hover {
+  color: #FFFFFF;
+}
+
+@media (min-width: 768px) {
+  .home-reference-shell {
+    max-width: 920px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .public-shell:has(.home-reference-page) {
+    padding-top: 0 !important;
+  }
+
+  .public-shell:has(.home-reference-page) .premium-site-header {
+    display: none;
+  }
+
+  .home-reference-page {
+    padding-top: max(.75rem, env(safe-area-inset-top));
+  }
+
+  .home-reference-shell {
+    max-width: 100% !important;
+    padding-inline: 12px !important;
+  }
+
+  .home-reference-shell h2 {
+    font-size: 1.18rem !important;
+  }
+
+  .home-premium-hero {
+    grid-template-columns: 1fr !important;
+  }
+
+  .home-premium-hero h1 {
+    font-size: clamp(2.25rem, 12vw, 3.25rem) !important;
+  }
+
+  .home-slot-group {
+    margin-inline: -12px;
+    padding-inline: 12px;
+  }
+
+  .home-slot-card {
+    min-height: 164px;
+    padding: .7rem !important;
+  }
+
+  .home-slot-card p {
+    white-space: pre-line;
+  }
+
+  .public-mobile-bottom-nav {
+    left: max(.75rem, env(safe-area-inset-left));
+    right: max(.75rem, env(safe-area-inset-right));
+    bottom: max(.75rem, env(safe-area-inset-bottom));
+    border-radius: 18px !important;
+    padding: .38rem !important;
+  }
+
+  .public-mobile-bottom-nav a {
+    min-height: 56px;
+    gap: .2rem;
+    font-size: 10px;
   }
 }

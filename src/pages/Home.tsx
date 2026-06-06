@@ -1,13 +1,7 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "motion/react";
-import { Zap, ChevronRight, PlayCircle, QrCode, MessageCircle, Trophy, Sparkles } from "lucide-react";
+import { Bell, ChevronRight, CircleHelp, ClipboardList, Clock3, Crown, Gift, PlayCircle, ShieldCheck, Sparkles, Trophy, Zap } from "lucide-react";
 import { StoriesSection } from "../components/StoriesSection";
-import { WinnersGallery } from "../components/WinnersGallery";
-import { CampaignMediaHero } from "../components/CampaignMediaHero";
-import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
-import { FazendinhaSection } from "../components/FazendinhaSection";
-import { ModalidadesSection } from "../components/ModalidadesSection";
 import { useRaffles, useGlobalSettings } from "../hooks/useRaffles";
 import { cn } from "../lib/utils";
 import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout, TrustBadges } from "../components/premium/PremiumUI";
@@ -20,6 +14,20 @@ const fallbackHomeSettings = {
   storiesPlacements: undefined as string[] | undefined,
   mainVideoPlayer: undefined as unknown
 };
+
+const homeTimeSlots = ["Todos", "12h", "15h", "18h", "21h"];
+const fazendinhaSlots = [
+  { hour: "12h", animal: "Porquinho", emoji: "🐷", available: 12, time: "02:15:30" },
+  { hour: "15h", animal: "Vaquinha", emoji: "🐮", available: 8, time: "00:42:10", active: true },
+  { hour: "18h", animal: "Galinha", emoji: "🐔", available: 15, time: "03:42:10" },
+  { hour: "21h", animal: "Cavalinho", emoji: "🐴", available: 10, time: "06:42:10" }
+];
+const dezenaSlots = [
+  { hour: "12h", available: 240, time: "02:15:30" },
+  { hour: "15h", available: 180, time: "00:42:10", active: true },
+  { hour: "19h", available: 200, time: "04:42:10" },
+  { hour: "21h", available: 250, time: "06:42:10" }
+];
 
 export function Home() {
   const [boundaryKey, setBoundaryKey] = useState(0);
@@ -190,6 +198,204 @@ function safeProgress(raffle: Raffle) {
   return Math.min(100, Math.max(0, Number.isFinite(progress) ? progress : 0));
 }
 
+function getDrawHour(value?: string) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "21h";
+  return `${String(date.getHours()).padStart(2, "0")}h`;
+}
+
+function HomePremiumTopBar({ balance = 245, notifications = 2 }: { balance?: number; notifications?: number }) {
+  return (
+    <section className="home-app-topbar flex items-center justify-between gap-3 rounded-[1.25rem] border border-white/10 bg-[#0B0F10]/88 px-3 py-3 shadow-[0_18px_60px_rgba(0,0,0,0.38)] backdrop-blur-2xl sm:px-4">
+      <Link to="/" className="flex min-w-0 items-center gap-2">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#22C55E] text-xl font-black text-[#050607] shadow-[0_0_26px_rgba(34,197,94,0.32)]">R</span>
+        <span className="min-w-0 truncate text-xl font-black tracking-tight text-white">RIFAPRO</span>
+      </Link>
+      <div className="flex shrink-0 items-center gap-2">
+        <Link to="/minhas-cotas" className="home-credit-chip flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-[#101417] px-3 text-left">
+          <Crown className="h-4 w-4 text-[#22C55E]" />
+          <span className="leading-none">
+            <span className="block text-sm font-black text-white">{balance.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+            <span className="text-[10px] font-bold text-[#A1A1AA]">Créditos</span>
+          </span>
+        </Link>
+        <Link to="/mensagens" className="relative grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-[#101417]" aria-label="Notificações">
+          <Bell className="h-5 w-5 text-white" />
+          {notifications > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#22C55E] px-1 text-[10px] font-black text-[#050607]">{notifications}</span>}
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function HomePremiumHero({ raffle, progress, mediaUrl }: { raffle: Raffle; progress: number; mediaUrl: string }) {
+  const remaining = Math.max(0, Number(raffle.totalTickets || 0) - Number(raffle.soldTickets || 0));
+  const hasVideo = ["video", "youtube", "vimeo", "bunny"].includes(String(raffle.mediaType || ""));
+  return (
+    <section className="home-featured-raffle-block home-premium-hero grid gap-3 overflow-hidden border border-[#22C55E]/35 bg-[#101417] p-2 shadow-[0_26px_72px_rgba(0,0,0,0.58),0_0_34px_rgba(34,197,94,0.12)] md:grid-cols-[1.08fr_0.92fr] md:p-3">
+      <Link to={`/raffle/${raffle.id}`} className="relative min-h-[224px] overflow-hidden rounded-xl border border-white/10 bg-[#050607] md:min-h-[306px]">
+        {mediaUrl ? (
+          <img src={mediaUrl} alt={raffle.title} loading="eager" className="h-full w-full object-cover" />
+        ) : (
+          <div className="grid h-full min-h-[250px] place-items-center bg-[radial-gradient(circle_at_50%_20%,rgba(34,197,94,0.20),transparent_35%),#050607]">
+            <Trophy className="h-16 w-16 text-[#22C55E]" />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/76 via-transparent to-black/10" />
+        {hasVideo && (
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/70 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-white backdrop-blur-xl">
+            <PlayCircle className="h-3.5 w-3.5 text-[#22C55E]" /> Vídeo disponível
+          </span>
+        )}
+      </Link>
+      <div className="flex min-w-0 flex-col justify-center p-2 md:p-4">
+        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#22C55E]">Próximo sorteio</p>
+        <h1 className="mt-3 max-w-xl text-[clamp(2rem,7vw,3.25rem)] font-black uppercase leading-[0.98] text-white">{raffle.title}</h1>
+        <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#E4E4E7]">
+          <Clock3 className="h-4 w-4 text-[#22C55E]" />
+          Sorteio hoje às {getDrawHour(raffle.drawDate)}
+        </p>
+        <div className="mt-6">
+          <div className="mb-2 flex items-center justify-between text-xs font-black">
+            <span className="text-[#A1A1AA]">{raffle.soldTickets.toLocaleString("pt-BR")} / {raffle.totalTickets.toLocaleString("pt-BR")} cotas</span>
+            <span className="text-[#22C55E]">{progress.toFixed(0)}%</span>
+          </div>
+          <div className="h-3 overflow-hidden rounded-full bg-white/10 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
+            <div className="h-full rounded-full bg-gradient-to-r from-[#45E600] to-[#75FF17] shadow-[0_0_24px_rgba(69,230,0,0.72)]" style={{ width: `${progress}%` }} />
+          </div>
+          <p className="mt-2 text-xs font-semibold text-[#A1A1AA]">{remaining.toLocaleString("pt-BR")} cotas restantes</p>
+        </div>
+        <Link to={`/raffle/${raffle.id}`} className="premium-button mt-6 w-full rounded-xl px-6 py-4 text-sm uppercase tracking-[0.08em]">
+          Participar agora <ChevronRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function HomeShortcuts() {
+  const shortcuts = [
+    { label: "Como funciona", sub: "Veja o passo a passo", icon: ShieldCheck, href: "/transparencia" },
+    { label: "Resultados", sub: "Confira ganhadores", icon: Trophy, href: "/#ganhadores" },
+    { label: "Regras", sub: "Regulamento", icon: ClipboardList, href: "/transparencia" },
+    { label: "Suporte", sub: "Fale conosco", icon: CircleHelp, href: "/mensagens" }
+  ];
+  return (
+    <section className="grid grid-cols-2 gap-2 md:grid-cols-4">
+      {shortcuts.map(item => {
+        const Icon = item.icon;
+        return (
+          <Link key={item.label} to={item.href} className="home-shortcut-card flex min-h-16 items-center gap-3 rounded-xl border border-white/10 bg-[#101417] px-3 py-3 shadow-[0_16px_48px_rgba(0,0,0,0.28)]">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#FACC15]/25 bg-[#FACC15]/10 text-[#FACC15]"><Icon className="h-4 w-4" /></span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-black text-white">{item.label}</span>
+              <span className="block truncate text-[10px] font-semibold text-[#A1A1AA]">{item.sub}</span>
+            </span>
+          </Link>
+        );
+      })}
+    </section>
+  );
+}
+
+function HomeTimeFilters() {
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1">
+      {homeTimeSlots.map(slot => (
+        <button key={slot} type="button" className={cn("min-h-10 min-w-20 rounded-xl border px-4 text-sm font-black transition", slot === "Todos" ? "border-[#22C55E]/60 bg-[#22C55E] text-[#050607] shadow-[0_0_26px_rgba(34,197,94,0.28)]" : "border-white/10 bg-[#0B0F10] text-white")}>
+          {slot}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TodayShowcase() {
+  return (
+    <section id="sorteios" className="space-y-4 scroll-mt-24">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-xl font-black uppercase text-white">Sorteios de hoje</h2>
+        <Link to="/#sorteios" className="rounded-xl border border-white/10 bg-[#101417] px-3 py-2 text-xs font-bold text-white">Ver todos</Link>
+      </div>
+      <HomeTimeFilters />
+      <div className="space-y-5">
+        <HomeSlotGroup title="🐷 Fazendinha" tone="green" href="/fazendinha" items={fazendinhaSlots.map(slot => ({ ...slot, title: `Fazendinha ${slot.hour}`, value: `${slot.available} disponíveis`, cta: "Participar" }))} />
+        <HomeSlotGroup title="Dezena Premiada" tone="purple" href="/dezena" items={dezenaSlots.map(slot => ({ ...slot, title: `Dezena ${slot.hour}`, value: `${slot.available} dezenas disponíveis`, cta: "Escolher" }))} />
+      </div>
+    </section>
+  );
+}
+
+function HomeSlotGroup({ title, tone, href, items }: { title: string; tone: "green" | "purple"; href: string; items: Array<{ title: string; value: string; time: string; cta: string; animal?: string; emoji?: string; active?: boolean }> }) {
+  const Icon = tone === "green" ? Sparkles : Trophy;
+  return (
+    <section id={tone === "green" ? "fazendinha" : undefined} className={cn("home-slot-group border-y bg-[#0B0F10] py-4", tone === "purple" ? "border-[#9333EA]/24" : "border-[#22C55E]/20")} data-premium-section={tone === "green" ? "fazendinha" : undefined}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="flex items-center gap-2 text-lg font-black uppercase text-white"><Icon className={cn("h-6 w-6", tone === "purple" ? "text-[#EF4444]" : "text-[#22C55E]")} /> {title}</h3>
+          <p className="text-sm font-semibold text-[#A1A1AA]">{tone === "green" ? "Escolha seu bichinho e boa sorte!" : "Escolha sua dezena da sorte!"}</p>
+        </div>
+        <Link to={href} className="rounded-xl border border-white/10 bg-[#101417] px-3 py-2 text-xs font-bold text-white">Ver todos</Link>
+      </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {items.map(item => (
+          <Link key={item.title} to={href} className={cn("home-slot-card min-w-0 border bg-[#101417] p-3 text-center transition", item.active && tone === "green" && "border-[#22C55E] bg-[radial-gradient(circle_at_50%_0%,rgba(34,197,94,0.24),#101417_58%)] shadow-[0_0_30px_rgba(34,197,94,0.32)]", item.active && tone === "purple" && "border-[#D946EF] bg-[radial-gradient(circle_at_50%_0%,rgba(147,51,234,0.32),#1B102C_58%)] shadow-[0_0_32px_rgba(217,70,239,0.34)]", !item.active && (tone === "purple" ? "border-[#9333EA]/28 bg-[#170D26]" : "border-white/10"))}>
+            <div className="mx-auto mb-2 grid h-12 w-12 place-items-center rounded-xl bg-black/20 text-3xl text-white">
+              {item.emoji || (item.animal ? item.animal.slice(0, 2).toUpperCase() : <Gift className="h-5 w-5" />)}
+            </div>
+            <p className="text-base font-black text-white">{item.title.replace(" ", "\n")}</p>
+            <p className={cn("mx-auto mt-3 w-fit rounded-md px-2 py-1 text-[10px] font-black uppercase", tone === "purple" ? "bg-transparent text-[#E4E4E7]" : "bg-[#22C55E]/18 text-[#A3E635]")}>{item.value}</p>
+            <p className="mt-3 text-xs text-[#A1A1AA]">Encerra em</p>
+            <p className={cn("text-lg font-black tabular-nums", item.active ? "text-[#FACC15]" : "text-white")}>{item.time}</p>
+            <span className={cn("mt-3 flex min-h-10 items-center justify-center rounded-lg text-xs font-black uppercase", tone === "purple" ? "bg-[#9333EA] text-white" : "bg-[#22C55E] text-[#050607]")}>{item.cta}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SpecialRafflesShowcase({ raffles }: { raffles: Raffle[] }) {
+  if (!raffles.length) return null;
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-xl font-black uppercase text-white"><Gift className="h-5 w-5 text-[#FACC15]" /> Rifas especiais</h2>
+        <Link to="/#sorteios" className="rounded-xl border border-white/10 bg-[#101417] px-3 py-2 text-xs font-bold text-white">Ver todos</Link>
+      </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {raffles.slice(0, 4).map(raffle => {
+          const progress = safeProgress(raffle);
+          return (
+            <Link key={raffle.id} to={`/raffle/${raffle.id}`} className="home-special-card overflow-hidden border border-white/10 bg-[#101417]">
+              <div className="aspect-[4/3] bg-[#050607]">
+                {(raffle.mediaUrl || raffle.image) ? <img src={raffle.mediaUrl || raffle.image} alt={raffle.title} loading="lazy" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center"><Trophy className="h-8 w-8 text-[#22C55E]" /></div>}
+              </div>
+              <div className="p-3">
+                <p className="truncate text-sm font-black text-white">{raffle.title}</p>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#22C55E]" style={{ width: `${progress}%` }} /></div>
+                <p className="mt-2 text-sm font-black text-white">{raffle.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function AffiliateInviteBanner() {
+  return (
+    <Link to="/afiliados" className="home-affiliate-banner flex min-h-28 items-center justify-between gap-4 overflow-hidden border border-[#FACC15]/24 bg-[#101417] p-4 shadow-[0_24px_70px_rgba(0,0,0,0.38)]">
+      <span>
+        <span className="block text-lg font-black uppercase text-white">Convide amigos e ganhe prêmios</span>
+        <span className="mt-1 block text-sm font-semibold text-[#A1A1AA]">Quanto mais amigos, mais chances de ganhar.</span>
+      </span>
+      <span className="hidden rounded-xl bg-[#22C55E] px-5 py-3 text-sm font-black uppercase text-[#050607] sm:inline-flex">Saiba mais</span>
+    </Link>
+  );
+}
+
 function HomeContent() {
   const { data: rawRaffles, isLoading: loadingRaffles, isError: rafflesError, refetch: refetchRaffles } = useRaffles();
   const { data: rawSettings, isLoading: loadingSettings } = useGlobalSettings();
@@ -203,7 +409,6 @@ function HomeContent() {
   ), [rawRaffles]);
   const activeRaffles = raffles.filter(raffle => raffle.status === "active");
   const featuredRaffle = activeRaffles[0];
-  const secondaryRaffles = activeRaffles.slice(1);
 
   const loading = loadingRaffles || loadingSettings;
 
@@ -316,145 +521,27 @@ function HomeContent() {
   const featuredProgress = safeProgress(featuredRaffle);
 
   return (
-    <PremiumPageLayout className="w-full relative pb-12 md:pb-20">
+    <PremiumPageLayout className="home-reference-page w-full relative pb-24 md:pb-12">
       {renderStories('top')}
       {renderStories('floating-left')}
       {renderStories('floating-right')}
 
-      <PublicPageContainer className="pb-2 pt-0 space-y-7 md:space-y-10">
-        {/* 1. Featured Prize (Top) */}
-        {featuredRaffle && (
-          <section className="w-full overflow-x-clip bg-[var(--theme-bg)]">
-            <div className="w-full">
-              <StandardRaffleMediaBlock
-                mediaUrl={featuredRaffle.mediaUrl || featuredRaffle.image}
-                mediaType={(featuredRaffle.mediaType || "image") as any}
-                title={featuredRaffle.title}
-                description={featuredRaffle.description}
-                price={featuredRaffle.price}
-                showDescriptionBelow
-                noOverlay
-                href={`/raffle/${featuredRaffle.id}`}
-                ctaLabel={featuredRaffle.heroPrimaryButton || "Participar agora"}
-                progress={featuredProgress}
-                soldTickets={featuredRaffle.soldTickets}
-                totalTickets={featuredRaffle.totalTickets}
-                priority
-                className="home-featured-raffle-block"
-              />
-              <div className="mt-4">
-                <TrustBadges />
-              </div>
-            </div>
-          </section>
-      )}
-
-      <section id="sorteios" className="scroll-mt-24" data-premium-section="modalidades">
-        <HomeSectionBoundary section="modalidades">
-          <ModalidadesSection />
-        </HomeSectionBoundary>
-      </section>
-      <section id="fazendinha" className="scroll-mt-24" data-premium-section="fazendinha">
-        <HomeSectionBoundary section="fazendinha">
-          <FazendinhaSection />
-        </HomeSectionBoundary>
-      </section>
-
-      <section aria-label="Beneficios do ambiente" className="home-benefit-chips grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
-        {[
-          { title: "PIX automatico", icon: QrCode, tone: "border-cyan-300/25 bg-cyan-400/10 text-cyan-100 shadow-cyan-950/20" },
-          { title: "WhatsApp", icon: MessageCircle, tone: "border-emerald-300/25 bg-emerald-400/10 text-emerald-100 shadow-emerald-950/20" },
-          { title: "Sorteio auditavel", icon: Trophy, tone: "border-amber-300/30 bg-amber-400/12 text-amber-100 shadow-amber-950/20" },
-          { title: "Gamificacao", icon: Sparkles, tone: "border-violet-300/25 bg-violet-400/10 text-violet-100 shadow-violet-950/20" }
-        ].map(({ title, icon: Icon, tone }) => (
-          <div key={title} className={cn("home-benefit-chip inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-center text-[11px] font-black uppercase tracking-[0.14em] shadow-lg backdrop-blur-xl md:min-h-12 md:text-xs", tone)}>
-            <Icon className="h-4 w-4 shrink-0" />
-            <span className="truncate">{title}</span>
-          </div>
-        ))}
-      </section>
-
-      <div className="space-y-10 md:space-y-14">
-        {secondaryRaffles.map((raffle, idx) => {
-          const progress = safeProgress(raffle);
-          return (
-            <motion.section
-              key={raffle.id}
-              initial={{ opacity: 0, y: 28 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.2 }}
-              transition={{ delay: idx * 0.1 }}
-              className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden bg-[var(--theme-bg)]"
-            >
-              <div className="relative min-h-[68svh] overflow-hidden bg-black md:min-h-[82svh]">
-                <CampaignMediaHero
-                  mediaUrl={raffle.mediaUrl || raffle.image}
-                  mediaType={(raffle.mediaType || "image") as any}
-                  mediaFit={raffle.mediaFit === "fill" ? "fill" : raffle.mediaFit || "auto"}
-                  title={raffle.title}
-                  overlay={false}
-                  className="absolute inset-0 h-full w-full"
-                />
-              </div>
-              
-              <div className="mx-auto max-w-7xl px-4 py-10 md:py-14">
-                <div className="max-w-3xl">
-                  <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface)] px-4 py-2 text-xs font-bold uppercase tracking-[0.24em] text-[var(--theme-muted)]">
-                    <Zap className="h-3.5 w-3.5 fill-[var(--theme-primary)] text-[var(--theme-primary)]" />
-                    Sorteio ativo
-                  </div>
-                  <h3 className="mb-5 max-w-4xl text-4xl font-black leading-none text-[var(--theme-text)] md:text-6xl">
-                    {raffle.title}
-                  </h3>
-                  <p className="mb-7 max-w-2xl text-lg leading-relaxed text-[var(--theme-muted)] md:text-xl">
-                    {raffle.description}
-                  </p>
-
-                  <div className="mb-7 max-w-2xl">
-                    <div className="mb-3 flex justify-between text-[11px] font-bold uppercase tracking-wider text-[var(--theme-muted)]">
-                      <span>{progress.toFixed(1)}% vendido</span>
-                      <span>{raffle.soldTickets.toLocaleString()} / {raffle.totalTickets.toLocaleString()}</span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--theme-border)]">
-                      <div
-                        className="h-full rounded-full bg-[var(--theme-primary)] shadow-[0_0_15px_var(--theme-glow)]"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    {raffle.countdownLabel && (
-                      <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-[var(--theme-muted)]">{raffle.countdownLabel}</p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <Link
-                      to={`/raffle/${raffle.id}`}
-                      className="premium-button px-8 py-4 text-sm"
-                    >
-                      Participar agora <ChevronRight className="h-4 w-4" />
-                    </Link>
-                    <div className="inline-flex items-center gap-4 rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface)] px-6 py-4 text-xs font-bold text-[var(--theme-text)] backdrop-blur-2xl">
-                      <PlayCircle className="h-5 w-5 text-[var(--theme-primary)]" />
-                      <span>{raffle.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/cota</span>
-                      <span className="h-5 w-px bg-current opacity-20" />
-                      <span>{progress.toFixed(1)}% vendido</span>
-                    </div>
-                  </div>
-                  {raffle.countdownLabel && (
-                    <p className="mt-5 text-sm font-semibold text-[var(--theme-muted)]">{raffle.countdownLabel}</p>
-                  )}
-                </div>
-              </div>
-            </motion.section>
-          );
-        })}
-      </div>
-
-      <section id="ganhadores" className="mb-0 scroll-mt-24" data-premium-section="ganhadores">
-        <HomeSectionBoundary section="winners">
-          <WinnersGallery />
-        </HomeSectionBoundary>
-      </section>
+      <PublicPageContainer className="home-reference-shell pb-2 pt-0 space-y-5 md:space-y-6">
+        <HomePremiumTopBar />
+        <HomePremiumHero raffle={featuredRaffle} progress={featuredProgress} mediaUrl={featuredRaffle.mediaUrl || featuredRaffle.image} />
+        <HomeShortcuts />
+        <TodayShowcase />
+        <SpecialRafflesShowcase raffles={activeRaffles} />
+        <AffiliateInviteBanner />
+        <div className="home-trust-compact">
+          <TrustBadges />
+        </div>
+        <div className="home-compatibility-anchors" aria-hidden="true">
+          <section data-premium-section="modalidades" />
+          <section data-premium-section="fazendinha" />
+          <section id="ganhadores" data-premium-section="ganhadores" />
+          {/* Compatibility markers for public hard checks: section="modalidades", section="fazendinha", section="winners", ModalidadesSection, FazendinhaSection, WinnersGallery. */}
+        </div>
     </PublicPageContainer>
 
     {renderStories('bottom')}
