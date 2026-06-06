@@ -389,6 +389,8 @@ async function startServer() {
   type TenantBrandingSettings = {
     id: string;
     tenant_id: string;
+    company_name?: string;
+    display_name?: string;
     header_name: string;
     logo_url: string;
     logo_mime_type: string;
@@ -396,6 +398,11 @@ async function startServer() {
     primary_color: string;
     secondary_color: string;
     cta_color: string;
+    accent_color?: string;
+    success_color?: string;
+    warning_color?: string;
+    error_color?: string;
+    custom_css?: string;
     theme_mode: TenantBrandingMode;
     slogan: string;
     support_whatsapp: string;
@@ -426,6 +433,41 @@ async function startServer() {
     };
     active: boolean;
     created_at: string;
+  };
+  type TenantSeoSettings = {
+    tenant_id: string;
+    meta_title: string;
+    meta_description: string;
+    meta_keywords: string;
+    og_title: string;
+    og_description: string;
+    og_image: string;
+    twitter_title: string;
+    twitter_description: string;
+    twitter_image: string;
+    created_at: string;
+    updated_at: string;
+  };
+  type TenantLegalPages = {
+    tenant_id: string;
+    privacy_policy: string;
+    terms_of_service: string;
+    lgpd_policy: string;
+    updated_at: string;
+  };
+  type TenantLandingSettings = {
+    tenant_id: string;
+    headline: string;
+    subheadline: string;
+    about_company: string;
+    whatsapp: string;
+    instagram: string;
+    facebook: string;
+    youtube: string;
+    telegram: string;
+    banner_image: string;
+    created_at: string;
+    updated_at: string;
   };
   type AuthSession = {
     sub: string;
@@ -751,6 +793,9 @@ async function startServer() {
 
   const tenantSettings: Record<string, typeof settings> = {};
   const tenantBrandingSettings: Record<string, TenantBrandingSettings> = {};
+  const tenantSeoSettings: Record<string, TenantSeoSettings> = {};
+  const tenantLegalPages: Record<string, TenantLegalPages> = {};
+  const tenantLandingSettings: Record<string, TenantLandingSettings> = {};
   let tenantThemeTemplates: TenantThemeTemplateRecord[] = [];
   const legacyBrandNames = new Set(["RifaPro", "RifaPro SaaS", "CIFHER Plataforma", "Plataforma Principal", "Tenant Desenvolvimento"]);
   const legacyBrandFooters = new Set(["RifaPro", "RifaPro SaaS", "CIFHER Plataforma", "Tenant Desenvolvimento"]);
@@ -778,6 +823,8 @@ async function startServer() {
     return {
       id: createPublicId("BRAND_"),
       tenant_id: tenantId,
+      company_name: normalizeLegacyBrandText(tenantScopedSettings.branding?.companyName || tenant?.nome),
+      display_name: normalizeLegacyBrandText(tenantScopedSettings.branding?.companyName || tenant?.nome),
       header_name: normalizeLegacyBrandText(tenantScopedSettings.branding?.companyName || tenant?.nome),
       logo_url: tenantScopedSettings.branding?.logoUrl || tenant?.logo_url || "",
       logo_mime_type: "",
@@ -785,6 +832,11 @@ async function startServer() {
       primary_color: tenant?.cor_primaria || "#00d66b",
       secondary_color: "#0f2d1d",
       cta_color: "#00d66b",
+      accent_color: "#f5c451",
+      success_color: "#22c55e",
+      warning_color: "#f59e0b",
+      error_color: "#ef4444",
+      custom_css: "",
       theme_mode: "vimeu_dark",
       slogan: defaultPrimeSlogan,
       support_whatsapp: tenantScopedSettings.socialLinks?.whatsapp || "",
@@ -807,7 +859,11 @@ async function startServer() {
   function getTenantBranding(tenantId: string) {
     tenantBrandingSettings[tenantId] ||= defaultTenantBranding(tenantId);
     const current = tenantBrandingSettings[tenantId];
+    current.company_name ||= current.header_name;
+    current.display_name ||= current.header_name;
     current.header_name = normalizeLegacyBrandText(current.header_name);
+    current.company_name = normalizeLegacyBrandText(current.company_name, current.header_name);
+    current.display_name = normalizeLegacyBrandText(current.display_name, current.header_name);
     current.footer_text = normalizeLegacyFooterText(current.footer_text);
     if (!String(current.slogan || "").trim() || current.slogan === "Sorteios premium com PIX automatico") current.slogan = defaultPrimeSlogan;
     current.login_logo_url ||= current.logo_url || "";
@@ -817,6 +873,11 @@ async function startServer() {
     current.login_background_url ||= "";
     current.login_primary_color = isHexColor(current.login_primary_color) ? current.login_primary_color : current.primary_color;
     current.login_accent_color = isHexColor(current.login_accent_color) ? current.login_accent_color : "#f5c451";
+    current.accent_color = isHexColor(current.accent_color) ? current.accent_color : current.login_accent_color;
+    current.success_color = isHexColor(current.success_color) ? current.success_color : "#22c55e";
+    current.warning_color = isHexColor(current.warning_color) ? current.warning_color : "#f59e0b";
+    current.error_color = isHexColor(current.error_color) ? current.error_color : "#ef4444";
+    current.custom_css = String(current.custom_css || "").slice(0, 8000);
     current.login_button_text = String(current.login_button_text || "").trim() || defaultLoginButtonText;
     current.login_footer_text = String(current.login_footer_text || "").trim() || defaultLoginFooterText;
     return tenantBrandingSettings[tenantId];
@@ -920,17 +981,180 @@ async function startServer() {
     return /^#[0-9a-f]{6}$/i.test(String(value || ""));
   }
 
+  function sanitizeWhiteLabelText(value: unknown, max = 500) {
+    return String(value || "").replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "").replace(/[<>]/g, "").trim().slice(0, max);
+  }
+
+  function sanitizeWhiteLabelLongText(value: unknown, max = 20000) {
+    return String(value || "").replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "").trim().slice(0, max);
+  }
+
+  function sanitizeWhiteLabelCustomCss(value: unknown) {
+    return String(value || "")
+      .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/@import[^;]*;?/gi, "")
+      .replace(/url\s*\([^)]*\)/gi, "")
+      .replace(/expression\s*\([^)]*\)/gi, "")
+      .replace(/javascript:/gi, "")
+      .replace(/data:/gi, "")
+      .replace(/-moz-binding\s*:[^;]+;?/gi, "")
+      .replace(/behavior\s*:[^;]+;?/gi, "")
+      .replace(/position\s*:\s*fixed\s*;?/gi, "")
+      .replace(/position\s*:\s*sticky\s*;?/gi, "")
+      .replace(/z-index\s*:\s*\d{4,}\s*;?/gi, "")
+      .slice(0, 4000);
+  }
+
+  function sanitizeWhiteLabelUrl(value: unknown) {
+    const url = String(value || "").trim();
+    if (!url) return "";
+    if (url.startsWith("/") && !url.startsWith("//")) return url.slice(0, 600);
+    try {
+      const parsed = new URL(url);
+      return ["http:", "https:"].includes(parsed.protocol) ? url.slice(0, 600) : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function defaultTenantSeoSettings(tenantId: string): TenantSeoSettings {
+    const tenant = tenants.find(item => item.id === tenantId);
+    const branding = getTenantBranding(tenantId);
+    const now = new Date().toISOString();
+    const title = branding.display_name || branding.header_name || tenant?.nome || "CIFHER Prime";
+    const description = branding.slogan || "Sorteios premium com operacao profissional.";
+    return {
+      tenant_id: tenantId,
+      meta_title: title,
+      meta_description: description,
+      meta_keywords: "",
+      og_title: title,
+      og_description: description,
+      og_image: branding.logo_url || "",
+      twitter_title: title,
+      twitter_description: description,
+      twitter_image: branding.logo_url || "",
+      created_at: now,
+      updated_at: now
+    };
+  }
+
+  function getTenantSeoSettings(tenantId: string) {
+    tenantSeoSettings[tenantId] ||= defaultTenantSeoSettings(tenantId);
+    return tenantSeoSettings[tenantId];
+  }
+
+  function normalizeTenantSeoSettings(tenantId: string, incoming: Record<string, unknown>) {
+    const current = getTenantSeoSettings(tenantId);
+    const next: TenantSeoSettings = {
+      ...current,
+      meta_title: sanitizeWhiteLabelText(incoming.meta_title ?? current.meta_title, 80),
+      meta_description: sanitizeWhiteLabelText(incoming.meta_description ?? current.meta_description, 220),
+      meta_keywords: sanitizeWhiteLabelText(incoming.meta_keywords ?? current.meta_keywords, 240),
+      og_title: sanitizeWhiteLabelText(incoming.og_title ?? current.og_title, 90),
+      og_description: sanitizeWhiteLabelText(incoming.og_description ?? current.og_description, 220),
+      og_image: sanitizeWhiteLabelUrl(incoming.og_image ?? current.og_image),
+      twitter_title: sanitizeWhiteLabelText(incoming.twitter_title ?? current.twitter_title, 90),
+      twitter_description: sanitizeWhiteLabelText(incoming.twitter_description ?? current.twitter_description, 220),
+      twitter_image: sanitizeWhiteLabelUrl(incoming.twitter_image ?? current.twitter_image),
+      updated_at: new Date().toISOString()
+    };
+    tenantSeoSettings[tenantId] = next;
+    return next;
+  }
+
+  function defaultTenantLegalPages(tenantId: string): TenantLegalPages {
+    return {
+      tenant_id: tenantId,
+      privacy_policy: "",
+      terms_of_service: "",
+      lgpd_policy: "",
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  function getTenantLegalPages(tenantId: string) {
+    tenantLegalPages[tenantId] ||= defaultTenantLegalPages(tenantId);
+    return tenantLegalPages[tenantId];
+  }
+
+  function normalizeTenantLegalPages(tenantId: string, incoming: Record<string, unknown>) {
+    const current = getTenantLegalPages(tenantId);
+    const next: TenantLegalPages = {
+      tenant_id: tenantId,
+      privacy_policy: sanitizeWhiteLabelLongText(incoming.privacy_policy ?? current.privacy_policy),
+      terms_of_service: sanitizeWhiteLabelLongText(incoming.terms_of_service ?? current.terms_of_service),
+      lgpd_policy: sanitizeWhiteLabelLongText(incoming.lgpd_policy ?? current.lgpd_policy),
+      updated_at: new Date().toISOString()
+    };
+    tenantLegalPages[tenantId] = next;
+    return next;
+  }
+
+  function defaultTenantLandingSettings(tenantId: string): TenantLandingSettings {
+    const branding = getTenantBranding(tenantId);
+    const now = new Date().toISOString();
+    return {
+      tenant_id: tenantId,
+      headline: branding.display_name || branding.header_name || "Sorteios premium",
+      subheadline: branding.slogan || "Experiencia profissional para seus clientes.",
+      about_company: "",
+      whatsapp: branding.support_whatsapp || "",
+      instagram: "",
+      facebook: "",
+      youtube: "",
+      telegram: "",
+      banner_image: "",
+      created_at: now,
+      updated_at: now
+    };
+  }
+
+  function getTenantLandingSettings(tenantId: string) {
+    tenantLandingSettings[tenantId] ||= defaultTenantLandingSettings(tenantId);
+    return tenantLandingSettings[tenantId];
+  }
+
+  function normalizeTenantLandingSettings(tenantId: string, incoming: Record<string, unknown>) {
+    const current = getTenantLandingSettings(tenantId);
+    const next: TenantLandingSettings = {
+      ...current,
+      headline: sanitizeWhiteLabelText(incoming.headline ?? current.headline, 120),
+      subheadline: sanitizeWhiteLabelText(incoming.subheadline ?? current.subheadline, 220),
+      about_company: sanitizeWhiteLabelLongText(incoming.about_company ?? current.about_company, 4000),
+      whatsapp: sanitizeWhiteLabelUrl(incoming.whatsapp ?? current.whatsapp),
+      instagram: sanitizeWhiteLabelUrl(incoming.instagram ?? current.instagram),
+      facebook: sanitizeWhiteLabelUrl(incoming.facebook ?? current.facebook),
+      youtube: sanitizeWhiteLabelUrl(incoming.youtube ?? current.youtube),
+      telegram: sanitizeWhiteLabelUrl(incoming.telegram ?? current.telegram),
+      banner_image: sanitizeWhiteLabelUrl(incoming.banner_image ?? current.banner_image),
+      updated_at: new Date().toISOString()
+    };
+    tenantLandingSettings[tenantId] = next;
+    return next;
+  }
+
   function normalizeTenantBranding(tenantId: string, incoming: Record<string, unknown>, current = getTenantBranding(tenantId)) {
     const themeMode = String(incoming.theme_mode || current.theme_mode || "vimeu_dark");
+    const displayName = sanitizeWhiteLabelText(incoming.display_name ?? incoming.header_name ?? current.display_name ?? current.header_name, 80);
+    const companyName = sanitizeWhiteLabelText(incoming.company_name ?? current.company_name ?? displayName, 120);
     const next: TenantBrandingSettings = {
       ...current,
-      header_name: String(incoming.header_name ?? current.header_name ?? "").trim().slice(0, 80) || defaultTenantBranding(tenantId).header_name,
+      company_name: companyName || displayName || defaultTenantBranding(tenantId).header_name,
+      display_name: displayName || companyName || defaultTenantBranding(tenantId).header_name,
+      header_name: displayName || String(incoming.header_name ?? current.header_name ?? "").trim().slice(0, 80) || defaultTenantBranding(tenantId).header_name,
       logo_url: String(incoming.logo_url ?? current.logo_url ?? "").trim(),
       logo_mime_type: String(incoming.logo_mime_type ?? current.logo_mime_type ?? "").trim(),
       favicon_url: String(incoming.favicon_url ?? current.favicon_url ?? "").trim(),
       primary_color: isHexColor(incoming.primary_color) ? String(incoming.primary_color) : current.primary_color,
       secondary_color: isHexColor(incoming.secondary_color) ? String(incoming.secondary_color) : current.secondary_color,
       cta_color: isHexColor(incoming.cta_color) ? String(incoming.cta_color) : current.cta_color,
+      accent_color: isHexColor(incoming.accent_color) ? String(incoming.accent_color) : current.accent_color || current.login_accent_color,
+      success_color: isHexColor(incoming.success_color) ? String(incoming.success_color) : current.success_color || "#22c55e",
+      warning_color: isHexColor(incoming.warning_color) ? String(incoming.warning_color) : current.warning_color || "#f59e0b",
+      error_color: isHexColor(incoming.error_color) ? String(incoming.error_color) : current.error_color || "#ef4444",
+      custom_css: sanitizeWhiteLabelCustomCss(incoming.custom_css ?? current.custom_css),
       theme_mode: ["vimeu_dark", "dark", "light", "premium"].includes(themeMode) ? themeMode as TenantBrandingMode : "vimeu_dark",
       slogan: String(incoming.slogan ?? current.slogan ?? "").trim().slice(0, 140),
       support_whatsapp: String(incoming.support_whatsapp ?? current.support_whatsapp ?? "").trim().slice(0, 80),
@@ -957,6 +1181,9 @@ async function startServer() {
 
   function publicTenantBranding(branding: TenantBrandingSettings) {
     return {
+      tenant_id: branding.tenant_id,
+      company_name: branding.company_name || branding.header_name,
+      display_name: branding.display_name || branding.header_name,
       header_name: branding.header_name,
       logo_url: branding.logo_url,
       logo_mime_type: branding.logo_mime_type,
@@ -964,8 +1191,13 @@ async function startServer() {
       colors: {
         primary: branding.primary_color,
         secondary: branding.secondary_color,
-        cta: branding.cta_color
+        cta: branding.cta_color,
+        accent: branding.accent_color || branding.login_accent_color,
+        success: branding.success_color || "#22c55e",
+        warning: branding.warning_color || "#f59e0b",
+        error: branding.error_color || "#ef4444"
       },
+      custom_css: branding.custom_css || "",
       theme_mode: branding.theme_mode,
       slogan: branding.slogan,
       footer_text: branding.footer_text,
@@ -1585,12 +1817,14 @@ async function startServer() {
     tenant_id: string;
     domain: string;
     type: "subdomain" | "custom_domain";
-    status: "pending" | "verified" | "failed" | "disabled";
+    status: "pending" | "verified" | "active" | "failed" | "disabled";
     verification_token: string;
     dns_target: string;
-    ssl_status: "pending" | "issued" | "failed" | "not_configured" | string;
+    ssl_status: "pending" | "active" | "issued" | "failed" | "not_configured" | string;
     is_primary: boolean;
     created_at: string;
+    updated_at?: string;
+    dns_verified_at?: string;
     verified_at?: string;
   };
   type SuperadminImpersonationSession = {
@@ -3501,7 +3735,7 @@ async function startServer() {
       tenant_id: String(row.tenant_id || ""),
       domain: normalizedDomain,
       type: row.type === "custom_domain" ? "custom_domain" : "subdomain",
-      status: row.status === "verified" ? "verified" : row.status === "failed" ? "failed" : row.status === "disabled" ? "disabled" : "pending",
+      status: row.status === "verified" ? "verified" : row.status === "active" ? "active" : row.status === "failed" ? "failed" : row.status === "disabled" ? "disabled" : "pending",
       verification_token: String(row.verification_token || ""),
       dns_target: String(row.dns_target || ""),
       ssl_status: String(row.ssl_status || "pending"),
@@ -3515,7 +3749,7 @@ async function startServer() {
   }
 
   function tenantDomainMatchesHost(domain: TenantDomainRecord, host: string) {
-    return domain.status === "verified" &&
+    return ["verified", "active"].includes(domain.status) &&
       normalizeDomainName(domain.domain) === host &&
       tenants.some(tenant => tenant.id === domain.tenant_id && isActiveTenantRecord(tenant));
   }
@@ -3527,7 +3761,7 @@ async function startServer() {
         .from("tenant_domains")
         .select("*")
         .ilike("domain", host)
-        .eq("status", "verified")
+        .in("status", ["verified", "active"])
         .limit(5);
       if (error) throw error;
       for (const domain of domains || []) {
@@ -3879,7 +4113,34 @@ async function startServer() {
       return;
     }
     res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-    res.json(publicTenantBranding(getTenantBranding(tenant.id)));
+    res.json({
+      ...publicTenantBranding(getTenantBranding(tenant.id)),
+      seo: getTenantSeoSettings(tenant.id),
+      landing: getTenantLandingSettings(tenant.id)
+    });
+  });
+
+  app.get("/api/public/white-label", async (req, res) => {
+    const resolution = await resolveDomainTenantInfo(req);
+    const tenant = resolution.tenant || getRequestTenant(req) || tenants.find(item => item.id === legacyTenantId);
+    if (!tenant) {
+      res.status(404).json({ error: "Tenant nao encontrado para este dominio" });
+      return;
+    }
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    res.json({
+      tenant: buildTenantSummary(tenant),
+      branding: publicTenantBranding(getTenantBranding(tenant.id)),
+      seo: getTenantSeoSettings(tenant.id),
+      landing: getTenantLandingSettings(tenant.id),
+      legal: getTenantLegalPages(tenant.id),
+      domain: tenantDomains.find(item => item.tenant_id === tenant.id && item.is_primary) || null,
+      resolution: {
+        host: resolution.hostNormalizado,
+        source: resolution.fonte,
+        reason: resolution.reason
+      }
+    });
   });
 
   app.get("/api/public/theme-template", async (req, res) => {
@@ -4261,12 +4522,25 @@ async function startServer() {
     domain.status = "verified";
     domain.ssl_status = domain.ssl_status || "pending";
     domain.verified_at = new Date().toISOString();
+    domain.dns_verified_at = domain.verified_at;
+    domain.updated_at = domain.verified_at;
     const tenant = tenants.find(item => item.id === domain.tenant_id);
     if (tenant && domain.type === "custom_domain") {
       tenant.dominio_customizado = domain.domain;
       tenant.dominio = domain.domain;
       tenant.atualizado_em = new Date().toISOString();
     }
+    return domain;
+  }
+
+  function setWhiteLabelDomainStatus(domain: TenantDomainRecord, status: "pending" | "verified" | "active" | "failed" | "disabled") {
+    domain.status = status;
+    domain.updated_at = new Date().toISOString();
+    if (status === "verified" || status === "active") {
+      domain.dns_verified_at = domain.dns_verified_at || domain.updated_at;
+      domain.verified_at = domain.verified_at || domain.updated_at;
+    }
+    if (status === "active" && domain.ssl_status === "pending") domain.ssl_status = "active";
     return domain;
   }
 
@@ -5932,6 +6206,45 @@ async function startServer() {
     tenantDomains = tenantDomains.filter(item => item.id !== domain.id);
     recordSuperadminAudit(req, "TENANT_DOMAIN_DELETED", { tenant_id: domain.tenant_id, resource_type: "tenant_domain", resource_id: domain.id, metadata: { domain: domain.domain } });
     res.json({ success: true });
+  });
+
+  app.get("/api/superadmin/white-label", (_req, res) => {
+    res.json({
+      tenants: tenants.map(tenant => ({
+        tenant: buildTenantSummary(tenant),
+        branding: publicTenantBranding(getTenantBranding(tenant.id)),
+        domain: tenantDomains.find(item => item.tenant_id === tenant.id && item.is_primary) || tenantDomains.find(item => item.tenant_id === tenant.id) || null,
+        seo: getTenantSeoSettings(tenant.id),
+        landing: getTenantLandingSettings(tenant.id)
+      }))
+    });
+  });
+
+  app.post("/api/superadmin/white-label/domains/:id/activate", (req, res) => {
+    const domain = tenantDomains.find(item => item.id === req.params.id);
+    if (!domain) return res.status(404).json({ error: "Dominio nao encontrado" });
+    setWhiteLabelDomainStatus(domain, "active");
+    domain.ssl_status = "active";
+    setPrimaryTenantDomain(domain);
+    recordSuperadminAudit(req, "WHITE_LABEL_DOMAIN_ACTIVATED", { tenant_id: domain.tenant_id, resource_type: "tenant_domain", resource_id: domain.id, metadata: { domain: domain.domain } });
+    res.json(sanitizeTenantDomain(domain));
+  });
+
+  app.post("/api/superadmin/white-label/domains/:id/deactivate", (req, res) => {
+    const domain = tenantDomains.find(item => item.id === req.params.id);
+    if (!domain) return res.status(404).json({ error: "Dominio nao encontrado" });
+    setWhiteLabelDomainStatus(domain, "disabled");
+    recordSuperadminAudit(req, "WHITE_LABEL_DOMAIN_DEACTIVATED", { tenant_id: domain.tenant_id, resource_type: "tenant_domain", resource_id: domain.id, metadata: { domain: domain.domain } });
+    res.json(sanitizeTenantDomain(domain));
+  });
+
+  app.post("/api/superadmin/white-label/domains/:id/revalidate", (req, res) => {
+    const domain = tenantDomains.find(item => item.id === req.params.id);
+    if (!domain) return res.status(404).json({ error: "Dominio nao encontrado" });
+    setWhiteLabelDomainStatus(domain, "pending");
+    domain.ssl_status = "pending";
+    recordSuperadminAudit(req, "WHITE_LABEL_DOMAIN_REVALIDATION_FORCED", { tenant_id: domain.tenant_id, resource_type: "tenant_domain", resource_id: domain.id, metadata: { domain: domain.domain } });
+    res.json(sanitizeTenantDomain(domain));
   });
 
   app.get("/api/superadmin/branding", (req, res) => {
@@ -8494,7 +8807,7 @@ async function startServer() {
       return `${baseUrl}${pathName.startsWith("/") ? pathName : `/${pathName}`}`;
     }
     const tenant = tenants.find(item => item.id === tenantId);
-    const verifiedDomain = tenantDomains.find(domain => domain.tenant_id === tenantId && domain.status === "verified" && domain.is_primary);
+    const verifiedDomain = tenantDomains.find(domain => domain.tenant_id === tenantId && ["verified", "active"].includes(domain.status) && domain.is_primary);
     const host = verifiedDomain?.domain || tenant?.dominio_customizado || tenant?.dominio || `${tenant?.slug || "rifapro"}.meudominio.com`;
     const protocol = forceHttps ? "https" : host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
     return `${protocol}://${host}${pathName.startsWith("/") ? pathName : `/${pathName}`}`;
@@ -13658,7 +13971,7 @@ async function startServer() {
 
   function buildTenantPublicPath(tenantId: string, path: string) {
     const tenant = tenants.find(item => item.id === tenantId);
-    const verifiedDomain = tenantDomains.find(domain => domain.tenant_id === tenantId && domain.status === "verified" && domain.is_primary);
+    const verifiedDomain = tenantDomains.find(domain => domain.tenant_id === tenantId && ["verified", "active"].includes(domain.status) && domain.is_primary);
     const host = verifiedDomain?.domain || tenant?.dominio_customizado || tenant?.dominio || `${tenant?.slug || "rifapro"}.meudominio.com`;
     const protocol = host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
     return `${protocol}://${host}${path.startsWith("/") ? path : `/${path}`}`;
@@ -15074,7 +15387,7 @@ async function startServer() {
 
   function buildPublicTicketUrl(purchase: PurchaseRecord) {
     const tenant = tenants.find(item => item.id === purchase.tenant_id);
-    const verifiedDomain = tenantDomains.find(domain => domain.tenant_id === purchase.tenant_id && domain.status === "verified" && domain.is_primary);
+    const verifiedDomain = tenantDomains.find(domain => domain.tenant_id === purchase.tenant_id && ["verified", "active"].includes(domain.status) && domain.is_primary);
     const host = verifiedDomain?.domain || tenant?.dominio_customizado || tenant?.dominio || `${tenant?.slug || "rifapro"}.meudominio.com`;
     const protocol = host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
     return `${protocol}://${host}/rifa/${purchase.raffleId}?pedido=${encodeURIComponent(purchase.purchaseId)}`;
@@ -20487,6 +20800,9 @@ async function startServer() {
       settings,
       tenantSettings,
       tenantBrandingSettings,
+      tenantSeoSettings,
+      tenantLegalPages,
+      tenantLandingSettings,
       tenantThemeTemplates,
       tenantFeatureOverrides,
       lootboxGuaranteedPool,
@@ -20589,6 +20905,9 @@ async function startServer() {
       case "settings": settings = value || settings; break;
       case "tenantSettings": replaceObject(tenantSettings, value); break;
       case "tenantBrandingSettings": replaceObject(tenantBrandingSettings, value); break;
+      case "tenantSeoSettings": replaceObject(tenantSeoSettings, value); break;
+      case "tenantLegalPages": replaceObject(tenantLegalPages, value); break;
+      case "tenantLandingSettings": replaceObject(tenantLandingSettings, value); break;
       case "tenantThemeTemplates": tenantThemeTemplates = Array.isArray(value) ? value : []; break;
       case "tenantFeatureOverrides": tenantFeatureOverrides = value || {}; break;
       case "lootboxGuaranteedPool": lootboxGuaranteedPool = Array.isArray(value) ? value : []; break;
@@ -21088,6 +21407,73 @@ async function startServer() {
     tenantBrandingSettings[tenantId] = defaultTenantBranding(tenantId);
     recordSecurityEvent({ tenant_id: tenantId, action: "TENANT_BRANDING_RESET", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email });
     res.json(tenantBrandingSettings[tenantId]);
+  });
+
+  app.get("/api/admin/white-label", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({
+      branding: getTenantBranding(tenantId),
+      domains: tenantDomains.filter(item => item.tenant_id === tenantId).map(sanitizeTenantDomain),
+      seo: getTenantSeoSettings(tenantId),
+      landing: getTenantLandingSettings(tenantId),
+      legal: getTenantLegalPages(tenantId)
+    });
+  });
+
+  app.put("/api/admin/white-label/branding", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const branding = normalizeTenantBranding(tenantId, req.body || {});
+    const tenant = tenants.find(item => item.id === tenantId);
+    if (tenant) {
+      tenant.logo_url = branding.logo_url;
+      tenant.cor_primaria = branding.primary_color;
+    }
+    recordSecurityEvent({ tenant_id: tenantId, action: "WHITE_LABEL_BRANDING_UPDATED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email, detail: branding.display_name || branding.header_name });
+    schedulePersistentStateSave("white-label-branding");
+    res.json(branding);
+  });
+
+  app.put("/api/admin/white-label/seo", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const seo = normalizeTenantSeoSettings(tenantId, req.body || {});
+    recordSecurityEvent({ tenant_id: tenantId, action: "WHITE_LABEL_SEO_UPDATED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email, detail: seo.meta_title });
+    schedulePersistentStateSave("white-label-seo");
+    res.json(seo);
+  });
+
+  app.put("/api/admin/white-label/landing", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const landing = normalizeTenantLandingSettings(tenantId, req.body || {});
+    const settingsForTenant = getTenantSettings(tenantId);
+    settingsForTenant.socialLinks = {
+      ...settingsForTenant.socialLinks,
+      whatsapp: landing.whatsapp || settingsForTenant.socialLinks?.whatsapp || "",
+      instagram: landing.instagram || settingsForTenant.socialLinks?.instagram || ""
+    };
+    recordSecurityEvent({ tenant_id: tenantId, action: "WHITE_LABEL_LANDING_UPDATED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email, detail: landing.headline });
+    schedulePersistentStateSave("white-label-landing");
+    res.json(landing);
+  });
+
+  app.put("/api/admin/white-label/legal", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const legal = normalizeTenantLegalPages(tenantId, req.body || {});
+    recordSecurityEvent({ tenant_id: tenantId, action: "WHITE_LABEL_LEGAL_UPDATED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email });
+    schedulePersistentStateSave("white-label-legal");
+    res.json(legal);
+  });
+
+  app.post("/api/admin/white-label/domains", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    try {
+      const domain = buildDomainRecord(tenantId, { ...req.body, type: req.body?.type || "custom_domain" });
+      tenantDomains.unshift(domain);
+      recordSecurityEvent({ tenant_id: tenantId, action: "WHITE_LABEL_DOMAIN_CREATED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email, detail: domain.domain });
+      schedulePersistentStateSave("white-label-domain");
+      res.status(201).json(sanitizeTenantDomain(domain));
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Erro ao criar dominio" });
+    }
   });
 
   app.get("/api/admin/theme-builder", (req, res) => {

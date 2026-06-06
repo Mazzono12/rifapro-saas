@@ -2,6 +2,9 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import { getReadableTextColor, normalizeReadableColor } from "../../lib/contrast";
 
 export type PublicTenantBranding = {
+  tenant_id?: string;
+  company_name?: string;
+  display_name?: string;
   header_name: string;
   logo_url: string;
   logo_mime_type?: string;
@@ -10,7 +13,12 @@ export type PublicTenantBranding = {
     primary: string;
     secondary: string;
     cta: string;
+    accent?: string;
+    success?: string;
+    warning?: string;
+    error?: string;
   };
+  custom_css?: string;
   theme_mode: "vimeu_dark" | "dark" | "light" | "premium";
   slogan: string;
   footer_text: string;
@@ -24,6 +32,28 @@ export type PublicTenantBranding = {
   login_accent_color: string;
   login_button_text: string;
   login_footer_text: string;
+  seo?: {
+    meta_title?: string;
+    meta_description?: string;
+    meta_keywords?: string;
+    og_title?: string;
+    og_description?: string;
+    og_image?: string;
+    twitter_title?: string;
+    twitter_description?: string;
+    twitter_image?: string;
+  };
+  landing?: {
+    headline?: string;
+    subheadline?: string;
+    about_company?: string;
+    whatsapp?: string;
+    instagram?: string;
+    facebook?: string;
+    youtube?: string;
+    telegram?: string;
+    banner_image?: string;
+  };
 };
 
 const fallbackBranding: PublicTenantBranding = {
@@ -103,7 +133,33 @@ function applyBranding(branding: PublicTenantBranding) {
     document.head.appendChild(themeColor);
   }
   themeColor.content = primary;
-  document.title = branding.header_name ? `${branding.header_name} | Painel profissional` : "CIFHER Prime";
+  const seoTitle = branding.seo?.meta_title || branding.display_name || branding.header_name;
+  const seoDescription = branding.seo?.meta_description || branding.slogan || "Sorteios premium com operacao profissional.";
+  document.title = seoTitle || "CIFHER Prime";
+  const setMeta = (selector: string, attr: "name" | "property", key: string, content: string) => {
+    let meta = document.querySelector<HTMLMetaElement>(selector);
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute(attr, key);
+      document.head.appendChild(meta);
+    }
+    meta.content = content;
+  };
+  setMeta('meta[name="description"]', "name", "description", seoDescription);
+  setMeta('meta[name="keywords"]', "name", "keywords", branding.seo?.meta_keywords || "");
+  setMeta('meta[property="og:title"]', "property", "og:title", branding.seo?.og_title || seoTitle || "");
+  setMeta('meta[property="og:description"]', "property", "og:description", branding.seo?.og_description || seoDescription);
+  setMeta('meta[property="og:image"]', "property", "og:image", branding.seo?.og_image || branding.logo_url || "");
+  setMeta('meta[name="twitter:title"]', "name", "twitter:title", branding.seo?.twitter_title || seoTitle || "");
+  setMeta('meta[name="twitter:description"]', "name", "twitter:description", branding.seo?.twitter_description || seoDescription);
+  setMeta('meta[name="twitter:image"]', "name", "twitter:image", branding.seo?.twitter_image || branding.seo?.og_image || branding.logo_url || "");
+  let customStyle = document.querySelector<HTMLStyleElement>('style[data-tenant-custom-css="true"]');
+  if (!customStyle) {
+    customStyle = document.createElement("style");
+    customStyle.dataset.tenantCustomCss = "true";
+    document.head.appendChild(customStyle);
+  }
+  customStyle.textContent = branding.custom_css || "";
   const existingFavicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]') || document.createElement("link");
   existingFavicon.rel = "icon";
   existingFavicon.href = branding.favicon_url || "/favicon.ico";

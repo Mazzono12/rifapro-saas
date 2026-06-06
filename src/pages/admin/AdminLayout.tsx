@@ -124,6 +124,7 @@ function AdminLayoutContent() {
     { name: "Compliance", path: "/admin/compliance", icon: ShieldAlert, group: "Segurança" },
     { name: "Antifraude", path: "/admin/antifraude", icon: ShieldAlert, group: "Segurança" },
     { name: "Gerenciar Cotas", path: "/admin/gerenciar-cotas", icon: Scale, group: "Segurança" },
+    { name: "Marca e Domínio", path: "/admin/marca-dominio", icon: Palette, group: "Configuração" },
     { name: "Aparência", path: "/admin/config/aparencia", icon: Palette, group: "Configuração" },
     { name: "Domínios", path: "/admin/dominios", icon: Globe2, group: "Configuração" },
     { name: "PIX", path: "/admin/pagamentos", icon: CreditCard, group: "Configuração" },

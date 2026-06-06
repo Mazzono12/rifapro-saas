@@ -165,6 +165,7 @@
     ,"test:asaas-optional-production-env": "node scripts/test-asaas-optional-production-env.mjs"
     ,"test:asaas-webhook-tenant-resolution": "node scripts/test-asaas-webhook-tenant-resolution.mjs"
     ,"test:tenant-branding": "node scripts/test-tenant-branding.mjs"
+    ,"test:white-label-enterprise-hard": "node scripts/test-white-label-enterprise-hard.mjs"
     ,"test:branding-assets": "node scripts/test-branding-assets.mjs"
     ,"test:audit-ledger": "node scripts/test-compliance-audit-modules.mjs audit-ledger"
     ,"test:customer-editing-hard": "node scripts/test-compliance-audit-modules.mjs customer-editing-hard"
