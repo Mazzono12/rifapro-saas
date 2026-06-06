@@ -34,7 +34,7 @@ includesAll(server, [
 ], "estruturas inbox");
 
 includesAll(server, [
-  "processWhatsAppCenterInboundWebhook(config.tenant_id, req.body)",
+  "processWhatsAppCenterInboundWebhook(config.tenant_id, req.body, resolvedNumber)",
   "upsertWhatsAppContact(tenantId, phone",
   "ensureWhatsAppConversation(tenantId, contact",
   "direction: \"inbound\"",

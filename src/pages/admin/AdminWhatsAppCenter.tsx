@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Ban, BarChart3, CheckCircle2, Clock3, DollarSign, Eye, FileText, ListChecks, Megaphone, MessageCircle, Play, RefreshCw, Search, Send, StickyNote, TrendingUp, UserPlus, Users, X } from "lucide-react";
+import { AlertTriangle, Ban, BarChart3, CheckCircle2, Clock3, DollarSign, Eye, FileText, ListChecks, Megaphone, MessageCircle, Phone, Play, RefreshCw, Search, Send, StickyNote, TrendingUp, UserPlus, Users, X } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type Contact = {
@@ -176,6 +176,22 @@ type AutomationLog = {
   created_at: string;
 };
 
+type WhatsAppCloudNumber = {
+  id: string;
+  displayName: string;
+  phoneNumber: string;
+  phoneNumberId: string;
+  wabaId: string;
+  businessManagerId: string;
+  status: "active" | "inactive" | "blocked" | "error";
+  qualityRating: "unknown" | "green" | "yellow" | "red";
+  dailyLimit: number;
+  dailySentCount: number;
+  lastSentAt?: string;
+  lastErrorAt?: string;
+  isDefault: boolean;
+};
+
 const filters = [
   { key: "", label: "Todas" },
   { key: "open", label: "Abertas" },
@@ -207,7 +223,7 @@ function percent(value: number) {
 }
 
 export function AdminWhatsAppCenter() {
-  const [centerView, setCenterView] = useState<"dashboard" | "inbox" | "campaigns" | "automations">("dashboard");
+  const [centerView, setCenterView] = useState<"dashboard" | "inbox" | "numbers" | "campaigns" | "automations">("dashboard");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [selected, setSelected] = useState<Conversation | null>(null);
@@ -387,6 +403,9 @@ export function AdminWhatsAppCenter() {
         <button type="button" onClick={() => setCenterView("inbox")} className={centerView === "inbox" ? "admin-button-primary" : "admin-button-secondary"}>
           <MessageCircle className="h-4 w-4" /> Atendimento
         </button>
+        <button type="button" onClick={() => setCenterView("numbers")} className={centerView === "numbers" ? "admin-button-primary" : "admin-button-secondary"}>
+          <Phone className="h-4 w-4" /> Números WhatsApp
+        </button>
         <button type="button" onClick={() => setCenterView("campaigns")} className={centerView === "campaigns" ? "admin-button-primary" : "admin-button-secondary"}>
           <Megaphone className="h-4 w-4" /> Campanhas CRM
         </button>
@@ -394,7 +413,7 @@ export function AdminWhatsAppCenter() {
           <ListChecks className="h-4 w-4" /> Automações CRM
         </button>
       </div>
-      {centerView === "dashboard" ? <AdminWhatsAppDashboard /> : centerView === "campaigns" ? <AdminWhatsAppCampaigns /> : centerView === "automations" ? <AdminWhatsAppAutomations templates={templates} /> : (
+      {centerView === "dashboard" ? <AdminWhatsAppDashboard /> : centerView === "numbers" ? <AdminWhatsAppNumbers /> : centerView === "campaigns" ? <AdminWhatsAppCampaigns /> : centerView === "automations" ? <AdminWhatsAppAutomations templates={templates} /> : (
     <div className="grid min-h-[calc(100vh-190px)] gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
       <aside className="admin-card flex min-h-[620px] flex-col overflow-hidden p-0">
         <div className="border-b border-[var(--admin-border)] p-4">
@@ -617,6 +636,148 @@ export function AdminWhatsAppCenter() {
       </section>
     </div>
       )}
+    </div>
+  );
+}
+
+function AdminWhatsAppNumbers() {
+  const [numbers, setNumbers] = useState<WhatsAppCloudNumber[]>([]);
+  const [routingMode, setRoutingMode] = useState<"automatic" | "default_number">("automatic");
+  const [form, setForm] = useState<Record<string, string>>({ status: "inactive", qualityRating: "unknown", dailyLimit: "1000" });
+  const [error, setError] = useState("");
+
+  async function load() {
+    const response = await fetch("/api/admin/whatsapp-center/numbers");
+    const data = await response.json().catch(() => ({ numbers: [], routing: {} }));
+    if (!response.ok) {
+      setError(data.error || "Falha ao carregar números");
+      return;
+    }
+    setNumbers(data.numbers || []);
+    setRoutingMode(data.routing?.whatsappRoutingMode === "default_number" ? "default_number" : "automatic");
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function saveNumber() {
+    setError("");
+    const response = await fetch("/api/admin/whatsapp-center/numbers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        displayName: form.displayName,
+        phoneNumber: form.phoneNumber,
+        phoneNumberId: form.phoneNumberId,
+        wabaId: form.wabaId,
+        businessManagerId: form.businessManagerId,
+        accessToken: form.accessToken,
+        appSecret: form.appSecret,
+        verifyToken: form.verifyToken,
+        status: form.status,
+        qualityRating: form.qualityRating,
+        dailyLimit: Number(form.dailyLimit || 1000)
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(data.error || "Falha ao salvar número");
+      return;
+    }
+    setForm({ status: "inactive", qualityRating: "unknown", dailyLimit: "1000" });
+    await load();
+  }
+
+  async function updateNumber(id: string, patch: Record<string, unknown>) {
+    const response = await fetch(`/api/admin/whatsapp-center/numbers/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch)
+    });
+    if (response.ok) await load();
+  }
+
+  async function simpleAction(id: string, action: "test" | "validate" | "set-default" | "sync-templates") {
+    const response = await fetch(`/api/admin/whatsapp-center/numbers/${id}/${action}`, { method: "POST" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) setError(data.error || "Ação não concluída");
+    await load();
+  }
+
+  async function saveRouting(mode: "automatic" | "default_number") {
+    setRoutingMode(mode);
+    await fetch("/api/admin/whatsapp-center/routing", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ whatsappRoutingMode: mode })
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <section className="admin-card p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="mb-1 text-lg font-semibold text-[var(--admin-text)]">Números WhatsApp</h2>
+            <p className="text-sm text-[var(--admin-muted)]">Roteamento por menor carga ou número padrão.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => void saveRouting("automatic")} className={routingMode === "automatic" ? "admin-button-primary" : "admin-button-secondary"}>Automático</button>
+            <button type="button" onClick={() => void saveRouting("default_number")} className={routingMode === "default_number" ? "admin-button-primary" : "admin-button-secondary"}>Número padrão</button>
+          </div>
+        </div>
+        {error && <p className="mt-3 rounded-[8px] border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</p>}
+      </section>
+
+      <section className="admin-card p-4">
+        <h3 className="mb-3 text-base font-semibold text-[var(--admin-text)]">Adicionar número</h3>
+        <div className="grid gap-3 md:grid-cols-3">
+          {[
+            ["displayName", "Nome exibido"],
+            ["phoneNumber", "Número"],
+            ["phoneNumberId", "Phone Number ID"],
+            ["wabaId", "WABA ID"],
+            ["businessManagerId", "Business Manager ID"],
+            ["dailyLimit", "Limite diário"],
+            ["accessToken", "Access token"],
+            ["appSecret", "App secret"],
+            ["verifyToken", "Verify token"]
+          ].map(([key, label]) => (
+            <label key={key} className="grid gap-1 text-xs font-semibold text-[var(--admin-muted)]">{label}<input className="admin-input" value={form[key] || ""} onChange={event => setForm(current => ({ ...current, [key]: event.target.value }))} /></label>
+          ))}
+          <label className="grid gap-1 text-xs font-semibold text-[var(--admin-muted)]">Status<select className="admin-input" value={form.status || "inactive"} onChange={event => setForm(current => ({ ...current, status: event.target.value }))}><option value="active">active</option><option value="inactive">inactive</option><option value="blocked">blocked</option><option value="error">error</option></select></label>
+          <label className="grid gap-1 text-xs font-semibold text-[var(--admin-muted)]">Qualidade<select className="admin-input" value={form.qualityRating || "unknown"} onChange={event => setForm(current => ({ ...current, qualityRating: event.target.value }))}><option value="unknown">unknown</option><option value="green">green</option><option value="yellow">yellow</option><option value="red">red</option></select></label>
+        </div>
+        <button type="button" onClick={() => void saveNumber()} className="admin-button mt-4"><CheckCircle2 className="h-4 w-4" /> Adicionar número</button>
+      </section>
+
+      <section className="admin-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px] text-left text-sm">
+            <thead className="text-[var(--admin-muted)]"><tr><th className="p-3">Número</th><th className="p-3">Status</th><th className="p-3">Qualidade</th><th className="p-3">Uso diário</th><th className="p-3">Último erro</th><th className="p-3">Ações</th></tr></thead>
+            <tbody>
+              {numbers.map(number => (
+                <tr key={number.id} className="border-t border-[var(--admin-border)] text-[var(--admin-text)]">
+                  <td className="p-3"><p className="font-semibold">{number.displayName} {number.isDefault ? "• padrão" : ""}</p><p className="text-xs text-[var(--admin-muted)]">{number.phoneNumberId}</p></td>
+                  <td className="p-3">{number.status}</td>
+                  <td className="p-3">{number.qualityRating}</td>
+                  <td className="p-3">{number.dailySentCount}/{number.dailyLimit}</td>
+                  <td className="p-3">{number.lastErrorAt ? formatDate(number.lastErrorAt) : "Sem erro"}</td>
+                  <td className="p-3"><div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => void updateNumber(number.id, { status: number.status === "active" ? "inactive" : "active" })} className="admin-action-button">{number.status === "active" ? "Desativar" : "Ativar"}</button>
+                    <button type="button" onClick={() => void simpleAction(number.id, "set-default")} className="admin-action-button">Definir padrão</button>
+                    <button type="button" onClick={() => void simpleAction(number.id, "test")} className="admin-action-button">Testar</button>
+                    <button type="button" onClick={() => void simpleAction(number.id, "validate")} className="admin-action-button">Validar</button>
+                    <button type="button" onClick={() => void simpleAction(number.id, "sync-templates")} className="admin-action-button">Sincronizar templates</button>
+                  </div></td>
+                </tr>
+              ))}
+              {!numbers.length && <tr><td className="p-4 text-[var(--admin-muted)]" colSpan={6}>Nenhum número conectado.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

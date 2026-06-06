@@ -1549,6 +1549,42 @@ async function startServer() {
     created_at: string;
     updated_at: string;
   };
+  type WhatsAppCloudNumberStatus = "active" | "inactive" | "blocked" | "error";
+  type WhatsAppCloudNumberQuality = "unknown" | "green" | "yellow" | "red";
+  type WhatsAppRoutingMode = "automatic" | "default_number";
+  type WhatsAppCloudNumberRecord = {
+    id: string;
+    tenantId: string;
+    displayName: string;
+    phoneNumber: string;
+    phoneNumberId: string;
+    wabaId: string;
+    businessManagerId: string;
+    accessTokenEncrypted: string;
+    appSecretEncrypted: string;
+    verifyTokenEncrypted: string;
+    status: WhatsAppCloudNumberStatus;
+    qualityRating: WhatsAppCloudNumberQuality;
+    dailyLimit: number;
+    dailySentCount: number;
+    lastSentAt: string;
+    lastErrorAt: string;
+    isDefault: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+  type WhatsAppRoutingSettingsRecord = {
+    tenantId: string;
+    whatsappRoutingMode: WhatsAppRoutingMode;
+    updatedAt: string;
+  };
+  type WhatsAppSelectedSendingNumber = {
+    numberId: string;
+    phoneNumberId: string;
+    phoneNumber: string;
+    config: WhatsAppCloudNumberRecord;
+    decryptedConfig: ReturnType<typeof decryptWhatsAppCloudNumberConfig>;
+  };
   type WhatsAppCloudLogRecord = {
     id: string;
     tenant_id: string;
@@ -1635,6 +1671,9 @@ async function startServer() {
     body: string;
     status?: string;
     metaMessageId?: string;
+    sendingNumberId?: string;
+    phoneNumberId?: string;
+    phoneNumber?: string;
     receivedAt?: string;
     sentAt?: string;
     rawSummary: Record<string, unknown>;
@@ -1726,6 +1765,9 @@ async function startServer() {
     sent_at?: string;
     processed_at?: string;
     meta_message_id?: string;
+    sendingNumberId?: string;
+    phoneNumberId?: string;
+    phoneNumber?: string;
     template_name?: string;
     language?: string;
     event_type?: WhatsAppPixRecoveryEventType | string;
@@ -3268,6 +3310,8 @@ async function startServer() {
   const paymentReleaseLocks = new Set<string>();
   let whatsappProviderConfigs: WhatsAppProviderConfigRecord[] = [];
   let whatsappCloudConfigs: WhatsAppCloudConfigRecord[] = [];
+  let whatsappCloudNumbers: WhatsAppCloudNumberRecord[] = [];
+  const whatsappRoutingSettings: Record<string, WhatsAppRoutingSettingsRecord> = {};
   let whatsappCloudLogs: WhatsAppCloudLogRecord[] = [];
   let whatsappCloudTemplates: WhatsAppCloudTemplateRecord[] = [];
   let whatsappPixRecoverySettings: WhatsAppPixRecoverySettingsRecord[] = [];
@@ -5768,6 +5812,15 @@ async function startServer() {
     });
   });
 
+  app.get("/api/superadmin/whatsapp-center/numbers", (_req, res) => {
+    res.json({
+      numbers: whatsappCloudNumbers.map(number => ({
+        tenant: buildTenantSummary(tenants.find(tenant => tenant.id === number.tenantId) || tenants.find(tenant => tenant.id === legacyTenantId)!),
+        ...sanitizeWhatsAppCloudNumber(number)
+      }))
+    });
+  });
+
   app.get("/api/superadmin/whatsapp/messages", (_req, res) => {
     res.json(whatsappMessageQueue.map(message => ({
       ...message,
@@ -6533,6 +6586,128 @@ async function startServer() {
 
   app.use("/api/admin/whatsapp-center", rateLimiter, requireWhatsAppCenterAccess);
 
+  app.get("/api/admin/whatsapp-center/numbers", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({
+      routing: getWhatsAppRoutingSettings(tenantId),
+      numbers: getWhatsAppCloudNumbersForTenant(tenantId).map(sanitizeWhatsAppCloudNumber)
+    });
+  });
+
+  app.post("/api/admin/whatsapp-center/numbers", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    try {
+      const number = upsertWhatsAppCloudNumber(tenantId, req.body || {});
+      recordWhatsAppCloudLog(tenantId, { action: "settings_saved", status: "success", message: "Numero WhatsApp Cloud criado", metadata: { sendingNumberId: number.id, phoneNumberId: number.phoneNumberId, phoneNumber: number.phoneNumber } });
+      schedulePersistentStateSave("whatsapp-cloud-number-created");
+      res.status(201).json(sanitizeWhatsAppCloudNumber(number));
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Falha ao criar numero" });
+    }
+  });
+
+  app.put("/api/admin/whatsapp-center/numbers/:id", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const existing = whatsappCloudNumbers.find(number => number.id === req.params.id && number.tenantId === tenantId);
+    if (!existing) return res.status(404).json({ error: "Numero WhatsApp nao encontrado para este tenant" });
+    try {
+      const number = upsertWhatsAppCloudNumber(tenantId, req.body || {}, existing);
+      recordWhatsAppCloudLog(tenantId, { action: "settings_saved", status: "success", message: "Numero WhatsApp Cloud atualizado", metadata: { sendingNumberId: number.id, phoneNumberId: number.phoneNumberId, phoneNumber: number.phoneNumber, status: number.status } });
+      schedulePersistentStateSave("whatsapp-cloud-number-updated");
+      res.json(sanitizeWhatsAppCloudNumber(number));
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Falha ao atualizar numero" });
+    }
+  });
+
+  app.post("/api/admin/whatsapp-center/numbers/:id/set-default", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const number = whatsappCloudNumbers.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!number) return res.status(404).json({ error: "Numero WhatsApp nao encontrado para este tenant" });
+    whatsappCloudNumbers.forEach(item => { if (item.tenantId === tenantId) item.isDefault = item.id === number.id; });
+    getWhatsAppRoutingSettings(tenantId).whatsappRoutingMode = "default_number";
+    getWhatsAppRoutingSettings(tenantId).updatedAt = new Date().toISOString();
+    schedulePersistentStateSave("whatsapp-cloud-number-default");
+    res.json({ routing: getWhatsAppRoutingSettings(tenantId), number: sanitizeWhatsAppCloudNumber(number) });
+  });
+
+  app.post("/api/admin/whatsapp-center/numbers/:id/test", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const number = whatsappCloudNumbers.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!number) return res.status(404).json({ error: "Numero WhatsApp nao encontrado para este tenant" });
+    try {
+      const selected = { numberId: number.id, phoneNumberId: number.phoneNumberId, phoneNumber: number.phoneNumber, config: number, decryptedConfig: decryptWhatsAppCloudNumberConfig(number) };
+      const result = await createMetaWhatsAppCloudProvider(tenantId, selected).testConnection();
+      number.status = "active";
+      number.qualityRating = normalizeWhatsAppCloudQuality(result.data?.quality_rating ? String(result.data.quality_rating).toLowerCase() : number.qualityRating);
+      number.updatedAt = new Date().toISOString();
+      schedulePersistentStateSave("whatsapp-cloud-number-test");
+      res.json({ ok: true, number: sanitizeWhatsAppCloudNumber(number), result: maskLogValue(result.data || {}) });
+    } catch (error) {
+      number.status = "error";
+      number.lastErrorAt = new Date().toISOString();
+      number.updatedAt = number.lastErrorAt;
+      schedulePersistentStateSave("whatsapp-cloud-number-test-error");
+      res.status(502).json({ error: maskSecretText(error instanceof Error ? error.message : "Falha ao testar numero") });
+    }
+  });
+
+  app.post("/api/admin/whatsapp-center/numbers/:id/validate", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const number = whatsappCloudNumbers.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!number) return res.status(404).json({ error: "Numero WhatsApp nao encontrado para este tenant" });
+    try {
+      const selected = { numberId: number.id, phoneNumberId: number.phoneNumberId, phoneNumber: number.phoneNumber, config: number, decryptedConfig: decryptWhatsAppCloudNumberConfig(number) };
+      const info = await createMetaWhatsAppCloudProvider(tenantId, selected).getPhoneNumberInfo();
+      number.status = "active";
+      number.qualityRating = normalizeWhatsAppCloudQuality(info?.quality_rating ? String(info.quality_rating).toLowerCase() : number.qualityRating);
+      number.updatedAt = new Date().toISOString();
+      schedulePersistentStateSave("whatsapp-cloud-number-validate");
+      res.json({ ok: true, number: sanitizeWhatsAppCloudNumber(number), info: maskLogValue(info || {}) });
+    } catch (error) {
+      number.status = "error";
+      number.lastErrorAt = new Date().toISOString();
+      number.updatedAt = number.lastErrorAt;
+      schedulePersistentStateSave("whatsapp-cloud-number-validate-error");
+      res.status(502).json({ error: maskSecretText(error instanceof Error ? error.message : "Falha ao validar numero") });
+    }
+  });
+
+  app.post("/api/admin/whatsapp-center/numbers/:id/sync-templates", async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const number = whatsappCloudNumbers.find(item => item.id === req.params.id && item.tenantId === tenantId);
+    if (!number) return res.status(404).json({ error: "Numero WhatsApp nao encontrado para este tenant" });
+    try {
+      const selected = { numberId: number.id, phoneNumberId: number.phoneNumberId, phoneNumber: number.phoneNumber, config: number, decryptedConfig: decryptWhatsAppCloudNumberConfig(number) };
+      const templates = await createMetaWhatsAppCloudProvider(tenantId, selected).listTemplates();
+      const syncedAt = new Date().toISOString();
+      const snapshot = templates.map(template => normalizeWhatsAppCloudTemplateSnapshot(tenantId, template as Record<string, unknown>, syncedAt));
+      whatsappCloudTemplates = [
+        ...snapshot,
+        ...whatsappCloudTemplates.filter(template => template.tenant_id !== tenantId || !snapshot.some(next => next.name === template.name && next.language === template.language))
+      ];
+      recordWhatsAppCloudLog(tenantId, { action: "templates_synced", status: "success", message: "Templates sincronizados por numero/WABA", metadata: { sendingNumberId: number.id, phoneNumberId: number.phoneNumberId, phoneNumber: number.phoneNumber, count: snapshot.length } });
+      schedulePersistentStateSave("whatsapp-cloud-number-templates-sync");
+      res.json({ templates: snapshot.map(sanitizeWhatsAppCloudTemplate), syncedAt, number: sanitizeWhatsAppCloudNumber(number) });
+    } catch (error) {
+      number.status = "error";
+      number.lastErrorAt = new Date().toISOString();
+      number.updatedAt = number.lastErrorAt;
+      schedulePersistentStateSave("whatsapp-cloud-number-templates-sync-error");
+      res.status(502).json({ error: maskSecretText(error instanceof Error ? error.message : "Falha ao sincronizar templates") });
+    }
+  });
+
+  app.put("/api/admin/whatsapp-center/routing", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const mode = String(req.body?.whatsappRoutingMode || req.body?.mode || "automatic") === "default_number" ? "default_number" : "automatic";
+    const routing = getWhatsAppRoutingSettings(tenantId);
+    routing.whatsappRoutingMode = mode;
+    routing.updatedAt = new Date().toISOString();
+    schedulePersistentStateSave("whatsapp-routing-settings");
+    res.json(routing);
+  });
+
   app.get("/api/admin/whatsapp-center/dashboard", requireWhatsAppCrmCampaignAccess, async (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     res.json(await buildWhatsAppCenterDashboard(tenantId));
@@ -6652,20 +6827,25 @@ async function startServer() {
     };
     whatsappConversationMessages.push(message);
     let metaAccessToken = "";
+    let selectedNumber: WhatsAppSelectedSendingNumber | null = null;
     try {
-      const config = decryptWhatsAppCloudConfig(getWhatsAppCloudConfig(tenantId));
-      metaAccessToken = config?.access_token || "";
+      selectedNumber = selectWhatsAppSendingNumber(tenantId, "manual_reply");
+      metaAccessToken = selectedNumber.decryptedConfig?.access_token || "";
       const result = await sendMetaCloudWhatsAppMessage({
         tenantId,
         messageId: message.id,
         to: contact.phone,
         body
-      }, config || { enabled: false, environment: "sandbox" });
+      }, selectedNumber.decryptedConfig || { enabled: false, environment: "sandbox" });
       const sentAt = new Date().toISOString();
       message.status = "sent";
       message.metaMessageId = result.providerMessageId || "";
+      message.sendingNumberId = selectedNumber.numberId;
+      message.phoneNumberId = selectedNumber.phoneNumberId;
+      message.phoneNumber = selectedNumber.phoneNumber;
       message.sentAt = sentAt;
-      message.rawSummary = { ...message.rawSummary, metaMessageId: message.metaMessageId ? "present" : "missing" };
+      message.rawSummary = { ...message.rawSummary, metaMessageId: message.metaMessageId ? "present" : "missing", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber };
+      markWhatsAppNumberSendSuccess(selectedNumber);
       contact.lastOutboundAt = sentAt;
       contact.updatedAt = sentAt;
       conversation.lastMessageAt = sentAt;
@@ -6676,7 +6856,7 @@ async function startServer() {
         action: "manual_reply_sent",
         status: "success",
         message: "Resposta manual enviada",
-        metadata: { conversationId: conversation.id, messageId: message.id, to: maskPhone(contact.phone), adminId: getAuthSession(req)?.sub || "", metaMessageId: message.metaMessageId || "" }
+        metadata: { conversationId: conversation.id, messageId: message.id, to: maskPhone(contact.phone), adminId: getAuthSession(req)?.sub || "", metaMessageId: message.metaMessageId || "", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber }
       });
       schedulePersistentStateSave("whatsapp-center-manual-reply");
       res.status(201).json({ message: publicWhatsAppMessage(message), conversation: publicWhatsAppConversation(conversation) });
@@ -6684,6 +6864,7 @@ async function startServer() {
       const failedAt = new Date().toISOString();
       const rawErrorMessage = error instanceof Error ? error.message : "Falha ao enviar resposta manual";
       const safeErrorMessage = maskSecretText(metaAccessToken ? rawErrorMessage.split(metaAccessToken).join("[masked]") : rawErrorMessage);
+      markWhatsAppNumberSendError(selectedNumber);
       message.status = "failed";
       message.rawSummary = { ...message.rawSummary, error: safeErrorMessage.slice(0, 300) };
       conversation.updatedAt = failedAt;
@@ -6755,10 +6936,11 @@ async function startServer() {
     };
     whatsappConversationMessages.push(message);
     let metaAccessToken = "";
+    let selectedNumber: WhatsAppSelectedSendingNumber | null = null;
     try {
-      const config = decryptWhatsAppCloudConfig(getWhatsAppCloudConfig(tenantId));
-      metaAccessToken = config?.access_token || "";
-      const result = await createMetaWhatsAppCloudProvider(tenantId).sendTemplate({
+      selectedNumber = selectWhatsAppSendingNumber(tenantId, "manual_template");
+      metaAccessToken = selectedNumber.decryptedConfig?.access_token || "";
+      const result = await createMetaWhatsAppCloudProvider(tenantId, selectedNumber).sendTemplate({
         to: contact.phone,
         templateName,
         language,
@@ -6768,8 +6950,12 @@ async function startServer() {
       const sentAt = new Date().toISOString();
       message.status = "sent";
       message.metaMessageId = result.data?.messages?.[0]?.id || "";
+      message.sendingNumberId = selectedNumber.numberId;
+      message.phoneNumberId = selectedNumber.phoneNumberId;
+      message.phoneNumber = selectedNumber.phoneNumber;
       message.sentAt = sentAt;
-      message.rawSummary = { ...message.rawSummary, metaMessageId: message.metaMessageId ? "present" : "missing" };
+      message.rawSummary = { ...message.rawSummary, metaMessageId: message.metaMessageId ? "present" : "missing", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber };
+      markWhatsAppNumberSendSuccess(selectedNumber);
       contact.lastOutboundAt = sentAt;
       contact.updatedAt = sentAt;
       conversation.lastMessageAt = sentAt;
@@ -6780,7 +6966,7 @@ async function startServer() {
         action: "manual_template_sent",
         status: "success",
         message: "Template enviado pela Central WhatsApp",
-        metadata: { conversationId: conversation.id, messageId: message.id, to: maskPhone(contact.phone), templateName, language, adminId: getAuthSession(req)?.sub || "", metaMessageId: message.metaMessageId || "" }
+        metadata: { conversationId: conversation.id, messageId: message.id, to: maskPhone(contact.phone), templateName, language, adminId: getAuthSession(req)?.sub || "", metaMessageId: message.metaMessageId || "", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber }
       });
       schedulePersistentStateSave("whatsapp-center-template-reply");
       res.status(201).json({ message: publicWhatsAppMessage(message), conversation: publicWhatsAppConversation(conversation) });
@@ -6788,6 +6974,7 @@ async function startServer() {
       const failedAt = new Date().toISOString();
       const rawErrorMessage = error instanceof Error ? error.message : "Falha ao enviar template";
       const safeErrorMessage = maskSecretText(metaAccessToken ? rawErrorMessage.split(metaAccessToken).join("[masked]") : rawErrorMessage);
+      markWhatsAppNumberSendError(selectedNumber);
       message.status = "failed";
       message.rawSummary = { ...message.rawSummary, error: safeErrorMessage.slice(0, 300) };
       conversation.updatedAt = failedAt;
@@ -6950,7 +7137,7 @@ async function startServer() {
         skipped += 1;
         continue;
       }
-      whatsappMessageQueue.unshift({
+      const queueMessage: WhatsAppMessageQueueRecord = {
         id: createPublicId("WAPP_"),
         tenant_id: tenantId,
         customer_id: recipient.customerId,
@@ -6970,7 +7157,15 @@ async function startServer() {
         created_at: now,
         updated_at: now,
         idempotency_key: idempotencyKey
-      });
+      };
+      try {
+        attachWhatsAppSendingNumberToQueueJob(queueMessage, "crm_campaign");
+      } catch (error) {
+        skipped += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_skipped", status: "skipped", message: error instanceof Error ? error.message : "Numero WhatsApp indisponivel", metadata: { campaignId: campaign.id, to: maskPhone(recipient.phone), templateName: campaign.template_name } });
+        continue;
+      }
+      whatsappMessageQueue.unshift(queueMessage);
       queued += 1;
     }
     whatsappMessageQueue = whatsappMessageQueue.slice(0, 5000);
@@ -6979,7 +7174,8 @@ async function startServer() {
     campaign.skipped_count += skipped;
     campaign.status = "queued";
     campaign.updated_at = now;
-    recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_enqueued", status: "success", message: "Campanha CRM enfileirada", metadata: { campaignId: campaign.id, segment: campaign.segment, queued, skipped, templateName: campaign.template_name } });
+    const firstQueuedCampaignMessage = getWhatsAppCrmCampaignQueue(tenantId, campaign.id).find(item => item.status === "queued");
+    recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_enqueued", status: "success", message: "Campanha CRM enfileirada", metadata: { campaignId: campaign.id, segment: campaign.segment, queued, skipped, templateName: campaign.template_name, ...(firstQueuedCampaignMessage ? getWhatsAppQueueSendingNumberLogMetadata(firstQueuedCampaignMessage) : { sendingNumberId: "", phoneNumberId: "", phoneNumber: "" }) } });
     schedulePersistentStateSave("whatsapp-crm-campaign-enqueue");
     res.json({ campaign: sanitizeWhatsAppCrmCampaign(campaign), queued, skipped, queue: getWhatsAppCrmCampaignQueue(tenantId, campaign.id).map(sanitizeWhatsAppQueueRecord) });
   });
@@ -7005,7 +7201,6 @@ async function startServer() {
   app.post("/api/admin/whatsapp-center/campaigns/queue/run", requireWhatsAppCrmCampaignAccess, async (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const limit = Math.min(100, Math.max(1, Math.floor(Number(req.body?.limit || 20))));
-    const provider = createMetaWhatsAppCloudProvider(tenantId);
     const templates = getSavedWhatsAppCloudTemplates(tenantId);
     const { claimToken, jobs: ready } = claimWhatsAppQueueJobs(tenantId, limit, ["whatsapp_crm_campaign"]);
     let sent = 0;
@@ -7030,7 +7225,9 @@ async function startServer() {
         message.attempts += 1;
         message.status = "processing";
         message.updated_at = new Date().toISOString();
-        recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_send_requested", status: "success", message: "Envio de campanha CRM solicitado", metadata: { campaignId: campaign.id, to: maskPhone(message.phone), templateName: message.template_name } });
+        const selectedNumber = getSelectedWhatsAppNumberForQueueJob(message, "crm_campaign");
+        recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_send_requested", status: "success", message: "Envio de campanha CRM solicitado", metadata: { campaignId: campaign.id, to: maskPhone(message.phone), templateName: message.template_name, sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber } });
+        const provider = createMetaWhatsAppCloudProvider(tenantId, selectedNumber);
         const result = await provider.sendTemplate({
           to: message.phone,
           templateName: String(message.template_name || ""),
@@ -7040,9 +7237,10 @@ async function startServer() {
         });
         const processedAt = new Date().toISOString();
         message.status = "sent";
-        finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: processedAt, processed_at: processedAt, meta_message_id: result.data?.messages?.[0]?.id || "" });
+        finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: processedAt, processed_at: processedAt, meta_message_id: result.data?.messages?.[0]?.id || "", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber });
+        markWhatsAppNumberSendSuccess(selectedNumber);
         sent += 1;
-        recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_sent", status: "success", message: "Campanha CRM enviada", metadata: { campaignId: campaign.id, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "" } });
+        recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_sent", status: "success", message: "Campanha CRM enviada", metadata: { campaignId: campaign.id, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber } });
       } catch (error) {
         const processedAt = new Date().toISOString();
         message.status = message.attempts >= message.max_attempts ? "failed" : "queued";
@@ -7178,7 +7376,6 @@ async function startServer() {
     const activeRules = whatsappAutomationRules.filter(rule => rule.tenantId === tenantId && rule.enabled && (!requestedRuleId || rule.id === requestedRuleId));
     const scheduling = activeRules.map(rule => scheduleWhatsAppAutomationExecutions(req, rule));
     const limit = Math.min(100, Math.max(1, Math.floor(Number(req.body?.limit || 20))));
-    const provider = createMetaWhatsAppCloudProvider(tenantId);
     const templates = getSavedWhatsAppCloudTemplates(tenantId);
     const { claimToken, jobs: ready } = claimWhatsAppQueueJobs(tenantId, limit, ["whatsapp_crm_automation"]);
     let sent = 0;
@@ -7215,6 +7412,8 @@ async function startServer() {
         message.attempts += 1;
         message.status = "processing";
         message.updated_at = new Date().toISOString();
+        const selectedNumber = getSelectedWhatsAppNumberForQueueJob(message, "crm_automation");
+        const provider = createMetaWhatsAppCloudProvider(tenantId, selectedNumber);
         const result = await provider.sendTemplate({
           to: phone,
           templateName: rule.template,
@@ -7226,9 +7425,10 @@ async function startServer() {
         execution.status = "sent";
         execution.executedAt = executedAt;
         execution.updatedAt = executedAt;
-        finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: executedAt, processed_at: executedAt, meta_message_id: result.data?.messages?.[0]?.id || "" });
+        finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: executedAt, processed_at: executedAt, meta_message_id: result.data?.messages?.[0]?.id || "", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber });
+        markWhatsAppNumberSendSuccess(selectedNumber);
         sent += 1;
-        recordWhatsAppCloudLog(tenantId, { action: "whatsapp_automation_sent", status: "success", message: "Automacao CRM enviada", metadata: { ruleId: rule.id, executionId: execution.id, customerId: execution.customerId, type: rule.type, template: rule.template, metaMessageId: result.data?.messages?.[0]?.id || "" } });
+        recordWhatsAppCloudLog(tenantId, { action: "whatsapp_automation_sent", status: "success", message: "Automacao CRM enviada", metadata: { ruleId: rule.id, executionId: execution.id, customerId: execution.customerId, type: rule.type, template: rule.template, metaMessageId: result.data?.messages?.[0]?.id || "", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber } });
       } catch (error) {
         execution.reason = maskSecretText(error instanceof Error ? error.message : "Falha ao enviar automacao CRM");
         const retried = scheduleWhatsAppQueueRetry(message, claimToken, execution.reason);
@@ -13201,6 +13401,188 @@ async function startServer() {
     };
   }
 
+  function normalizeWhatsAppCloudNumberStatus(value: unknown): WhatsAppCloudNumberStatus {
+    return ["active", "inactive", "blocked", "error"].includes(String(value)) ? String(value) as WhatsAppCloudNumberStatus : "inactive";
+  }
+
+  function normalizeWhatsAppCloudQuality(value: unknown): WhatsAppCloudNumberQuality {
+    return ["green", "yellow", "red", "unknown"].includes(String(value)) ? String(value) as WhatsAppCloudNumberQuality : "unknown";
+  }
+
+  function getWhatsAppRoutingSettings(tenantId: string) {
+    whatsappRoutingSettings[tenantId] ||= {
+      tenantId,
+      whatsappRoutingMode: "automatic",
+      updatedAt: new Date().toISOString()
+    };
+    return whatsappRoutingSettings[tenantId];
+  }
+
+  function getWhatsAppCloudNumbersForTenant(tenantId: string) {
+    const numbers = whatsappCloudNumbers.filter(number => number.tenantId === tenantId);
+    const legacy = getWhatsAppCloudConfig(tenantId);
+    if (numbers.length || !legacy?.phone_number_id) return numbers;
+    return [{
+      id: legacy.id,
+      tenantId,
+      displayName: legacy.account_name || "Numero principal",
+      phoneNumber: "",
+      phoneNumberId: legacy.phone_number_id,
+      wabaId: legacy.whatsapp_business_account_id,
+      businessManagerId: legacy.business_manager_id,
+      accessTokenEncrypted: legacy.access_token_encrypted,
+      appSecretEncrypted: legacy.app_secret_encrypted,
+      verifyTokenEncrypted: legacy.webhook_verify_token_encrypted,
+      status: legacy.enabled ? "active" : "inactive",
+      qualityRating: "unknown",
+      dailyLimit: 1000,
+      dailySentCount: whatsappMessageQueue.filter(message => message.tenant_id === tenantId && message.phoneNumberId === legacy.phone_number_id && String(message.sent_at || "").startsWith(new Date().toISOString().slice(0, 10))).length,
+      lastSentAt: "",
+      lastErrorAt: "",
+      isDefault: true,
+      createdAt: legacy.created_at,
+      updatedAt: legacy.updated_at
+    } satisfies WhatsAppCloudNumberRecord];
+  }
+
+  function sanitizeWhatsAppCloudNumber(number: WhatsAppCloudNumberRecord) {
+    return {
+      id: number.id,
+      tenantId: number.tenantId,
+      displayName: number.displayName,
+      phoneNumber: maskPhone(number.phoneNumber || ""),
+      phoneNumberId: number.phoneNumberId,
+      wabaId: number.wabaId,
+      businessManagerId: number.businessManagerId,
+      accessToken: number.accessTokenEncrypted ? "configured" : "",
+      appSecret: number.appSecretEncrypted ? "configured" : "",
+      verifyToken: number.verifyTokenEncrypted ? "configured" : "",
+      status: number.status,
+      qualityRating: number.qualityRating,
+      dailyLimit: number.dailyLimit,
+      dailySentCount: number.dailySentCount,
+      lastSentAt: number.lastSentAt,
+      lastErrorAt: number.lastErrorAt,
+      isDefault: number.isDefault,
+      createdAt: number.createdAt,
+      updatedAt: number.updatedAt
+    };
+  }
+
+  function decryptWhatsAppCloudNumberConfig(number: WhatsAppCloudNumberRecord) {
+    return {
+      enabled: number.status === "active",
+      environment: "production" as const,
+      account_name: number.displayName,
+      business_manager_id: number.businessManagerId,
+      whatsapp_business_account_id: number.wabaId,
+      business_account_id: number.wabaId,
+      phone_number_id: number.phoneNumberId,
+      access_token: decryptGatewaySecret(number.accessTokenEncrypted || ""),
+      app_secret: decryptGatewaySecret(number.appSecretEncrypted || ""),
+      webhook_verify_token: decryptGatewaySecret(number.verifyTokenEncrypted || ""),
+      webhook_url: "/api/webhooks/meta/whatsapp"
+    };
+  }
+
+  function qualityRank(value: WhatsAppCloudNumberQuality) {
+    return value === "green" ? 0 : value === "yellow" ? 1 : value === "unknown" ? 2 : 3;
+  }
+
+  function hasRecentWhatsAppNumberError(number: WhatsAppCloudNumberRecord) {
+    return Boolean(number.lastErrorAt && Date.now() - new Date(number.lastErrorAt).getTime() < 30 * 60 * 1000);
+  }
+
+  function isWhatsAppAutomaticEligibleNumber(number: WhatsAppCloudNumberRecord) {
+    return number.status === "active" &&
+      number.dailySentCount < number.dailyLimit &&
+      !hasRecentWhatsAppNumberError(number) &&
+      (number.qualityRating === "green" || number.qualityRating === "yellow");
+  }
+
+  function getWhatsAppQueueSendingNumberLogMetadata(message: WhatsAppMessageQueueRecord) {
+    return {
+      sendingNumberId: message.sendingNumberId || "",
+      phoneNumberId: message.phoneNumberId || "",
+      phoneNumber: message.phoneNumber || ""
+    };
+  }
+
+  function selectWhatsAppSendingNumber(tenantId: string, useCase: string): WhatsAppSelectedSendingNumber {
+    const routing = getWhatsAppRoutingSettings(tenantId);
+    const numbers = getWhatsAppCloudNumbersForTenant(tenantId);
+    if (routing.whatsappRoutingMode === "default_number") {
+      const number = numbers.find(item => item.isDefault);
+      if (!number) throw new Error("Nenhum numero WhatsApp padrao configurado para este tenant.");
+      if (number.status !== "active") throw new Error("Numero WhatsApp padrao indisponivel. Ative ou valide o numero antes de enviar.");
+      if (number.dailySentCount >= number.dailyLimit) throw new Error("Numero WhatsApp padrao atingiu o limite diario.");
+      return { numberId: number.id, phoneNumberId: number.phoneNumberId, phoneNumber: number.phoneNumber, config: number, decryptedConfig: decryptWhatsAppCloudNumberConfig(number) };
+    }
+    const eligible = numbers
+      .filter(isWhatsAppAutomaticEligibleNumber)
+      .sort((left, right) =>
+        qualityRank(left.qualityRating) - qualityRank(right.qualityRating) ||
+        left.dailySentCount - right.dailySentCount ||
+        new Date(left.lastSentAt || 0).getTime() - new Date(right.lastSentAt || 0).getTime()
+      );
+    const number = eligible[0];
+    if (!number) throw new Error(`Nenhum numero WhatsApp saudavel (qualidade green/yellow) disponivel para ${useCase}.`);
+    return { numberId: number.id, phoneNumberId: number.phoneNumberId, phoneNumber: number.phoneNumber, config: number, decryptedConfig: decryptWhatsAppCloudNumberConfig(number) };
+  }
+
+  function attachWhatsAppSendingNumberToQueueJob(message: WhatsAppMessageQueueRecord, useCase: string) {
+    if (message.provider !== "meta_cloud") return message;
+    const selected = selectWhatsAppSendingNumber(message.tenant_id, useCase);
+    assignWhatsAppSendingNumberToQueueJob(message, selected);
+    return message;
+  }
+
+  function assignWhatsAppSendingNumberToQueueJob(message: WhatsAppMessageQueueRecord, selected: WhatsAppSelectedSendingNumber) {
+    message.sendingNumberId = selected.numberId;
+    message.phoneNumberId = selected.phoneNumberId;
+    message.phoneNumber = selected.phoneNumber;
+    message.payload = { ...(message.payload || {}), sendingNumberId: selected.numberId, phoneNumberId: selected.phoneNumberId, phoneNumber: selected.phoneNumber };
+    return message;
+  }
+
+  function getSelectedWhatsAppNumberForQueueJob(message: WhatsAppMessageQueueRecord, useCase: string): WhatsAppSelectedSendingNumber {
+    if (getWhatsAppRoutingSettings(message.tenant_id).whatsappRoutingMode === "default_number") {
+      const selected = selectWhatsAppSendingNumber(message.tenant_id, useCase);
+      assignWhatsAppSendingNumberToQueueJob(message, selected);
+      return selected;
+    }
+    const existing = message.sendingNumberId
+      ? getWhatsAppCloudNumbersForTenant(message.tenant_id).find(number => number.id === message.sendingNumberId)
+      : message.phoneNumberId
+        ? getWhatsAppCloudNumbersForTenant(message.tenant_id).find(number => number.phoneNumberId === message.phoneNumberId)
+        : null;
+    if (existing && isWhatsAppAutomaticEligibleNumber(existing)) {
+      return { numberId: existing.id, phoneNumberId: existing.phoneNumberId, phoneNumber: existing.phoneNumber, config: existing, decryptedConfig: decryptWhatsAppCloudNumberConfig(existing) };
+    }
+    attachWhatsAppSendingNumberToQueueJob(message, useCase);
+    const selected = getWhatsAppCloudNumbersForTenant(message.tenant_id).find(number => number.id === message.sendingNumberId);
+    if (!selected) throw new Error("Numero WhatsApp selecionado nao encontrado.");
+    return { numberId: selected.id, phoneNumberId: selected.phoneNumberId, phoneNumber: selected.phoneNumber, config: selected, decryptedConfig: decryptWhatsAppCloudNumberConfig(selected) };
+  }
+
+  function markWhatsAppNumberSendSuccess(selected: WhatsAppSelectedSendingNumber) {
+    const number = whatsappCloudNumbers.find(item => item.id === selected.numberId);
+    if (!number) return;
+    number.dailySentCount += 1;
+    number.lastSentAt = new Date().toISOString();
+    number.updatedAt = number.lastSentAt;
+    schedulePersistentStateSave("whatsapp-cloud-number-send-success");
+  }
+
+  function markWhatsAppNumberSendError(selected: WhatsAppSelectedSendingNumber | null) {
+    if (!selected) return;
+    const number = whatsappCloudNumbers.find(item => item.id === selected.numberId);
+    if (!number) return;
+    number.lastErrorAt = new Date().toISOString();
+    number.updatedAt = number.lastErrorAt;
+    schedulePersistentStateSave("whatsapp-cloud-number-send-error");
+  }
+
   function sanitizeWhatsAppCloudLog(log: WhatsAppCloudLogRecord) {
     return {
       ...log,
@@ -14235,13 +14617,24 @@ async function startServer() {
       updated_at: now,
       idempotency_key: validation.candidate.idempotencyKey
     };
+    try {
+      attachWhatsAppSendingNumberToQueueJob(message, "pix_recovery");
+    } catch (error) {
+      recordWhatsAppCloudLog(tenantId, {
+        action: "pix_recovery_skipped",
+        status: "skipped",
+        message: error instanceof Error ? error.message : "Numero WhatsApp indisponivel",
+        metadata: { orderId: orderCandidate.orderId, purchaseId: orderCandidate.orderId, orderType: orderCandidate.orderType, campaignName: orderCandidate.campaignName, eventType: message.event_type, status: "skipped", to: maskPhone(message.phone), templateName: message.template_name }
+      });
+      return { message: null, validation };
+    }
     whatsappMessageQueue.unshift(message);
     whatsappMessageQueue = whatsappMessageQueue.slice(0, 2000);
     recordWhatsAppCloudLog(tenantId, {
       action: "pix_recovery_enqueued",
       status: "success",
       message: "Recuperacao de PIX adicionada a fila",
-      metadata: { orderId: orderCandidate.orderId, purchaseId: orderCandidate.orderId, orderType: orderCandidate.orderType, campaignName: orderCandidate.campaignName, eventType: message.event_type, status: message.status, to: maskPhone(message.phone), templateName: message.template_name }
+      metadata: { orderId: orderCandidate.orderId, purchaseId: orderCandidate.orderId, orderType: orderCandidate.orderType, campaignName: orderCandidate.campaignName, eventType: message.event_type, status: message.status, to: maskPhone(message.phone), templateName: message.template_name, ...getWhatsAppQueueSendingNumberLogMetadata(message) }
     });
     schedulePersistentStateSave("whatsapp-pix-recovery-enqueue");
     return { message, validation };
@@ -14249,7 +14642,6 @@ async function startServer() {
 
   async function processWhatsappPixRecoveryQueue(tenantId: string, limit = 20) {
     const settingsRecord = getWhatsAppPixRecoverySettings(tenantId);
-    const provider = createMetaWhatsAppCloudProvider(tenantId);
     const templates = getSavedWhatsAppCloudTemplates(tenantId);
     const { claimToken, jobs: ready } = claimWhatsAppQueueJobs(tenantId, Math.max(1, Math.min(100, limit)), ["whatsapp_cloud_pix_recovery"]);
     let sent = 0;
@@ -14279,6 +14671,8 @@ async function startServer() {
         message.attempts += 1;
         message.status = "processing";
         message.updated_at = new Date().toISOString();
+        const selectedNumber = getSelectedWhatsAppNumberForQueueJob(message, "pix_recovery");
+        const provider = createMetaWhatsAppCloudProvider(tenantId, selectedNumber);
         const result = await provider.sendTemplateTest({
           to: message.phone,
           templateName: String(message.template_name || ""),
@@ -14287,13 +14681,14 @@ async function startServer() {
           availableTemplates: templates
         });
         const processedAt = new Date().toISOString();
-        finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: processedAt, processed_at: processedAt, meta_message_id: result.data?.messages?.[0]?.id || "" });
+        finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: processedAt, processed_at: processedAt, meta_message_id: result.data?.messages?.[0]?.id || "", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber });
+        markWhatsAppNumberSendSuccess(selectedNumber);
         sent += 1;
         recordWhatsAppCloudLog(tenantId, {
           action: "pix_recovery_sent",
           status: "success",
           message: "Recuperacao de PIX enviada",
-          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType, status: message.status, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "" }
+          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType, status: message.status, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber }
         });
       } catch (error) {
         const processedAt = new Date().toISOString();
@@ -14522,13 +14917,24 @@ async function startServer() {
       updated_at: now,
       idempotency_key: validation.candidate.idempotencyKey
     };
+    try {
+      attachWhatsAppSendingNumberToQueueJob(message, "purchase_confirmation");
+    } catch (error) {
+      recordWhatsAppCloudLog(tenantId, {
+        action: "purchase_confirmation_skipped",
+        status: "skipped",
+        message: error instanceof Error ? error.message : "Numero WhatsApp indisponivel",
+        metadata: { orderId: orderCandidate.orderId, purchaseId: orderCandidate.orderId, orderType: orderCandidate.orderType, campaignName: orderCandidate.campaignName, eventType: message.event_type, status: "skipped", to: maskPhone(message.phone), templateName: message.template_name }
+      });
+      return { message: null, validation };
+    }
     whatsappMessageQueue.unshift(message);
     whatsappMessageQueue = whatsappMessageQueue.slice(0, 2000);
     recordWhatsAppCloudLog(tenantId, {
       action: "purchase_confirmation_enqueued",
       status: "success",
       message: "Confirmacao de compra adicionada a fila",
-      metadata: { orderId: orderCandidate.orderId, purchaseId: orderCandidate.orderId, orderType: orderCandidate.orderType, campaignName: orderCandidate.campaignName, eventType: message.event_type, status: message.status, to: maskPhone(message.phone), templateName: message.template_name }
+      metadata: { orderId: orderCandidate.orderId, purchaseId: orderCandidate.orderId, orderType: orderCandidate.orderType, campaignName: orderCandidate.campaignName, eventType: message.event_type, status: message.status, to: maskPhone(message.phone), templateName: message.template_name, ...getWhatsAppQueueSendingNumberLogMetadata(message) }
     });
     schedulePersistentStateSave("whatsapp-purchase-confirmation-enqueue");
     return { message, validation };
@@ -14536,7 +14942,6 @@ async function startServer() {
 
   async function processWhatsappPurchaseConfirmationQueue(tenantId: string, limit = 20) {
     const settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId);
-    const provider = createMetaWhatsAppCloudProvider(tenantId);
     const templates = getSavedWhatsAppCloudTemplates(tenantId);
     const { claimToken, jobs: ready } = claimWhatsAppQueueJobs(tenantId, Math.max(1, Math.min(100, limit)), ["whatsapp_cloud_purchase_confirmation"]);
     let sent = 0;
@@ -14573,6 +14978,8 @@ async function startServer() {
           message: "Envio de confirmacao de compra solicitado",
           metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status, to: maskPhone(message.phone), templateName: message.template_name }
         });
+        const selectedNumber = getSelectedWhatsAppNumberForQueueJob(message, "purchase_confirmation");
+        const provider = createMetaWhatsAppCloudProvider(tenantId, selectedNumber);
         const result = await provider.sendTemplateTest({
           to: message.phone,
           templateName: String(message.template_name || ""),
@@ -14582,13 +14989,14 @@ async function startServer() {
         });
         const processedAt = new Date().toISOString();
         message.status = "sent";
-        finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: processedAt, processed_at: processedAt, meta_message_id: result.data?.messages?.[0]?.id || "" });
+        finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: processedAt, processed_at: processedAt, meta_message_id: result.data?.messages?.[0]?.id || "", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber });
+        markWhatsAppNumberSendSuccess(selectedNumber);
         sent += 1;
         recordWhatsAppCloudLog(tenantId, {
           action: "purchase_confirmation_sent",
           status: "success",
           message: "Confirmacao de compra enviada",
-          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "" }
+          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber }
         });
       } catch (error) {
         const processedAt = new Date().toISOString();
@@ -14637,23 +15045,47 @@ async function startServer() {
     };
   }
 
-  function createMetaWhatsAppCloudProvider(tenantId: string) {
+  function createMetaWhatsAppCloudProvider(tenantId: string, selectedNumber?: WhatsAppSelectedSendingNumber | null) {
     const config = getWhatsAppCloudConfig(tenantId);
-    return new MetaWhatsAppCloudProvider(decryptWhatsAppCloudConfig(config) || { enabled: false, environment: "sandbox" }, {
+    return new MetaWhatsAppCloudProvider(selectedNumber?.decryptedConfig || decryptWhatsAppCloudConfig(config) || { enabled: false, environment: "sandbox" }, {
       log: entry => recordWhatsAppCloudLog(tenantId, {
         action: entry.action === "phone_info" ? "phone_info" : entry.action === "list_templates" ? "list_templates" : entry.action === "webhook_validate" ? "webhook_validate" : entry.action === "webhook_received" ? "webhook_received" : entry.action === "template_test_sent" ? "template_test_sent" : entry.action === "template_sent" ? "template_sent" : "test_connection",
         status: entry.status,
         message: entry.message || entry.action,
-        metadata: entry.metadata || {}
+        metadata: { ...(entry.metadata || {}), sendingNumberId: selectedNumber?.numberId || "", phoneNumberId: selectedNumber?.phoneNumberId || "", phoneNumber: selectedNumber?.phoneNumber || "" }
       })
     });
   }
 
   function findWhatsAppCloudConfigByVerifyToken(token: string) {
+    const number = whatsappCloudNumbers.find(item => {
+      const verifyToken = decryptGatewaySecret(item.verifyTokenEncrypted || "");
+      return Boolean(verifyToken && token && verifyToken === token);
+    });
+    if (number) return buildWhatsAppCloudConfigFromNumber(number);
     return whatsappCloudConfigs.find(config => {
       const verifyToken = decryptGatewaySecret(config.webhook_verify_token_encrypted || "");
       return Boolean(verifyToken && token && verifyToken === token);
     }) || null;
+  }
+
+  function buildWhatsAppCloudConfigFromNumber(number: WhatsAppCloudNumberRecord): WhatsAppCloudConfigRecord {
+    return {
+      id: number.id,
+      tenant_id: number.tenantId,
+      enabled: number.status === "active",
+      account_name: number.displayName,
+      business_manager_id: number.businessManagerId,
+      whatsapp_business_account_id: number.wabaId,
+      phone_number_id: number.phoneNumberId,
+      access_token_encrypted: number.accessTokenEncrypted,
+      app_secret_encrypted: number.appSecretEncrypted,
+      webhook_verify_token_encrypted: number.verifyTokenEncrypted,
+      webhook_url: "/api/webhooks/meta/whatsapp",
+      environment: "production",
+      created_at: number.createdAt,
+      updated_at: number.updatedAt
+    };
   }
 
   function findWhatsAppCloudConfigByWebhookPayload(payload: unknown) {
@@ -14669,7 +15101,25 @@ async function startServer() {
         if (phoneNumberId) phoneNumberIds.add(phoneNumberId);
       });
     });
+    const number = whatsappCloudNumbers.find(item => phoneNumberIds.has(item.phoneNumberId));
+    if (number) return buildWhatsAppCloudConfigFromNumber(number);
     return whatsappCloudConfigs.find(config => phoneNumberIds.has(config.phone_number_id)) || null;
+  }
+
+  function findWhatsAppCloudNumberByWebhookPayload(payload: unknown) {
+    const body = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+    const entries = Array.isArray(body.entry) ? body.entry as Array<Record<string, unknown>> : [];
+    const phoneNumberIds = new Set<string>();
+    entries.forEach(entry => {
+      const changes = Array.isArray(entry.changes) ? entry.changes as Array<Record<string, unknown>> : [];
+      changes.forEach(change => {
+        const value = change.value && typeof change.value === "object" ? change.value as Record<string, unknown> : {};
+        const metadata = value.metadata && typeof value.metadata === "object" ? value.metadata as Record<string, unknown> : {};
+        const phoneNumberId = String(metadata.phone_number_id || "");
+        if (phoneNumberId) phoneNumberIds.add(phoneNumberId);
+      });
+    });
+    return whatsappCloudNumbers.find(number => phoneNumberIds.has(number.phoneNumberId)) || null;
   }
 
   function getMetaWebhookSignatureHeader(req: express.Request) {
@@ -15127,7 +15577,7 @@ async function startServer() {
         updatedAt: now
       };
       whatsappAutomationExecutions.unshift(execution);
-      whatsappMessageQueue.unshift({
+      const queueMessage: WhatsAppMessageQueueRecord = {
         id: createPublicId("WAPP_"),
         tenant_id: rule.tenantId,
         customer_id: recipient.customerId,
@@ -15148,9 +15598,20 @@ async function startServer() {
         created_at: now,
         updated_at: now,
         idempotency_key: `whatsapp-crm-automation:${idempotencyKey}`
-      });
+      };
+      try {
+        attachWhatsAppSendingNumberToQueueJob(queueMessage, "crm_automation");
+      } catch (error) {
+        execution.status = "skipped";
+        execution.reason = error instanceof Error ? error.message : "Numero WhatsApp indisponivel";
+        execution.updatedAt = now;
+        skipped += 1;
+        recordWhatsAppCloudLog(rule.tenantId, { action: "whatsapp_automation_skipped", status: "skipped", message: execution.reason, metadata: { ruleId: rule.id, executionId: execution.id, type: rule.type, customerId: recipient.customerId } });
+        continue;
+      }
+      whatsappMessageQueue.unshift(queueMessage);
       scheduled += 1;
-      recordWhatsAppCloudLog(rule.tenantId, { action: "whatsapp_automation_scheduled", status: "success", message: "Automacao CRM agendada", metadata: { ruleId: rule.id, executionId: execution.id, type: rule.type, customerId: recipient.customerId, scheduledAt } });
+      recordWhatsAppCloudLog(rule.tenantId, { action: "whatsapp_automation_scheduled", status: "success", message: "Automacao CRM agendada", metadata: { ruleId: rule.id, executionId: execution.id, type: rule.type, customerId: recipient.customerId, scheduledAt, ...getWhatsAppQueueSendingNumberLogMetadata(queueMessage) } });
     }
     whatsappAutomationExecutions = whatsappAutomationExecutions.slice(0, 5000);
     whatsappMessageQueue = whatsappMessageQueue.slice(0, 5000);
@@ -15250,7 +15711,7 @@ async function startServer() {
     });
   }
 
-  function processWhatsAppCenterInboundWebhook(tenantId: string, payload: unknown) {
+  function processWhatsAppCenterInboundWebhook(tenantId: string, payload: unknown, resolvedNumber?: WhatsAppCloudNumberRecord | null) {
     const body = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
     const entries = Array.isArray(body.entry) ? body.entry as Array<Record<string, unknown>> : [];
     let inboundCount = 0;
@@ -15259,6 +15720,9 @@ async function startServer() {
       const changes = Array.isArray(entry.changes) ? entry.changes as Array<Record<string, unknown>> : [];
       changes.forEach(change => {
         const value = change.value && typeof change.value === "object" ? change.value as Record<string, unknown> : {};
+        const metadata = value.metadata && typeof value.metadata === "object" ? value.metadata as Record<string, unknown> : {};
+        const phoneNumberId = String(metadata.phone_number_id || resolvedNumber?.phoneNumberId || "");
+        const sendingNumber = resolvedNumber || whatsappCloudNumbers.find(item => item.tenantId === tenantId && item.phoneNumberId === phoneNumberId) || null;
         const contacts = Array.isArray(value.contacts) ? value.contacts as Array<Record<string, unknown>> : [];
         const contactNames = new Map<string, string>();
         contacts.forEach(item => {
@@ -15282,8 +15746,11 @@ async function startServer() {
             body: bodyText,
             status: "received",
             metaMessageId: String(message.id || ""),
+            sendingNumberId: sendingNumber?.id || "",
+            phoneNumberId,
+            phoneNumber: sendingNumber?.phoneNumber || "",
             receivedAt,
-            rawSummary: summarizeWhatsAppInbound(message)
+            rawSummary: { ...summarizeWhatsAppInbound(message), sendingNumberId: sendingNumber?.id || "", phoneNumberId, phoneNumber: sendingNumber?.phoneNumber || "" }
           };
           whatsappConversationMessages.push(inboundMessage);
           notifyTenantAdmins({
@@ -15312,7 +15779,10 @@ async function startServer() {
           const existing = whatsappConversationMessages.find(message => message.tenantId === tenantId && message.metaMessageId === metaMessageId);
           if (existing) {
             existing.status = statusValue;
-            existing.rawSummary = { ...existing.rawSummary, lastStatus: summarizeWhatsAppStatus(status) };
+            existing.sendingNumberId ||= sendingNumber?.id || "";
+            existing.phoneNumberId ||= phoneNumberId;
+            existing.phoneNumber ||= sendingNumber?.phoneNumber || "";
+            existing.rawSummary = { ...existing.rawSummary, lastStatus: summarizeWhatsAppStatus(status), sendingNumberId: existing.sendingNumberId || "", phoneNumberId: existing.phoneNumberId || phoneNumberId };
           } else {
             const phone = normalizeWhatsAppCenterPhone(status.recipient_id);
             const contact = phone ? upsertWhatsAppContact(tenantId, phone, "", "meta_status") : null;
@@ -15327,8 +15797,11 @@ async function startServer() {
                 body: statusValue,
                 status: statusValue,
                 metaMessageId,
+                sendingNumberId: sendingNumber?.id || "",
+                phoneNumberId,
+                phoneNumber: sendingNumber?.phoneNumber || "",
                 receivedAt: new Date().toISOString(),
-                rawSummary: summarizeWhatsAppStatus(status)
+                rawSummary: { ...summarizeWhatsAppStatus(status), sendingNumberId: sendingNumber?.id || "", phoneNumberId, phoneNumber: sendingNumber?.phoneNumber || "" }
               });
             }
           }
@@ -15383,6 +15856,45 @@ async function startServer() {
     recordSecurityEvent({ tenant_id: tenantId, action: "WHATSAPP_CLOUD_CONFIG_UPDATED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "medium", actor: getAuthSession(req)?.email, detail: `${config.environment}:${config.enabled}` });
     schedulePersistentStateSave("whatsapp-cloud-settings");
     return config;
+  }
+
+  function upsertWhatsAppCloudNumber(tenantId: string, body: Record<string, unknown>, existing?: WhatsAppCloudNumberRecord | null) {
+    const now = new Date().toISOString();
+    const mergeSecret = (incoming: unknown, current?: string) => {
+      const value = String(incoming || "").trim();
+      if (!value || isMaskedGatewaySecret(value) || value === "configured") return current || "";
+      return encryptGatewaySecret(value);
+    };
+    const phoneNumberId = String(body.phoneNumberId || body.phone_number_id || existing?.phoneNumberId || "").trim().slice(0, 120);
+    if (!phoneNumberId) throw new Error("ID do numero de telefone e obrigatorio");
+    const duplicate = whatsappCloudNumbers.find(number => number.phoneNumberId === phoneNumberId && number.id !== existing?.id);
+    if (duplicate) throw new Error("Numero ja cadastrado em outro tenant");
+    const number: WhatsAppCloudNumberRecord = {
+      id: existing?.id || createPublicId("WAN_"),
+      tenantId,
+      displayName: String(body.displayName || body.display_name || existing?.displayName || "Numero WhatsApp").trim().slice(0, 120),
+      phoneNumber: normalizeBrazilianPhone(String(body.phoneNumber || body.phone_number || existing?.phoneNumber || "")),
+      phoneNumberId,
+      wabaId: String(body.wabaId || body.waba_id || body.whatsapp_business_account_id || existing?.wabaId || "").trim().slice(0, 120),
+      businessManagerId: String(body.businessManagerId || body.business_manager_id || existing?.businessManagerId || "").trim().slice(0, 120),
+      accessTokenEncrypted: mergeSecret(body.accessToken ?? body.access_token, existing?.accessTokenEncrypted),
+      appSecretEncrypted: mergeSecret(body.appSecret ?? body.app_secret, existing?.appSecretEncrypted),
+      verifyTokenEncrypted: mergeSecret(body.verifyToken ?? body.verify_token ?? body.webhook_verify_token, existing?.verifyTokenEncrypted),
+      status: normalizeWhatsAppCloudNumberStatus(body.status ?? existing?.status ?? "inactive"),
+      qualityRating: normalizeWhatsAppCloudQuality(body.qualityRating ?? body.quality_rating ?? existing?.qualityRating ?? "unknown"),
+      dailyLimit: Math.max(1, Math.min(100000, Number(body.dailyLimit ?? body.daily_limit ?? existing?.dailyLimit ?? 1000) || 1000)),
+      dailySentCount: Math.max(0, Number(body.dailySentCount ?? body.daily_sent_count ?? existing?.dailySentCount ?? 0) || 0),
+      lastSentAt: String(body.lastSentAt || body.last_sent_at || existing?.lastSentAt || ""),
+      lastErrorAt: String(body.lastErrorAt || body.last_error_at || existing?.lastErrorAt || ""),
+      isDefault: Boolean(body.isDefault ?? body.is_default ?? existing?.isDefault ?? !getWhatsAppCloudNumbersForTenant(tenantId).length),
+      createdAt: existing?.createdAt || now,
+      updatedAt: now
+    };
+    if (number.isDefault) whatsappCloudNumbers.forEach(item => { if (item.tenantId === tenantId) item.isDefault = false; });
+    whatsappCloudNumbers = existing
+      ? whatsappCloudNumbers.map(item => item.id === existing.id ? number : item)
+      : [number, ...whatsappCloudNumbers];
+    return number;
   }
 
   function buildPublicTicketUrl(purchase: PurchaseRecord) {
@@ -15661,7 +16173,7 @@ async function startServer() {
       return message;
     }
     const config = getWhatsAppConfig(message.tenant_id);
-    if (!config?.enabled) {
+    if (message.provider !== "meta_cloud" && !config?.enabled) {
       message.status = "failed";
       message.last_error = "Envio automatico WhatsApp desativado para este tenant";
       message.updated_at = new Date().toISOString();
@@ -15677,21 +16189,16 @@ async function startServer() {
     message.attempts += 1;
     message.status = "retrying";
     message.updated_at = new Date().toISOString();
+    let selectedNumber: WhatsAppSelectedSendingNumber | null = null;
     try {
       if (message.provider === "meta_cloud") {
+        selectedNumber = getSelectedWhatsAppNumberForQueueJob(message, "legacy_text_queue");
         await sendMetaCloudWhatsAppMessage({
           to: message.phone,
           body: message.message_body,
           tenantId: message.tenant_id,
           messageId: message.id
-        }, {
-          enabled: config.enabled,
-          environment: config.environment,
-          phone_number_id: config.phone_number_id,
-          access_token: decryptGatewaySecret(config.access_token_encrypted || ""),
-          default_language: config.default_language,
-          template_namespace: config.template_namespace
-        });
+        }, selectedNumber.decryptedConfig);
       } else {
         await sendMockWhatsAppMessage({
           to: message.phone,
@@ -15702,6 +16209,13 @@ async function startServer() {
       }
       message.status = "sent";
       message.sent_at = new Date().toISOString();
+      if (selectedNumber) {
+        message.sendingNumberId = selectedNumber.numberId;
+        message.phoneNumberId = selectedNumber.phoneNumberId;
+        message.phoneNumber = selectedNumber.phoneNumber;
+        message.payload = { ...(message.payload || {}), sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber };
+        markWhatsAppNumberSendSuccess(selectedNumber);
+      }
       message.last_error = "";
       message.updated_at = message.sent_at;
       auditLogs.unshift({
@@ -15717,6 +16231,7 @@ async function startServer() {
         detail: `${message.order_id}:${maskPhone(message.phone)}`
       });
     } catch (error) {
+      markWhatsAppNumberSendError(selectedNumber);
       message.last_error = error instanceof Error ? error.message : "Falha desconhecida no WhatsApp";
       message.status = message.attempts >= message.max_attempts ? "failed" : "pending";
       message.updated_at = new Date().toISOString();
@@ -18804,7 +19319,8 @@ async function startServer() {
       metadata: { to: maskPhone(phone), templateName, language, adminId: getAuthSession(req)?.sub || "" }
     });
     try {
-      const result = await createMetaWhatsAppCloudProvider(tenantId).sendTemplateTest({
+      const selectedNumber = selectWhatsAppSendingNumber(tenantId, "template_test");
+      const result = await createMetaWhatsAppCloudProvider(tenantId, selectedNumber).sendTemplateTest({
         to: phone,
         templateName,
         language,
@@ -18815,8 +19331,9 @@ async function startServer() {
         action: "template_test_sent",
         status: "success",
         message: "Teste individual enviado pela Meta",
-        metadata: { to: maskPhone(phone), templateName, language, adminId: getAuthSession(req)?.sub || "", metaMessageId: result.data?.messages?.[0]?.id || "" }
+        metadata: { to: maskPhone(phone), templateName, language, adminId: getAuthSession(req)?.sub || "", metaMessageId: result.data?.messages?.[0]?.id || "", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber }
       });
+      markWhatsAppNumberSendSuccess(selectedNumber);
       schedulePersistentStateSave("whatsapp-cloud-template-test");
       res.json({ success: true, to: maskPhone(phone), templateName, language, result });
     } catch (error) {
@@ -19031,6 +19548,7 @@ async function startServer() {
 
   app.post("/api/webhooks/meta/whatsapp", (req, res) => {
     const config = findWhatsAppCloudConfigByWebhookPayload(req.body);
+    const resolvedNumber = findWhatsAppCloudNumberByWebhookPayload(req.body);
     const body = req.body && typeof req.body === "object" ? req.body as Record<string, unknown> : {};
     const entries = Array.isArray(body.entry) ? body.entry : [];
     const signaturePresent = hasMetaWebhookSignatureHeader(req);
@@ -19049,7 +19567,7 @@ async function startServer() {
         return res.status(403).json({ error: "Assinatura Meta invalida" });
       }
       createMetaWhatsAppCloudProvider(config.tenant_id).handleWebhook(req.body);
-      processWhatsAppCenterInboundWebhook(config.tenant_id, req.body);
+      processWhatsAppCenterInboundWebhook(config.tenant_id, req.body, resolvedNumber);
     } else {
       recordSecurityEvent({ tenant_id: "unknown", action: "WHATSAPP_CLOUD_WEBHOOK_UNMATCHED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: "meta-webhook", detail: `entries:${entries.length}` });
     }
@@ -20877,6 +21395,8 @@ async function startServer() {
       superadminAuditLogs,
       whatsappProviderConfigs,
       whatsappCloudConfigs,
+      whatsappCloudNumbers,
+      whatsappRoutingSettings,
       whatsappCloudLogs,
       whatsappCloudTemplates,
       whatsappPixRecoverySettings,
@@ -20983,6 +21503,8 @@ async function startServer() {
       case "superadminAuditLogs": superadminAuditLogs = Array.isArray(value) ? value : []; break;
       case "whatsappProviderConfigs": whatsappProviderConfigs = Array.isArray(value) ? value : []; break;
       case "whatsappCloudConfigs": whatsappCloudConfigs = Array.isArray(value) ? value : []; break;
+      case "whatsappCloudNumbers": whatsappCloudNumbers = Array.isArray(value) ? value : []; break;
+      case "whatsappRoutingSettings": replaceObject(whatsappRoutingSettings, value); break;
       case "whatsappCloudLogs": whatsappCloudLogs = Array.isArray(value) ? value : []; break;
       case "whatsappCloudTemplates": whatsappCloudTemplates = Array.isArray(value) ? value : []; break;
       case "whatsappPixRecoverySettings": whatsappPixRecoverySettings = Array.isArray(value) ? value : []; break;
