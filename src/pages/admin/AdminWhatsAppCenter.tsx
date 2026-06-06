@@ -115,6 +115,13 @@ type WhatsAppDashboard = {
     pixRecoveredValue: number;
     pixRecoveryRate: number;
     campaignsSent: number;
+    queueQueued: number;
+    queueProcessing: number;
+    queueSent: number;
+    queueFailed: number;
+    queueDeadLetter: number;
+    queueRetryRate: number;
+    queueSuccessRate: number;
     openConversations: number;
     pendingConversations: number;
     waitingCustomerConversations: number;
@@ -644,6 +651,9 @@ function AdminWhatsAppDashboard() {
     { label: "Recuperacoes PIX", value: metrics?.pixRecoveredCount || 0, detail: percent(metrics?.pixRecoveryRate || 0), icon: TrendingUp },
     { label: "Valor recuperado", value: money(metrics?.pixRecoveredValue || 0), detail: "compras pagas", icon: DollarSign },
     { label: "Campanhas", value: metrics?.campaignsSent || 0, detail: "ativas ou finalizadas", icon: Megaphone },
+    { label: "Fila pendente", value: metrics?.queueQueued || 0, detail: `${metrics?.queueProcessing || 0} em processamento`, icon: ListChecks },
+    { label: "DLQ", value: metrics?.queueDeadLetter || 0, detail: `retry ${percent(metrics?.queueRetryRate || 0)}`, icon: RefreshCw },
+    { label: "Sucesso fila", value: percent(metrics?.queueSuccessRate || 0), detail: `${metrics?.queueSent || 0} enviados · ${metrics?.queueFailed || 0} falhas`, icon: CheckCircle2 },
     { label: "Opt-outs", value: metrics?.optOuts || 0, detail: "clientes que sairam", icon: Ban }
   ];
 

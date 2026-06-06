@@ -1374,18 +1374,23 @@ async function startServer() {
     createdAt: string;
     updatedAt: string;
   };
+  type WhatsAppQueueJobStatus = "queued" | "pending" | "claimed" | "processing" | "sent" | "failed" | "retrying" | "skipped" | "dead_letter";
+  type WhatsAppQueueJobType = "ticket_confirmation" | "whatsapp_crm_campaign" | "whatsapp_cloud_pix_recovery" | "whatsapp_cloud_purchase_confirmation" | string;
   type WhatsAppMessageQueueRecord = {
     id: string;
     tenant_id: string;
     order_id?: string;
     customer_id?: string;
     phone: string;
-    message_type: "ticket_confirmation" | string;
+    message_type: WhatsAppQueueJobType;
     message_body: string;
     provider: "mock" | "meta_cloud" | string;
-    status: "queued" | "pending" | "sent" | "failed" | "retrying" | "skipped";
+    status: WhatsAppQueueJobStatus;
     attempts: number;
     max_attempts: number;
+    claim_token?: string;
+    claimed_at?: string;
+    scheduled_at?: string;
     last_error?: string;
     reason?: string;
     sent_at?: string;
@@ -1398,6 +1403,17 @@ async function startServer() {
     created_at: string;
     updated_at: string;
     idempotency_key: string;
+  };
+  type WhatsAppQueueDeadLetterRecord = {
+    id: string;
+    tenant_id: string;
+    source_job_id: string;
+    job_type: WhatsAppQueueJobType;
+    payload: Record<string, unknown>;
+    error: string;
+    attempts: number;
+    created_at: string;
+    updated_at: string;
   };
   type WhatsAppOrderType = "raffle" | "fazendinha" | "number_mode";
   type WhatsAppOrderSource = PurchaseRecord | FazendinhaPurchase | NumberModePurchase;
@@ -2923,6 +2939,7 @@ async function startServer() {
   let whatsappAutomationRules: WhatsAppAutomationRuleRecord[] = [];
   let whatsappAutomationExecutions: WhatsAppAutomationExecutionRecord[] = [];
   let whatsappMessageQueue: WhatsAppMessageQueueRecord[] = [];
+  let whatsappQueueDeadLetter: WhatsAppQueueDeadLetterRecord[] = [];
   let whatsappContacts: WhatsAppContactRecord[] = [];
   let whatsappConversations: WhatsAppConversationRecord[] = [];
   let whatsappConversationMessages: WhatsAppConversationMessageRecord[] = [];
@@ -5938,9 +5955,9 @@ async function startServer() {
 
   app.use("/api/admin/whatsapp-center", rateLimiter, requireWhatsAppCenterAccess);
 
-  app.get("/api/admin/whatsapp-center/dashboard", requireWhatsAppCrmCampaignAccess, (req, res) => {
+  app.get("/api/admin/whatsapp-center/dashboard", requireWhatsAppCrmCampaignAccess, async (req, res) => {
     const tenantId = resolveRequestTenantId(req);
-    res.json(buildWhatsAppCenterDashboard(tenantId));
+    res.json(await buildWhatsAppCenterDashboard(tenantId));
   });
 
   app.get("/api/admin/whatsapp-center/conversations", (req, res) => {
@@ -6208,6 +6225,46 @@ async function startServer() {
     }
   });
 
+  app.get("/api/admin/whatsapp-center/queue", requireWhatsAppCrmCampaignAccess, async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const status = String(req.query.status || "");
+    const jobType = String(req.query.jobType || req.query.job_type || "");
+    const queue = await listWhatsAppQueueJobs(tenantId, { status, jobType });
+    res.json({ queue, stats: await getWhatsAppQueueStats(tenantId) });
+  });
+
+  app.get("/api/admin/whatsapp-center/queue/stats", requireWhatsAppCrmCampaignAccess, async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({ stats: await getWhatsAppQueueStats(tenantId) });
+  });
+
+  app.get("/api/admin/whatsapp-center/queue/dead-letter", requireWhatsAppCrmCampaignAccess, async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({ deadLetter: await listWhatsAppQueueDeadLetter(tenantId) });
+  });
+
+  app.post("/api/admin/whatsapp-center/queue/run", requireWhatsAppCrmCampaignAccess, async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const limit = Math.min(100, Math.max(1, Math.floor(Number(req.body?.limit || 20))));
+    const result = await processWhatsAppCenterQueue(tenantId, limit);
+    res.json({
+      ...result,
+      stats: await getWhatsAppQueueStats(tenantId),
+      queue: await listWhatsAppQueueJobs(tenantId, {})
+    });
+  });
+
+  app.post("/api/admin/whatsapp-center/queue/dead-letter/:id/retry", requireWhatsAppCrmCampaignAccess, async (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const result = await retryWhatsAppQueueDeadLetterForTenant(tenantId, req.params.id);
+    if (!result) return res.status(404).json({ error: "Job da DLQ nao encontrado para este tenant" });
+    res.json({
+      retried: true,
+      job: result,
+      stats: await getWhatsAppQueueStats(tenantId)
+    });
+  });
+
   app.get("/api/admin/whatsapp-center/campaigns", requireWhatsAppCrmCampaignAccess, (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     res.json({ campaigns: whatsappCrmCampaigns.filter(item => item.tenant_id === tenantId).map(sanitizeWhatsAppCrmCampaign) });
@@ -6372,7 +6429,7 @@ async function startServer() {
     const limit = Math.min(100, Math.max(1, Math.floor(Number(req.body?.limit || 20))));
     const provider = createMetaWhatsAppCloudProvider(tenantId);
     const templates = getSavedWhatsAppCloudTemplates(tenantId);
-    const ready = getWhatsAppCrmCampaignQueue(tenantId).filter(item => item.status === "queued" && item.attempts < item.max_attempts).slice(0, limit);
+    const { claimToken, jobs: ready } = claimWhatsAppQueueJobs(tenantId, limit, ["whatsapp_crm_campaign"]);
     let sent = 0;
     let failed = 0;
     let skipped = 0;
@@ -6380,16 +6437,12 @@ async function startServer() {
       const campaignId = String(message.payload?.campaignId || "");
       const campaign = whatsappCrmCampaigns.find(item => item.id === campaignId && item.tenant_id === tenantId);
       if (!campaign || campaign.status === "cancelled") {
-        message.status = "skipped";
-        message.reason = "Campanha cancelada ou indisponivel";
-        message.updated_at = new Date().toISOString();
+        finalizeWhatsAppQueueJob(message, claimToken, "skipped", { reason: "Campanha cancelada ou indisponivel" });
         skipped += 1;
         continue;
       }
       if (countWhatsAppCrmCampaignSentToday(tenantId) >= campaign.daily_tenant_limit || hasRecentWhatsAppCrmCampaignForPhone(tenantId, message.phone, campaign.cooldown_hours, message.id)) {
-        message.status = "skipped";
-        message.reason = "Limite diario ou intervalo por telefone respeitado";
-        message.updated_at = new Date().toISOString();
+        finalizeWhatsAppQueueJob(message, claimToken, "skipped", { reason: "Limite diario ou intervalo por telefone respeitado" });
         skipped += 1;
         recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_skipped", status: "skipped", message: message.reason, metadata: { campaignId: campaign.id, to: maskPhone(message.phone), templateName: message.template_name } });
         continue;
@@ -6397,6 +6450,7 @@ async function startServer() {
       try {
         campaign.status = "sending";
         message.attempts += 1;
+        message.status = "processing";
         message.updated_at = new Date().toISOString();
         recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_send_requested", status: "success", message: "Envio de campanha CRM solicitado", metadata: { campaignId: campaign.id, to: maskPhone(message.phone), templateName: message.template_name } });
         const result = await provider.sendTemplate({
@@ -6408,10 +6462,7 @@ async function startServer() {
         });
         const processedAt = new Date().toISOString();
         message.status = "sent";
-        message.sent_at = processedAt;
-        message.processed_at = processedAt;
-        message.updated_at = processedAt;
-        message.meta_message_id = result.data?.messages?.[0]?.id || "";
+        finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: processedAt, processed_at: processedAt, meta_message_id: result.data?.messages?.[0]?.id || "" });
         sent += 1;
         recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_sent", status: "success", message: "Campanha CRM enviada", metadata: { campaignId: campaign.id, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "" } });
       } catch (error) {
@@ -6419,8 +6470,8 @@ async function startServer() {
         message.status = message.attempts >= message.max_attempts ? "failed" : "queued";
         message.last_error = maskSecretText(error instanceof Error ? error.message : "Falha ao enviar campanha CRM");
         message.reason = message.last_error;
+        scheduleWhatsAppQueueRetry(message, claimToken, message.last_error);
         message.processed_at = processedAt;
-        message.updated_at = processedAt;
         failed += 1;
         recordWhatsAppCloudLog(tenantId, { action: "crm_campaign_failed", status: "error", message: message.last_error, metadata: { campaignId, to: maskPhone(message.phone), templateName: message.template_name } });
       }
@@ -6535,16 +6586,21 @@ async function startServer() {
     const limit = Math.min(100, Math.max(1, Math.floor(Number(req.body?.limit || 20))));
     const provider = createMetaWhatsAppCloudProvider(tenantId);
     const templates = getSavedWhatsAppCloudTemplates(tenantId);
-    const nowIso = new Date().toISOString();
-    const ready = whatsappAutomationExecutions
-      .filter(item => item.tenantId === tenantId && item.status === "scheduled" && item.scheduledAt <= nowIso && (!requestedRuleId || item.ruleId === requestedRuleId))
-      .slice(0, limit);
+    const { claimToken, jobs: ready } = claimWhatsAppQueueJobs(tenantId, limit, ["whatsapp_crm_automation"]);
     let sent = 0;
     let failed = 0;
     let skipped = 0;
-    for (const execution of ready) {
+    for (const message of ready) {
+      const executionId = String(message.payload?.automationExecutionId || "");
+      const execution = whatsappAutomationExecutions.find(item => item.id === executionId && item.tenantId === tenantId);
+      if (!execution) {
+        finalizeWhatsAppQueueJob(message, claimToken, "skipped", { reason: "Execucao de automacao indisponivel" });
+        skipped += 1;
+        continue;
+      }
       const rule = whatsappAutomationRules.find(item => item.id === execution.ruleId && item.tenantId === tenantId);
       if (!rule || !rule.enabled) {
+        finalizeWhatsAppQueueJob(message, claimToken, "skipped", { reason: "Automacao desativada" });
         execution.status = "skipped";
         execution.reason = "Automacao desativada";
         execution.updatedAt = new Date().toISOString();
@@ -6553,6 +6609,7 @@ async function startServer() {
       }
       const phone = normalizeBrazilianPhone(execution.phone || "");
       if (!phone || customerHasWhatsAppOptOut(tenantId, phone) || countWhatsAppAutomationsSentToday(tenantId) >= rule.dailyLimit || hasRecentWhatsAppAutomationForCustomer(tenantId, execution.customerId, rule.cooldownHours, execution.id)) {
+        finalizeWhatsAppQueueJob(message, claimToken, "skipped", { reason: "Opt-out, limite diario ou cooldown respeitado" });
         execution.status = "skipped";
         execution.reason = "Opt-out, limite diario ou cooldown respeitado";
         execution.updatedAt = new Date().toISOString();
@@ -6561,6 +6618,9 @@ async function startServer() {
         continue;
       }
       try {
+        message.attempts += 1;
+        message.status = "processing";
+        message.updated_at = new Date().toISOString();
         const result = await provider.sendTemplate({
           to: phone,
           templateName: rule.template,
@@ -6572,11 +6632,17 @@ async function startServer() {
         execution.status = "sent";
         execution.executedAt = executedAt;
         execution.updatedAt = executedAt;
+        finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: executedAt, processed_at: executedAt, meta_message_id: result.data?.messages?.[0]?.id || "" });
         sent += 1;
         recordWhatsAppCloudLog(tenantId, { action: "whatsapp_automation_sent", status: "success", message: "Automacao CRM enviada", metadata: { ruleId: rule.id, executionId: execution.id, customerId: execution.customerId, type: rule.type, template: rule.template, metaMessageId: result.data?.messages?.[0]?.id || "" } });
       } catch (error) {
-        execution.status = "failed";
         execution.reason = maskSecretText(error instanceof Error ? error.message : "Falha ao enviar automacao CRM");
+        const retried = scheduleWhatsAppQueueRetry(message, claimToken, execution.reason);
+        if (retried.status === "dead_letter") {
+          execution.status = "failed";
+        } else {
+          execution.status = "scheduled";
+        }
         execution.updatedAt = new Date().toISOString();
         failed += 1;
         recordWhatsAppCloudLog(tenantId, { action: "whatsapp_automation_failed", status: "error", message: execution.reason, metadata: { ruleId: rule.id, executionId: execution.id, customerId: execution.customerId, type: rule.type, template: rule.template } });
@@ -12176,6 +12242,423 @@ async function startServer() {
     };
   }
 
+  function sanitizeWhatsAppQueueDeadLetter(record: WhatsAppQueueDeadLetterRecord) {
+    return {
+      ...record,
+      payload: maskLogValue(record.payload || {}) as Record<string, unknown>,
+      error: maskSecretText(record.error || "")
+    };
+  }
+
+  type WhatsAppQueueStats = {
+    queued: number;
+    claimed: number;
+    processing: number;
+    sent: number;
+    failed: number;
+    dead_letter: number;
+    retryRate: number;
+    successRate: number;
+  };
+  type WhatsAppQueueSqlJobRow = {
+    id: string;
+    tenant_id: string;
+    job_type: string;
+    payload: Record<string, unknown>;
+    status: WhatsAppQueueJobStatus;
+    attempts: number;
+    max_attempts: number;
+    claim_token?: string | null;
+    claimed_at?: string | null;
+    scheduled_at?: string | null;
+    processed_at?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+  };
+  type WhatsAppQueueSqlDeadLetterRow = {
+    id: string;
+    tenant_id: string;
+    source_job_id: string;
+    job_type: string;
+    payload: Record<string, unknown>;
+    erro?: string | null;
+    error?: string | null;
+    attempts: number;
+    created_at?: string | null;
+    updated_at?: string | null;
+  };
+
+  const whatsappQueueBackoffMinutes = [1, 5, 15, 60];
+  const whatsappQueueMaxAttempts = 5;
+  const whatsappQueueClaimLeaseMs = 10 * 60 * 1000;
+
+  function canUseSupabaseWhatsAppQueue() {
+    return Boolean(supabaseAdmin && persistentStorageDrivers.has(persistenceMode));
+  }
+
+  function canFallbackToMemoryWhatsAppQueue() {
+    return Boolean(process.env.RIFAPRO_TEST_MODE || !isNodeProduction || !supabaseAdmin);
+  }
+
+  function recordWhatsAppQueueFallback(reason: string) {
+    const message = `whatsapp_queue_memory_fallback: ${reason}. Use Supabase/RPC em producao multi-instancia.`;
+    if (isProductionRuntime && !canFallbackToMemoryWhatsAppQueue()) throw new Error(message);
+    console.warn(message);
+  }
+
+  function sanitizeWhatsAppQueueSqlJob(row: WhatsAppQueueSqlJobRow | Record<string, any>) {
+    return {
+      id: String(row.id || ""),
+      tenant_id: String(row.tenant_id || ""),
+      job_type: String(row.job_type || ""),
+      payload: maskLogValue(row.payload || {}) as Record<string, unknown>,
+      status: String(row.status || ""),
+      attempts: Number(row.attempts || 0),
+      max_attempts: Number(row.max_attempts || 0),
+      claim_token: row.claim_token ? "present" : "",
+      claimed_at: row.claimed_at || "",
+      scheduled_at: row.scheduled_at || "",
+      processed_at: row.processed_at || "",
+      created_at: row.created_at || "",
+      updated_at: row.updated_at || "",
+      backend: "supabase"
+    };
+  }
+
+  function sanitizeWhatsAppQueueSqlDeadLetter(row: WhatsAppQueueSqlDeadLetterRow | Record<string, any>) {
+    return {
+      id: String(row.id || ""),
+      tenant_id: String(row.tenant_id || ""),
+      source_job_id: String(row.source_job_id || ""),
+      job_type: String(row.job_type || ""),
+      payload: maskLogValue(row.payload || {}) as Record<string, unknown>,
+      error: maskSecretText(String(row.erro || row.error || "")),
+      attempts: Number(row.attempts || 0),
+      created_at: row.created_at || "",
+      updated_at: row.updated_at || "",
+      backend: "supabase"
+    };
+  }
+
+  function memoryWhatsAppQueueList(tenantId: string, filters: { status?: string; jobType?: string }) {
+    return whatsappMessageQueue
+      .filter(message => message.tenant_id === tenantId)
+      .filter(message => !filters.status || message.status === filters.status)
+      .filter(message => !filters.jobType || message.message_type === filters.jobType)
+      .sort((left, right) => String(right.updated_at || right.created_at).localeCompare(String(left.updated_at || left.created_at)))
+      .slice(0, 300)
+      .map(message => ({ ...sanitizeWhatsAppQueueRecord(message), backend: "memory" }));
+  }
+
+  async function listWhatsAppQueueJobs(tenantId: string, filters: { status?: string; jobType?: string }) {
+    if (canUseSupabaseWhatsAppQueue()) {
+      try {
+        let query = supabaseAdmin!
+          .from("whatsapp_queue_jobs")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .order("updated_at", { ascending: false })
+          .limit(300);
+        if (filters.status) query = query.eq("status", filters.status);
+        if (filters.jobType) query = query.eq("job_type", filters.jobType);
+        const { data, error } = await query;
+        if (error) throw error;
+        return (data || []).map(row => sanitizeWhatsAppQueueSqlJob(row as WhatsAppQueueSqlJobRow));
+      } catch (error) {
+        if (!canFallbackToMemoryWhatsAppQueue()) throw error;
+        recordWhatsAppQueueFallback(error instanceof Error ? error.message : "falha ao listar fila Supabase");
+      }
+    }
+    return memoryWhatsAppQueueList(tenantId, filters);
+  }
+
+  async function listWhatsAppQueueDeadLetter(tenantId: string) {
+    if (canUseSupabaseWhatsAppQueue()) {
+      try {
+        const { data, error } = await supabaseAdmin!
+          .from("whatsapp_queue_dead_letter")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: false })
+          .limit(300);
+        if (error) throw error;
+        return (data || []).map(row => sanitizeWhatsAppQueueSqlDeadLetter(row as WhatsAppQueueSqlDeadLetterRow));
+      } catch (error) {
+        if (!canFallbackToMemoryWhatsAppQueue()) throw error;
+        recordWhatsAppQueueFallback(error instanceof Error ? error.message : "falha ao listar DLQ Supabase");
+      }
+    }
+    return whatsappQueueDeadLetter
+      .filter(item => item.tenant_id === tenantId)
+      .slice(0, 300)
+      .map(item => ({ ...sanitizeWhatsAppQueueDeadLetter(item), backend: "memory" }));
+  }
+
+  async function getWhatsAppQueueStats(tenantId: string): Promise<WhatsAppQueueStats> {
+    if (canUseSupabaseWhatsAppQueue()) {
+      try {
+        const { data: jobs, error: jobsError } = await supabaseAdmin!
+          .from("whatsapp_queue_jobs")
+          .select("status,attempts")
+          .eq("tenant_id", tenantId);
+        if (jobsError) throw jobsError;
+        const { count: deadLetterCount, error: dlqError } = await supabaseAdmin!
+          .from("whatsapp_queue_dead_letter")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId);
+        if (dlqError) throw dlqError;
+        const rows = (jobs || []) as Array<{ status?: string; attempts?: number }>;
+        const byStatus = (status: string) => rows.filter(row => row.status === status).length;
+        const sent = byStatus("sent");
+        const failed = byStatus("failed") + byStatus("dead_letter");
+        const retried = rows.filter(row => Number(row.attempts || 0) > 1).length;
+        const totalProcessed = sent + failed;
+        const total = rows.length || 1;
+        return {
+          queued: byStatus("queued"),
+          claimed: byStatus("claimed"),
+          processing: byStatus("processing"),
+          sent,
+          failed: byStatus("failed"),
+          dead_letter: Number(deadLetterCount || 0) + byStatus("dead_letter"),
+          retryRate: Math.round((retried / total) * 10000) / 100,
+          successRate: totalProcessed ? Math.round((sent / totalProcessed) * 10000) / 100 : 0
+        };
+      } catch (error) {
+        if (!canFallbackToMemoryWhatsAppQueue()) throw error;
+        recordWhatsAppQueueFallback(error instanceof Error ? error.message : "falha ao calcular stats Supabase");
+      }
+    }
+    return buildWhatsAppQueueStats(tenantId);
+  }
+
+  function buildWhatsAppQueueIdempotencyKey(input: { tenantId: string; jobType: string; entityId: string; eventType: string }) {
+    return `whatsapp-queue:${input.tenantId}:${input.jobType}:${input.entityId}:${input.eventType}`;
+  }
+
+  function getWhatsAppQueueEntityId(message: WhatsAppMessageQueueRecord) {
+    return String(message.payload?.entityId || message.payload?.campaignId || message.payload?.purchaseId || message.order_id || message.customer_id || message.phone || message.id);
+  }
+
+  function normalizeWhatsAppQueueJob(message: WhatsAppMessageQueueRecord) {
+    const now = new Date().toISOString();
+    message.max_attempts = Math.max(Number(message.max_attempts || 0), whatsappQueueMaxAttempts);
+    message.scheduled_at ||= message.created_at || now;
+    message.updated_at ||= now;
+    return message;
+  }
+
+  function isWhatsAppQueueReady(message: WhatsAppMessageQueueRecord, now = Date.now()) {
+    normalizeWhatsAppQueueJob(message);
+    if (!["queued", "pending", "retrying"].includes(message.status)) return false;
+    if (message.attempts >= whatsappQueueMaxAttempts) return false;
+    return new Date(message.scheduled_at || message.created_at || 0).getTime() <= now;
+  }
+
+  function claimWhatsAppQueueJobs(tenantId: string, limit = 20, jobTypes: string[] = []) {
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
+    const claimToken = randomUUID();
+    const selected = whatsappMessageQueue
+      .filter(message => message.tenant_id === tenantId)
+      .filter(message => !jobTypes.length || jobTypes.includes(message.message_type))
+      .filter(message => {
+        const claimExpired = message.status === "claimed" && message.claimed_at && (nowMs - new Date(message.claimed_at).getTime()) > whatsappQueueClaimLeaseMs;
+        if (claimExpired) {
+          message.status = "queued";
+          message.claim_token = "";
+          message.claimed_at = "";
+        }
+        return isWhatsAppQueueReady(message, nowMs);
+      })
+      .sort((left, right) => String(left.scheduled_at || left.created_at).localeCompare(String(right.scheduled_at || right.created_at)))
+      .slice(0, Math.max(1, Math.min(100, limit)));
+
+    selected.forEach(message => {
+      message.status = "claimed";
+      message.claim_token = claimToken;
+      message.claimed_at = nowIso;
+      message.updated_at = nowIso;
+    });
+    if (selected.length) schedulePersistentStateSave("whatsapp-queue-claim");
+    return { claimToken, jobs: selected };
+  }
+
+  function assertWhatsAppQueueClaim(message: WhatsAppMessageQueueRecord, claimToken: string) {
+    if (!message.claim_token || message.claim_token !== claimToken) {
+      throw new Error("Claim token invalido para finalizar job WhatsApp");
+    }
+  }
+
+  function finalizeWhatsAppQueueJob(message: WhatsAppMessageQueueRecord, claimToken: string, status: WhatsAppQueueJobStatus, fields: Partial<WhatsAppMessageQueueRecord> = {}) {
+    assertWhatsAppQueueClaim(message, claimToken);
+    const now = new Date().toISOString();
+    Object.assign(message, fields);
+    message.status = status;
+    message.claim_token = "";
+    message.claimed_at = "";
+    message.processed_at ||= now;
+    message.updated_at = now;
+    return message;
+  }
+
+  function moveWhatsAppQueueJobToDeadLetter(message: WhatsAppMessageQueueRecord, claimToken: string, error: string) {
+    finalizeWhatsAppQueueJob(message, claimToken, "dead_letter", {
+      last_error: error,
+      reason: error,
+      scheduled_at: new Date().toISOString()
+    });
+    if (!whatsappQueueDeadLetter.some(item => item.source_job_id === message.id && item.tenant_id === message.tenant_id)) {
+      const now = new Date().toISOString();
+      whatsappQueueDeadLetter.unshift({
+        id: createPublicId("WDLQ_"),
+        tenant_id: message.tenant_id,
+        source_job_id: message.id,
+        job_type: message.message_type,
+        payload: {
+          ...(message.payload || {}),
+          jobId: message.id,
+          idempotencyKey: message.idempotency_key,
+          entityId: getWhatsAppQueueEntityId(message),
+          eventType: message.event_type || message.message_type
+        },
+        error,
+        attempts: message.attempts,
+        created_at: now,
+        updated_at: now
+      });
+      whatsappQueueDeadLetter = whatsappQueueDeadLetter.slice(0, 2000);
+    }
+    schedulePersistentStateSave("whatsapp-queue-dead-letter");
+    return message;
+  }
+
+  function scheduleWhatsAppQueueRetry(message: WhatsAppMessageQueueRecord, claimToken: string, error: string) {
+    assertWhatsAppQueueClaim(message, claimToken);
+    const attempts = Math.max(1, Number(message.attempts || 0));
+    if (attempts >= whatsappQueueMaxAttempts) return moveWhatsAppQueueJobToDeadLetter(message, claimToken, error);
+    const backoffMinutes = whatsappQueueBackoffMinutes[Math.min(attempts - 1, whatsappQueueBackoffMinutes.length - 1)];
+    const scheduledAt = new Date(Date.now() + backoffMinutes * 60 * 1000).toISOString();
+    message.status = "queued";
+    message.claim_token = "";
+    message.claimed_at = "";
+    message.last_error = error;
+    message.reason = error;
+    message.scheduled_at = scheduledAt;
+    message.updated_at = new Date().toISOString();
+    schedulePersistentStateSave("whatsapp-queue-retry");
+    return message;
+  }
+
+  function retryWhatsAppQueueDeadLetter(tenantId: string, deadLetterId: string) {
+    const deadLetter = whatsappQueueDeadLetter.find(item => item.id === deadLetterId && item.tenant_id === tenantId);
+    if (!deadLetter) return null;
+    const message = whatsappMessageQueue.find(item => item.id === deadLetter.source_job_id && item.tenant_id === tenantId);
+    const now = new Date().toISOString();
+    if (message) {
+      message.status = "queued";
+      message.claim_token = "";
+      message.claimed_at = "";
+      message.scheduled_at = now;
+      message.updated_at = now;
+      message.last_error = "";
+      message.reason = "Reprocessado a partir da DLQ";
+    }
+    whatsappQueueDeadLetter = whatsappQueueDeadLetter.filter(item => !(item.id === deadLetterId && item.tenant_id === tenantId));
+    schedulePersistentStateSave("whatsapp-queue-dead-letter-retry");
+    return message || deadLetter;
+  }
+
+  async function retryWhatsAppQueueDeadLetterForTenant(tenantId: string, deadLetterId: string) {
+    if (canUseSupabaseWhatsAppQueue()) {
+      try {
+        const { data: deadLetter, error: readError } = await supabaseAdmin!
+          .from("whatsapp_queue_dead_letter")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .eq("id", deadLetterId)
+          .maybeSingle();
+        if (readError) throw readError;
+        if (!deadLetter) return null;
+        const now = new Date().toISOString();
+        const sourceJobId = String((deadLetter as WhatsAppQueueSqlDeadLetterRow).source_job_id || "");
+        const { data: job, error: updateError } = await supabaseAdmin!
+          .from("whatsapp_queue_jobs")
+          .update({
+            status: "queued",
+            claim_token: null,
+            claimed_at: null,
+            scheduled_at: now,
+            updated_at: now
+          })
+          .eq("tenant_id", tenantId)
+          .eq("id", sourceJobId)
+          .select("*")
+          .maybeSingle();
+        if (updateError) throw updateError;
+        const { error: deleteError } = await supabaseAdmin!
+          .from("whatsapp_queue_dead_letter")
+          .delete()
+          .eq("tenant_id", tenantId)
+          .eq("id", deadLetterId);
+        if (deleteError) throw deleteError;
+        return job ? sanitizeWhatsAppQueueSqlJob(job as WhatsAppQueueSqlJobRow) : sanitizeWhatsAppQueueSqlDeadLetter(deadLetter as WhatsAppQueueSqlDeadLetterRow);
+      } catch (error) {
+        if (!canFallbackToMemoryWhatsAppQueue()) throw error;
+        recordWhatsAppQueueFallback(error instanceof Error ? error.message : "falha ao reprocessar DLQ Supabase");
+      }
+    }
+    const result = retryWhatsAppQueueDeadLetter(tenantId, deadLetterId);
+    if (!result) return null;
+    return "phone" in result
+      ? { ...sanitizeWhatsAppQueueRecord(result as WhatsAppMessageQueueRecord), backend: "memory" }
+      : { ...sanitizeWhatsAppQueueDeadLetter(result as WhatsAppQueueDeadLetterRecord), backend: "memory" };
+  }
+
+  async function claimWhatsAppQueueJobsFromSupabase(tenantId: string, limit = 20, jobTypes: string[] = []) {
+    const claimToken = randomUUID();
+    const { data, error } = await supabaseAdmin!.rpc("claim_whatsapp_queue_jobs", {
+      p_tenant_id: tenantId,
+      p_limit: Math.max(1, Math.min(100, limit)),
+      p_claim_token: claimToken,
+      p_job_types: jobTypes.length ? jobTypes : null
+    });
+    if (error) throw error;
+    return { claimToken, jobs: (data || []) as WhatsAppQueueSqlJobRow[] };
+  }
+
+  async function finishWhatsAppQueueJobInSupabase(jobId: string, claimToken: string, status: "sent" | "failed", errorMessage = "") {
+    if (!claimToken) throw new Error("claim_token obrigatorio para finalizar job WhatsApp");
+    const { data, error } = await supabaseAdmin!.rpc("finish_whatsapp_queue_job", {
+      p_job_id: jobId,
+      p_claim_token: claimToken,
+      p_status: status,
+      p_error: maskSecretText(errorMessage || "")
+    });
+    if (error) throw error;
+    return data as WhatsAppQueueSqlJobRow;
+  }
+
+  function buildWhatsAppQueueStats(tenantId: string): WhatsAppQueueStats {
+    const tenantQueue = whatsappMessageQueue.filter(message => message.tenant_id === tenantId);
+    const byStatus = (status: WhatsAppQueueJobStatus) => tenantQueue.filter(message => message.status === status).length;
+    const sent = byStatus("sent");
+    const failed = byStatus("failed") + byStatus("dead_letter");
+    const retried = tenantQueue.filter(message => message.attempts > 1).length;
+    const totalProcessed = sent + failed;
+    const total = tenantQueue.length || 1;
+    return {
+      queued: byStatus("queued") + byStatus("pending") + byStatus("retrying"),
+      claimed: byStatus("claimed"),
+      processing: byStatus("processing"),
+      sent,
+      failed: byStatus("failed"),
+      dead_letter: whatsappQueueDeadLetter.filter(item => item.tenant_id === tenantId).length + byStatus("dead_letter"),
+      retryRate: Math.round((retried / total) * 10000) / 100,
+      successRate: totalProcessed ? Math.round((sent / totalProcessed) * 10000) / 100 : 0
+    };
+  }
+
   function buildWhatsAppDashboardDaySeries(days: number) {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -12228,10 +12711,11 @@ async function startServer() {
       .reduce((best, status) => whatsappDashboardStatusRank(status) > whatsappDashboardStatusRank(best) ? status : best, baseStatus);
   }
 
-  function buildWhatsAppCenterDashboard(tenantId: string) {
+  async function buildWhatsAppCenterDashboard(tenantId: string) {
     const today = new Date().toISOString().slice(0, 10);
     const outboundMessages = whatsappConversationMessages.filter(message => message.tenantId === tenantId && message.direction === "outbound");
     const queueMessages = whatsappMessageQueue.filter(message => message.tenant_id === tenantId);
+    const queueStats = await getWhatsAppQueueStats(tenantId);
     const queueStatus = (message: WhatsAppMessageQueueRecord) => whatsappDashboardEffectiveQueueStatus(tenantId, message);
     const queueSent = queueMessages.filter(message => ["sent", "delivered", "read"].includes(queueStatus(message)));
     const queueDelivered = queueMessages.filter(message => ["delivered", "read"].includes(queueStatus(message)));
@@ -12328,6 +12812,13 @@ async function startServer() {
         pixRecoveredValue: recoveredPixValue,
         pixRecoveryRate: rate(recoveredPix.length, pixRecoveryCandidates),
         campaignsSent: whatsappCrmCampaigns.filter(campaign => campaign.tenant_id === tenantId && ["queued", "sending", "completed"].includes(campaign.status)).length,
+        queueQueued: queueStats.queued,
+        queueProcessing: queueStats.processing + queueStats.claimed,
+        queueSent: queueStats.sent,
+        queueFailed: queueStats.failed,
+        queueDeadLetter: queueStats.dead_letter,
+        queueRetryRate: queueStats.retryRate,
+        queueSuccessRate: queueStats.successRate,
         openConversations: whatsappConversations.filter(conversation => conversation.tenantId === tenantId && conversation.status === "open").length,
         pendingConversations: whatsappConversations.filter(conversation => conversation.tenantId === tenantId && conversation.status === "pending").length,
         waitingCustomerConversations: whatsappConversations.filter(conversation => conversation.tenantId === tenantId && conversation.status === "waiting_customer").length,
@@ -12639,9 +13130,7 @@ async function startServer() {
     const settingsRecord = getWhatsAppPixRecoverySettings(tenantId);
     const provider = createMetaWhatsAppCloudProvider(tenantId);
     const templates = getSavedWhatsAppCloudTemplates(tenantId);
-    const ready = getWhatsAppPixRecoveryQueue(tenantId)
-      .filter(message => message.status === "queued" && message.attempts < message.max_attempts)
-      .slice(0, Math.max(1, Math.min(100, limit)));
+    const { claimToken, jobs: ready } = claimWhatsAppQueueJobs(tenantId, Math.max(1, Math.min(100, limit)), ["whatsapp_cloud_pix_recovery"]);
     let sent = 0;
     let failed = 0;
     let skipped = 0;
@@ -12654,25 +13143,20 @@ async function startServer() {
       const revalidation = purchase ? validateWhatsAppPixRecoveryCandidateFromOrder(tenantId, purchase, settingsRecord) : null;
       const allowedQueuedReasons = new Set(["Mensagem ja registrada para esta compra", "Limite por cliente respeitado", "Limite diario atingido"]);
       if (!purchase || (revalidation && !revalidation.eligible && !allowedQueuedReasons.has(revalidation.reason))) {
-        message.status = "skipped";
-        message.reason = revalidation?.reason || "Compra nao esta pendente";
-        message.processed_at = new Date().toISOString();
-        message.updated_at = message.processed_at;
+        finalizeWhatsAppQueueJob(message, claimToken, "skipped", { reason: revalidation?.reason || "Compra nao esta pendente" });
         skipped += 1;
         recordWhatsAppCloudLog(tenantId, { action: "pix_recovery_skipped", status: "skipped", message: message.reason, metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType, status: message.status } });
         continue;
       }
       if (countWhatsAppPixRecoveryToday(tenantId) > settingsRecord.daily_tenant_limit) {
-        message.status = "skipped";
-        message.reason = "Limite diario atingido";
-        message.processed_at = new Date().toISOString();
-        message.updated_at = message.processed_at;
+        finalizeWhatsAppQueueJob(message, claimToken, "skipped", { reason: "Limite diario atingido" });
         skipped += 1;
         recordWhatsAppCloudLog(tenantId, { action: "pix_recovery_skipped", status: "skipped", message: message.reason, metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType, status: message.status } });
         continue;
       }
       try {
         message.attempts += 1;
+        message.status = "processing";
         message.updated_at = new Date().toISOString();
         const result = await provider.sendTemplateTest({
           to: message.phone,
@@ -12682,11 +13166,7 @@ async function startServer() {
           availableTemplates: templates
         });
         const processedAt = new Date().toISOString();
-        message.status = "sent";
-        message.sent_at = processedAt;
-        message.processed_at = processedAt;
-        message.updated_at = processedAt;
-        message.meta_message_id = result.data?.messages?.[0]?.id || "";
+        finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: processedAt, processed_at: processedAt, meta_message_id: result.data?.messages?.[0]?.id || "" });
         sent += 1;
         recordWhatsAppCloudLog(tenantId, {
           action: "pix_recovery_sent",
@@ -12696,11 +13176,10 @@ async function startServer() {
         });
       } catch (error) {
         const processedAt = new Date().toISOString();
-        message.status = message.attempts >= message.max_attempts ? "failed" : "queued";
         message.last_error = error instanceof Error ? error.message : "Falha ao enviar recuperacao de PIX";
         message.reason = message.last_error;
+        scheduleWhatsAppQueueRetry(message, claimToken, message.last_error);
         message.processed_at = processedAt;
-        message.updated_at = processedAt;
         failed += 1;
         recordWhatsAppCloudLog(tenantId, {
           action: "meta_api_error",
@@ -12938,9 +13417,7 @@ async function startServer() {
     const settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId);
     const provider = createMetaWhatsAppCloudProvider(tenantId);
     const templates = getSavedWhatsAppCloudTemplates(tenantId);
-    const ready = getWhatsAppPurchaseConfirmationQueue(tenantId)
-      .filter(message => message.status === "queued" && message.attempts < message.max_attempts)
-      .slice(0, Math.max(1, Math.min(100, limit)));
+    const { claimToken, jobs: ready } = claimWhatsAppQueueJobs(tenantId, Math.max(1, Math.min(100, limit)), ["whatsapp_cloud_purchase_confirmation"]);
     let sent = 0;
     let failed = 0;
     let skipped = 0;
@@ -12953,24 +13430,21 @@ async function startServer() {
       const allowedQueuedReasons = new Set(["Mensagem ja registrada para esta compra", "Limite diario atingido"]);
       if (!purchase || (revalidation && !revalidation.eligible && !allowedQueuedReasons.has(revalidation.reason))) {
         message.status = "skipped";
-        message.reason = revalidation?.reason || "Compra nao encontrada";
-        message.processed_at = new Date().toISOString();
-        message.updated_at = message.processed_at;
+        finalizeWhatsAppQueueJob(message, claimToken, "skipped", { reason: revalidation?.reason || "Compra nao encontrada" });
         skipped += 1;
         recordWhatsAppCloudLog(tenantId, { action: "purchase_confirmation_skipped", status: "skipped", message: message.reason, metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status } });
         continue;
       }
       if (countWhatsAppPurchaseConfirmationsToday(tenantId) > settingsRecord.daily_tenant_limit) {
         message.status = "skipped";
-        message.reason = "Limite diario atingido";
-        message.processed_at = new Date().toISOString();
-        message.updated_at = message.processed_at;
+        finalizeWhatsAppQueueJob(message, claimToken, "skipped", { reason: "Limite diario atingido" });
         skipped += 1;
         recordWhatsAppCloudLog(tenantId, { action: "purchase_confirmation_skipped", status: "skipped", message: message.reason, metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status } });
         continue;
       }
       try {
         message.attempts += 1;
+        message.status = "processing";
         message.updated_at = new Date().toISOString();
         recordWhatsAppCloudLog(tenantId, {
           action: "purchase_confirmation_send_requested",
@@ -12987,10 +13461,7 @@ async function startServer() {
         });
         const processedAt = new Date().toISOString();
         message.status = "sent";
-        message.sent_at = processedAt;
-        message.processed_at = processedAt;
-        message.updated_at = processedAt;
-        message.meta_message_id = result.data?.messages?.[0]?.id || "";
+        finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: processedAt, processed_at: processedAt, meta_message_id: result.data?.messages?.[0]?.id || "" });
         sent += 1;
         recordWhatsAppCloudLog(tenantId, {
           action: "purchase_confirmation_sent",
@@ -13000,11 +13471,11 @@ async function startServer() {
         });
       } catch (error) {
         const processedAt = new Date().toISOString();
-        message.status = message.attempts >= message.max_attempts ? "failed" : "queued";
         message.last_error = error instanceof Error ? error.message : "Falha ao enviar confirmacao de compra";
         message.reason = message.last_error;
+        message.status = message.attempts >= message.max_attempts ? "failed" : "queued";
+        scheduleWhatsAppQueueRetry(message, claimToken, message.last_error);
         message.processed_at = processedAt;
-        message.updated_at = processedAt;
         failed += 1;
         recordWhatsAppCloudLog(tenantId, {
           action: "purchase_confirmation_failed",
@@ -13552,6 +14023,7 @@ async function startServer() {
         language: rule.language,
         event_type: `automation_${rule.type}`,
         payload: { automationRuleId: rule.id, automationExecutionId: execution.id, automationType: rule.type, customerName: recipient.name, components: [] },
+        scheduled_at: scheduledAt,
         created_at: now,
         updated_at: now,
         idempotency_key: `whatsapp-crm-automation:${idempotencyKey}`
@@ -14149,6 +14621,70 @@ async function startServer() {
     } finally {
       whatsappWorkerRunning = false;
     }
+  }
+
+  async function processWhatsAppCenterQueue(tenantId: string, limit = 20) {
+    if (canUseSupabaseWhatsAppQueue()) {
+      try {
+        return await processWhatsAppCenterQueueWithSupabase(tenantId, limit);
+      } catch (error) {
+        if (!canFallbackToMemoryWhatsAppQueue()) throw error;
+        recordWhatsAppQueueFallback(error instanceof Error ? error.message : "falha ao processar fila Supabase");
+      }
+    }
+    const { claimToken, jobs } = claimWhatsAppQueueJobs(tenantId, limit, ["ticket_confirmation", "test"]);
+    let sent = 0;
+    let failed = 0;
+    for (const message of jobs) {
+      try {
+        message.status = "processing";
+        message.updated_at = new Date().toISOString();
+        await sendQueuedWhatsAppMessage(message.id);
+        if (String(message.status) === "sent") {
+          finalizeWhatsAppQueueJob(message, claimToken, "sent", { sent_at: message.sent_at, meta_message_id: message.meta_message_id });
+          sent += 1;
+        } else {
+          scheduleWhatsAppQueueRetry(message, claimToken, message.last_error || "Envio WhatsApp nao concluido");
+          failed += 1;
+        }
+      } catch (error) {
+        scheduleWhatsAppQueueRetry(message, claimToken, error instanceof Error ? error.message : "Falha ao processar fila WhatsApp");
+        failed += 1;
+      }
+    }
+    return { processed: jobs.length, sent, failed, claimToken, backend: "memory", fallback: true };
+  }
+
+  async function processWhatsAppCenterQueueWithSupabase(tenantId: string, limit = 20) {
+    const { claimToken, jobs } = await claimWhatsAppQueueJobsFromSupabase(tenantId, limit, ["ticket_confirmation", "test"]);
+    let sent = 0;
+    let failed = 0;
+    for (const job of jobs) {
+      const payload = job.payload || {};
+      const sourceMessageId = String(payload.queueMessageId || payload.sourceMessageId || payload.messageId || job.id);
+      const message = whatsappMessageQueue.find(item => item.tenant_id === tenantId && item.id === sourceMessageId);
+      if (!message) {
+        await finishWhatsAppQueueJobInSupabase(job.id, claimToken, "failed", "Job SQL sem mensagem local correspondente para envio legado");
+        failed += 1;
+        continue;
+      }
+      try {
+        message.status = "processing";
+        message.updated_at = new Date().toISOString();
+        await sendQueuedWhatsAppMessage(message.id);
+        if (String(message.status) === "sent") {
+          await finishWhatsAppQueueJobInSupabase(job.id, claimToken, "sent");
+          sent += 1;
+        } else {
+          await finishWhatsAppQueueJobInSupabase(job.id, claimToken, "failed", message.last_error || "Envio WhatsApp nao concluido");
+          failed += 1;
+        }
+      } catch (error) {
+        await finishWhatsAppQueueJobInSupabase(job.id, claimToken, "failed", error instanceof Error ? error.message : "Falha ao processar fila WhatsApp");
+        failed += 1;
+      }
+    }
+    return { processed: jobs.length, sent, failed, claimToken, backend: "supabase", fallback: false };
   }
 
   function confirmPurchase(purchase: PurchaseRecord) {
@@ -19166,6 +19702,7 @@ async function startServer() {
       whatsappAutomationRules,
       whatsappAutomationExecutions,
       whatsappMessageQueue,
+      whatsappQueueDeadLetter,
       whatsappContacts,
       whatsappConversations,
       whatsappConversationMessages,
@@ -19263,6 +19800,7 @@ async function startServer() {
       case "whatsappAutomationRules": whatsappAutomationRules = Array.isArray(value) ? value : []; break;
       case "whatsappAutomationExecutions": whatsappAutomationExecutions = Array.isArray(value) ? value : []; break;
       case "whatsappMessageQueue": whatsappMessageQueue = Array.isArray(value) ? value : []; break;
+      case "whatsappQueueDeadLetter": whatsappQueueDeadLetter = Array.isArray(value) ? value : []; break;
       case "whatsappContacts": whatsappContacts = Array.isArray(value) ? value : []; break;
       case "whatsappConversations": whatsappConversations = Array.isArray(value) ? value : []; break;
       case "whatsappConversationMessages": whatsappConversationMessages = Array.isArray(value) ? value : []; break;

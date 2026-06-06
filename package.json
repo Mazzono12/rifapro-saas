@@ -155,6 +155,7 @@
     ,"test:whatsapp-dashboard-hard": "node scripts/test-whatsapp-dashboard-hard.mjs"
     ,"test:whatsapp-cloud-foundation-hard": "node scripts/test-whatsapp-cloud-foundation-hard.mjs"
     ,"test:whatsapp-cloud-modalities-hard": "node scripts/test-whatsapp-cloud-modalities-hard.mjs"
+    ,"test:whatsapp-queue-hardening-hard": "node scripts/test-whatsapp-queue-hardening-hard.mjs"
     ,"test:pix-confirmation-safety": "node scripts/test-pix-confirmation-safety.mjs"
     ,"test:asaas-pix-hard": "node scripts/test-asaas-pix-hard.mjs"
     ,"test:asaas-multitenant-isolation-hard": "node scripts/test-asaas-multitenant-isolation-hard.mjs"
