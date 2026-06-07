@@ -17,7 +17,7 @@ async function findAvailablePort() {
 
 const port = await findAvailablePort();
 const baseUrl = `http://127.0.0.1:${port}`;
-const env = { ...process.env, PORT: String(port), NODE_ENV: "production", SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", SUPERADMIN_EMAIL: "superadmin.reports@test.local", SUPERADMIN_PASSWORD: "SenhaSuper123!", JWT_SECRET: "test-reports-secret", GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-reports-gateway-key" };
+const env = { ...process.env, PORT: String(port), NODE_ENV: "production", RIFAPRO_TEST_MODE: "hard", SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", SUPERADMIN_EMAIL: "superadmin.reports@test.local", SUPERADMIN_PASSWORD: "SenhaSuper123!", JWT_SECRET: "test-reports-secret", GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-reports-gateway-key" };
 const server = spawn(process.execPath, ["dist/server.js"], { cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"] });
 async function wait() { for (let i = 0; i < 60; i++) { try { const r = await fetch(`${baseUrl}/api/public/health`); if (r.status === 200) return; } catch {} await new Promise(r => setTimeout(r, 100)); } throw new Error("Servidor nao iniciou"); }
 async function json(path, options = {}) { const res = await fetch(`${baseUrl}${path}`, { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } }); return { response: res, body: await res.json().catch(() => ({})) }; }

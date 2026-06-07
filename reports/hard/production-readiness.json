@@ -4,215 +4,221 @@
   "singleProcessSafe": true,
   "multiInstanceSafe": false,
   "productionStateWarning": "Reservas em memoria sao single-process; multi-instance exige persistencia com locks transacionais.",
-  "startedAt": "2026-06-03T21:51:00.476Z",
-  "finishedAt": "2026-06-03T21:52:03.094Z",
-  "durationMs": 62618,
+  "startedAt": "2026-06-07T01:51:46.838Z",
+  "finishedAt": "2026-06-07T01:52:26.271Z",
+  "durationMs": 39433,
   "results": [
     {
       "name": "auditoria estatica de rotas e modulos",
       "status": "passed",
-      "durationMs": 27
+      "durationMs": 8
     },
     {
       "name": "modelo normalizado de gateway",
       "status": "passed",
-      "durationMs": 14
+      "durationMs": 6
     },
     {
       "name": "scripts/test-gateway-credentials-security.mjs",
       "status": "passed",
-      "durationMs": 246,
+      "durationMs": 66,
       "output": "PASS: credenciais de gateways cifradas em repouso, descriptografadas so no backend e mascaradas no frontend.\n"
     },
     {
       "name": "scripts/test-pix-multitenant.mjs",
       "status": "passed",
-      "durationMs": 4970,
+      "durationMs": 2123,
       "output": "PASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n"
     },
     {
       "name": "checkout usa reserva, pagamento e provider preservado",
       "status": "passed",
-      "durationMs": 9
+      "durationMs": 4
     },
     {
       "name": "scripts/test-purchase-concurrency.mjs",
       "status": "passed",
-      "durationMs": 3346,
+      "durationMs": 1540,
       "output": "PASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\n"
     },
     {
       "name": "scripts/test-pix-confirmation-safety.mjs",
       "status": "passed",
-      "durationMs": 3811,
+      "durationMs": 2164,
       "output": "PASS: botoes e endpoints de confirmacao PIX seguros, auditados e idempotentes.\n"
     },
     {
       "name": "scripts/test-payment-workers.mjs",
       "status": "passed",
-      "durationMs": 3265,
+      "durationMs": 2230,
       "output": "PASS: workers PIX/webhook com fila, idempotencia, retry, logs e isolamento multitenant.\n"
     },
     {
       "name": "scripts/test-pix-multitenant.mjs",
       "status": "passed",
-      "durationMs": 3393,
+      "durationMs": 2184,
       "output": "PASS: PIX e webhooks multitenant isolados, idempotentes, com logs e comissao por tenant.\n"
     },
     {
       "name": "scripts/test-production-hardening.mjs",
       "status": "passed",
-      "durationMs": 3573,
+      "durationMs": 2137,
       "output": "PASS: hardening de planos, auditoria, fila de pagamentos e dashboard superadmin validado.\n"
     },
     {
       "name": "scripts/test-superadmin-finance.mjs",
       "status": "passed",
-      "durationMs": 2627,
+      "durationMs": 1820,
       "output": "PASS: superadmin finance global, filtros e bloqueio para tenant admin validados.\n"
     },
     {
       "name": "scripts/test-tenant-domains.mjs",
       "status": "passed",
-      "durationMs": 3579,
+      "durationMs": 2173,
       "output": "PASS: dominios por tenant, unicidade, subdominio e custom domain validados.\n"
     },
     {
       "name": "scripts/test-impersonation-audit.mjs",
       "status": "passed",
-      "durationMs": 2054,
+      "durationMs": 1170,
       "output": "PASS: acesso assistido exige motivo, audita entrada/saida e nao apaga logs criticos.\n"
     },
     {
       "name": "scripts/test-reports-export.mjs",
       "status": "passed",
-      "durationMs": 3436,
+      "durationMs": 2291,
       "output": "PASS: exportacao CSV/PDF oficial, hash, isolamento tenant e filtros de relatorio validados.\n"
     },
     {
       "name": "scripts/test-compliance-audit-modules.mjs",
       "status": "passed",
-      "durationMs": 86,
+      "durationMs": 68,
       "output": "[all] compliance/auditoria ok\n"
     },
     {
       "name": "scripts/test-saas-governance.mjs",
       "status": "passed",
-      "durationMs": 77,
+      "durationMs": 58,
       "output": "[saas-governance] ok\n"
     },
     {
       "name": "scripts/test-native-crm.mjs",
       "status": "passed",
-      "durationMs": 95,
+      "durationMs": 67,
       "output": "[native-crm] ok\n"
     },
     {
       "name": "scripts/test-tenant-automations.mjs",
       "status": "passed",
-      "durationMs": 94,
+      "durationMs": 68,
       "output": "[tenant-automations] ok\n"
     },
     {
       "name": "scripts/test-public-conversion-widgets.mjs",
       "status": "passed",
-      "durationMs": 88,
+      "durationMs": 58,
       "output": "[public-conversion-widgets] ok\n"
     },
     {
       "name": "scripts/test-public-checkout-no-close-x.mjs",
       "status": "passed",
-      "durationMs": 119,
+      "durationMs": 50,
       "output": "PASS: Checkout publico sem X superior e com acoes principais preservadas.\n"
     },
     {
       "name": "scripts/test-countdown-sales-hard.mjs",
       "status": "passed",
-      "durationMs": 128,
+      "durationMs": 72,
       "output": "countdown-sales-hard: ok\n"
+    },
+    {
+      "name": "scripts/test-pix-recovery-hard.mjs",
+      "status": "passed",
+      "durationMs": 59,
+      "output": "pix-recovery-hard ok\n"
     },
     {
       "name": "scripts/test-public-debug-routes.mjs",
       "status": "passed",
-      "durationMs": 1314,
+      "durationMs": 899,
       "output": "PASS: rotas publicas debug respondem antes do tenant/fallback.\n"
     },
     {
       "name": "scripts/test-public-api-keys.mjs",
       "status": "passed",
-      "durationMs": 91,
+      "durationMs": 57,
       "output": "[public-api-keys] ok\n"
     },
     {
       "name": "scripts/test-pwa-secure.mjs",
       "status": "passed",
-      "durationMs": 101,
+      "durationMs": 58,
       "output": "[pwa-secure] ok\n"
     },
     {
       "name": "scripts/test-stories-instagram-behavior.mjs",
       "status": "passed",
-      "durationMs": 94,
+      "durationMs": 54,
       "output": "stories-instagram-behavior: ok\n"
     },
     {
       "name": "scripts/test-clean-media-layout-hard.mjs",
       "status": "passed",
-      "durationMs": 92,
+      "durationMs": 56,
       "output": "clean-media-layout-hard: ok\n"
     },
     {
       "name": "scripts/test-public-home-render-hard.mjs",
       "status": "passed",
-      "durationMs": 1570,
+      "durationMs": 898,
       "output": "PASS: Home publica protegida contra tela azul, com campanhas e fallbacks validados.\n"
     },
     {
       "name": "scripts/test-admin-section-boundary-hard.mjs",
       "status": "passed",
-      "durationMs": 115,
+      "durationMs": 51,
       "output": "PASS: Admin isolado por seção e AdminSales resiliente a payload vazio/parcial.\n"
     },
     {
       "name": "scripts/test-theme-builder-marketplace.mjs",
       "status": "passed",
-      "durationMs": 125,
+      "durationMs": 56,
       "output": "[theme-builder-marketplace] ok\n"
     },
     {
       "name": "scripts/test-modalidades-no-client-paid.mjs",
       "status": "passed",
-      "durationMs": 4201,
+      "durationMs": 2516,
       "output": "PASS: cliente nao consegue criar modalidade paga pelo payload publico.\n"
     },
     {
       "name": "scripts/test-fazendinha-no-client-paid.mjs",
       "status": "passed",
-      "durationMs": 4529,
+      "durationMs": 3054,
       "output": "PASS: cliente nao consegue criar Fazendinha paga pelo payload publico.\n"
     },
     {
       "name": "scripts/test-all-modalidades-active-hard.mjs",
       "status": "passed",
-      "durationMs": 11290,
+      "durationMs": 9211,
       "output": "PASS: all-modalidades-active-hard validou rifa, Fazendinha, Dezena, Centena e Milhar ativas com reservas, PIX pendente, webhook seguro, expiracao e concorrencia.\n"
     },
     {
       "name": "scripts/test-no-public-superadmin-signup.mjs",
       "status": "passed",
-      "durationMs": 3912,
+      "durationMs": 1973,
       "output": "PASS: signup publico de superadmin bloqueado em producao e signup comum preservado.\n"
     },
     {
       "name": "scripts/test-persistence-dirty-save.mjs",
       "status": "passed",
-      "durationMs": 113,
+      "durationMs": 66,
       "output": "PASS: dirty save reprograma persistencia e relatorios indicam singleProcessSafe=true/multiInstanceSafe=false.\n"
     },
     {
       "name": "bundle sem service role quando dist existir",
       "status": "passed",
-      "durationMs": 26
+      "durationMs": 65
     }
   ]
 }

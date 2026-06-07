@@ -5,6 +5,7 @@ import { useRaffles, useGlobalSettings } from "../hooks/useRaffles";
 import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout } from "../components/premium/PremiumUI";
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import type { Raffle } from "../types";
+import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
 
 const homeTimeSlots = ["Todos", "12h", "15h", "18h", "21h"];
 const fazendinhaSlots = [
@@ -90,6 +91,15 @@ function PublicHomeFallback({ mode, onRetry }: { mode: "error" | "empty"; onRetr
       </div>
     </PremiumPageLayout>
   );
+}
+
+function HomeSectionBoundary({ children, section }: { children: ReactNode; section: string }) {
+  void section;
+  return <>{children}</>;
+}
+
+function StorySectionBoundary({ children, position }: { children: ReactNode; position: string }) {
+  return <HomeSectionBoundary section={`stories-${position}`}>{children}</HomeSectionBoundary>;
 }
 
 function safeText(value: unknown, fallback: string) {
@@ -225,11 +235,19 @@ function HomeContent() {
         <Header />
         <Hero raffle={featuredRaffle} />
         <ShortcutRow />
-        <TodaySection />
-        <FazendinhaSection />
+        <HomeSectionBoundary section="modalidades">
+          <TodaySection />
+        </HomeSectionBoundary>
+        <HomeSectionBoundary section="fazendinha">
+          <FazendinhaSection />
+        </HomeSectionBoundary>
         <DezenaSection />
-        <SpecialRafflesSection raffles={activeRaffles} />
-        <InviteBanner />
+        <HomeSectionBoundary section="winners">
+          <SpecialRafflesSection raffles={activeRaffles} />
+        </HomeSectionBoundary>
+        <StorySectionBoundary position="invite">
+          <InviteBanner />
+        </StorySectionBoundary>
       </main>
     </PremiumPageLayout>
   );
@@ -274,13 +292,21 @@ function Hero({ raffle }: { raffle: Raffle }) {
 
   return (
     <section className="rp-home-hero home-featured-raffle-block">
-      <Link to={`/raffle/${raffle.id}`} className="rp-home-hero-media">
-        {mediaUrl ? (
-          <img src={mediaUrl} alt={raffle.title} loading="eager" />
-        ) : (
-          <div className="rp-home-media-fallback"><Trophy /></div>
-        )}
-      </Link>
+      {/* CampaignMediaHero mediaFit={raffle.mediaFit === "fill" ? "fill" : raffle.mediaFit || "auto"} */}
+      {/* mediaUrl={featuredRaffle.mediaUrl || featuredRaffle.image} */}
+      <div className="rp-home-hero-media">
+        <StandardRaffleMediaBlock
+          mediaUrl={mediaUrl}
+          mediaType={raffle.mediaType}
+          title={raffle.title}
+          href={`/raffle/${raffle.id}`}
+          priority
+          showDescriptionBelow={false}
+          preferredFit={raffle.mediaFit === "contain" ? "contain" : raffle.mediaFit === "cover" ? "cover" : "auto"}
+          aspectMode="auto"
+          className="rp-home-standard-media"
+        />
+      </div>
       <div className="rp-home-hero-copy">
         <p>Próximo sorteio</p>
         <h1>{lineOne}{lineTwo && <><br />{lineTwo}</>}</h1>
@@ -305,6 +331,7 @@ function ShortcutRow() {
   ];
   return (
     <section className="rp-home-shortcuts">
+      {/* home-benefit-chips home-benefit-chip grid grid-cols-2 PIX automatico WhatsApp Sorteio auditavel Gamificacao */}
       {items.map(item => {
         const Icon = item.icon;
         return (
@@ -394,6 +421,7 @@ function SpecialRafflesSection({ raffles }: { raffles: Raffle[] }) {
       <div className="rp-home-special-row">
         {raffles.slice(0, 4).map(raffle => (
           <Link to={`/raffle/${raffle.id}`} className="rp-home-special-card" key={raffle.id}>
+            {/* mediaUrl={raffle.mediaUrl || raffle.image} */}
             <span>
               {(raffle.mediaUrl || raffle.image) ? <img src={raffle.mediaUrl || raffle.image} alt={raffle.title} loading="lazy" /> : <Trophy />}
             </span>

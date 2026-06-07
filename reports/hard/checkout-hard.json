@@ -4,25 +4,25 @@
   "singleProcessSafe": true,
   "multiInstanceSafe": false,
   "productionStateWarning": "Reservas em memoria sao single-process; multi-instance exige persistencia com locks transacionais.",
-  "startedAt": "2026-06-03T21:51:00.769Z",
-  "finishedAt": "2026-06-03T21:51:09.456Z",
-  "durationMs": 8687,
+  "startedAt": "2026-06-06T23:56:40.932Z",
+  "finishedAt": "2026-06-06T23:56:46.028Z",
+  "durationMs": 5096,
   "results": [
     {
       "name": "checkout usa reserva, pagamento e provider preservado",
       "status": "passed",
-      "durationMs": 15
+      "durationMs": 8
     },
     {
       "name": "scripts/test-purchase-concurrency.mjs",
       "status": "passed",
-      "durationMs": 4011,
+      "durationMs": 2271,
       "output": "PASS: concorrencia de compras sem cotas duplicadas, com reserva pendente e confirmacao idempotente.\n"
     },
     {
       "name": "scripts/test-pix-confirmation-safety.mjs",
       "status": "passed",
-      "durationMs": 4658,
+      "durationMs": 2813,
       "output": "PASS: botoes e endpoints de confirmacao PIX seguros, auditados e idempotentes.\n"
     }
   ]

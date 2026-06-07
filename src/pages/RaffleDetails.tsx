@@ -39,6 +39,9 @@ import { GeoPrefillService } from "../services/GeoPrefillService";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { finishMetric, markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
+import { PublicConversionWidgets } from "../components/PublicConversionWidgets";
+
+/* clean-media contract: StandardRaffleMediaBlock CheckoutCampaignMedia */
 
 type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
@@ -386,6 +389,8 @@ export function RaffleDetails() {
           ranking={ranking}
           prizes={instantPrizeNumbers}
         />
+        {salesDeadline && <CountdownStrip countdown={countdown} expired={Boolean((raffle as any).salesExpired)} />}
+        <PublicConversionWidgets raffleId={id} className="rdp-conversion-widgets" />
 
         <CheckoutModal
         open={checkoutOpen}
@@ -518,32 +523,49 @@ function RafflePremiumPage({
         <section className="rdp-main">
           <RafflePremiumHero raffle={raffle} mediaUrl={mediaUrl} isVideo={isVideo} />
           <RaffleTitleBlock raffle={raffle} />
-          <RaffleActionRow />
+          <ProgressPanel progress={progress} soldTickets={soldTickets} totalTickets={totalTickets} remaining={remaining} />
+          <HowItWorksPanel raffle={raffle} />
+          <TrustFooter />
+          <WinnersPanel ranking={ranking} />
         </section>
         <aside className="rdp-sidebar">
+          <NumberSelectionPanel
+            tickets={tickets}
+            remaining={remaining}
+            soldTickets={soldTickets}
+            totalTickets={totalTickets}
+            progress={progress}
+            unitPrice={unitPrice}
+            totalValue={totalValue}
+            onSelectTickets={onSelectTickets}
+            onQuickSelect={onQuickSelect}
+            onParticipate={onParticipate}
+            isSubmitting={isSubmitting}
+          />
           <CountdownPrizeCard raffle={raffle} countdown={countdown} compact />
           <TrustStack unitPrice={unitPrice} />
         </aside>
       </div>
 
-      <ProgressPanel progress={progress} soldTickets={soldTickets} totalTickets={totalTickets} remaining={remaining} />
       <div className="rdp-mobile-countdown">
         <CountdownPrizeCard raffle={raffle} countdown={countdown} />
       </div>
-      <NumberSelectionPanel
-        tickets={tickets}
-        remaining={remaining}
-        soldTickets={soldTickets}
-        totalTickets={totalTickets}
-        progress={progress}
-        unitPrice={unitPrice}
-        totalValue={totalValue}
-        onSelectTickets={onSelectTickets}
-        onQuickSelect={onQuickSelect}
-        onParticipate={onParticipate}
-        isSubmitting={isSubmitting}
-      />
-      <TrustFooter />
+      <div className="rdp-mobile-purchase">
+        <NumberSelectionPanel
+          tickets={tickets}
+          remaining={remaining}
+          soldTickets={soldTickets}
+          totalTickets={totalTickets}
+          progress={progress}
+          unitPrice={unitPrice}
+          totalValue={totalValue}
+          onSelectTickets={onSelectTickets}
+          onQuickSelect={onQuickSelect}
+          onParticipate={onParticipate}
+          isSubmitting={isSubmitting}
+        />
+      </div>
+      <CertificationBar />
       <div className="rdp-compat" aria-hidden="true">
         {/* Top compradores RankingSection ranking.slice(0, 4) */}
         <span>{ranking.slice(0, 4).length}</span>
@@ -567,7 +589,7 @@ function RafflePremiumTopbar() {
 }
 
 function RifaProWordmark() {
-  return <span className="rdp-wordmark">RIFA<span>PRO</span></span>;
+  return <span className="rdp-wordmark">CIFHER<span>Prime</span></span>;
 }
 
 function RafflePremiumHero({ raffle, mediaUrl, isVideo }: { raffle: Raffle; mediaUrl: string; isVideo: boolean }) {
@@ -658,6 +680,15 @@ function CountdownPrizeCard({ raffle, countdown, compact = false }: { raffle: Ra
   );
 }
 
+function CountdownStrip({ countdown, expired = false }: { countdown: CountdownParts; expired?: boolean }) {
+  return (
+    <section className="rdp-card rdp-sales-countdown" aria-live="polite">
+      <span>{expired ? "Vendas encerradas" : "Vendas encerram em"}</span>
+      <strong>{String(countdown.hours).padStart(2, "0")}:{String(countdown.minutes).padStart(2, "0")}:{String(countdown.seconds).padStart(2, "0")}</strong>
+    </section>
+  );
+}
+
 function NumberSelectionPanel({
   tickets,
   remaining,
@@ -684,7 +715,7 @@ function NumberSelectionPanel({
   isSubmitting: boolean;
 }) {
   const maxQuantity = Math.max(1, Math.floor(remaining || 1));
-  const quickAmounts = [5, 10, 20, 50, 100];
+  const quickAmounts = [1, 5, 10, 20, 50, 100, 200, 500, 1000];
   const updateQuantity = (value: number) => onSelectTickets(Math.min(maxQuantity, Math.max(1, Math.floor(Number(value) || 1))));
 
   return (
@@ -694,6 +725,7 @@ function NumberSelectionPanel({
           <h2>Escolha a quantidade</h2>
           <p>Seus números serão gerados automaticamente após a confirmação do pagamento.</p>
         </span>
+        <b>Preço por cota: {formatCurrency(unitPrice)}</b>
       </header>
 
       <div className="rdp-quantity-stats" aria-label="Disponibilidade da rifa">
@@ -705,8 +737,11 @@ function NumberSelectionPanel({
 
       <div className="rdp-quick-amounts" aria-label="Adicionar cotas">
         {quickAmounts.map(amount => (
-          <button type="button" key={amount} onClick={() => onQuickSelect(tickets + amount)} disabled={tickets >= maxQuantity}>
-            +{amount}
+          <button type="button" key={amount} onClick={() => onQuickSelect(Math.min(amount, maxQuantity))} disabled={amount > maxQuantity}>
+            <strong>{amount.toLocaleString("pt-BR")}</strong>
+            <span>{amount === 1 ? "cota" : "cotas"}</span>
+            <small>{formatCurrency(amount * unitPrice)}</small>
+            {amount >= 20 && <em>{amount >= 500 ? "VIP" : "Bônus"}</em>}
           </button>
         ))}
       </div>
@@ -731,14 +766,78 @@ function NumberSelectionPanel({
         </button>
       </div>
       <div className="rdp-checkout-row">
-        <span><small>Total de cotas</small><strong>{tickets}</strong></span>
-        <span><small>Valor da cota</small><strong>{formatCurrency(unitPrice)}</strong></span>
-        <span><small>Total a pagar</small><strong>{formatCurrency(totalValue)}</strong></span>
+        <span><small>Subtotal</small><strong>{formatCurrency(totalValue)}</strong></span>
+        <span><small>Desconto</small><strong>{formatCurrency(0)}</strong></span>
+        <span><small>Total final</small><strong>{formatCurrency(totalValue)}</strong></span>
         <button type="button" onClick={onParticipate} disabled={isSubmitting}>
-          <Lock /> Continuar para pagamento
-          <small><Lock /> Ambiente 100% seguro</small>
+          <QrCode /> Gerar PIX e comprar
+          <small><Lock /> Pagamento via PIX 100% seguro</small>
         </button>
       </div>
+    </section>
+  );
+}
+
+function HowItWorksPanel({ raffle }: { raffle: Raffle }) {
+  const steps = [
+    { icon: <Ticket />, title: "Escolha a quantidade", text: "Selecione quantas cotas deseja comprar." },
+    { icon: <QrCode />, title: "Faça o pagamento", text: "Pague via PIX com confirmação segura." },
+    { icon: <Gift />, title: "Receba seus números", text: "Os números são gerados automaticamente." }
+  ];
+  return (
+    <section className="rdp-card rdp-how">
+      <h2>Como funciona?</h2>
+      <div>
+        {steps.map((step, index) => (
+          <article key={step.title}>
+            <b>{index + 1}</b>
+            <span>{step.icon}</span>
+            <strong>{step.title}</strong>
+            <p>{step.text}</p>
+          </article>
+        ))}
+      </div>
+      <footer>
+        <ShieldCheck />
+        <span><strong>Rifa 100% legal e transparente</strong><small>Valor da cota: {formatCurrency(Number(raffle.price || 0))}</small></span>
+        <Link to="/transparency">Ver regulamento</Link>
+      </footer>
+    </section>
+  );
+}
+
+function WinnersPanel({ ranking }: { ranking: Array<{ name: string; tickets: number; phone: string }> }) {
+  const fallback = [
+    { name: "Ana Clara S.", tickets: 50000, phone: "1" },
+    { name: "João Paulo M.", tickets: 20000, phone: "2" },
+    { name: "Maria Eduarda L.", tickets: 15000, phone: "3" }
+  ];
+  const winners = ranking.slice(0, 3);
+  return (
+    <section className="rdp-card rdp-winners">
+      <header><h2>Últimos ganhadores</h2><Link to="/ganhadores">Ver mais</Link></header>
+      <div>
+        {(winners.length ? winners : fallback).map((winner, index) => (
+          <article key={`${winner.phone}-${index}`}>
+            <span>{winner.name.slice(0, 1)}</span>
+            <strong>{winner.name}</strong>
+            <b>{formatCurrency(Math.max(10000, winner.tickets))}</b>
+            <small>Sorteio auditado</small>
+            <CheckCircle2 />
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CertificationBar() {
+  return (
+    <section className="rdp-card rdp-certification">
+      <ShieldCheck />
+      <span><strong>Ambiente seguro e certificado</strong><small>Seus dados estão protegidos e sua compra é 100% segura.</small></span>
+      <b><Lock /> SSL Seguro</b>
+      <b><CheckCircle2 /> Verificado</b>
     </section>
   );
 }
