@@ -181,6 +181,7 @@
     ,"test:native-crm": "node scripts/test-native-crm.mjs"
     ,"test:tenant-automations": "node scripts/test-tenant-automations.mjs"
     ,"test:public-conversion": "node scripts/test-public-conversion-widgets.mjs"
+    ,"test:sponsor-rewards-hard": "node scripts/test-sponsor-rewards-hard.mjs"
     ,"test:super-cota-hard": "node scripts/test-super-cota-hard.mjs"
     ,"test:roulette-hard": "node scripts/test-roulette-hard.mjs"
     ,"test:roulette-no-pending-hard": "node scripts/test-roulette-no-pending-hard.mjs"

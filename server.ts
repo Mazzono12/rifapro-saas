@@ -2594,6 +2594,84 @@ async function startServer() {
     actor_user_id?: string;
     created_at: string;
   };
+  type SponsorRewardReason =
+    | "NO_SPONSOR_LINKED"
+    | "SPONSOR_INACTIVE"
+    | "SPONSOR_NOT_PARTICIPATING"
+    | "SPONSOR_MINIMUM_NOT_MET"
+    | "SPONSOR_REWARD_DISABLED"
+    | "PRIZE_NOT_ELIGIBLE"
+    | "ALREADY_REWARDED"
+    | "INVALID_TENANT_SCOPE"
+    | "SELF_SPONSOR_BLOCKED"
+    | "CAMPAIGN_MISMATCH"
+    | "PURCHASE_NOT_CONFIRMED";
+  type SponsorModalityType = "raffle" | "fazendinha" | NumberModeId | string;
+  type CustomerSponsorRecord = {
+    id: string;
+    tenant_id: string;
+    customer_id: string;
+    sponsor_affiliate_id: string;
+    sponsor_user_id?: string;
+    first_ref_code: string;
+    first_campaign_id?: string;
+    source_url?: string;
+    created_at: string;
+    locked_at: string;
+    metadata: Record<string, unknown>;
+  };
+  type SponsorRewardSettingRecord = {
+    id: string;
+    tenant_id: string;
+    campaign_id: string;
+    enabled: boolean;
+    commercial_name: string;
+    reward_type: "pix" | "saldo" | "produto" | "commission_extra" | "manual";
+    reward_value: number;
+    reward_description: string;
+    eligible_prize_scope: "main" | "all" | "manual";
+    show_publicly: boolean;
+    show_on_campaign_page: boolean;
+    auto_credit_wallet: boolean;
+    requires_manual_approval: boolean;
+    minimum_purchase_amount: number;
+    created_at: string;
+    updated_at: string;
+  };
+  type SponsorRewardRecord = {
+    id: string;
+    tenant_id: string;
+    campaign_id: string;
+    modality_type: SponsorModalityType;
+    winner_customer_id: string;
+    sponsor_affiliate_id: string;
+    sponsor_customer_id?: string;
+    prize_id: string;
+    source_purchase_id: string;
+    sponsor_purchase_id?: string;
+    reward_type: string;
+    reward_value: number;
+    reward_description: string;
+    status: "pending" | "approved" | "rejected" | "credited";
+    eligibility_snapshot: Record<string, unknown>;
+    rejection_reason?: SponsorRewardReason;
+    credited_wallet_transaction_id?: string;
+    idempotency_key: string;
+    created_at: string;
+    updated_at: string;
+  };
+  type SponsorRewardAuditLogRecord = {
+    id: string;
+    tenant_id: string;
+    sponsor_reward_id?: string;
+    campaign_id: string;
+    winner_customer_id?: string;
+    sponsor_affiliate_id?: string;
+    event_type: string;
+    reason?: SponsorRewardReason;
+    payload: Record<string, unknown>;
+    created_at: string;
+  };
   type RaffleDrawAuditRecord = {
     id: string;
     tenant_id: string;
@@ -2886,6 +2964,10 @@ async function startServer() {
   let gamificationConfigs: GamificationConfig[] = [];
   let gamificationEvents: GamificationEvent[] = [];
   let gamificationWinners: GamificationWinner[] = [];
+  let customerSponsors: CustomerSponsorRecord[] = [];
+  let sponsorRewardSettings: SponsorRewardSettingRecord[] = [];
+  let sponsorRewards: SponsorRewardRecord[] = [];
+  let sponsorRewardAuditLogs: SponsorRewardAuditLogRecord[] = [];
 
   let instantPrizes = [
      { id: "p1", tenant_id: legacyTenantId, raffleId: "1", numeroPremiado: 777, valorPremio: 1000, status: "available" },
@@ -9450,6 +9532,15 @@ async function startServer() {
       existing.browserId = existing.browserId || browserId;
       if (accessPassword && (!existing.accessPassword || trustedBrowser)) existing.accessPassword = accessPassword;
       updateCrmAutomationForCustomer(existing);
+      if (refCode) {
+        bindPermanentSponsor({
+          tenantId,
+          customer: existing,
+          refCode,
+          campaignId: String(payload.campaignId || payload.raffleId || ""),
+          sourceUrl: String(payload.sourceUrl || payload.referrerUrl || "")
+        });
+      }
       return existing;
     }
 
@@ -9485,7 +9576,16 @@ async function startServer() {
     updateCrmAutomationForCustomer(customer);
 
     const referrer = refCode ? affiliates[tenantCustomerKey(tenantId, refCode)] : undefined;
-    if (referrer && referrer.customerId !== customer.id) {
+    const sponsorLink = refCode
+      ? bindPermanentSponsor({
+          tenantId,
+          customer,
+          refCode,
+          campaignId: String(payload.campaignId || payload.raffleId || ""),
+          sourceUrl: String(payload.sourceUrl || payload.referrerUrl || "")
+        })
+      : null;
+    if (referrer && referrer.customerId !== customer.id && !sponsorLink) {
       referrer.referredCustomers++;
     }
 
@@ -10282,6 +10382,17 @@ async function startServer() {
         };
 
     fazendinhaGanhadores.unshift(winner);
+    if (purchase && group && purchase.statusPagamento === "paid" && purchase.usuarioId) {
+      evaluateSponsorReward({
+        tenantId,
+        campaignId: "fazendinha",
+        modalityType: "fazendinha",
+        winnerCustomerId: purchase.usuarioId,
+        prizeId: winner.id,
+        purchaseId: purchase.id,
+        purchaseStatus: purchase.statusPagamento
+      });
+    }
     return { result, winner, group, purchase };
   }
 
@@ -10671,6 +10782,17 @@ async function startServer() {
         ? { id: createPublicId("MW_"), tenant_id: tenantId, mode, number, prize: config.prize, origemResultado, customer: purchase.customer, purchaseId: purchase.id, createdAt: new Date().toISOString() }
         : { id: createPublicId("MW_"), tenant_id: tenantId, mode, number, prize: "Sem ganhador", origemResultado, createdAt: new Date().toISOString(), semGanhador: true };
       numberModeWinners.unshift(winner);
+      if (purchase && purchase.status === "paid" && purchase.customer?.id) {
+        evaluateSponsorReward({
+          tenantId,
+          campaignId: mode,
+          modalityType: mode,
+          winnerCustomerId: purchase.customer.id,
+          prizeId: winner.id,
+          purchaseId: purchase.id,
+          purchaseStatus: purchase.status
+        });
+      }
       return winner;
     });
     const fazendinha = resolveFazendinhaWinner(clean.slice(-2), origemResultado, tenantId);
@@ -10690,6 +10812,17 @@ async function startServer() {
       ? { id: createPublicId("MW_"), tenant_id: tenantId, mode, number, prize: config.prize, origemResultado, customer: purchase.customer, purchaseId: purchase.id, createdAt }
       : { id: createPublicId("MW_"), tenant_id: tenantId, mode, number, prize: "Sem ganhador", origemResultado, createdAt, semGanhador: true };
     numberModeWinners.unshift(winner);
+    if (purchase && purchase.status === "paid" && purchase.customer?.id) {
+      evaluateSponsorReward({
+        tenantId,
+        campaignId: mode,
+        modalityType: mode,
+        winnerCustomerId: purchase.customer.id,
+        prizeId: winner.id,
+        purchaseId: purchase.id,
+        purchaseStatus: purchase.status
+      });
+    }
     return { mode, result: { mode, number, origemResultado, createdAt }, winner };
   }
 
@@ -13140,7 +13273,7 @@ async function startServer() {
     }
     let customer: CustomerRecord;
     try {
-      customer = findOrCreateCustomer({ ...req.body.customer, contact }, refCode, getBrowserIdFromRequest(req), tenantId);
+      customer = findOrCreateCustomer({ ...req.body.customer, contact, campaignId: id, raffleId: id }, refCode, getBrowserIdFromRequest(req), tenantId);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Cadastro inválido" });
       return;
@@ -13630,7 +13763,7 @@ async function startServer() {
 
     let customer: CustomerRecord;
     try {
-      customer = findOrCreateCustomer(req.body.customer || {}, req.body.refCode, getBrowserIdFromRequest(req), tenantId);
+      customer = findOrCreateCustomer({ ...(req.body.customer || {}), campaignId: mode, modalityType: mode }, req.body.refCode, getBrowserIdFromRequest(req), tenantId);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Cadastro invalido" });
       return;
@@ -13747,7 +13880,7 @@ async function startServer() {
 
     let customer: CustomerRecord;
     try {
-      customer = findOrCreateCustomer(req.body.customer || {}, req.body.refCode, getBrowserIdFromRequest(req), tenantId);
+      customer = findOrCreateCustomer({ ...(req.body.customer || {}), campaignId: "fazendinha", modalityType: "fazendinha" }, req.body.refCode, getBrowserIdFromRequest(req), tenantId);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Cadastro invalido" });
       return null;
@@ -17411,6 +17544,15 @@ async function startServer() {
       quantity: 1,
       metadata: { label: "super cota", prize: `R$ ${Number(prize.valorPremio || 0).toFixed(2)}`, orderId: `${purchase.purchaseId}:${prize.id}` }
     }));
+    premiosWon.forEach(prize => evaluateSponsorReward({
+      tenantId: purchase.tenant_id,
+      campaignId: purchase.raffleId,
+      modalityType: "raffle",
+      winnerCustomerId: purchase.customer?.id,
+      prizeId: prize.id,
+      purchaseId: purchase.purchaseId,
+      purchaseStatus: purchase.status
+    }));
     void queueConversionEvent(purchase.tenant_id, "Purchase", {
       purchaseId: purchase.purchaseId,
       raffleId: purchase.raffleId,
@@ -17478,6 +17620,15 @@ async function startServer() {
           resolvedAt: winner.createdAt
         });
         addGamificationLog(purchase.tenant_id, "WINNING_TICKET_CLAIMED", `${purchase.purchaseId}:${prize.number}`);
+        evaluateSponsorReward({
+          tenantId: purchase.tenant_id,
+          campaignId: purchase.raffleId,
+          modalityType: "raffle",
+          winnerCustomerId: purchase.customer?.id,
+          prizeId: prize.id,
+          purchaseId: purchase.purchaseId,
+          purchaseStatus: purchase.status
+        });
       });
       if (autoPrizes.length) {
         purchase.gamification = {
@@ -17546,6 +17697,26 @@ async function startServer() {
     const affiliate = referrer;
     const purchase = { amount: input.amount };
     if (affiliate.history.some(entry => entry.type === input.source || entry.type === `pending:${input.source}` || entry.type === `ineligible:${input.source}`)) return affiliate;
+    if (!affiliateIsActiveLast30Days(affiliate)) {
+      affiliate.history.push({
+        amount: 0,
+        type: `ineligible:${input.source}`,
+        date: new Date().toISOString(),
+        note: "SPONSOR_INACTIVE",
+        campaignType: input.campaign?.type,
+        campaignId: input.campaign?.id
+      });
+      recordSponsorRewardAuditLog({
+        tenant_id: input.tenantId,
+        campaign_id: input.campaign?.id || "",
+        sponsor_affiliate_id: affiliate.refCode,
+        winner_customer_id: input.buyerCustomerId,
+        event_type: "affiliate_commission_blocked",
+        reason: "SPONSOR_INACTIVE",
+        payload: { source: input.source, amount: input.amount }
+      });
+      return affiliate;
+    }
     const campaignEligibility = affiliateIsEligibleForCampaignCommission(affiliate, input.campaign, input.tenantId, input.saleCreatedAt || new Date().toISOString());
     if (!campaignEligibility.eligible) {
       affiliate.history.push({
@@ -17796,6 +17967,226 @@ async function startServer() {
     return affiliate.customerId
       ? Object.values(customersByPhone).find(item => item.tenant_id === affiliate.tenant_id && item.id === affiliate.customerId)
       : undefined;
+  }
+
+  function sponsorRewardLevel(total: number) {
+    if (total >= 10) return "diamante";
+    if (total >= 5) return "ouro";
+    if (total >= 2) return "prata";
+    return "bronze";
+  }
+
+  function publicSponsorName(name?: string) {
+    const clean = String(name || "Patrocinador").trim();
+    const [first = "Patrocinador", second = ""] = clean.split(/\s+/);
+    return `${first}${second ? ` ${second.slice(0, 1)}.` : ""}`;
+  }
+
+  function recordSponsorRewardAuditLog(input: Omit<SponsorRewardAuditLogRecord, "id" | "created_at">) {
+    const log: SponsorRewardAuditLogRecord = {
+      id: createPublicId("SRL_"),
+      created_at: new Date().toISOString(),
+      payload: input.payload || {},
+      ...input
+    };
+    sponsorRewardAuditLogs.unshift(log);
+    sponsorRewardAuditLogs = sponsorRewardAuditLogs.slice(0, 3000);
+    return log;
+  }
+
+  function getSponsorRewardSetting(tenantId: string, campaignId: string) {
+    return sponsorRewardSettings.find(item => item.tenant_id === tenantId && item.campaign_id === campaignId);
+  }
+
+  function normalizeSponsorRewardSetting(tenantId: string, payload: any, existing?: SponsorRewardSettingRecord): SponsorRewardSettingRecord {
+    const now = new Date().toISOString();
+    const campaignId = String(payload.campaign_id || payload.campaignId || existing?.campaign_id || "").trim();
+    if (!campaignId) throw new Error("Campanha obrigatoria para Patrocinador Premiado");
+    return {
+      id: existing?.id || createPublicId("SRS_"),
+      tenant_id: tenantId,
+      campaign_id: campaignId,
+      enabled: Boolean(payload.enabled ?? existing?.enabled ?? false),
+      commercial_name: String(payload.commercial_name || payload.commercialName || existing?.commercial_name || "Patrocinador Premiado"),
+      reward_type: (["pix", "saldo", "produto", "commission_extra", "manual"].includes(String(payload.reward_type || payload.rewardType || existing?.reward_type || "")) ? String(payload.reward_type || payload.rewardType || existing?.reward_type) : "manual") as SponsorRewardSettingRecord["reward_type"],
+      reward_value: Math.max(0, Number(payload.reward_value ?? payload.rewardValue ?? existing?.reward_value ?? 0)),
+      reward_description: String(payload.reward_description || payload.rewardDescription || existing?.reward_description || "Bonus para o patrocinador ativo do ganhador"),
+      eligible_prize_scope: (["main", "all", "manual"].includes(String(payload.eligible_prize_scope || payload.eligiblePrizeScope || existing?.eligible_prize_scope || "")) ? String(payload.eligible_prize_scope || payload.eligiblePrizeScope || existing?.eligible_prize_scope) : "all") as SponsorRewardSettingRecord["eligible_prize_scope"],
+      show_publicly: Boolean(payload.show_publicly ?? payload.showPublicly ?? existing?.show_publicly ?? true),
+      show_on_campaign_page: Boolean(payload.show_on_campaign_page ?? payload.showOnCampaignPage ?? existing?.show_on_campaign_page ?? true),
+      auto_credit_wallet: Boolean(payload.auto_credit_wallet ?? payload.autoCreditWallet ?? existing?.auto_credit_wallet ?? false),
+      requires_manual_approval: Boolean(payload.requires_manual_approval ?? payload.requiresManualApproval ?? existing?.requires_manual_approval ?? true),
+      minimum_purchase_amount: Math.max(0, Number(payload.minimum_purchase_amount ?? payload.minimumPurchaseAmount ?? existing?.minimum_purchase_amount ?? 0)),
+      created_at: existing?.created_at || now,
+      updated_at: now
+    };
+  }
+
+  function getCustomerSponsor(tenantId: string, customerId?: string) {
+    if (!customerId) return undefined;
+    return customerSponsors.find(item => item.tenant_id === tenantId && item.customer_id === customerId);
+  }
+
+  function bindPermanentSponsor(input: { tenantId: string; customer: CustomerRecord; refCode: string; campaignId?: string; sourceUrl?: string }) {
+    const refCode = String(input.refCode || "").trim();
+    const sponsor = affiliates[tenantCustomerKey(input.tenantId, refCode)];
+    if (!sponsor) return null;
+    if (sponsor.tenant_id !== input.tenantId) {
+      recordSponsorRewardAuditLog({ tenant_id: input.tenantId, campaign_id: input.campaignId || "", event_type: "sponsor_bind_blocked", reason: "INVALID_TENANT_SCOPE", winner_customer_id: input.customer.id, sponsor_affiliate_id: sponsor.refCode, payload: { refCode } });
+      return null;
+    }
+    if (sponsor.customerId === input.customer.id) {
+      recordSponsorRewardAuditLog({ tenant_id: input.tenantId, campaign_id: input.campaignId || "", event_type: "sponsor_bind_blocked", reason: "SELF_SPONSOR_BLOCKED", winner_customer_id: input.customer.id, sponsor_affiliate_id: sponsor.refCode, payload: { refCode } });
+      return null;
+    }
+    const current = getCustomerSponsor(input.tenantId, input.customer.id);
+    if (current) return current;
+    const owner = affiliateOwnerCustomer(sponsor);
+    const record: CustomerSponsorRecord = {
+      id: createPublicId("CSR_"),
+      tenant_id: input.tenantId,
+      customer_id: input.customer.id,
+      sponsor_affiliate_id: sponsor.refCode,
+      sponsor_user_id: owner?.id,
+      first_ref_code: refCode,
+      first_campaign_id: input.campaignId || "",
+      source_url: input.sourceUrl || "",
+      created_at: new Date().toISOString(),
+      locked_at: new Date().toISOString(),
+      metadata: { source: "first_referral_lock" }
+    };
+    customerSponsors.push(record);
+    input.customer.referredBy = input.customer.referredBy || refCode;
+    sponsor.referredCustomers++;
+    recordSponsorRewardAuditLog({ tenant_id: input.tenantId, campaign_id: input.campaignId || "", event_type: "sponsor_bound", winner_customer_id: input.customer.id, sponsor_affiliate_id: sponsor.refCode, payload: { firstRefCode: refCode } });
+    return record;
+  }
+
+  function affiliateIsActiveLast30Days(affiliate: AffiliateRecord) {
+    const owner = affiliateOwnerCustomer(affiliate);
+    if (!owner) return false;
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return getCustomerPaidActivity(owner).some(item => new Date(item.created_at).getTime() >= cutoff);
+  }
+
+  function findSponsorPaidParticipation(input: { tenantId: string; campaignId: string; modalityType: SponsorModalityType; sponsorCustomerId?: string }) {
+    if (!input.sponsorCustomerId) return null;
+    const traditional = purchases.find(item => item.tenant_id === input.tenantId && item.raffleId === input.campaignId && item.status === "paid" && item.customer?.id === input.sponsorCustomerId);
+    if (traditional) return { id: traditional.purchaseId, amount: traditional.amount, status: traditional.status, createdAt: traditional.createdAt };
+    const mode = numberModePurchases.find(item => item.tenant_id === input.tenantId && item.mode === input.modalityType && item.status === "paid" && item.customer?.id === input.sponsorCustomerId);
+    if (mode) return { id: mode.id, amount: mode.amount, status: mode.status, createdAt: mode.createdAt };
+    const farm = fazendinhaCompras.find(item => item.tenant_id === input.tenantId && input.modalityType === "fazendinha" && item.statusPagamento === "paid" && item.usuarioId === input.sponsorCustomerId);
+    if (farm) return { id: farm.id, amount: farm.valorPago, status: farm.statusPagamento, createdAt: farm.dataCompra };
+    return null;
+  }
+
+  function creditSponsorRewardToWallet(reward: SponsorRewardRecord) {
+    if (!reward.reward_value || reward.credited_wallet_transaction_id) return undefined;
+    const record: WalletLedgerRecord = {
+      id: createPublicId("WAL_"),
+      tenant_id: reward.tenant_id,
+      affiliate_ref: reward.sponsor_affiliate_id,
+      source_type: "manual_credit",
+      source_id: reward.id,
+      amount: reward.reward_value,
+      reason: `Patrocinador Premiado: ${reward.reward_description}`,
+      actor_user_id: "system",
+      created_at: new Date().toISOString()
+    };
+    walletLedger.unshift(record);
+    reward.credited_wallet_transaction_id = record.id;
+    reward.status = "credited";
+    reward.updated_at = record.created_at;
+    return record;
+  }
+
+  function rejectSponsorRewardEvaluation(input: { tenantId: string; campaignId: string; winnerCustomerId?: string; sponsorAffiliateId?: string; prizeId: string; purchaseId: string; reason: SponsorRewardReason; payload?: Record<string, unknown> }) {
+    recordSponsorRewardAuditLog({
+      tenant_id: input.tenantId,
+      campaign_id: input.campaignId,
+      winner_customer_id: input.winnerCustomerId,
+      sponsor_affiliate_id: input.sponsorAffiliateId,
+      event_type: "sponsor_reward_rejected",
+      reason: input.reason,
+      payload: { prizeId: input.prizeId, purchaseId: input.purchaseId, ...(input.payload || {}) }
+    });
+    return { eligible: false, reason: input.reason };
+  }
+
+  function evaluateSponsorReward(input: { tenantId: string; campaignId: string; modalityType: SponsorModalityType; winnerCustomerId?: string; prizeId: string; purchaseId: string; purchaseStatus?: string }) {
+    if (input.purchaseStatus && input.purchaseStatus !== "paid") {
+      return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "PURCHASE_NOT_CONFIRMED" });
+    }
+    const setting = getSponsorRewardSetting(input.tenantId, input.campaignId);
+    if (!setting?.enabled) {
+      return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "SPONSOR_REWARD_DISABLED" });
+    }
+    const sponsorLink = getCustomerSponsor(input.tenantId, input.winnerCustomerId);
+    if (!sponsorLink) {
+      return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "NO_SPONSOR_LINKED" });
+    }
+    const sponsor = affiliates[tenantCustomerKey(input.tenantId, sponsorLink.sponsor_affiliate_id)];
+    if (!sponsor || sponsor.tenant_id !== input.tenantId) {
+      return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, sponsorAffiliateId: sponsorLink.sponsor_affiliate_id, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "INVALID_TENANT_SCOPE" });
+    }
+    if (!affiliateIsActiveLast30Days(sponsor)) {
+      return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, sponsorAffiliateId: sponsor.refCode, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "SPONSOR_INACTIVE" });
+    }
+    const owner = affiliateOwnerCustomer(sponsor);
+    const participation = findSponsorPaidParticipation({ tenantId: input.tenantId, campaignId: input.campaignId, modalityType: input.modalityType, sponsorCustomerId: owner?.id });
+    if (!participation) {
+      return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, sponsorAffiliateId: sponsor.refCode, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "SPONSOR_NOT_PARTICIPATING" });
+    }
+    if (Number(participation.amount || 0) < setting.minimum_purchase_amount) {
+      return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, sponsorAffiliateId: sponsor.refCode, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "SPONSOR_MINIMUM_NOT_MET", payload: { minimum: setting.minimum_purchase_amount, amount: participation.amount } });
+    }
+    const idempotencyKey = `${input.tenantId}:${input.campaignId}:${input.modalityType}:${input.prizeId}:${input.winnerCustomerId}:${sponsor.refCode}`;
+    const existing = sponsorRewards.find(item => item.idempotency_key === idempotencyKey);
+    if (existing) return { eligible: true, reward: existing, reason: "ALREADY_REWARDED" as SponsorRewardReason };
+    const now = new Date().toISOString();
+    const reward: SponsorRewardRecord = {
+      id: createPublicId("SRW_"),
+      tenant_id: input.tenantId,
+      campaign_id: input.campaignId,
+      modality_type: input.modalityType,
+      winner_customer_id: input.winnerCustomerId || "",
+      sponsor_affiliate_id: sponsor.refCode,
+      sponsor_customer_id: owner?.id,
+      prize_id: input.prizeId,
+      source_purchase_id: input.purchaseId,
+      sponsor_purchase_id: participation.id,
+      reward_type: setting.reward_type,
+      reward_value: setting.reward_value,
+      reward_description: setting.reward_description,
+      status: setting.requires_manual_approval ? "pending" : "approved",
+      eligibility_snapshot: { sponsorActiveLast30Days: true, sponsorPurchase: participation, setting },
+      idempotency_key: idempotencyKey,
+      created_at: now,
+      updated_at: now
+    };
+    sponsorRewards.unshift(reward);
+    if (setting.auto_credit_wallet && !setting.requires_manual_approval) creditSponsorRewardToWallet(reward);
+    recordSponsorRewardAuditLog({ tenant_id: input.tenantId, campaign_id: input.campaignId, winner_customer_id: input.winnerCustomerId, sponsor_affiliate_id: sponsor.refCode, sponsor_reward_id: reward.id, event_type: "sponsor_reward_created", payload: { prizeId: input.prizeId, purchaseId: input.purchaseId, status: reward.status } });
+    return { eligible: true, reward };
+  }
+
+  function buildSponsorRewardRankings(tenantId: string) {
+    return Object.values(affiliates)
+      .filter(affiliate => affiliate.tenant_id === tenantId)
+      .map(affiliate => {
+        const rewards = sponsorRewards.filter(reward => reward.tenant_id === tenantId && reward.sponsor_affiliate_id === affiliate.refCode && ["pending", "approved", "credited"].includes(reward.status));
+        const owner = affiliateOwnerCustomer(affiliate);
+        return {
+          refCode: affiliate.refCode,
+          name: publicSponsorName(owner?.name),
+          rewards: rewards.length,
+          amount: Number(rewards.reduce((sum, reward) => sum + Number(reward.reward_value || 0), 0).toFixed(2)),
+          level: sponsorRewardLevel(rewards.length)
+        };
+      })
+      .filter(item => item.rewards > 0)
+      .sort((a, b) => b.rewards - a.rewards || b.amount - a.amount)
+      .slice(0, 20);
   }
 
   function isAffiliateOwnerRequest(req: express.Request, affiliate: AffiliateRecord) {
@@ -22393,6 +22784,10 @@ async function startServer() {
       gamificationConfigs,
       gamificationEvents,
       gamificationWinners,
+      customerSponsors,
+      sponsorRewardSettings,
+      sponsorRewards,
+      sponsorRewardAuditLogs,
       instantPrizes,
       stories,
       winners,
@@ -22507,6 +22902,10 @@ async function startServer() {
       case "gamificationConfigs": gamificationConfigs = Array.isArray(value) ? value : []; break;
       case "gamificationEvents": gamificationEvents = Array.isArray(value) ? value : []; break;
       case "gamificationWinners": gamificationWinners = Array.isArray(value) ? value : []; break;
+      case "customerSponsors": customerSponsors = Array.isArray(value) ? value : []; break;
+      case "sponsorRewardSettings": sponsorRewardSettings = Array.isArray(value) ? value : []; break;
+      case "sponsorRewards": sponsorRewards = Array.isArray(value) ? value : []; break;
+      case "sponsorRewardAuditLogs": sponsorRewardAuditLogs = Array.isArray(value) ? value : []; break;
       case "instantPrizes": instantPrizes = Array.isArray(value) ? value : []; break;
       case "stories": stories = Array.isArray(value) ? value : []; break;
       case "winners": winners = Array.isArray(value) ? value : []; break;
@@ -23214,6 +23613,100 @@ async function startServer() {
     });
   });
 
+  // Patrocinador Premiado
+  app.get("/api/admin/sponsor-rewards/settings", (req, res) => {
+    res.json(scoped(sponsorRewardSettings, req));
+  });
+
+  app.put("/api/admin/sponsor-rewards/settings", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    try {
+      const campaignId = String(req.body.campaign_id || req.body.campaignId || "");
+      const current = sponsorRewardSettings.find(item => item.tenant_id === tenantId && item.campaign_id === campaignId);
+      const next = normalizeSponsorRewardSetting(tenantId, req.body, current);
+      if (current) Object.assign(current, next);
+      else sponsorRewardSettings.push(next);
+      recordSponsorRewardAuditLog({ tenant_id: tenantId, campaign_id: next.campaign_id, event_type: "sponsor_reward_setting_saved", payload: { enabled: next.enabled, rewardType: next.reward_type, rewardValue: next.reward_value } });
+      res.json(next);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Configuracao invalida" });
+    }
+  });
+
+  app.get("/api/admin/sponsor-rewards", (req, res) => {
+    res.json(scoped(sponsorRewards, req));
+  });
+
+  app.post("/api/admin/sponsor-rewards/:id/approve", (req, res) => {
+    const reward = sponsorRewards.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!reward) return res.status(404).json({ error: "Premio do patrocinador nao encontrado" });
+    if (reward.status === "rejected") return res.status(409).json({ error: "Premio rejeitado nao pode ser aprovado" });
+    reward.status = "approved";
+    reward.updated_at = new Date().toISOString();
+    recordSponsorRewardAuditLog({ tenant_id: reward.tenant_id, campaign_id: reward.campaign_id, sponsor_reward_id: reward.id, sponsor_affiliate_id: reward.sponsor_affiliate_id, winner_customer_id: reward.winner_customer_id, event_type: "sponsor_reward_approved", payload: {} });
+    res.json(reward);
+  });
+
+  app.post("/api/admin/sponsor-rewards/:id/reject", (req, res) => {
+    const reward = sponsorRewards.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!reward) return res.status(404).json({ error: "Premio do patrocinador nao encontrado" });
+    if (reward.status === "credited") return res.status(409).json({ error: "Premio creditado nao pode ser rejeitado" });
+    reward.status = "rejected";
+    reward.rejection_reason = String(req.body.reason || "PRIZE_NOT_ELIGIBLE") as SponsorRewardReason;
+    reward.updated_at = new Date().toISOString();
+    recordSponsorRewardAuditLog({ tenant_id: reward.tenant_id, campaign_id: reward.campaign_id, sponsor_reward_id: reward.id, sponsor_affiliate_id: reward.sponsor_affiliate_id, winner_customer_id: reward.winner_customer_id, event_type: "sponsor_reward_rejected_by_admin", reason: reward.rejection_reason, payload: { reason: req.body.reason || "" } });
+    res.json(reward);
+  });
+
+  app.post("/api/admin/sponsor-rewards/:id/credit", (req, res) => {
+    const reward = sponsorRewards.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!reward) return res.status(404).json({ error: "Premio do patrocinador nao encontrado" });
+    if (reward.status === "rejected") return res.status(409).json({ error: "Premio rejeitado nao pode ser creditado" });
+    const ledger = creditSponsorRewardToWallet(reward);
+    recordSponsorRewardAuditLog({ tenant_id: reward.tenant_id, campaign_id: reward.campaign_id, sponsor_reward_id: reward.id, sponsor_affiliate_id: reward.sponsor_affiliate_id, winner_customer_id: reward.winner_customer_id, event_type: "sponsor_reward_credited", payload: { ledgerId: ledger?.id || reward.credited_wallet_transaction_id } });
+    res.json({ reward, ledger });
+  });
+
+  app.get("/api/admin/sponsor-rewards/logs", (req, res) => {
+    res.json(scoped(sponsorRewardAuditLogs, req));
+  });
+
+  app.get("/api/admin/sponsor-rewards/rankings", (req, res) => {
+    res.json({ ranking: buildSponsorRewardRankings(resolveRequestTenantId(req)) });
+  });
+
+  app.get("/api/public/sponsor-rewards/ranking", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    res.json({ ranking: buildSponsorRewardRankings(tenantId) });
+  });
+
+  app.get("/api/public/campaigns/:id/sponsor-reward", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const setting = getSponsorRewardSetting(tenantId, req.params.id);
+    if (!setting || !setting.enabled || !setting.show_publicly || !setting.show_on_campaign_page) {
+      res.json({ enabled: false });
+      return;
+    }
+    res.json({
+      enabled: true,
+      commercialName: setting.commercial_name,
+      rewardType: setting.reward_type,
+      rewardValue: setting.reward_value,
+      rewardDescription: setting.reward_description,
+      minimumPurchaseAmount: setting.minimum_purchase_amount
+    });
+  });
+
+  app.get("/api/superadmin/sponsor-rewards", (req, res) => {
+    if (normalizeAuthRole(getAuthSession(req)?.role) !== "superadmin") return res.status(403).json({ error: "Acesso restrito ao superadmin" });
+    res.json({
+      rewards: sponsorRewards,
+      settings: sponsorRewardSettings,
+      logs: sponsorRewardAuditLogs.slice(0, 500),
+      rankings: tenants.map(tenant => ({ tenant_id: tenant.id, ranking: buildSponsorRewardRankings(tenant.id) }))
+    });
+  });
+
   // Affiliates
   app.post("/api/affiliates/register", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
@@ -23269,6 +23762,61 @@ async function startServer() {
       return;
     }
     res.json(buildAffiliateDashboard(req, affiliate));
+  });
+
+  app.get("/api/affiliates/:refCode/sponsor-status", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const affiliate = affiliates[tenantCustomerKey(tenantId, req.params.refCode)];
+    if (!affiliate) return res.status(404).json({ error: "Afiliado nao encontrado" });
+    if (!isAffiliateOwnerRequest(req, affiliate)) return res.status(403).json({ error: "Acesso negado para este afiliado" });
+    const owner = affiliateOwnerCustomer(affiliate);
+    const paidActivity = owner ? getCustomerPaidActivity(owner) : [];
+    res.json({
+      refCode: affiliate.refCode,
+      activeLast30Days: affiliateIsActiveLast30Days(affiliate),
+      ownerCustomerId: owner?.id,
+      paidPurchasesLast30Days: paidActivity.filter(item => new Date(item.created_at).getTime() >= Date.now() - 30 * 24 * 60 * 60 * 1000).length,
+      sponsorLinks: customerSponsors.filter(item => item.tenant_id === tenantId && item.sponsor_affiliate_id === affiliate.refCode).length,
+      rewards: sponsorRewards.filter(item => item.tenant_id === tenantId && item.sponsor_affiliate_id === affiliate.refCode)
+    });
+  });
+
+  app.get("/api/affiliates/:refCode/sponsored-customers", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const affiliate = affiliates[tenantCustomerKey(tenantId, req.params.refCode)];
+    if (!affiliate) return res.status(404).json({ error: "Afiliado nao encontrado" });
+    if (!isAffiliateOwnerRequest(req, affiliate)) return res.status(403).json({ error: "Acesso negado para este afiliado" });
+    const rows = customerSponsors
+      .filter(item => item.tenant_id === tenantId && item.sponsor_affiliate_id === affiliate.refCode)
+      .map(link => {
+        const customer = Object.values(customersByPhone).find(item => item.tenant_id === tenantId && item.id === link.customer_id);
+        return {
+          id: link.id,
+          customerId: link.customer_id,
+          name: customer?.name || "Cliente",
+          phone: customer ? maskPhone(customer.phone) : "",
+          firstCampaignId: link.first_campaign_id,
+          lockedAt: link.locked_at
+        };
+      });
+    res.json({ customers: rows });
+  });
+
+  app.get("/api/affiliates/:refCode/sponsor-rewards", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const affiliate = affiliates[tenantCustomerKey(tenantId, req.params.refCode)];
+    if (!affiliate) return res.status(404).json({ error: "Afiliado nao encontrado" });
+    if (!isAffiliateOwnerRequest(req, affiliate)) return res.status(403).json({ error: "Acesso negado para este afiliado" });
+    const rewards = sponsorRewards.filter(item => item.tenant_id === tenantId && item.sponsor_affiliate_id === affiliate.refCode);
+    res.json({
+      rewards,
+      totals: {
+        pending: rewards.filter(item => item.status === "pending").length,
+        approved: rewards.filter(item => item.status === "approved").length,
+        credited: rewards.filter(item => item.status === "credited").length,
+        amount: Number(rewards.reduce((sum, item) => sum + Number(item.reward_value || 0), 0).toFixed(2))
+      }
+    });
   });
 
   app.post("/api/affiliates/:refCode/rewards/consume", (req, res) => {

@@ -702,8 +702,8 @@ function AffiliatePerformanceBonusPanel({ rewards }: { rewards?: AffiliateDashbo
           <div className="mb-4 grid grid-cols-2 gap-2">
             <FinanceStat label="Raspadinhas" value={String(balances.scratchcard || 0)} />
             <FinanceStat label="Giros" value={String(balances.wheel_spin || 0)} />
-            <FinanceStat label="Super cota" value={String(balances.super_quota || 0)} />
-            <FinanceStat label="Número bônus" value={String(balances.bonus_number || 0)} />
+            <FinanceStat label="Super Cotas" value={String(balances.super_quota || 0)} />
+            <FinanceStat label="Números bônus" value={String(balances.bonus_number || 0)} />
           </div>
           <div className="mb-4 flex items-center gap-2">
             <Trophy className="h-5 w-5 text-[var(--admin-warning)]" />
@@ -743,8 +743,8 @@ function AffiliateRewardsWalletPanel({
   const items = [
     { type: "scratchcard", title: "Raspadinhas", balance: balances.scratchcard || 0, description: "Use para liberar uma raspadinha no módulo de premiação." },
     { type: "wheel_spin", title: "Roletas", balance: balances.wheel_spin || 0, description: "Use para liberar um giro na roleta premiada." },
-    { type: "super_quota", title: "Super cota", balance: balances.super_quota || 0, description: "Use para registrar uma super cota para atendimento pela operação." },
-    { type: "bonus_number", title: "Número bônus", balance: balances.bonus_number || 0, description: "Use para registrar um número bônus disponível." }
+    { type: "super_quota", title: "Super Cotas", balance: balances.super_quota || 0, description: "Use para registrar uma super cota para atendimento pela operação." },
+    { type: "bonus_number", title: "Números bônus", balance: balances.bonus_number || 0, description: "Use para registrar um número bônus disponível." }
   ];
   const consumptions = rewards.consumptions || [];
   return (
