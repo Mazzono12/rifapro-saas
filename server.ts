@@ -665,6 +665,15 @@ async function startServer() {
   };
 
   // === Mock DB ===
+  const defaultAffiliateLevelConfigs = [
+    { id: "BRONZE", label: "BRONZE", emoji: "🥉", threshold: 0, commissionRate: 10, enabled: true, benefits: ["Link afiliado", "Materiais divulgação"] },
+    { id: "PRATA", label: "PRATA", emoji: "🥈", threshold: 10000, commissionRate: 12, enabled: true, benefits: ["+2% comissão", "Badge prata", "Ranking premium"] },
+    { id: "OURO", label: "OURO", emoji: "🥇", threshold: 50000, commissionRate: 14, enabled: true, benefits: ["+4% comissão", "Sorteios exclusivos afiliados"] },
+    { id: "DIAMANTE", label: "DIAMANTE", emoji: "💎", threshold: 200000, commissionRate: 16, enabled: true, benefits: ["+6% comissão", "Grupo VIP"] },
+    { id: "IMPERADOR", label: "IMPERADOR", emoji: "👑", threshold: 1000000, commissionRate: 18, enabled: true, benefits: ["+8% comissão", "Campanhas antecipadas"] },
+    { id: "LENDARIO", label: "LENDÁRIO", emoji: "🔥", threshold: 5000000, commissionRate: 20, enabled: true, benefits: ["+10% comissão", "Hall da Fama"] }
+  ];
+
   let settings = {
     branding: {
       companyName: "CIFHER Prime",
@@ -715,6 +724,7 @@ async function startServer() {
       minWithdrawAmount: 50,
       allowBalancePayments: true
     },
+    affiliateLevelConfig: deepClone(defaultAffiliateLevelConfigs),
     affiliatePerformanceRewards: {
       enabled: false,
       rules: [] as AffiliatePerformanceRewardRule[]
@@ -814,6 +824,22 @@ async function startServer() {
     return JSON.parse(JSON.stringify(value));
   }
 
+  function normalizeAffiliateLevelConfigs(input: any) {
+    const incoming = Array.isArray(input) ? input : [];
+    return defaultAffiliateLevelConfigs.map(defaultLevel => {
+      const saved = incoming.find((item: any) => String(item?.id || "").toUpperCase() === defaultLevel.id) || {};
+      const threshold = Math.max(0, Number(saved.threshold ?? saved.minimumPoints ?? defaultLevel.threshold));
+      return {
+        ...defaultLevel,
+        label: String(saved.label || saved.displayName || defaultLevel.label).trim().slice(0, 40) || defaultLevel.label,
+        threshold: Number.isFinite(threshold) ? threshold : defaultLevel.threshold,
+        commissionRate: normalizeAffiliateCommissionRate(saved.commissionRate ?? saved.commission_rate ?? defaultLevel.commissionRate),
+        enabled: saved.enabled === undefined ? defaultLevel.enabled : Boolean(saved.enabled),
+        benefits: Array.isArray(saved.benefits) ? saved.benefits.map((benefit: any) => String(benefit).slice(0, 120)).slice(0, 8) : defaultLevel.benefits
+      };
+    });
+  }
+
   function normalizeAffiliatePerformanceRewardsSettings(input: any) {
     const validGoalTypes = new Set(["sales_count", "customers_count", "revenue_amount", "commission_amount"]);
     const validRewardTypes = new Set(["scratchcard", "wheel_spin", "super_quota", "bonus_number", "future_reward"]);
@@ -846,6 +872,7 @@ async function startServer() {
       ...(sourceSettings.affiliateProgram || {}),
       monthlyActivationAmount: Math.max(0, Number(sourceSettings.affiliateProgram?.monthlyActivationAmount || 0))
     };
+    sourceSettings.affiliateLevelConfig = normalizeAffiliateLevelConfigs(sourceSettings.affiliateLevelConfig);
     sourceSettings.reservationSettings = {
       ...settings.reservationSettings,
       ...(sourceSettings.reservationSettings || {}),
@@ -1382,7 +1409,7 @@ async function startServer() {
   };
   type AffiliateCampaignType = "raffle" | "fazendinha" | "number_mode";
   type AffiliateCampaignRef = { type: AffiliateCampaignType; id: string };
-  type AffiliateLedger = { amount: number; type: string; date: string; note?: string; campaignType?: AffiliateCampaignType; campaignId?: string };
+  type AffiliateLedger = { amount: number; type: string; date: string; note?: string; campaignType?: AffiliateCampaignType; campaignId?: string; commissionRate?: number; commissionLevel?: AffiliateLevelId; commissionSnapshot?: Record<string, unknown> };
   type AffiliateRewardGoalType = "sales_count" | "customers_count" | "revenue_amount" | "commission_amount";
   type AffiliateRewardType = "scratchcard" | "wheel_spin" | "super_quota" | "bonus_number" | "future_reward";
   type AffiliatePerformanceRewardRule = {
@@ -2143,6 +2170,32 @@ async function startServer() {
     performanceRewardBalances?: Partial<Record<AffiliateRewardType, number>>;
     performanceRewardConsumptions?: AffiliateRewardConsumptionLedger[];
   };
+  type AffiliateLevelId = "BRONZE" | "PRATA" | "OURO" | "DIAMANTE" | "IMPERADOR" | "LENDARIO";
+  type AffiliateLevelStateRecord = {
+    id: string;
+    tenant_id: string;
+    affiliate_id: string;
+    current_level: AffiliateLevelId;
+    points: number;
+    sales_points: number;
+    network_points: number;
+    sponsor_points: number;
+    next_level: AffiliateLevelId | "";
+    next_level_points: number;
+    progress_percent: number;
+    created_at: string;
+    updated_at: string;
+  };
+  type AffiliateLevelHistoryRecord = {
+    id: string;
+    tenant_id: string;
+    affiliate_id: string;
+    old_level: AffiliateLevelId;
+    new_level: AffiliateLevelId;
+    reason: string;
+    points: number;
+    created_at: string;
+  };
   type CustomerRecord = {
     id: string;
     tenant_id: string;
@@ -2772,6 +2825,8 @@ async function startServer() {
   let lootboxGuaranteedPools: Record<string, GatewayPrize[]> = {};
 
   let affiliates: Record<string, AffiliateRecord> = {};
+  let affiliateLevels: AffiliateLevelStateRecord[] = [];
+  let affiliateLevelHistory: AffiliateLevelHistoryRecord[] = [];
   let customersByPhone: Record<string, CustomerRecord> = {};
   let customersByCpf: Record<string, CustomerRecord> = {};
   let crmContacts: CrmContactRecord[] = [];
@@ -9441,15 +9496,162 @@ async function startServer() {
     return Math.max(0, Math.min(MAX_CUSTOM_AFFILIATE_COMMISSION_RATE, Number(value || 0)));
   }
 
+  type AffiliateLevelConfig = ReturnType<typeof normalizeAffiliateLevelConfigs>[number] & { id: AffiliateLevelId };
+
+  function affiliateLevelCatalog(tenantId = legacyTenantId): AffiliateLevelConfig[] {
+    return normalizeAffiliateLevelConfigs(getTenantSettings(tenantId).affiliateLevelConfig) as AffiliateLevelConfig[];
+  }
+
+  function activeAffiliateLevelCatalog(tenantId = legacyTenantId) {
+    const active = affiliateLevelCatalog(tenantId)
+      .filter(level => level.enabled)
+      .sort((a, b) => a.threshold - b.threshold);
+    return active.length ? active : affiliateLevelCatalog(tenantId).sort((a, b) => a.threshold - b.threshold);
+  }
+
+  function affiliateLevelDefinition(tenantId = legacyTenantId, levelId?: string) {
+    const levels = affiliateLevelCatalog(tenantId);
+    return levels.find(level => level.id === levelId) || levels[0];
+  }
+
+  function affiliateLevelForPoints(tenantId: string, points: number) {
+    const levels = activeAffiliateLevelCatalog(tenantId);
+    return levels.reduce((selected, level) => points >= level.threshold ? level : selected, levels[0]);
+  }
+
+  function affiliateLevelPublicView(record: AffiliateLevelStateRecord) {
+    const current = affiliateLevelDefinition(record.tenant_id, record.current_level);
+    const next = record.next_level ? affiliateLevelDefinition(record.tenant_id, record.next_level) : undefined;
+    return {
+      ...record,
+      label: current.label,
+      emoji: current.emoji,
+      displayName: `${current.emoji} ${current.label}`,
+      commissionRate: current.commissionRate,
+      enabled: current.enabled,
+      benefits: current.benefits,
+      nextLevelLabel: next?.label || "",
+      nextLevelEmoji: next?.emoji || "",
+      nextLevelDisplayName: next ? `${next.emoji} ${next.label}` : ""
+    };
+  }
+
+  function recalculateAffiliateLevel(affiliate: AffiliateRecord, reason = "recalculo") {
+    const now = new Date().toISOString();
+    const paidOrders = getAffiliatePaidOrders(affiliate.tenant_id, affiliate.refCode);
+    const salesPoints = Number(paidOrders.reduce((sum, order) => sum + Number(order.amount || 0), 0).toFixed(2));
+    const activeCustomers = new Set(paidOrders.map(order => order.customer?.id).filter(Boolean));
+    const networkPoints = activeCustomers.size * 500;
+    const sponsorPrizeCount = sponsorRewards.filter(reward =>
+      reward.tenant_id === affiliate.tenant_id &&
+      reward.sponsor_affiliate_id === affiliate.refCode &&
+      ["approved", "credited"].includes(reward.status)
+    ).length;
+    const sponsorPoints = sponsorPrizeCount * 1000;
+    const totalPoints = Number((salesPoints + networkPoints + sponsorPoints).toFixed(2));
+    const tenantLevelCatalog = activeAffiliateLevelCatalog(affiliate.tenant_id);
+    const level = affiliateLevelForPoints(affiliate.tenant_id, totalPoints);
+    const next = tenantLevelCatalog[tenantLevelCatalog.findIndex(item => item.id === level.id) + 1];
+    const previous = affiliateLevels.find(item => item.tenant_id === affiliate.tenant_id && item.affiliate_id === affiliate.refCode);
+    const progress = next
+      ? ((totalPoints - level.threshold) / Math.max(1, next.threshold - level.threshold)) * 100
+      : 100;
+    const record: AffiliateLevelStateRecord = previous || {
+      id: createPublicId("AFL_"),
+      tenant_id: affiliate.tenant_id,
+      affiliate_id: affiliate.refCode,
+      current_level: "BRONZE",
+      points: 0,
+      sales_points: 0,
+      network_points: 0,
+      sponsor_points: 0,
+      next_level: "PRATA",
+      next_level_points: 10000,
+      progress_percent: 0,
+      created_at: now,
+      updated_at: now
+    };
+    const oldLevel = record.current_level;
+    Object.assign(record, {
+      current_level: level.id,
+      points: totalPoints,
+      sales_points: salesPoints,
+      network_points: networkPoints,
+      sponsor_points: sponsorPoints,
+      next_level: next?.id || "",
+      next_level_points: next?.threshold || level.threshold,
+      progress_percent: Number(Math.max(0, Math.min(100, progress)).toFixed(2)),
+      updated_at: now
+    });
+    if (!previous) affiliateLevels.push(record);
+    if (oldLevel !== level.id) {
+      affiliateLevelHistory.unshift({
+        id: createPublicId("ALH_"),
+        tenant_id: affiliate.tenant_id,
+        affiliate_id: affiliate.refCode,
+        old_level: oldLevel,
+        new_level: level.id,
+        reason,
+        points: totalPoints,
+        created_at: now
+      });
+      const owner = affiliateOwnerCustomer(affiliate);
+      createNotification({
+        tenantId: affiliate.tenant_id,
+        userId: owner?.id,
+        roleTarget: "afiliado",
+        type: "LEVEL_UP",
+        title: "Parabéns!",
+        message: `Você alcançou o nível ${level.label}.`,
+        severity: "success",
+        actionUrl: "/afiliados",
+        entityType: "affiliate_level",
+        entityId: record.id,
+        dedupeKey: `LEVEL_UP:${affiliate.tenant_id}:${affiliate.refCode}:${level.id}`
+      });
+    }
+    return record;
+  }
+
+  function getAffiliateLevelState(affiliate: AffiliateRecord) {
+    return recalculateAffiliateLevel(affiliate, "consulta");
+  }
+
+  function buildAffiliateLevelRanking(tenantId: string) {
+    Object.values(affiliates)
+      .filter(affiliate => affiliate.tenant_id === tenantId)
+      .forEach(affiliate => recalculateAffiliateLevel(affiliate, "ranking"));
+    return affiliateLevels
+      .filter(item => item.tenant_id === tenantId)
+      .map(item => {
+        const affiliate = affiliates[tenantCustomerKey(item.tenant_id, item.affiliate_id)];
+        const owner = affiliate ? affiliateOwnerCustomer(affiliate) : undefined;
+        const rewards = sponsorRewards.filter(reward => reward.tenant_id === tenantId && reward.sponsor_affiliate_id === item.affiliate_id && ["approved", "credited"].includes(reward.status));
+        return {
+          refCode: item.affiliate_id,
+          name: maskDisplayName(owner?.name || item.affiliate_id),
+          level: affiliateLevelPublicView(item),
+          points: item.points,
+          commissions: Number(Number(affiliate?.commissionBalance || 0).toFixed(2)),
+          prizes: rewards.length
+        };
+      })
+      .sort((a, b) => b.points - a.points || b.commissions - a.commissions)
+      .slice(0, 50)
+      .map((item, index) => ({ position: index + 1, ...item }));
+  }
+
   function resolveAffiliateCommissionRate(affiliate: AffiliateRecord) {
     if (affiliate.useCustomCommission) return normalizeAffiliateCommissionRate(affiliate.customCommissionRate);
-    return normalizeAffiliateCommissionRate(getTenantSettings(affiliate.tenant_id).affiliateProgram.commissionRate);
+    const levelState = getAffiliateLevelState(affiliate);
+    return normalizeAffiliateCommissionRate(affiliateLevelDefinition(affiliate.tenant_id, levelState.current_level).commissionRate);
   }
 
   function publicAffiliateView(affiliate?: AffiliateRecord | null) {
     if (!affiliate) return undefined;
     const { useCustomCommission, customCommissionRate, performanceRewards, performanceRewardBalances, performanceRewardConsumptions, tenant_id, customerId, ...publicAffiliate } = affiliate;
-    return publicAffiliate;
+    const levelState = getAffiliateLevelState(affiliate);
+    return { ...publicAffiliate, affiliateLevel: affiliateLevelPublicView(levelState), commissionRate: resolveAffiliateCommissionRate(affiliate) };
   }
 
   function ensureAffiliateForCustomer(customer: CustomerRecord, options: { forceEnable?: boolean; source?: string } = {}) {
@@ -9493,6 +9695,7 @@ async function startServer() {
       Boolean(affiliates[key].enabled) ||
       Boolean(options.forceEnable) ||
       customer.totalTickets >= getTenantSettings(customer.tenant_id).affiliateProgram.minTicketsToJoin;
+    recalculateAffiliateLevel(affiliates[key], options.forceEnable ? "indicado_ativo" : "afiliado_atualizado");
     return affiliates[key];
   }
 
@@ -17735,7 +17938,16 @@ async function startServer() {
       });
       return affiliate;
     }
+    const levelState = getAffiliateLevelState(affiliate);
+    const levelDefinition = affiliateLevelDefinition(affiliate.tenant_id, levelState.current_level);
     const commissionRate = resolveAffiliateCommissionRate(affiliate);
+    const commissionSnapshot = {
+      source: affiliate.useCustomCommission ? "custom_affiliate_rate" : "affiliate_level_config",
+      level: levelState.current_level,
+      levelLabel: levelDefinition.label,
+      tenantId: affiliate.tenant_id,
+      commissionRate
+    };
     const comm = Number((purchase.amount * (commissionRate / 100)).toFixed(2));
     affiliate.conversions++;
     affiliate.revenue += purchase.amount;
@@ -17743,11 +17955,12 @@ async function startServer() {
     if (eligibility.isEligibleThisMonth) {
       affiliate.commissionBalance += comm;
       affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
-      affiliate.history.push({ amount: comm, type: input.source, date: new Date().toISOString(), campaignType: input.campaign?.type, campaignId: input.campaign?.id });
+      affiliate.history.push({ amount: comm, type: input.source, date: new Date().toISOString(), campaignType: input.campaign?.type, campaignId: input.campaign?.id, commissionRate, commissionLevel: levelState.current_level, commissionSnapshot });
       evaluateAffiliateRewards({ tenantId: input.tenantId, affiliate, source: input.source });
     } else {
-      affiliate.history.push({ amount: comm, type: `pending:${input.source}`, date: new Date().toISOString(), campaignType: input.campaign?.type, campaignId: input.campaign?.id });
+      affiliate.history.push({ amount: comm, type: `pending:${input.source}`, date: new Date().toISOString(), campaignType: input.campaign?.type, campaignId: input.campaign?.id, commissionRate, commissionLevel: levelState.current_level, commissionSnapshot });
     }
+    recalculateAffiliateLevel(affiliate, "venda_confirmada");
     return affiliate;
   }
 
@@ -18181,6 +18394,7 @@ async function startServer() {
     };
     sponsorRewards.unshift(reward);
     if (setting.auto_credit_wallet && !setting.requires_manual_approval) creditSponsorRewardToWallet(reward);
+    if (["approved", "credited"].includes(reward.status)) recalculateAffiliateLevel(sponsor, "premio_patrocinador_confirmado");
     recordSponsorRewardAuditLog({ tenant_id: input.tenantId, campaign_id: input.campaignId, winner_customer_id: input.winnerCustomerId, sponsor_affiliate_id: sponsor.refCode, sponsor_reward_id: reward.id, event_type: "sponsor_reward_created", payload: { prizeId: input.prizeId, prizeScope: input.prizeScope, purchaseId: input.purchaseId, status: reward.status } });
     return { eligible: true, reward };
   }
@@ -18191,12 +18405,14 @@ async function startServer() {
       .map(affiliate => {
         const rewards = sponsorRewards.filter(reward => reward.tenant_id === tenantId && reward.sponsor_affiliate_id === affiliate.refCode && ["pending", "approved", "credited"].includes(reward.status));
         const owner = affiliateOwnerCustomer(affiliate);
+        const level = affiliateLevelPublicView(getAffiliateLevelState(affiliate));
         return {
           refCode: affiliate.refCode,
           name: publicSponsorName(owner?.name),
+          level,
           rewards: rewards.length,
           amount: Number(rewards.reduce((sum, reward) => sum + Number(reward.reward_value || 0), 0).toFixed(2)),
-          level: sponsorRewardLevel(rewards.length)
+          sponsorLevel: sponsorRewardLevel(rewards.length)
         };
       })
       .filter(item => item.rewards > 0)
@@ -18338,6 +18554,7 @@ async function startServer() {
     if (releasedAmount > 0) {
       affiliate.commissionBalance += Number(releasedAmount.toFixed(2));
       affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
+      recalculateAffiliateLevel(affiliate, "comissao_confirmada");
     }
     return buildAffiliateMonthlyEligibility(affiliate);
   }
@@ -18363,7 +18580,7 @@ async function startServer() {
   }
 
   function buildAffiliateReferredCustomers(affiliate: AffiliateRecord) {
-    const tenantSettings = getTenantSettings(affiliate.tenant_id);
+    const commissionRate = resolveAffiliateCommissionRate(affiliate);
     return Object.values(customersByPhone)
       .filter(customer => customer.tenant_id === affiliate.tenant_id && customer.referredBy === affiliate.refCode)
       .map(customer => {
@@ -18377,7 +18594,7 @@ async function startServer() {
           status: paidOrders.length ? "active" : "registered",
           registeredAt: customer.createdAt,
           lastPaymentAt: paidOrders[0]?.createdAt || "",
-          commissionGenerated: Number((revenue * (tenantSettings.affiliateProgram.commissionRate / 100)).toFixed(2))
+          commissionGenerated: Number((revenue * (commissionRate / 100)).toFixed(2))
         };
       })
       .sort((a, b) => String(b.lastPaymentAt || b.registeredAt).localeCompare(String(a.lastPaymentAt || a.registeredAt)));
@@ -18480,9 +18697,11 @@ async function startServer() {
           .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
         const clicks = Math.max(0, Number(affiliate.clicks || 0));
         const conversion = clicks > 0 ? Number(((orders.length / clicks) * 100).toFixed(2)) : orders.length > 0 ? 100 : 0;
+        const level = affiliateLevelPublicView(getAffiliateLevelState(affiliate));
         return {
           refCode: affiliate.refCode,
           affiliate: maskDisplayName(owner?.name || affiliate.refCode),
+          level,
           customers: referredCustomers.size,
           conversions: orders.length,
           revenue: Number(orders.reduce((sum, order) => sum + Number(order.amount || 0), 0).toFixed(2)),
@@ -18496,6 +18715,7 @@ async function startServer() {
       .map((item, index) => ({
         position: index + 1,
         affiliate: item.affiliate,
+        level: item.level,
         customers: item.customers,
         conversions: item.conversions,
         revenue: item.revenue,
@@ -18519,11 +18739,13 @@ async function startServer() {
     const origin = `${req.protocol}://${req.get("host")}`;
     const primaryLink = `${origin}/?ref=${encodeURIComponent(affiliate.refCode)}&utm_source=afiliado&utm_medium=painel`;
     const shortLink = `${origin}/?ref=${encodeURIComponent(affiliate.refCode)}`;
+    const affiliateLevel = affiliateLevelPublicView(getAffiliateLevelState(affiliate));
     return {
       refCode: affiliate.refCode,
       couponCode: affiliate.refCode.toUpperCase(),
       links: { primary: primaryLink, short: shortLink },
       rules: tenantSettings.affiliateProgram,
+      affiliateLevel,
       metrics: {
         clicks: affiliate.clicks,
         conversions: orders.length,
@@ -18550,7 +18772,8 @@ async function startServer() {
       performanceRewards: buildAffiliatePerformanceRewardsDashboard(affiliate),
       ranking: {
         month: buildAffiliateRanking(affiliate.tenant_id, "month"),
-        year: buildAffiliateRanking(affiliate.tenant_id, "year")
+        year: buildAffiliateRanking(affiliate.tenant_id, "year"),
+        levels: buildAffiliateLevelRanking(affiliate.tenant_id)
       }
     };
   }
@@ -22794,6 +23017,8 @@ async function startServer() {
       promotionRules,
       promotionUsages,
       lootboxes,
+      affiliateLevels,
+      affiliateLevelHistory,
       raffles,
       purchases,
       gamificationConfigs,
@@ -22912,6 +23137,8 @@ async function startServer() {
       case "promotionRules": promotionRules = Array.isArray(value) ? value.map((item: any) => normalizePromotionRule(item)) : []; break;
       case "promotionUsages": promotionUsages = Array.isArray(value) ? value : []; break;
       case "lootboxes": lootboxes = value || {}; break;
+      case "affiliateLevels": affiliateLevels = Array.isArray(value) ? value : []; break;
+      case "affiliateLevelHistory": affiliateLevelHistory = Array.isArray(value) ? value : []; break;
       case "raffles": raffles = Array.isArray(value) ? value.map((raffle: any) => ({ ...raffle, soldNumbers: raffle.soldNumbers instanceof Set ? raffle.soldNumbers : new Set(raffle.soldNumbers?.values || raffle.soldNumbers || []) })) : raffles; break;
       case "purchases": purchases = Array.isArray(value) ? value : []; break;
       case "gamificationConfigs": gamificationConfigs = Array.isArray(value) ? value : []; break;
@@ -23301,6 +23528,7 @@ async function startServer() {
       smsProvider: { ...currentSettings.smsProvider, ...(req.body.smsProvider || {}) },
       n8nIntegration: { ...currentSettings.n8nIntegration, ...incomingN8n },
       affiliateProgram: { ...currentSettings.affiliateProgram, ...(req.body.affiliateProgram || {}) },
+      affiliateLevelConfig: Array.isArray(req.body.affiliateLevelConfig) ? req.body.affiliateLevelConfig : currentSettings.affiliateLevelConfig,
       reservationSettings: { ...currentSettings.reservationSettings, ...(req.body.reservationSettings || {}) },
       affiliatePerformanceRewards: {
         ...currentSettings.affiliatePerformanceRewards,
@@ -23658,6 +23886,8 @@ async function startServer() {
     if (reward.status === "rejected") return res.status(409).json({ error: "Premio rejeitado nao pode ser aprovado" });
     reward.status = "approved";
     reward.updated_at = new Date().toISOString();
+    const affiliate = affiliates[tenantCustomerKey(reward.tenant_id, reward.sponsor_affiliate_id)];
+    if (affiliate) recalculateAffiliateLevel(affiliate, "premio_patrocinador_confirmado");
     recordSponsorRewardAuditLog({ tenant_id: reward.tenant_id, campaign_id: reward.campaign_id, sponsor_reward_id: reward.id, sponsor_affiliate_id: reward.sponsor_affiliate_id, winner_customer_id: reward.winner_customer_id, event_type: "sponsor_reward_approved", payload: {} });
     res.json(reward);
   });
@@ -23678,6 +23908,8 @@ async function startServer() {
     if (!reward) return res.status(404).json({ error: "Premio do patrocinador nao encontrado" });
     if (reward.status === "rejected") return res.status(409).json({ error: "Premio rejeitado nao pode ser creditado" });
     const ledger = creditSponsorRewardToWallet(reward);
+    const affiliate = affiliates[tenantCustomerKey(reward.tenant_id, reward.sponsor_affiliate_id)];
+    if (affiliate) recalculateAffiliateLevel(affiliate, "premio_patrocinador_confirmado");
     recordSponsorRewardAuditLog({ tenant_id: reward.tenant_id, campaign_id: reward.campaign_id, sponsor_reward_id: reward.id, sponsor_affiliate_id: reward.sponsor_affiliate_id, winner_customer_id: reward.winner_customer_id, event_type: "sponsor_reward_credited", payload: { ledgerId: ledger?.id || reward.credited_wallet_transaction_id } });
     res.json({ reward, ledger });
   });
@@ -23722,6 +23954,14 @@ async function startServer() {
     });
   });
 
+  app.get("/api/admin/affiliate-levels/ranking", (req, res) => {
+    res.json({ ranking: buildAffiliateLevelRanking(resolveRequestTenantId(req)) });
+  });
+
+  app.get("/api/public/affiliate-levels/ranking", (req, res) => {
+    res.json({ ranking: buildAffiliateLevelRanking(resolveRequestTenantId(req)).slice(0, 20) });
+  });
+
   // Affiliates
   app.post("/api/affiliates/register", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
@@ -23763,6 +24003,16 @@ async function startServer() {
       enabled: affiliate.enabled
     };
     res.json({ ...publicAffiliate, rules: settings.affiliateProgram });
+  });
+
+  app.get("/api/affiliates/:refCode/level", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const affiliate = affiliates[tenantCustomerKey(tenantId, req.params.refCode)];
+    if (!affiliate) return res.status(404).json({ error: "Afiliado nao encontrado" });
+    if (!isAffiliateOwnerRequest(req, affiliate)) return res.status(403).json({ error: "Acesso negado para este afiliado" });
+    const level = affiliateLevelPublicView(getAffiliateLevelState(affiliate));
+    const history = affiliateLevelHistory.filter(item => item.tenant_id === tenantId && item.affiliate_id === affiliate.refCode).slice(0, 20);
+    res.json({ level, history });
   });
 
   app.get("/api/affiliates/:refCode/dashboard", (req, res) => {

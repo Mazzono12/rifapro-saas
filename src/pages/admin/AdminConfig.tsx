@@ -21,6 +21,29 @@ const paletteFields = [
   ["--theme-button-text", "Texto botão", "#030712"],
 ] as const;
 
+const defaultAffiliateLevelConfig = [
+  { id: "BRONZE", label: "Bronze", emoji: "🥉", threshold: 0, commissionRate: 10, enabled: true },
+  { id: "PRATA", label: "Prata", emoji: "🥈", threshold: 10000, commissionRate: 12, enabled: true },
+  { id: "OURO", label: "Ouro", emoji: "🥇", threshold: 50000, commissionRate: 14, enabled: true },
+  { id: "DIAMANTE", label: "Diamante", emoji: "💎", threshold: 200000, commissionRate: 16, enabled: true },
+  { id: "IMPERADOR", label: "Imperador", emoji: "👑", threshold: 1000000, commissionRate: 18, enabled: true },
+  { id: "LENDARIO", label: "Lendário", emoji: "🔥", threshold: 5000000, commissionRate: 20, enabled: true }
+];
+
+function normalizeAffiliateLevelConfig(config: any[] = []) {
+  return defaultAffiliateLevelConfig.map(defaultLevel => {
+    const saved = Array.isArray(config) ? config.find(item => String(item?.id || "").toUpperCase() === defaultLevel.id) : undefined;
+    return {
+      ...defaultLevel,
+      ...(saved || {}),
+      label: String(saved?.label || defaultLevel.label),
+      threshold: Math.max(0, Number(saved?.threshold ?? defaultLevel.threshold)),
+      commissionRate: Math.min(100, Math.max(0, Number(saved?.commissionRate ?? defaultLevel.commissionRate))),
+      enabled: saved?.enabled === undefined ? defaultLevel.enabled : Boolean(saved.enabled)
+    };
+  });
+}
+
 function AffiliateHelp({ text }: { text: string }) {
   return (
     <span className="group relative inline-flex">
@@ -134,6 +157,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
       minWithdrawAmount: 50,
       allowBalancePayments: true
     },
+    affiliateLevelConfig: defaultAffiliateLevelConfig,
     affiliatePerformanceRewards: {
       enabled: false,
       rules: []
@@ -397,6 +421,15 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     });
   };
 
+  const updateAffiliateLevelConfig = (levelId: string, patch: Record<string, any>) => {
+    setSettings({
+      ...settings,
+      affiliateLevelConfig: normalizeAffiliateLevelConfig(settings.affiliateLevelConfig).map(level =>
+        level.id === levelId ? { ...level, ...patch } : level
+      )
+    });
+  };
+
   const updateReservationSettings = (patch: Record<string, number>) => {
     setSettings({
       ...settings,
@@ -495,6 +528,8 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
   const minTicketsToJoin = Math.max(0, Number(affiliateProgram.minTicketsToJoin || 0));
   const minWithdrawAmount = Math.max(0, Number(affiliateProgram.minWithdrawAmount || 0));
   const monthlyActivationAmount = Math.max(0, Number(affiliateProgram.monthlyActivationAmount || 0));
+  const affiliateLevelConfig = normalizeAffiliateLevelConfig(settings.affiliateLevelConfig);
+  const bronzeCommissionRate = Number(affiliateLevelConfig.find(level => level.id === "BRONZE")?.commissionRate ?? commissionRate);
   const performanceRewards = settings.affiliatePerformanceRewards || { enabled: false, rules: [] };
   const performanceRewardRules = Array.isArray(performanceRewards.rules) ? performanceRewards.rules : [];
   const rewardGoalOptions = [
@@ -511,7 +546,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     ["future_reward", "Recompensa futura"]
   ];
   const previewTicketValue = 100;
-  const previewCommission = Number((previewTicketValue * (commissionRate / 100)).toFixed(2));
+  const previewCommission = Number((previewTicketValue * (bronzeCommissionRate / 100)).toFixed(2));
 
   return (
     <div className="space-y-8 fade-in">
@@ -770,7 +805,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                  <div className="grid gap-4">
                    <AffiliateSection icon={Percent} title="Comissão" description="Defina quanto o afiliado recebe por cada venda aprovada.">
                      <div className="grid gap-4 md:grid-cols-3">
-                       <AffiliateField label="Comissão padrão (%)" help="Percentual pago ao afiliado em cada venda confirmada.">
+                       <AffiliateField label="Comissão padrão legado (%)" help="Fallback antigo para integrações que ainda não usam níveis. Novas comissões usam a configuração por nível.">
                          <input type="number" min="0" max="100" step="0.01" value={commissionRate} onChange={e => updateAffiliateProgram({ commissionRate: Math.min(100, Math.max(0, Number(e.target.value))) })} placeholder="Ex.: 10" className="w-full p-3" />
                        </AffiliateField>
                        <AffiliateField label="Comissão vitalícia" help="As indicações continuam vinculadas ao afiliado pelo código de convite.">
@@ -779,6 +814,62 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                        <AffiliateField label="Comissão recorrente" help="Quando houver pagamentos recorrentes, a regra comercial segue a comissão padrão.">
                          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm font-bold text-slate-200">Preparada para recorrência</div>
                        </AffiliateField>
+                     </div>
+                   </AffiliateSection>
+
+                   <AffiliateSection icon={Medal} title="Comissões por Nível" description="Configure a comissão oficial usada nas novas vendas confirmadas por afiliados.">
+                     <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm font-semibold text-amber-100">
+                       As alterações valem apenas para novas comissões geradas após salvar.
+                     </div>
+                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                       {affiliateLevelConfig.map(level => (
+                         <div key={level.id} className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+                           <div className="mb-4 flex items-center justify-between gap-3">
+                             <div className="min-w-0">
+                               <p className="text-sm font-black text-white">{level.emoji} {level.label}</p>
+                               <p className="mt-1 text-xs text-slate-500">{level.threshold.toLocaleString("pt-BR")} pontos mínimos</p>
+                             </div>
+                             <label className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-300">
+                               <input
+                                 type="checkbox"
+                                 checked={Boolean(level.enabled)}
+                                 onChange={e => updateAffiliateLevelConfig(level.id, { enabled: e.target.checked })}
+                               />
+                               Ativo
+                             </label>
+                           </div>
+                           <div className="grid gap-3">
+                             <AffiliateField label={`${level.label} %`} help="Percentual usado para novas comissões deste nível.">
+                               <input
+                                 type="number"
+                                 min="0"
+                                 max="100"
+                                 step="0.01"
+                                 value={level.commissionRate}
+                                 onChange={e => updateAffiliateLevelConfig(level.id, { commissionRate: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                                 className="w-full p-3"
+                               />
+                             </AffiliateField>
+                             <AffiliateField label="Pontos mínimos" help="Pontuação mínima para o afiliado atingir este nível.">
+                               <input
+                                 type="number"
+                                 min="0"
+                                 step="1"
+                                 value={level.threshold}
+                                 onChange={e => updateAffiliateLevelConfig(level.id, { threshold: Math.max(0, Number(e.target.value)) })}
+                                 className="w-full p-3"
+                               />
+                             </AffiliateField>
+                             <AffiliateField label="Nome exibido" help="Nome apresentado nos cards e rankings.">
+                               <input
+                                 value={level.label}
+                                 onChange={e => updateAffiliateLevelConfig(level.id, { label: e.target.value })}
+                                 className="w-full p-3"
+                               />
+                             </AffiliateField>
+                           </div>
+                         </div>
+                       ))}
                      </div>
                    </AffiliateSection>
 

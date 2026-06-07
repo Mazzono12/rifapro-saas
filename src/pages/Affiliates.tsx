@@ -50,6 +50,7 @@ type AffiliateDashboard = {
   refCode: string;
   couponCode: string;
   links: { primary: string; short: string };
+  affiliateLevel?: AffiliateLevelDashboard;
   metrics: {
     clicks: number;
     conversions: number;
@@ -103,12 +104,29 @@ type AffiliateDashboard = {
     consumptions: Array<{ id: string; rewardType: string; quantity: number; label: string; status: string; eventId?: string; lootboxId?: string; message?: string; createdAt: string }>;
   };
   ranking: {
-    month: Array<{ position: number; affiliate: string; customers: number; conversions: number; revenue: number; conversion: number }>;
-    year: Array<{ position: number; affiliate: string; customers: number; conversions: number; revenue: number; conversion: number }>;
+    month: Array<{ position: number; affiliate: string; level?: AffiliateLevelDashboard; customers: number; conversions: number; revenue: number; conversion: number }>;
+    year: Array<{ position: number; affiliate: string; level?: AffiliateLevelDashboard; customers: number; conversions: number; revenue: number; conversion: number }>;
+    levels?: Array<{ position: number; name: string; level: AffiliateLevelDashboard; points: number; commissions: number; prizes: number }>;
   };
 };
 
 type AffiliateRankingRow = AffiliateDashboard["ranking"]["month"][number];
+type AffiliateLevelDashboard = {
+  current_level: "BRONZE" | "PRATA" | "OURO" | "DIAMANTE" | "IMPERADOR" | "LENDARIO";
+  points: number;
+  sales_points: number;
+  network_points: number;
+  sponsor_points: number;
+  next_level: string;
+  next_level_points: number;
+  progress_percent: number;
+  label: string;
+  emoji: string;
+  displayName: string;
+  commissionRate: number;
+  benefits: string[];
+  nextLevelDisplayName?: string;
+};
 type AffiliateGamificationSummary = {
   positionLabel: string;
   revenue: number;
@@ -129,17 +147,20 @@ type AffiliateGamificationSummary = {
   achievements: Array<{ label: string; unlocked: boolean }>;
 };
 type AffiliateLevel = {
-  name: "Bronze" | "Prata" | "Ouro" | "Diamante";
+  name: "Bronze" | "Prata" | "Ouro" | "Diamante" | "Imperador" | "Lendário";
   threshold: number;
   icon: string;
   tone: string;
+  commissionRate?: number;
 };
 
 const affiliateLevels: AffiliateLevel[] = [
   { name: "Bronze", threshold: 0, icon: "🥉", tone: "text-amber-300" },
-  { name: "Prata", threshold: 1000, icon: "🥈", tone: "text-slate-200" },
-  { name: "Ouro", threshold: 5000, icon: "🥇", tone: "text-yellow-300" },
-  { name: "Diamante", threshold: 20000, icon: "💎", tone: "text-cyan-300" }
+  { name: "Prata", threshold: 10000, icon: "🥈", tone: "text-slate-200" },
+  { name: "Ouro", threshold: 50000, icon: "🥇", tone: "text-yellow-300" },
+  { name: "Diamante", threshold: 200000, icon: "💎", tone: "text-cyan-300" },
+  { name: "Imperador", threshold: 1000000, icon: "👑", tone: "text-violet-300" },
+  { name: "Lendário", threshold: 5000000, icon: "🔥", tone: "text-rose-300" }
 ];
 const monthlySalesGoal = 10000;
 
@@ -372,6 +393,8 @@ export function Affiliates() {
   const historyRows = dashboard ? buildHistoryRowsFromDashboard(dashboard.commissions, dashboard.withdrawals, nextPayment) : buildHistoryRows(stats.history, nextPayment);
   const rankingMonth = dashboard ? buildRankingRowsFromDashboard(dashboard.ranking.month) : buildRankingRows(customer.name, stats, "month");
   const rankingYear = dashboard ? buildRankingRowsFromDashboard(dashboard.ranking.year) : buildRankingRows(customer.name, stats, "year");
+  const affiliateLevel = dashboard?.affiliateLevel || buildFallbackAffiliateLevel(Number(dashboard?.metrics.revenue ?? stats.revenue ?? 0), settings?.affiliateLevelConfig);
+  const levelRankingRows = buildLevelRankingRows(dashboard?.ranking.levels || []);
   const gamification = buildAffiliateGamification({
     affiliateName: customer.name,
     revenue: Number(dashboard?.metrics.revenue ?? stats.revenue ?? 0),
@@ -428,6 +451,7 @@ export function Affiliates() {
         <MetricCard icon={TrendingUp} label="Conversão" value={`${conversionRate.toFixed(1)}%`} trend={`${dashboard?.metrics.clicks ?? stats.clicks} cliques`} tone="success" />
       </section>
 
+      <AffiliateCurrentLevelCard level={affiliateLevel} />
       <AffiliateGamificationPanel summary={gamification} />
       <AffiliatePerformanceBonusPanel rewards={dashboard?.performanceRewards} />
       <AffiliateRewardsWalletPanel
@@ -594,6 +618,7 @@ export function Affiliates() {
         <RankingCard title="Top afiliados do mês" rows={rankingMonth} />
         <RankingCard title="Top afiliados do ano" rows={rankingYear} />
       </section>
+      <RankingByLevelCard rows={levelRankingRows} />
 
       {settings?.affiliateInstructionVideo?.enabled && settings.affiliateInstructionVideo?.mediaUrl && (
         <section className="admin-card overflow-hidden p-4 sm:p-5">
@@ -725,6 +750,54 @@ function AffiliatePerformanceBonusPanel({ rewards }: { rewards?: AffiliateDashbo
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+function AffiliateCurrentLevelCard({ level }: { level: AffiliateLevelDashboard }) {
+  return (
+    <section className="admin-card p-4 sm:p-5" data-affiliate-premium="current-level">
+      <div className="grid gap-4 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+        <div className="grid h-24 w-24 place-items-center rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] text-5xl">
+          {level.emoji}
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Card Nível Atual</p>
+          <h2 className="mt-1 break-words text-3xl font-black text-[var(--admin-text)]">{level.displayName}</h2>
+          <p className="mt-2 text-sm font-semibold text-[var(--admin-muted)]">
+            {Number(level.points || 0).toLocaleString("pt-BR")} pontos · Comissão {level.commissionRate}%
+          </p>
+          <div className="mt-4">
+            <div className="mb-2 flex items-center justify-between gap-3 text-xs font-bold uppercase text-[var(--admin-muted)]">
+              <span>{level.nextLevelDisplayName ? `Próximo: ${level.nextLevelDisplayName}` : "Nível máximo"}</span>
+              <span>{Number(level.progress_percent || 0).toFixed(0)}%</span>
+            </div>
+            <ProgressBar value={level.progress_percent || 0} animated />
+          </div>
+        </div>
+        <div className="grid min-w-0 gap-2 sm:grid-cols-3 lg:min-w-[360px]">
+          <FinanceStat label="Vendas" value={Number(level.sales_points || 0).toLocaleString("pt-BR")} />
+          <FinanceStat label="Indicados ativos" value={Number(level.network_points || 0).toLocaleString("pt-BR")} />
+          <FinanceStat label="Prêmios" value={Number(level.sponsor_points || 0).toLocaleString("pt-BR")} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RankingByLevelCard({ rows }: { rows: React.ReactNode[][] }) {
+  return (
+    <section className="admin-card p-4 sm:p-5" data-affiliate-premium="level-ranking">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="min-w-0 break-words text-lg font-bold text-[var(--admin-text)]">Ranking por nível</h2>
+        <Medal className="h-5 w-5 shrink-0 text-[var(--admin-primary)]" />
+      </div>
+      <ResponsiveDataTable
+        columns={["Posição", "Nome", "Nível", "Pontos", "Comissões", "Prêmios"]}
+        rows={rows}
+        empty="O ranking por nível aparecerá quando houver afiliados pontuando."
+        minWidth="760px"
+      />
     </section>
   );
 }
@@ -1284,7 +1357,7 @@ function buildAffiliateGamification({
     levelProgress: clamp(levelProgress, 0, 100),
     monthlyGoal: monthlySalesGoal,
     monthlyProgress: clamp((monthlyRevenue / monthlySalesGoal) * 100, 0, 100),
-    rewardText: nextLevel ? `Faltam ${money(Math.max(0, nextLevel.threshold - monthlyRevenue))} para atingir ${nextLevel.name}.` : "Você atingiu Diamante.",
+    rewardText: nextLevel ? `Faltam ${money(Math.max(0, nextLevel.threshold - monthlyRevenue))} para atingir ${nextLevel.name}.` : "Você atingiu Lendário.",
     achievements: [
       { label: "Primeira venda", unlocked: conversions >= 1 },
       { label: "10 vendas", unlocked: conversions >= 10 },
@@ -1380,11 +1453,57 @@ function buildRankingRows(name: string, stats: AffiliateStats, period: "month" |
 function buildRankingRowsFromDashboard(rows: AffiliateDashboard["ranking"]["month"]) {
   return rows.map(item => [
     `#${item.position}`,
-    item.affiliate,
+    `${item.level?.emoji ? `${item.level.emoji} ` : ""}${item.affiliate}`,
     item.customers,
     money(item.revenue),
     <span key={item.position} className="text-[var(--admin-success)]">{item.conversion.toFixed(1)}%</span>
   ]);
+}
+
+function buildLevelRankingRows(rows: NonNullable<AffiliateDashboard["ranking"]["levels"]>) {
+  return rows.map(item => [
+    `#${item.position}`,
+    item.name,
+    item.level.displayName,
+    Number(item.points || 0).toLocaleString("pt-BR"),
+    money(item.commissions || 0),
+    item.prizes
+  ]);
+}
+
+function buildFallbackAffiliateLevel(points: number, configuredLevels: any[] = []): AffiliateLevelDashboard {
+  const levels = affiliateLevels.map(defaultLevel => {
+    const id = defaultLevel.name.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const configured = Array.isArray(configuredLevels) ? configuredLevels.find(level => String(level?.id || "").toUpperCase() === id) : undefined;
+    return {
+      ...defaultLevel,
+      id,
+      name: configured?.label || defaultLevel.name,
+      threshold: Math.max(0, Number(configured?.threshold ?? defaultLevel.threshold)),
+      commissionRate: Math.max(0, Number(configured?.commissionRate ?? defaultLevel.commissionRate ?? 0))
+    };
+  }).sort((a, b) => a.threshold - b.threshold);
+  const currentIndex = levels.reduce((selected, level, index) => points >= level.threshold ? index : selected, 0);
+  const current = levels[currentIndex];
+  const next = levels[currentIndex + 1];
+  const progress = next ? ((points - current.threshold) / Math.max(1, next.threshold - current.threshold)) * 100 : 100;
+  const currentLevel = current.id as AffiliateLevelDashboard["current_level"];
+  return {
+    current_level: currentLevel,
+    points,
+    sales_points: points,
+    network_points: 0,
+    sponsor_points: 0,
+    next_level: next?.name.toUpperCase() || "",
+    next_level_points: next?.threshold || current.threshold,
+    progress_percent: clamp(progress, 0, 100),
+    label: current.name.toUpperCase(),
+    emoji: current.icon,
+    displayName: `${current.icon} ${current.name.toUpperCase()}`,
+    commissionRate: Number(current.commissionRate || 0),
+    benefits: [],
+    nextLevelDisplayName: next ? `${next.icon} ${next.name.toUpperCase()}` : ""
+  };
 }
 
 function paidWithdrawalCount(history: AffiliateStats["history"]) {
