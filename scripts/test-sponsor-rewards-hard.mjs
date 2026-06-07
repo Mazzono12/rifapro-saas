@@ -46,6 +46,7 @@ mustInclude(pkg.scripts["test:sponsor-rewards-hard"], "scripts/test-sponsor-rewa
   "affiliateIsActiveLast30Days",
   "findSponsorPaidParticipation",
   "creditSponsorRewardToWallet",
+  "isSponsorPrizeEligible",
   "recordSponsorRewardAuditLog"
 ].forEach(item => mustInclude(server, item, `server contrato: ${item}`));
 
@@ -64,15 +65,22 @@ mustInclude(pkg.scripts["test:sponsor-rewards-hard"], "scripts/test-sponsor-rewa
 mustMatch(server, /customerSponsors\.find\(item => item\.tenant_id === tenantId && item\.customer_id === customerId\)/, "patrocinador permanente por cliente/tenant");
 mustMatch(server, /sponsor\.customerId === input\.customer\.id[\s\S]*SELF_SPONSOR_BLOCKED/, "bloqueio de autopatrocinio");
 mustMatch(server, /if \(current\) return current;/, "nao substitui patrocinador permanente existente");
-mustMatch(server, /input\.purchaseStatus && input\.purchaseStatus !== "paid"[\s\S]*PURCHASE_NOT_CONFIRMED/, "nao avalia compra nao confirmada");
+mustMatch(server, /purchaseStatus: string/, "status de compra obrigatorio na avaliacao");
+mustMatch(server, /input\.purchaseStatus !== "paid"[\s\S]*PURCHASE_NOT_CONFIRMED/, "nao avalia compra nao confirmada");
+mustMatch(server, /function isSponsorPrizeEligible[\s\S]*eligible_prize_scope === "main"[\s\S]*prizeScope === "main"/, "escopo de premio elegivel respeitado");
+mustMatch(server, /PRIZE_NOT_ELIGIBLE[\s\S]*eligiblePrizeScope: setting\.eligible_prize_scope/, "premio inelegivel bloqueado com auditoria");
 mustMatch(server, /affiliateIsActiveLast30Days\(sponsor\)[\s\S]*SPONSOR_INACTIVE/, "patrocinador precisa estar ativo 30 dias");
 mustMatch(server, /findSponsorPaidParticipation\([\s\S]*SPONSOR_NOT_PARTICIPATING/, "patrocinador precisa participar pago");
 mustMatch(server, /item\.idempotency_key === idempotencyKey/, "idempotencia de premio");
 
 mustMatch(server, /premiosWon\.forEach\(prize => evaluateSponsorReward\(/, "integracao rifa tradicional Super Cota");
+mustMatch(server, /premiosWon\.forEach\(prize => evaluateSponsorReward\([\s\S]*prizeScope: "instant"/, "Super Cota marcada como premio instantaneo");
 mustMatch(server, /WINNING_TICKET_CLAIMED[\s\S]*evaluateSponsorReward\(/, "integracao rifa tradicional winningTicket");
+mustMatch(server, /WINNING_TICKET_CLAIMED[\s\S]*prizeScope: "winning_ticket"/, "winningTicket marcado com escopo proprio");
 mustMatch(server, /fazendinhaGanhadores\.unshift\(winner\);[\s\S]*purchase\.statusPagamento === "paid"[\s\S]*evaluateSponsorReward\(/, "integracao Fazendinha somente paid");
+mustMatch(server, /fazendinhaGanhadores\.unshift\(winner\);[\s\S]*prizeScope: "main"/, "Fazendinha marcada como premio principal");
 mustMatch(server, /numberModeWinners\.unshift\(winner\);[\s\S]*purchase\.status === "paid"[\s\S]*evaluateSponsorReward\(/, "integracao modalidades numericas somente paid");
+mustMatch(server, /numberModeWinners\.unshift\(winner\);[\s\S]*prizeScope: "main"/, "modalidades numericas marcadas como premio principal");
 
 [
   "/api/admin/sponsor-rewards/settings",

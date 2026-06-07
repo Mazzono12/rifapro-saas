@@ -2607,6 +2607,7 @@ async function startServer() {
     | "CAMPAIGN_MISMATCH"
     | "PURCHASE_NOT_CONFIRMED";
   type SponsorModalityType = "raffle" | "fazendinha" | NumberModeId | string;
+  type SponsorPrizeScope = "main" | "instant" | "winning_ticket" | "manual";
   type CustomerSponsorRecord = {
     id: string;
     tenant_id: string;
@@ -10389,6 +10390,7 @@ async function startServer() {
         modalityType: "fazendinha",
         winnerCustomerId: purchase.usuarioId,
         prizeId: winner.id,
+        prizeScope: "main",
         purchaseId: purchase.id,
         purchaseStatus: purchase.statusPagamento
       });
@@ -10789,6 +10791,7 @@ async function startServer() {
           modalityType: mode,
           winnerCustomerId: purchase.customer.id,
           prizeId: winner.id,
+          prizeScope: "main",
           purchaseId: purchase.id,
           purchaseStatus: purchase.status
         });
@@ -10819,6 +10822,7 @@ async function startServer() {
         modalityType: mode,
         winnerCustomerId: purchase.customer.id,
         prizeId: winner.id,
+        prizeScope: "main",
         purchaseId: purchase.id,
         purchaseStatus: purchase.status
       });
@@ -17550,6 +17554,7 @@ async function startServer() {
       modalityType: "raffle",
       winnerCustomerId: purchase.customer?.id,
       prizeId: prize.id,
+      prizeScope: "instant",
       purchaseId: purchase.purchaseId,
       purchaseStatus: purchase.status
     }));
@@ -17626,6 +17631,7 @@ async function startServer() {
           modalityType: "raffle",
           winnerCustomerId: purchase.customer?.id,
           prizeId: prize.id,
+          prizeScope: "winning_ticket",
           purchaseId: purchase.purchaseId,
           purchaseStatus: purchase.status
         });
@@ -18113,13 +18119,22 @@ async function startServer() {
     return { eligible: false, reason: input.reason };
   }
 
-  function evaluateSponsorReward(input: { tenantId: string; campaignId: string; modalityType: SponsorModalityType; winnerCustomerId?: string; prizeId: string; purchaseId: string; purchaseStatus?: string }) {
-    if (input.purchaseStatus && input.purchaseStatus !== "paid") {
+  function isSponsorPrizeEligible(setting: SponsorRewardSettingRecord, prizeScope: SponsorPrizeScope) {
+    if (setting.eligible_prize_scope === "all") return true;
+    if (setting.eligible_prize_scope === "main") return prizeScope === "main";
+    return prizeScope === "manual";
+  }
+
+  function evaluateSponsorReward(input: { tenantId: string; campaignId: string; modalityType: SponsorModalityType; winnerCustomerId?: string; prizeId: string; prizeScope: SponsorPrizeScope; purchaseId: string; purchaseStatus: string }) {
+    if (input.purchaseStatus !== "paid") {
       return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "PURCHASE_NOT_CONFIRMED" });
     }
     const setting = getSponsorRewardSetting(input.tenantId, input.campaignId);
     if (!setting?.enabled) {
       return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "SPONSOR_REWARD_DISABLED" });
+    }
+    if (!isSponsorPrizeEligible(setting, input.prizeScope)) {
+      return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "PRIZE_NOT_ELIGIBLE", payload: { prizeScope: input.prizeScope, eligiblePrizeScope: setting.eligible_prize_scope } });
     }
     const sponsorLink = getCustomerSponsor(input.tenantId, input.winnerCustomerId);
     if (!sponsorLink) {
@@ -18159,14 +18174,14 @@ async function startServer() {
       reward_value: setting.reward_value,
       reward_description: setting.reward_description,
       status: setting.requires_manual_approval ? "pending" : "approved",
-      eligibility_snapshot: { sponsorActiveLast30Days: true, sponsorPurchase: participation, setting },
+      eligibility_snapshot: { sponsorActiveLast30Days: true, sponsorPurchase: participation, setting, prizeScope: input.prizeScope },
       idempotency_key: idempotencyKey,
       created_at: now,
       updated_at: now
     };
     sponsorRewards.unshift(reward);
     if (setting.auto_credit_wallet && !setting.requires_manual_approval) creditSponsorRewardToWallet(reward);
-    recordSponsorRewardAuditLog({ tenant_id: input.tenantId, campaign_id: input.campaignId, winner_customer_id: input.winnerCustomerId, sponsor_affiliate_id: sponsor.refCode, sponsor_reward_id: reward.id, event_type: "sponsor_reward_created", payload: { prizeId: input.prizeId, purchaseId: input.purchaseId, status: reward.status } });
+    recordSponsorRewardAuditLog({ tenant_id: input.tenantId, campaign_id: input.campaignId, winner_customer_id: input.winnerCustomerId, sponsor_affiliate_id: sponsor.refCode, sponsor_reward_id: reward.id, event_type: "sponsor_reward_created", payload: { prizeId: input.prizeId, prizeScope: input.prizeScope, purchaseId: input.purchaseId, status: reward.status } });
     return { eligible: true, reward };
   }
 

@@ -55,6 +55,7 @@ async function runNodeScript(script) {
   const command = process.execPath;
   const args = [join(root, script)];
   const start = Date.now();
+  console.log(`[hard][script:start] ${script} ${new Date(start).toISOString()}`);
   let output = "";
   await new Promise((resolveRun, rejectRun) => {
     const child = spawn(command, args, {
@@ -86,14 +87,16 @@ async function runNodeScript(script) {
       else rejectRun(new Error(`${script} falhou com exit code ${code}`));
     });
   });
+  console.log(`[hard][script:done] ${script} ${Date.now() - start}ms`);
   results.push({ name: script, status: "passed", durationMs: Date.now() - start, output: maskOutput(output).slice(-5000) });
 }
 
 async function step(name, fn) {
   const start = Date.now();
   try {
-    console.log(`\n[hard] ${name}`);
+    console.log(`\n[hard][step:start] ${name} ${new Date(start).toISOString()}`);
     await fn();
+    console.log(`[hard][step:done] ${name} ${Date.now() - start}ms`);
     results.push({ name, status: "passed", durationMs: Date.now() - start });
   } catch (error) {
     results.push({ name, status: "failed", durationMs: Date.now() - start, error: error instanceof Error ? error.message : String(error) });
