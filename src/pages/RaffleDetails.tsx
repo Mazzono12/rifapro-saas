@@ -165,7 +165,7 @@ export function RaffleDetails() {
     if (!purchase?.premiosInstantaneos?.length || notifiedPrizePurchase.current === purchase.purchaseId) return;
     notifiedPrizePurchase.current = purchase.purchaseId;
     const total = purchase.premiosInstantaneos.reduce((sum: number, prize: any) => sum + Number(prize.valorPremio || 0), 0);
-    toast.success("Cota premiada encontrada", { description: `Premio instantaneo: ${formatCurrency(total)}` });
+    toast.success("Super Cota encontrada", { description: `Premio instantaneo: ${formatCurrency(total)}` });
   }, [purchase]);
 
   const salesDeadline = getLatestSalesDeadline(raffle);
@@ -524,6 +524,7 @@ function RafflePremiumPage({
           <RafflePremiumHero raffle={raffle} mediaUrl={mediaUrl} isVideo={isVideo} />
           <RaffleTitleBlock raffle={raffle} />
           <ProgressPanel progress={progress} soldTickets={soldTickets} totalTickets={totalTickets} remaining={remaining} />
+          <SuperCotasPanel prizes={prizes} />
           <HowItWorksPanel raffle={raffle} />
           <TrustFooter />
           <WinnersPanel ranking={ranking} />
@@ -648,6 +649,30 @@ function ProgressPanel({ progress, soldTickets, totalTickets, remaining }: { pro
         <small>Restam {remaining.toLocaleString("pt-BR")} cotas</small>
       </div>
       <i><span style={{ width: `${progress}%` }} /></i>
+    </section>
+  );
+}
+
+function SuperCotasPanel({ prizes }: { prizes: Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }> }) {
+  const available = prizes.filter(prize => prize.status === "available").slice(0, 8);
+  if (!available.length) return null;
+  return (
+    <section className="rdp-card rdp-super-cotas" data-public-super-cotas="visible">
+      <header>
+        <span>
+          <Gift />
+          <strong>SUPER COTAS</strong>
+        </span>
+        <small>Numeros especiais cadastrados pelo admin. O premio so libera apos pagamento confirmado.</small>
+      </header>
+      <div>
+        {available.map(prize => (
+          <article key={prize.id}>
+            <b>{String(prize.numeroPremiado).padStart(6, "0")}</b>
+            <span>{formatCurrency(Number(prize.valorPremio || 0))}</span>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }

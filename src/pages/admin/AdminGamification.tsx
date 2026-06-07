@@ -4,7 +4,7 @@ import type { GamificationConfig, GamificationEvent, GamificationWinner, Raffle 
 
 const moduleLabels: Record<string, string> = {
   scratchcard: "Raspadinha",
-  winningTicket: "Bilhete premiado",
+  winningTicket: "Super Cota",
   luckyHour: "Hora premiada",
   mysteryBox: "Caixinha premiada",
   doubleTickets: "Cotas em dobro",
@@ -159,7 +159,7 @@ export function AdminGamification() {
           <h2 className="font-semibold text-[var(--admin-text)]">Prêmios e campanhas automáticas</h2>
           <p className="text-sm text-[var(--admin-muted)]">Configure os benefícios por nome, quantidade e chance de entrega. Os detalhes técnicos ficam protegidos pelo sistema.</p>
           <RewardPlanner label="Prêmios da raspadinha" value={config.scratchcard.prizes} onChange={value => update("scratchcard.prizes", value)} />
-          <RewardPlanner label="Bilhetes premiados" value={config.winningTicket.prizes} onChange={value => update("winningTicket.prizes", value)} />
+          <RewardPlanner label="Super Cotas" value={config.winningTicket.prizes} onChange={value => update("winningTicket.prizes", value)} />
           <RewardPlanner label="Janelas da hora premiada" value={config.luckyHour.windows} onChange={value => update("luckyHour.windows", value)} mode="window" />
           <RewardPlanner label="Caixinhas premiadas" value={config.mysteryBox.boxes} onChange={value => update("mysteryBox.boxes", value)} />
         </div>

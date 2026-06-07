@@ -21,28 +21,39 @@ const env = {
   ...process.env,
   PORT: String(port),
   NODE_ENV: "production",
-  SUPABASE_URL: "",
+  STORAGE_DRIVER: "persistent",
+  PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
+  ADMIN_BASE_URL: `http://127.0.0.1:${port}/admin`,
+  SESSION_SECRET: "prodreadiness-session-alpha-bravo-charlie-2026",
+  SUPABASE_URL: "https://test.supabase.local",
   VITE_SUPABASE_URL: "",
-  SUPABASE_SERVICE_ROLE_KEY: "",
+  SUPABASE_SERVICE_ROLE_KEY: "hardening-service-role-key-long-value-2026",
   SUPABASE_SERVICE_KEY: "",
   SUPERADMIN_EMAIL: "superadmin.hardening@test.local",
   SUPERADMIN_PASSWORD: "SenhaSuperadmin123!",
-  JWT_SECRET: "test-production-hardening-jwt-secret-long-value",
-  GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-production-hardening-gateway-credentials-key",
-  INTEGRATION_ENCRYPTION_KEY: "test-production-hardening-encryption-key"
+  JWT_SECRET: "prodreadiness-jwt-alpha-bravo-charlie-2026",
+  GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "hardening-gateway-credentials-key-2026",
+  INTEGRATION_ENCRYPTION_KEY: "hardening-integration-encryption-key-2026"
 };
 
+let serverOutput = "";
 const server = spawn(process.execPath, ["dist/server.js"], { cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"] });
+server.stdout.on("data", chunk => {
+  serverOutput += chunk.toString();
+});
+server.stderr.on("data", chunk => {
+  serverOutput += chunk.toString();
+});
 
 async function waitForServer() {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
     try {
       const response = await fetch(`${baseUrl}/api/public/health`);
       if (response.status === 200) return;
     } catch {}
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  throw new Error("Servidor de teste nao iniciou a tempo.");
+  throw new Error(`Servidor de teste nao iniciou a tempo.\n${serverOutput.slice(-4000)}`);
 }
 
 async function json(path, options = {}) {

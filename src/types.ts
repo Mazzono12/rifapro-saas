@@ -5,6 +5,7 @@ export interface Raffle {
   price: number;
   totalTickets: number;
   soldTickets: number;
+  reservationMinutes?: number;
   image: string; // Fallback or main image
   mediaUrl?: string;
   mediaType?: 'video' | 'image' | 'youtube' | 'vimeo' | 'bunny';
@@ -413,6 +414,7 @@ export interface FazendinhaConfig {
   resultNumber?: string;
   resultSource?: string;
   status: FazendinhaRoundStatus;
+  reservationMinutes?: number;
   lootboxEnabled: boolean;
   lootboxConfig?: FazendinhaLootboxConfig;
   mediaUrl?: string;
@@ -532,6 +534,7 @@ export interface NumberModeConfig {
   drawDate: string;
   resultNumber: string;
   status: GameRoundStatus;
+  reservationMinutes?: number;
   lootboxEnabled: boolean;
   lootboxConfig?: LootboxConfig;
 }

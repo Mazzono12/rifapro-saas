@@ -17,7 +17,7 @@ export function Transparency() {
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--theme-primary)]/25 bg-[var(--theme-primary)]/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-[var(--theme-primary)]">
           <ShieldCheck className="h-4 w-4" /> Transparência
         </div>
-        <h1 className="text-3xl font-black text-[var(--theme-text)] sm:text-5xl">Sorteios, ganhadores e cotas premiadas</h1>
+        <h1 className="text-3xl font-black text-[var(--theme-text)] sm:text-5xl">Sorteios, ganhadores e Super Cotas</h1>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--theme-muted)] sm:text-base">
           Acompanhe os principais indicadores públicos do ambiente: campanhas ativas, participação confirmada, ganhadores e prêmios instantâneos.
         </p>
@@ -66,7 +66,7 @@ export function Transparency() {
           </div>
 
           <div className="rounded-[2rem] border border-[var(--theme-border)] bg-[var(--theme-surface)] p-5">
-            <h2 className="mb-4 text-xl font-black text-[var(--theme-text)]">Cotas premiadas</h2>
+            <h2 className="mb-4 text-xl font-black text-[var(--theme-text)]">Super Cotas</h2>
             <div className="flex flex-wrap gap-2">
               {(data?.instantPrizes || []).map((prize: any) => (
                 <span key={prize.id} className="rounded-full border border-[var(--theme-border)] bg-white/[0.04] px-3 py-2 text-xs font-bold text-[var(--theme-text)]">

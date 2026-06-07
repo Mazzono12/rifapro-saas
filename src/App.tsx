@@ -313,7 +313,7 @@ export default function App() {
                 <Route path="rifas" element={adminSection("Rifas", <AdminRaffles />)} />
                 <Route path="stories" element={adminSection("Stories", <AdminStories />)} />
                 <Route path="ganhadores" element={adminSection("Ganhadores", <AdminWinners />)} />
-                <Route path="cotas" element={adminSection("Cotas Premiadas", <AdminInstantPrizes />)} />
+                <Route path="cotas" element={adminSection("Super Cotas", <AdminInstantPrizes />)} />
                 <Route path="vendas" element={adminSection("Vendas", <AdminSales />)} />
                 <Route path="pagamentos" element={adminSection("Pagamentos", <AdminPaymentGateways />)} />
                 <Route path="fazendinha" element={adminSection("Fazendinha", <AdminFazendinha />)} />

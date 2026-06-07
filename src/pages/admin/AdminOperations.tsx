@@ -288,7 +288,7 @@ export function AdminOperations() {
 
       <section className="admin-card p-5">
         <h2 className="mb-2 flex items-center gap-2 text-xl font-black text-[var(--admin-text)]"><Megaphone className="h-5 w-5 text-[var(--admin-primary)]" /> Transparência pública</h2>
-        <p className="text-sm text-[var(--admin-muted)]">A página pública de transparência mostra sorteios, ganhadores, cotas premiadas e totais de participação.</p>
+        <p className="text-sm text-[var(--admin-muted)]">A página pública de transparência mostra sorteios, ganhadores, Super Cotas e totais de participação.</p>
         <a href="/transparencia" target="_blank" rel="noreferrer" className="admin-button mt-4 inline-flex">Abrir página pública</a>
       </section>
     </div>

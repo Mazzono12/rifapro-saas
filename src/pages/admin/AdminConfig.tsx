@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Settings, Save, Layout, Package, Users, Banknote, BadgeHelp, CheckCircle2, Gift, HandCoins, Link2, Medal, Percent, Plus, ShieldCheck, Trash2, Trophy, Wallet } from "lucide-react";
+import { Settings, Save, Layout, Package, Users, Banknote, BadgeHelp, CheckCircle2, Clock3, Gift, HandCoins, Link2, Medal, Percent, Plus, ShieldCheck, Trash2, Trophy, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import { useTheme } from "../../context/theme/ThemeContext";
@@ -110,6 +110,11 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     },
     storiesPosition: "bottom",
     storiesPlacements: ["home-bottom"],
+    reservationSettings: {
+      raffleMinutes: 15,
+      numberModeMinutes: 5,
+      fazendinhaMinutes: 5
+    },
     lootboxEconomy: {
        ticketsPerBox: 3,
        globalTicketsCounter: 0,
@@ -392,6 +397,19 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     });
   };
 
+  const updateReservationSettings = (patch: Record<string, number>) => {
+    setSettings({
+      ...settings,
+      reservationSettings: {
+        raffleMinutes: 15,
+        numberModeMinutes: 5,
+        fazendinhaMinutes: 5,
+        ...(settings.reservationSettings || {}),
+        ...patch
+      }
+    });
+  };
+
   const updateAffiliatePerformanceRewards = (patch: Record<string, any>) => {
     setSettings({
       ...settings,
@@ -626,6 +644,54 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                      </label>
                    ))}
                  </div>
+               </div>
+            </div>
+
+            <div className="glass-card p-6 border border-white/5 rounded-3xl space-y-6">
+               <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
+                  <Clock3 className="w-5 h-5 text-emerald-300" />
+                  <h2 className="text-xl font-display font-medium text-white">Reservas</h2>
+               </div>
+               <p className="text-sm leading-6 text-slate-400">
+                 Configure por quanto tempo compras pendentes mantem cotas, numeros ou bichos reservados antes de expirarem automaticamente.
+               </p>
+               <div className="grid gap-4 md:grid-cols-3">
+                 <label className="space-y-2">
+                   <span className="block text-xs font-mono text-slate-400 uppercase tracking-widest">Rifa tradicional</span>
+                   <input
+                     type="number"
+                     min="1"
+                     max="1440"
+                     value={settings.reservationSettings?.raffleMinutes ?? 15}
+                     onChange={e => updateReservationSettings({ raffleMinutes: Math.max(1, Number(e.target.value) || 15) })}
+                     className="w-full p-3"
+                   />
+                   <small className="text-[11px] text-slate-500">Padrao: 15 minutos</small>
+                 </label>
+                 <label className="space-y-2">
+                   <span className="block text-xs font-mono text-slate-400 uppercase tracking-widest">Dezena/Centena/Milhar</span>
+                   <input
+                     type="number"
+                     min="1"
+                     max="1440"
+                     value={settings.reservationSettings?.numberModeMinutes ?? 5}
+                     onChange={e => updateReservationSettings({ numberModeMinutes: Math.max(1, Number(e.target.value) || 5) })}
+                     className="w-full p-3"
+                   />
+                   <small className="text-[11px] text-slate-500">Padrao: 5 minutos</small>
+                 </label>
+                 <label className="space-y-2">
+                   <span className="block text-xs font-mono text-slate-400 uppercase tracking-widest">Fazendinha</span>
+                   <input
+                     type="number"
+                     min="1"
+                     max="1440"
+                     value={settings.reservationSettings?.fazendinhaMinutes ?? 5}
+                     onChange={e => updateReservationSettings({ fazendinhaMinutes: Math.max(1, Number(e.target.value) || 5) })}
+                     className="w-full p-3"
+                   />
+                   <small className="text-[11px] text-slate-500">Padrao: 5 minutos</small>
+                 </label>
                </div>
             </div>
 

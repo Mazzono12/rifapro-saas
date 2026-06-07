@@ -213,6 +213,15 @@ async function productionReadiness() {
   await runNodeScript("scripts/test-native-crm.mjs");
   await runNodeScript("scripts/test-tenant-automations.mjs");
   await runNodeScript("scripts/test-public-conversion-widgets.mjs");
+  await runNodeScript("scripts/test-super-cota-hard.mjs");
+  await runNodeScript("scripts/test-roulette-hard.mjs");
+  await runNodeScript("scripts/test-roulette-no-pending-hard.mjs");
+  await runNodeScript("scripts/test-instant-prize-no-public-leak-hard.mjs");
+  await runNodeScript("scripts/test-winning-ticket-super-cota-alias-hard.mjs");
+  await runNodeScript("scripts/test-gamification-no-prepayment-rewards-hard.mjs");
+  await runNodeScript("scripts/test-top-buyers-hard.mjs");
+  await runNodeScript("scripts/test-reservation-expiration-hard.mjs");
+  await runNodeScript("scripts/test-gamification-cross-modes-hard.mjs");
   await runNodeScript("scripts/test-public-checkout-no-close-x.mjs");
   await runNodeScript("scripts/test-countdown-sales-hard.mjs");
   await runNodeScript("scripts/test-pix-recovery-hard.mjs");

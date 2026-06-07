@@ -48,9 +48,9 @@ export function AdminInstantPrizes() {
        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
          <div>
             <h1 className="text-3xl font-display font-bold text-[var(--admin-text)] flex items-center gap-3">
-               <Star className="w-8 h-8" /> Cotas Premiadas
+               <Star className="w-8 h-8" /> Super Cotas
             </h1>
-            <p className="text-[var(--admin-muted)] font-mono text-sm tracking-widest uppercase mt-1">Cada sorteio possui sua própria lista de cotas premiadas.</p>
+            <p className="text-[var(--admin-muted)] font-mono text-sm tracking-widest uppercase mt-1">Cada sorteio possui sua propria lista de Super Cotas.</p>
          </div>
          <div className="flex flex-wrap gap-2">
            <select value={selectedRaffleId} onChange={e => setSelectedRaffleId(e.target.value)} className="admin-input px-3 py-2">
@@ -61,7 +61,7 @@ export function AdminInstantPrizes() {
              onClick={() => { setCurrentPrize({ raffleId: selectedRaffleId === "all" ? raffles[0]?.id : selectedRaffleId }); setIsEditing(true); }}
              className="admin-button"
            >
-             <Plus className="w-4 h-4" /> Nova cota premiada
+             <Plus className="w-4 h-4" /> Nova Super Cota
            </button>
          </div>
        </div>

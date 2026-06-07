@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, CheckCircle2, X, Star } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useEffect, useState } from 'react';
+import confetti from 'canvas-confetti';
 import type { InstantPrize } from '../types';
 
 interface Props {
@@ -26,6 +27,16 @@ export function NumberRevealModal({ isOpen, onClose, numeros, premiosInstantaneo
       });
     }
   }, [isOpen, numeros]);
+
+  useEffect(() => {
+    if (!isOpen || !hasPremios) return;
+    confetti({
+      particleCount: 120,
+      spread: 72,
+      origin: { y: 0.62 },
+      colors: ['#22C55E', '#FACC15', '#FFFFFF']
+    });
+  }, [isOpen, hasPremios]);
 
   return (
     <AnimatePresence>
@@ -79,11 +90,11 @@ export function NumberRevealModal({ isOpen, onClose, numeros, premiosInstantaneo
                 )}
               </motion.div>
               <h2 className={cn("text-3xl font-display font-bold mb-2", hasPremios ? "text-amber-400" : "text-white")}>
-                {hasPremios ? "COTA PREMIADA ENCONTRADA!" : "Transação Aprovada!"}
+                {hasPremios ? "SUPER COTA ENCONTRADA!" : "Transação Aprovada!"}
               </h2>
               <p className="text-slate-400 font-mono text-sm max-w-md mx-auto">
                 {hasPremios 
-                  ? `Você acabou de encontrar ${premiosInstantaneos.length} cota(s) premiada(s)!` 
+                  ? `Você acabou de encontrar ${premiosInstantaneos.length} Super Cota(s)!` 
                   : "Seus hashes foram gerados e garantidos pelo nosso protocolo."}
               </p>
             </div>
@@ -125,6 +136,13 @@ export function NumberRevealModal({ isOpen, onClose, numeros, premiosInstantaneo
             {hasPremios && (
                <div className="mt-8 text-center bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl">
                  <p className="text-amber-400 font-bold mb-2">Total Ganho: {premiosInstantaneos.reduce((acc, p) => acc + p.valorPremio, 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                 <div className="mb-2 flex flex-wrap justify-center gap-2 text-xs text-amber-100">
+                   {premiosInstantaneos.map(prize => (
+                     <span key={prize.id} className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1">
+                       Super Cota {String(prize.numeroPremiado).padStart(6, '0')} · {prize.valorPremio.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                     </span>
+                   ))}
+                 </div>
                  <p className="text-slate-300 text-sm">Nossa equipe entrará em contato para realizar o pagamento.</p>
                </div>
             )}

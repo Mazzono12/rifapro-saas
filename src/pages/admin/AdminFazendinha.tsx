@@ -177,6 +177,7 @@ export function AdminFazendinha() {
             <Field label="Preço por bichinho" type="number" value={String(state.config.pricePerGroup)} onChange={value => setState({ ...state, config: { ...state.config, pricePerGroup: Number(value) } })} />
             <Field label="Prêmio principal" value={state.config.mainPrize} onChange={value => setState({ ...state, config: { ...state.config, mainPrize: value } })} />
             <Field label="Data/hora do sorteio" value={state.config.drawDate} onChange={value => setState({ ...state, config: { ...state.config, drawDate: value } })} />
+            <Field label="Reserva pendente (min)" type="number" value={String(state.config.reservationMinutes || "")} onChange={value => setState({ ...state, config: { ...state.config, reservationMinutes: value ? Math.max(1, Number(value)) : undefined } })} />
             <div className="md:col-span-2">
               <MediaPicker
                 label="Imagem ou vídeo de apresentação"

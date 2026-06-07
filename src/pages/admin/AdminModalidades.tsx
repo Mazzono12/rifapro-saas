@@ -140,6 +140,7 @@ export function AdminModalidades() {
                     <Field label="Preço por cota" type="number" value={String(config.price)} onChange={value => updateConfig(config.id, { price: Number(value) })} placeholder="0,00" />
                     <Field label="Prêmio" value={config.prize} onChange={value => updateConfig(config.id, { prize: value })} placeholder="Prêmio principal" />
                     <Field label="Data do sorteio" value={config.drawDate} onChange={value => updateConfig(config.id, { drawDate: value })} placeholder="Data ou descricao" />
+                    <Field label="Reserva pendente (min)" type="number" value={String(config.reservationMinutes || "")} onChange={value => updateConfig(config.id, { reservationMinutes: value ? Math.max(1, Number(value)) : undefined })} placeholder="Padrao global: 5" />
                     <label className="block space-y-2">
                       <span className="text-xs font-semibold text-[var(--admin-muted)]">Status do modelo</span>
                       <select value={config.status} onChange={e => updateConfig(config.id, { status: e.target.value as any })} className="admin-input min-h-12 w-full">

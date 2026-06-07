@@ -113,7 +113,7 @@ try {
   await configure(headersA, raffleA.id, {
     modules: { scratchcard: true, winningTicket: true, luckyHour: true, mysteryBox: true, doubleChance: true, extremeTickets: true, buyerRanking: true, orderBump: true },
     scratchcard: { winProbability: 100, prizes: [{ id: "scr-win", name: "PIX 10", type: "pix", value: 10, stock: 1, probability: 100 }] },
-    winningTicket: { prizes: Array.from({ length: 20 }, (_, index) => ({ id: `bil-${index + 1}`, number: index + 1, prize: "Bilhete premiado", value: 5, status: "available" })) },
+    winningTicket: { prizes: Array.from({ length: 20 }, (_, index) => ({ id: `bil-${index + 1}`, number: index + 1, prize: "Super Cota", value: 5, status: "available" })) },
     luckyHour: { windows: [{ id: "inside", startsAt: new Date(now - 60000).toISOString(), endsAt: new Date(now + 3600000).toISOString(), type: "bonus", value: 1, active: true }] },
     mysteryBox: { boxes: [{ id: "box-a", label: "A", prize: "Bônus 5", type: "bonus", value: 5, status: "available" }] },
     doubleChance: { startsAt: new Date(now - 60000).toISOString(), endsAt: new Date(now + 3600000).toISOString(), minTickets: 1, weight: 2 },
@@ -132,19 +132,24 @@ try {
   assert.equal(purchaseWin.gamification.luckyHour.applied, true, "Hora premiada deve aplicar bonus dentro do horario.");
   assert.equal(purchaseWin.gamification.orderBump.accepted, true, "Upsell aceito deve ser registrado.");
 
-  const scratchWin = await json(`/api/gamification/scratchcards/${purchaseWin.gamification.scratchcardEventId}/reveal`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" } });
-  assert.equal(scratchWin.body.event.status, "won", "Comprador deve ganhar raspadinha com probabilidade 100.");
-
-  const boxOpen = await json(`/api/gamification/mystery-boxes/${purchaseWin.gamification.mysteryBoxEventId}/open`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" }, body: JSON.stringify({ boxId: "box-a" }) });
-  assert.equal(boxOpen.response.status, 200, "Caixinha deve abrir uma vez.");
-  const boxAgain = await json(`/api/gamification/mystery-boxes/${purchaseWin.gamification.mysteryBoxEventId}/open`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" }, body: JSON.stringify({ boxId: "box-a" }) });
-  assert.equal(boxAgain.response.status, 409, "Caixinha nao pode abrir duas vezes.");
+  const pendingScratchWin = await json(`/api/gamification/scratchcards/${purchaseWin.gamification.scratchcardEventId}/reveal`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" } });
+  assert.equal(pendingScratchWin.response.status, 403, "Raspadinha pendente nao pode liberar premio.");
+  const pendingBoxOpen = await json(`/api/gamification/mystery-boxes/${purchaseWin.gamification.mysteryBoxEventId}/open`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" }, body: JSON.stringify({ boxId: "box-a" }) });
+  assert.equal(pendingBoxOpen.response.status, 403, "Caixinha pendente nao pode abrir antes do pagamento.");
 
   const confirmWin = await json(`/api/admin/orders/${purchaseWin.purchaseId}/manual-confirm-payment`, { method: "POST", headers: headersA, body: JSON.stringify({ reason: "Teste hard de gamificacao" }) });
   assert.equal(confirmWin.response.status, 200);
   const confirmedWinPurchase = confirmWin.body.purchase || confirmWin.body;
   assert.equal(confirmedWinPurchase.ticketWeights.every(item => item.weight === 2), true, "Chance em dobro deve alterar peso.");
-  assert.ok(confirmedWinPurchase.gamification.autoPrizes?.length > 0, "Bilhete premiado deve registrar premio automatico.");
+  assert.ok(confirmedWinPurchase.gamification.autoPrizes?.length > 0, "Super Cota deve registrar premio automatico.");
+
+  const scratchWin = await json(`/api/gamification/scratchcards/${purchaseWin.gamification.scratchcardEventId}/reveal`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" } });
+  assert.equal(scratchWin.body.event.status, "won", "Comprador deve ganhar raspadinha com probabilidade 100 apos pagamento.");
+
+  const boxOpen = await json(`/api/gamification/mystery-boxes/${purchaseWin.gamification.mysteryBoxEventId}/open`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" }, body: JSON.stringify({ boxId: "box-a" }) });
+  assert.equal(boxOpen.response.status, 200, "Caixinha deve abrir uma vez.");
+  const boxAgain = await json(`/api/gamification/mystery-boxes/${purchaseWin.gamification.mysteryBoxEventId}/open`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" }, body: JSON.stringify({ boxId: "box-a" }) });
+  assert.equal(boxAgain.response.status, 409, "Caixinha nao pode abrir duas vezes.");
 
   await configure(headersA, raffleA.id, {
     scratchcard: { winProbability: 0, prizes: [{ id: "scr-lose", name: "PIX 99", type: "pix", value: 99, stock: 1, probability: 100 }] },
@@ -153,9 +158,11 @@ try {
   const purchaseLose = await buy("cliente-a.meudominio.com", raffleA.id, "11966666666", "66666666666", { orderBumpAccepted: false });
   assert.equal(purchaseLose.gamification.luckyHour.applied, false, "Hora premiada fora do horario nao aplica.");
   assert.equal(purchaseLose.gamification.orderBump.accepted, false, "Upsell recusado deve ser registrado.");
-  const scratchLose = await json(`/api/gamification/scratchcards/${purchaseLose.gamification.scratchcardEventId}/reveal`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" } });
-  assert.equal(scratchLose.body.event.status, "lost", "Comprador nao deve ganhar raspadinha com probabilidade 0.");
+  const pendingScratchLose = await json(`/api/gamification/scratchcards/${purchaseLose.gamification.scratchcardEventId}/reveal`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" } });
+  assert.equal(pendingScratchLose.response.status, 403, "Raspadinha pendente perdedora tambem nao abre antes do pagamento.");
   await json(`/api/admin/orders/${purchaseLose.purchaseId}/manual-confirm-payment`, { method: "POST", headers: headersA, body: JSON.stringify({ reason: "Teste hard de gamificacao" }) });
+  const scratchLose = await json(`/api/gamification/scratchcards/${purchaseLose.gamification.scratchcardEventId}/reveal`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" } });
+  assert.equal(scratchLose.body.event.status, "lost", "Comprador nao deve ganhar raspadinha com probabilidade 0 apos pagamento.");
 
   const ranking = await json(`/api/raffles/${raffleA.id}/ranking`, { headers: { "x-forwarded-host": "cliente-a.meudominio.com" } });
   assert.equal(ranking.response.status, 200);

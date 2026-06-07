@@ -93,7 +93,7 @@ export function GamificationPanel({ data, purchase, onOrderBumpChange, orderBump
 
       {purchase?.gamification?.autoPrizes?.length > 0 && (
         <div className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 p-4 text-emerald-50">
-          <div className="flex items-center gap-2 font-bold"><Trophy className="h-4 w-4" /> Bilhete premiado</div>
+          <div className="flex items-center gap-2 font-bold"><Trophy className="h-4 w-4" /> Super Cota</div>
           <p className="mt-1 text-xs">{purchase.gamification.autoPrizes.join(", ")}</p>
         </div>
       )}

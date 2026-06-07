@@ -719,6 +719,11 @@ async function startServer() {
       enabled: false,
       rules: [] as AffiliatePerformanceRewardRule[]
     },
+    reservationSettings: {
+      raffleMinutes: 15,
+      numberModeMinutes: 5,
+      fazendinhaMinutes: 5
+    },
     smsProvider: {
       enabled: false,
       provider: "local",
@@ -840,6 +845,13 @@ async function startServer() {
       ...settings.affiliateProgram,
       ...(sourceSettings.affiliateProgram || {}),
       monthlyActivationAmount: Math.max(0, Number(sourceSettings.affiliateProgram?.monthlyActivationAmount || 0))
+    };
+    sourceSettings.reservationSettings = {
+      ...settings.reservationSettings,
+      ...(sourceSettings.reservationSettings || {}),
+      raffleMinutes: Math.max(1, Math.min(1440, Math.floor(Number(sourceSettings.reservationSettings?.raffleMinutes || settings.reservationSettings.raffleMinutes)))),
+      numberModeMinutes: Math.max(1, Math.min(1440, Math.floor(Number(sourceSettings.reservationSettings?.numberModeMinutes || settings.reservationSettings.numberModeMinutes)))),
+      fazendinhaMinutes: Math.max(1, Math.min(1440, Math.floor(Number(sourceSettings.reservationSettings?.fazendinhaMinutes || settings.reservationSettings.fazendinhaMinutes))))
     };
     sourceSettings.affiliatePerformanceRewards = normalizeAffiliatePerformanceRewardsSettings(sourceSettings.affiliatePerformanceRewards);
     sourceSettings.socialLinks = {
@@ -2493,6 +2505,7 @@ async function startServer() {
     drawDate: string;
     resultNumber: string;
     status: GameRoundStatus;
+    reservationMinutes?: number;
     lootboxEnabled: boolean;
     lootboxConfig?: LootboxEconomy;
   };
@@ -2761,7 +2774,7 @@ async function startServer() {
       heroContentPlacement: "below",
       heroEyebrow: "Plataforma de rifas premium",
       heroTitle: "Sorteios com experiência cinematográfica.",
-      heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.",
+      heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.",
       heroPrimaryButton: "Participar agora",
       heroSecondaryText: "",
       heroShowStats: true,
@@ -2808,7 +2821,7 @@ async function startServer() {
       heroContentPlacement: "below",
       heroEyebrow: "Plataforma de rifas premium",
       heroTitle: "Sorteios com experiência cinematográfica.",
-      heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.",
+      heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.",
       heroPrimaryButton: "Participar agora",
       heroSecondaryText: "",
       heroShowStats: true,
@@ -2928,6 +2941,7 @@ async function startServer() {
     resultNumber: "",
     resultSource: "",
     status: "active" as FazendinhaRoundStatus,
+    reservationMinutes: 5,
     lootboxEnabled: true,
     lootboxConfig: createFazendinhaLootboxConfig(),
     mediaUrl: TEST_VIDEO_URL,
@@ -3156,6 +3170,7 @@ async function startServer() {
       drawDate: "2026-12-31T20:00:00Z",
       resultNumber: "",
       status: "active",
+      reservationMinutes: 5,
       lootboxEnabled: true,
       lootboxConfig: createScopedLootboxConfig()
     },
@@ -3173,6 +3188,7 @@ async function startServer() {
       drawDate: "2026-12-31T20:00:00Z",
       resultNumber: "",
       status: "active",
+      reservationMinutes: 5,
       lootboxEnabled: true,
       lootboxConfig: createScopedLootboxConfig()
     },
@@ -3190,6 +3206,7 @@ async function startServer() {
       drawDate: "2026-12-31T20:00:00Z",
       resultNumber: "",
       status: "active",
+      reservationMinutes: 5,
       lootboxEnabled: true,
       lootboxConfig: createScopedLootboxConfig()
     }
@@ -10385,7 +10402,7 @@ async function startServer() {
         prizes: Array.isArray(incoming.winningTicket?.prizes) ? incoming.winningTicket!.prizes.map(prize => ({
           id: String(prize.id || createPublicId("BIL_")),
           number: Math.max(1, Math.floor(Number(prize.number || 0))),
-          prize: String(prize.prize || "Bilhete premiado"),
+          prize: String(prize.prize || "Super Cota"),
           value: Math.max(0, Number(prize.value || 0)),
           status: prize.status === "claimed" ? "claimed" : "available"
         })) : current.winningTicket.prizes
@@ -10679,6 +10696,22 @@ async function startServer() {
   const TRADITIONAL_RAFFLE_RESERVATION_TTL_MS = Number(process.env.PURCHASE_RESERVATION_TTL_MS || 15 * 60 * 1000);
   const FAST_MODALITY_RESERVATION_TTL_MS = Number(process.env.FAST_MODALITY_RESERVATION_TTL_MS || 5 * 60 * 1000);
   const RESERVATION_TTL_MS = TRADITIONAL_RAFFLE_RESERVATION_TTL_MS;
+  const minutesToReservationTtl = (minutes: unknown, fallbackMinutes: number) =>
+    Math.max(1, Math.min(1440, Math.floor(Number(minutes || fallbackMinutes)))) * 60 * 1000;
+  function getRaffleReservationTtlMs(raffle: typeof raffles[number]) {
+    const tenantSettingsRecord = getTenantSettings(raffle.tenant_id);
+    return minutesToReservationTtl((raffle as any).reservationMinutes, tenantSettingsRecord.reservationSettings?.raffleMinutes || 15);
+  }
+  function getNumberModeReservationTtlMs(tenantId: string, mode: NumberModeId) {
+    const config = getNumberModeConfig(tenantId, mode);
+    const tenantSettingsRecord = getTenantSettings(tenantId);
+    return minutesToReservationTtl((config as any)?.reservationMinutes, tenantSettingsRecord.reservationSettings?.numberModeMinutes || 5);
+  }
+  function getFazendinhaReservationTtlMs(tenantId: string) {
+    const config = getFazendinhaConfig(tenantId);
+    const tenantSettingsRecord = getTenantSettings(tenantId);
+    return minutesToReservationTtl((config as any)?.reservationMinutes, tenantSettingsRecord.reservationSettings?.fazendinhaMinutes || 5);
+  }
 
   function reservationExpiresAt(ttlMs: number) {
     return new Date(Date.now() + ttlMs).toISOString();
@@ -11223,6 +11256,14 @@ async function startServer() {
     });
   });
 
+  function assertGamificationEventReleased(event: GamificationEvent) {
+    if ((event.result as any)?.source === "affiliate_reward") return;
+    const purchase = purchases.find(item => item.tenant_id === event.tenant_id && item.purchaseId === event.purchaseId);
+    if (!purchase) throw new Error("Compra vinculada nao encontrada");
+    expirePendingReservations(event.tenant_id, event.raffleId);
+    if (purchase.status !== "paid") throw new Error("Recompensa disponivel somente apos pagamento confirmado");
+  }
+
   app.post("/api/gamification/scratchcards/:eventId/reveal", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const event = gamificationEvents.find(item => item.tenant_id === tenantId && item.id === req.params.eventId && item.module === "scratchcard");
@@ -11232,6 +11273,12 @@ async function startServer() {
     }
     if (event.status !== "available") {
       res.status(409).json({ error: "Raspadinha ja utilizada", event });
+      return;
+    }
+    try {
+      assertGamificationEventReleased(event);
+    } catch (error) {
+      res.status(403).json({ error: error instanceof Error ? error.message : "Raspadinha bloqueada ate pagamento confirmado" });
       return;
     }
     const config = getGamificationConfig(tenantId, event.raffleId);
@@ -11270,6 +11317,12 @@ async function startServer() {
       res.status(409).json({ error: "Caixinha ja aberta", event });
       return;
     }
+    try {
+      assertGamificationEventReleased(event);
+    } catch (error) {
+      res.status(403).json({ error: error instanceof Error ? error.message : "Caixinha bloqueada ate pagamento confirmado" });
+      return;
+    }
     const config = getGamificationConfig(tenantId, event.raffleId);
     if (!config.modules.mysteryBox) {
       res.status(403).json({ error: "Caixinha desativada" });
@@ -11304,6 +11357,33 @@ async function startServer() {
           status: p.status
         }))
     );
+  });
+
+  app.get("/api/public/raffles/:raffleId/super-cotas", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const raffleId = req.params.raffleId;
+    const prizes = instantPrizes.filter(prize => prize.tenant_id === tenantId && prize.raffleId === raffleId);
+    const winners = prizes
+      .filter(prize => prize.status === "claimed" && (prize as any).claimedPurchaseId)
+      .map(prize => {
+        const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === (prize as any).claimedPurchaseId && item.status === "paid");
+        return purchase ? {
+          name: maskDisplayName(purchase.customer?.name),
+          numeroPremiado: prize.numeroPremiado,
+          valorPremio: prize.valorPremio,
+          claimedAt: (prize as any).claimedAt || purchase.paymentHistory?.find(item => item.status === "paid")?.date || purchase.createdAt
+        } : null;
+      })
+      .filter((item): item is { name: string; numeroPremiado: number; valorPremio: number; claimedAt: string } => Boolean(item))
+      .sort((a, b) => String(b.claimedAt || "").localeCompare(String(a.claimedAt || "")))
+      .slice(0, 20);
+    res.json({
+      label: "SUPER COTAS",
+      available: prizes
+        .filter(prize => prize.status === "available")
+        .map(prize => ({ id: prize.id, numeroPremiado: prize.numeroPremiado, valorPremio: prize.valorPremio, status: prize.status })),
+      winners
+    });
   });
 
   app.get("/api/customers/by-phone/:phone", (req, res) => {
@@ -13179,7 +13259,7 @@ async function startServer() {
       res.status(409).json({ error: error instanceof Error ? error.message : "Nao foi possivel reservar cotas disponiveis" });
       return;
     }
-    const reservedUntil = reservationExpiresAt(TRADITIONAL_RAFFLE_RESERVATION_TTL_MS);
+    const reservedUntil = reservationExpiresAt(getRaffleReservationTtlMs(raffle));
     
     const ownAffiliate = getAffiliateForCustomer(customer);
     const walletBalance = ownAffiliate ? (ownAffiliate.commissionBalance || 0) + (ownAffiliate.prizeBalance || 0) : 0;
@@ -13478,7 +13558,7 @@ async function startServer() {
         id: "fazendinha",
         mediaUrl: fazConfig.mediaUrl,
         mediaType: fazConfig.mediaType,
-        ranking: fazendinhaCompras.filter(item => item.tenant_id === tenantId).slice(0, 5)
+        ranking: fazendinhaCompras.filter(item => item.tenant_id === tenantId && item.statusPagamento === "paid").slice(0, 5)
       },
       numberModes: getNumberModeConfigsForTenant(tenantId)
         .filter(config => config.enabled && config.status === "active")
@@ -13559,7 +13639,7 @@ async function startServer() {
     // Payload publico nunca liquida pagamento. Campos como statusPagamento,
     // paymentStatus, status, paid e confirmed sao ignorados aqui.
     const paid = false;
-    const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
+    const fastExpiresAt = reservationExpiresAt(getNumberModeReservationTtlMs(tenantId, mode));
     const purchase: NumberModePurchase = {
       id: createPublicId("MO_"),
       tenant_id: tenantId,
@@ -13678,7 +13758,7 @@ async function startServer() {
     const paid = false;
     const numeros = selectedGroups.flatMap(group => group.numeros);
     const amount = selectedGroups.reduce((sum, group) => sum + group.preco, 0);
-    const fastExpiresAt = reservationExpiresAt(FAST_MODALITY_RESERVATION_TTL_MS);
+    const fastExpiresAt = reservationExpiresAt(getFazendinhaReservationTtlMs(tenantId));
     const purchase: FazendinhaPurchase = {
       id: createPublicId("FZ_"),
       tenant_id: tenantId,
@@ -17285,7 +17365,13 @@ async function startServer() {
     const premiosWon = instantPrizes.filter(
       p => p.tenant_id === purchase.tenant_id && p.raffleId === raffle.id && p.status === "available" && assignedNumbers.includes(p.numeroPremiado)
     );
-    premiosWon.forEach(p => p.status = "claimed");
+    const claimedAt = new Date().toISOString();
+    premiosWon.forEach(p => {
+      p.status = "claimed";
+      (p as any).claimedPurchaseId = purchase.purchaseId;
+      (p as any).claimedCustomerId = purchase.customer?.id || "";
+      (p as any).claimedAt = claimedAt;
+    });
 
     purchase.status = "paid";
     purchase.numeros = assignedNumbers;
@@ -17323,7 +17409,7 @@ async function startServer() {
       customer: purchase.customer,
       amount: prize.valorPremio,
       quantity: 1,
-      metadata: { label: "premio instantaneo", prize: `R$ ${Number(prize.valorPremio || 0).toFixed(2)}`, orderId: `${purchase.purchaseId}:${prize.id}` }
+      metadata: { label: "super cota", prize: `R$ ${Number(prize.valorPremio || 0).toFixed(2)}`, orderId: `${purchase.purchaseId}:${prize.id}` }
     }));
     void queueConversionEvent(purchase.tenant_id, "Purchase", {
       purchaseId: purchase.purchaseId,
@@ -17409,11 +17495,11 @@ async function startServer() {
       if (prizeBalance > 0) {
         ownAffiliate.prizeBalance += prizeBalance;
         ownAffiliate.commission = ownAffiliate.commissionBalance + ownAffiliate.prizeBalance;
-        ownAffiliate.history.push({
-          amount: prizeBalance,
-          type: "instant_prize",
-          date: new Date().toISOString()
-        });
+        premiosWon.forEach(prize => ownAffiliate.history.push({
+          amount: prize.valorPremio,
+          type: `super_quota:${purchase.purchaseId}:${prize.numeroPremiado}`,
+          date: claimedAt
+        }));
       }
     }
 
@@ -21938,7 +22024,18 @@ async function startServer() {
      res.json(scoped(instantPrizes, req));
   });
   app.post("/api/admin/instant-prizes", (req, res) => {
-    const prize = { id: createPublicId("P_"), status: "available", ...req.body, tenant_id: resolveRequestTenantId(req) };
+    const tenantId = resolveRequestTenantId(req);
+    const numeroPremiado = Math.max(0, Math.floor(Number(req.body.numeroPremiado)));
+    const raffleId = String(req.body.raffleId || "");
+    if (!raffleId || !Number.isFinite(numeroPremiado)) {
+      res.status(400).json({ error: "Campanha e numero da Super Cota sao obrigatorios" });
+      return;
+    }
+    if (instantPrizes.some(prize => prize.tenant_id === tenantId && prize.raffleId === raffleId && prize.numeroPremiado === numeroPremiado)) {
+      res.status(409).json({ error: "Ja existe uma Super Cota com este numero nesta campanha" });
+      return;
+    }
+    const prize = { id: createPublicId("P_"), status: "available", ...req.body, raffleId, numeroPremiado, tenant_id: tenantId };
     instantPrizes.push(prize);
     recordSecurityEvent({ tenant_id: prize.tenant_id, action: "PRIZE_CREATED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "medium", actor: getAuthSession(req)?.email, detail: prize.id });
     res.json(prize);
@@ -21946,7 +22043,13 @@ async function startServer() {
   app.put("/api/admin/instant-prizes/:id", (req, res) => {
     const index = instantPrizes.findIndex(p => p.id === req.params.id && adminCanAccessTenant(req, p.tenant_id));
     if (index !== -1) {
-      instantPrizes[index] = { ...instantPrizes[index], ...req.body, tenant_id: instantPrizes[index].tenant_id };
+      const nextRaffleId = String(req.body.raffleId || instantPrizes[index].raffleId);
+      const nextNumber = req.body.numeroPremiado !== undefined ? Math.max(0, Math.floor(Number(req.body.numeroPremiado))) : instantPrizes[index].numeroPremiado;
+      if (instantPrizes.some((prize, prizeIndex) => prizeIndex !== index && prize.tenant_id === instantPrizes[index].tenant_id && prize.raffleId === nextRaffleId && prize.numeroPremiado === nextNumber)) {
+        res.status(409).json({ error: "Ja existe uma Super Cota com este numero nesta campanha" });
+        return;
+      }
+      instantPrizes[index] = { ...instantPrizes[index], ...req.body, raffleId: nextRaffleId, numeroPremiado: nextNumber, tenant_id: instantPrizes[index].tenant_id };
       recordSecurityEvent({ tenant_id: instantPrizes[index].tenant_id, action: "PRIZE_UPDATED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "medium", actor: getAuthSession(req)?.email, detail: instantPrizes[index].id });
       res.json(instantPrizes[index]);
     } else {
@@ -22784,6 +22887,7 @@ async function startServer() {
       smsProvider: { ...currentSettings.smsProvider, ...(req.body.smsProvider || {}) },
       n8nIntegration: { ...currentSettings.n8nIntegration, ...incomingN8n },
       affiliateProgram: { ...currentSettings.affiliateProgram, ...(req.body.affiliateProgram || {}) },
+      reservationSettings: { ...currentSettings.reservationSettings, ...(req.body.reservationSettings || {}) },
       affiliatePerformanceRewards: {
         ...currentSettings.affiliatePerformanceRewards,
         ...(req.body.affiliatePerformanceRewards || {})
@@ -23586,7 +23690,10 @@ async function startServer() {
        return;
     }
 
-    const box = lootboxes[userId].boxes.find(b => b.status === "closed");
+    const requestedSpinId = String(req.body?.spinId || req.body?.boxId || "");
+    const box = requestedSpinId
+      ? lootboxes[userId].boxes.find(b => b.id === requestedSpinId && b.status === "closed")
+      : lootboxes[userId].boxes.find(b => b.status === "closed");
     if (!box) {
        res.status(400).json({ error: "Nenhuma caixinha disponível" });
        return;
@@ -23618,11 +23725,26 @@ async function startServer() {
           const ownAffiliate = ensureAffiliateForCustomer(customer);
           ownAffiliate.prizeBalance += wonPrize.value;
           ownAffiliate.commission = ownAffiliate.commissionBalance + ownAffiliate.prizeBalance;
-          ownAffiliate.history.push({ amount: wonPrize.value, type: "lootbox_prize", date: box.openedAt });
+          ownAffiliate.history.push({ amount: wonPrize.value, type: `lootbox_prize:${box.purchaseId || "manual"}:${box.id}`, date: box.openedAt });
         }
-        lootboxes[userId].history.push({ prize: wonPrize.name, date: box.openedAt, won: true });
+        (lootboxes[userId].history as any).push({
+          spinId: box.id,
+          purchaseId: box.purchaseId || "",
+          campaignId: box.scopeId || "",
+          customerId: customer?.id || "",
+          status: "opened",
+          result: wonPrize.name,
+          prize: wonPrize.name,
+          date: box.openedAt,
+          won: true
+        });
         res.json({
           boxId: box.id,
+          spinId: box.id,
+          purchaseId: box.purchaseId || "",
+          campaignId: box.scopeId || "",
+          customerId: customer?.id || "",
+          status: "opened",
           won: true,
           prize: wonPrize,
           remaining: lootboxes[userId].boxes.filter(b => b.status === "closed").length,
@@ -23636,9 +23758,24 @@ async function startServer() {
           : boxEconomy.milestones)
           .slice()
           .sort((a, b) => a.everyXTickets - b.everyXTickets)[0];
-         lootboxes[userId].history.push({ prize: "Nao foi dessa vez, tente de novo.", date: box.openedAt, won: false });
+         (lootboxes[userId].history as any).push({
+           spinId: box.id,
+           purchaseId: box.purchaseId || "",
+           campaignId: box.scopeId || "",
+           customerId: customer?.id || "",
+           status: "opened",
+           result: "no_prize",
+           prize: "Nao foi dessa vez, tente de novo.",
+           date: box.openedAt,
+           won: false
+         });
         res.json({
           boxId: box.id,
+          spinId: box.id,
+          purchaseId: box.purchaseId || "",
+          campaignId: box.scopeId || "",
+          customerId: customer?.id || "",
+          status: "opened",
           won: false,
           nearMiss: nearMissPrize ? {
             name: nearMissPrize.name,

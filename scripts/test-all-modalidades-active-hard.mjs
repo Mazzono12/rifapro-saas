@@ -131,6 +131,7 @@ async function setupScenario(headers) {
       description: "Rifa tradicional controlada para bateria hard",
       price: 1,
       totalTickets: 4,
+      reservationMinutes: 1,
       drawDate: "2026-12-31T20:00:00Z",
       image: "",
       status: "active"
@@ -140,6 +141,12 @@ async function setupScenario(headers) {
 
   const farmReset = await json("/api/admin/fazendinha/reset", { method: "POST", headers });
   assert.equal(farmReset.response.status, 200, "Fazendinha deve resetar ativa para o tenant.");
+  const farmConfig = await json("/api/admin/fazendinha/config", {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ ...farmReset.body.config, reservationMinutes: 1 })
+  });
+  assert.equal(farmConfig.response.status, 200, `Fazendinha deve aceitar reserva minima de teste: ${JSON.stringify(farmConfig.body)}`);
 
   for (const mode of ["dezena", "centena", "milhar"]) {
     const configured = await json(`/api/admin/modalidades/${mode}/config`, {
@@ -151,6 +158,7 @@ async function setupScenario(headers) {
         price: mode === "dezena" ? 1 : mode === "centena" ? 2 : 3,
         prize: `Premio ${mode}`,
         drawDate: "2026-12-31T20:00:00Z",
+        reservationMinutes: 1,
         lootboxEnabled: false
       })
     });
@@ -235,7 +243,7 @@ async function assertWebhookConfirms(orderId, expectedType) {
 }
 
 async function assertLatePaymentBlocked(orderId, expectedType) {
-  await wait(1300);
+  await wait(62_000);
   const expired = await status(orderId);
   assert.equal(expired.response.status, 200, `${expectedType}: status de expiracao deve responder.`);
   assert.equal(expired.body.expired, true, `${expectedType}: reserva deve expirar.`);

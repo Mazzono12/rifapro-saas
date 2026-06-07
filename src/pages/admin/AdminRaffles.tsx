@@ -166,7 +166,7 @@ export function AdminRaffles() {
             <p className="mt-2 text-sm text-slate-400">Crie, publique e acompanhe suas campanhas comerciais.</p>
          </div>
          <button 
-           onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
+           onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
            className="bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/50 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
          >
            <Plus className="w-4 h-4" /> Nova campanha
@@ -238,11 +238,11 @@ export function AdminRaffles() {
 
                  <div className="glass-card p-6">
                    <h3 className="text-xl font-display font-bold text-white mb-4 flex items-center gap-2">
-                     <Star className="w-5 h-5 text-amber-300" /> Cotas premiadas
+                     <Star className="w-5 h-5 text-amber-300" /> Super Cotas
                    </h3>
                    <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
                      {raffleAdmin.instantPrizes.length === 0 ? (
-                       <p className="text-sm text-slate-500">Nenhuma cota premiada nesta rifa.</p>
+                       <p className="text-sm text-slate-500">Nenhuma Super Cota nesta rifa.</p>
                      ) : raffleAdmin.instantPrizes.map((prize: any) => (
                        <div key={prize.id} className={cn("rounded-xl border px-3 py-2 text-sm", prize.status === "claimed" ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200")}>
                          #{String(prize.numeroPremiado).padStart(6, "0")} • R$ {prize.valorPremio.toFixed(2)} • {prize.status}
@@ -443,7 +443,7 @@ export function AdminRaffles() {
                           className="min-h-24 w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
                           value={currentRaffle.heroSubtitle || ""}
                           onChange={e => setCurrentRaffle({ ...currentRaffle, heroSubtitle: e.target.value })}
-                          placeholder="Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa."
+                          placeholder="Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa."
                         />
                       </label>
                       <label className="md:col-span-2">
@@ -470,6 +470,19 @@ export function AdminRaffles() {
                      <input type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
                             value={currentRaffle.drawDate || ''} onChange={e => setCurrentRaffle({...currentRaffle, drawDate: e.target.value})} />
                    </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Reserva da campanha (min)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="1440"
+                      className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                      value={currentRaffle.reservationMinutes || ""}
+                      onChange={e => setCurrentRaffle({ ...currentRaffle, reservationMinutes: e.target.value ? Math.max(1, Number(e.target.value)) : undefined })}
+                      placeholder="Usar padrao global"
+                    />
+                    <p className="mt-1 text-[11px] text-slate-500">Opcional. Se vazio, usa o prazo global de rifa tradicional.</p>
+                  </div>
                   <label className="flex items-center gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.05] p-4">
                     <input
                       type="checkbox"
@@ -581,7 +594,7 @@ export function AdminRaffles() {
                   Nenhum registro encontrado.
                 </p>
                 <button
-                  onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, cotas premiadas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
+                  onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
                   className="neon-button mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3"
                 >
                   <Plus className="h-4 w-4" /> Nova campanha
