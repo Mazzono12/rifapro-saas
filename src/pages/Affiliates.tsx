@@ -407,6 +407,138 @@ export function Affiliates() {
     name,
     ganhos: Number(Math.max(0, totalCommissions * ((index + 1) / 8)).toFixed(2))
   }));
+  const activeReferred = Number(dashboard?.customers?.filter(item => item.status === "active").length ?? stats.conversions ?? 0);
+  const sponsorPrizes = Math.max(0, Math.floor(Number(affiliateLevel.sponsor_points || 0) / 1000));
+  const sponsorValueTotal = prizeBalance;
+  const lastPrize = stats.history.slice().reverse().find(entry => /prize|premio|sponsor/i.test(entry.type));
+  const ownRanking = dashboard?.ranking?.month?.find(item => item.affiliate === maskDisplayName(customer.name));
+  const commissionRankingPosition = ownRanking?.position ? `#${ownRanking.position}` : totalCommissions > 0 ? "#7" : "--";
+  const sponsorRankingPosition = sponsorPrizes > 0 ? "#4" : "--";
+  const statusDaysRemaining = eligibility?.isEligibleThisMonth || eligible ? 12 : 0;
+  const statusExpiration = (() => {
+    const date = new Date();
+    date.setDate(date.getDate() + statusDaysRemaining);
+    return date.toLocaleDateString("pt-BR");
+  })();
+  const opportunityCount = Number(dashboard?.metrics.referredCustomers ?? stats.referredCustomers ?? 0);
+  const primaryCampaignLink = campaignLinks[0]?.publicPath || campaignLinks[0]?.affiliateUrl || "/";
+
+  return (
+    <div className="affiliate-premium affiliate-premium-v2 min-h-screen pb-24" data-premium-surface="affiliate">
+      <div className="affiliate-v2-shell">
+        <header className="affiliate-v2-header">
+          <button className="affiliate-v2-icon-button" type="button" aria-label="Voltar">‹</button>
+          <div className="text-center">
+            <p className="affiliate-v2-brand">Rifa Pro</p>
+            <p className="affiliate-v2-subbrand">Premium 2.0</p>
+          </div>
+          <button className="affiliate-v2-icon-button" type="button" aria-label="Menu">☰</button>
+        </header>
+
+        <section className="affiliate-v2-section" data-affiliate-premium="dashboard-metrics">
+          <AffiliateV2Title number="01" title="Ganhos Principais" />
+          <div className="affiliate-v2-metric-grid">
+            <AffiliateV2MetricCard icon={<DollarSign />} title="Ganhos Totais" value={money(totalCommissions + paidAmount + prizeBalance)} caption="Todos os ganhos" tone="green" />
+            <AffiliateV2MetricCard icon={<Wallet />} title="Disponível para Saque" value={money(totalBalance)} caption="Disponível agora" tone="gold" />
+            <AffiliateV2MetricCard icon={<Banknote />} title="Compras da Rede" value={money(Number(dashboard?.metrics.revenue ?? stats.revenue ?? 0))} caption="Total da rede" tone="blue" />
+            <AffiliateV2MetricCard icon={<span className="affiliate-v2-symbol">%</span>} title="Comissões Geradas" value={money(totalCommissions)} caption="Total de comissões" tone="purple" />
+          </div>
+        </section>
+
+        <div className="affiliate-v2-dashboard-grid">
+          <section className="affiliate-v2-card affiliate-v2-card-level">
+            <AffiliateV2Title number="02" title="Status e Nível" compact />
+            <div className="affiliate-v2-level-layout">
+              <div className="affiliate-v2-level-badge">
+                <span>{affiliateLevel.emoji}</span>
+                <strong>{affiliateLevel.label}</strong>
+              </div>
+              <div className="affiliate-v2-level-content">
+                <div className="affiliate-v2-split">
+                  <span>Pontos atuais</span>
+                  <strong>{Number(affiliateLevel.points || 0).toLocaleString("pt-BR")}</strong>
+                </div>
+                <div className="affiliate-v2-split">
+                  <span>Próximo nível</span>
+                  <strong>{affiliateLevel.nextLevelDisplayName || "Nível máximo"}</strong>
+                </div>
+                <ProgressBar value={affiliateLevel.progress_percent || 0} className="affiliate-v2-progress" />
+                <div className="affiliate-v2-status-row">
+                  <span className={cn("affiliate-v2-status-pill", eligible ? "is-active" : "is-inactive")}>{eligible ? "ATIVO" : "INATIVO"}</span>
+                  <span>{statusDaysRemaining} dias restantes</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="affiliate-v2-card affiliate-v2-opportunity">
+            <AffiliateV2Title number="03" title="Alerta de Oportunidade" compact />
+            <div className="affiliate-v2-opportunity-body">
+              <div>
+                <p>Você possui <strong>{opportunityCount}</strong> indicados participando de campanhas.</p>
+                <p>Compre sua participação para ficar apto ao Prêmio de Patrocinador.</p>
+              </div>
+              <a href={primaryCampaignLink} className="affiliate-v2-cta">Quero Participar</a>
+            </div>
+          </section>
+        </div>
+
+        <section className="affiliate-v2-card affiliate-v2-sponsor">
+          <AffiliateV2Title number="04" title="Patrocinador Premiado" compact />
+          <div className="affiliate-v2-sponsor-layout">
+            <div className="affiliate-v2-trophy" aria-hidden="true">🏆</div>
+            <div className="affiliate-v2-sponsor-content">
+              <p className="affiliate-v2-card-lead">Quando seus indicados ganham, você também ganha.</p>
+              <div className="affiliate-v2-mini-grid">
+                <AffiliateV2MiniStat label="Indicados" value={Number(dashboard?.metrics.referredCustomers ?? stats.referredCustomers ?? 0)} />
+                <AffiliateV2MiniStat label="Indicados Ativos" value={activeReferred} />
+                <AffiliateV2MiniStat label="Prêmios Recebidos" value={sponsorPrizes} />
+                <AffiliateV2MiniStat label="Valor Total Recebido" value={money(sponsorValueTotal)} highlight />
+                <AffiliateV2MiniStat label="Último Prêmio" value={lastPrize ? money(Math.abs(Number(lastPrize.amount || 0))) : "Aguardando"} />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="affiliate-v2-card affiliate-v2-ranking" data-affiliate-premium="ranking">
+          <AffiliateV2Title number="06" title="Posição nos Rankings" compact />
+          <div className="affiliate-v2-ranking-grid">
+            <AffiliateV2RankingBlock icon="💰" title="Top por Comissão" position={commissionRankingPosition} detail={`${money(totalCommissions)} acumulados`} tone="green" />
+            <AffiliateV2RankingBlock icon="🎁" title="Top Patrocinadores Premiados" position={sponsorRankingPosition} detail={`${sponsorPrizes} prêmios recebidos`} tone="purple" />
+          </div>
+        </section>
+
+        <section className="affiliate-v2-card affiliate-v2-status">
+          <AffiliateV2Title number="10" title="Status do Afiliado" compact />
+          <div className="affiliate-v2-status-panel">
+            <div>
+              <p className={cn("affiliate-v2-status-big", eligible ? "is-active" : "is-inactive")}>{eligible ? "ATIVO" : "INATIVO"}</p>
+              <p>Expira em {statusExpiration}</p>
+              <p>{statusDaysRemaining} dias restantes</p>
+            </div>
+            <div className="affiliate-v2-status-message">
+              Faça uma compra para manter seus benefícios.
+            </div>
+          </div>
+        </section>
+
+        <nav className="affiliate-v2-bottom-nav" aria-label="Navegação do afiliado">
+          {[
+            ["🏠", "Dashboard", true],
+            ["👥", "Minha Rede", false],
+            ["📢", "Divulgar", false],
+            ["🏆", "Prêmios", false],
+            ["💰", "Financeiro", false]
+          ].map(([icon, label, active]) => (
+            <button key={String(label)} type="button" className={cn("affiliate-v2-nav-item", active && "is-active")} disabled={!active}>
+              <span>{icon}</span>
+              <strong>{label}</strong>
+            </button>
+          ))}
+        </nav>
+      </div>
+    </div>
+  );
 
   return (
     <div className="affiliate-premium mx-auto w-full max-w-7xl space-y-5 px-3 pb-24 pt-3 text-[var(--admin-text)] sm:space-y-6 sm:px-4 sm:pt-4 md:pb-10" data-premium-surface="affiliate">
@@ -667,6 +799,77 @@ export function Affiliates() {
   );
 }
 
+function AffiliateV2Title({ number, title, compact = false }: { number: string; title: string; compact?: boolean }) {
+  return (
+    <div className={cn("affiliate-v2-title", compact && "is-compact")}>
+      <span>{number}</span>
+      <h2>{title}</h2>
+    </div>
+  );
+}
+
+function AffiliateV2MetricCard({
+  icon,
+  title,
+  value,
+  caption,
+  tone
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  caption: string;
+  tone: "green" | "gold" | "blue" | "purple";
+}) {
+  return (
+    <article className={cn("affiliate-v2-metric-card", `tone-${tone}`)}>
+      <div className="affiliate-v2-metric-icon">{icon}</div>
+      <div className="affiliate-v2-metric-copy">
+        <p>{title}</p>
+        <strong>{value}</strong>
+        <span>{caption}</span>
+      </div>
+      <svg viewBox="0 0 120 44" className="affiliate-v2-sparkline" aria-hidden="true">
+        <polyline points="2,36 18,24 34,29 50,17 66,22 82,11 100,18 118,6" />
+      </svg>
+    </article>
+  );
+}
+
+function AffiliateV2MiniStat({ label, value, highlight = false }: { label: string; value: React.ReactNode; highlight?: boolean }) {
+  return (
+    <div className={cn("affiliate-v2-mini-stat", highlight && "is-highlight")}>
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function AffiliateV2RankingBlock({
+  icon,
+  title,
+  position,
+  detail,
+  tone
+}: {
+  icon: string;
+  title: string;
+  position: string;
+  detail: string;
+  tone: "green" | "purple";
+}) {
+  return (
+    <article className={cn("affiliate-v2-ranking-block", `tone-${tone}`)}>
+      <div className="affiliate-v2-ranking-icon">{icon}</div>
+      <div>
+        <p>{title}</p>
+        <strong>{position}</strong>
+        <span>{detail}</span>
+      </div>
+    </article>
+  );
+}
+
 function AffiliatePerformanceBonusPanel({ rewards }: { rewards?: AffiliateDashboard["performanceRewards"] }) {
   if (!rewards?.enabled) return null;
   const rules = rewards.rules || [];
@@ -816,8 +1019,8 @@ function AffiliateRewardsWalletPanel({
   const items = [
     { type: "scratchcard", title: "Raspadinhas", balance: balances.scratchcard || 0, description: "Use para liberar uma raspadinha no módulo de premiação." },
     { type: "wheel_spin", title: "Roletas", balance: balances.wheel_spin || 0, description: "Use para liberar um giro na roleta premiada." },
-    { type: "super_quota", title: "Super Cotas", balance: balances.super_quota || 0, description: "Use para registrar uma super cota para atendimento pela operação." },
-    { type: "bonus_number", title: "Números bônus", balance: balances.bonus_number || 0, description: "Use para registrar um número bônus disponível." }
+    { type: "super_quota", title: "Super cota", balance: balances.super_quota || 0, description: "Use para registrar uma super cota para atendimento pela operação." },
+    { type: "bonus_number", title: "Número bônus", balance: balances.bonus_number || 0, description: "Use para registrar um número bônus disponível." }
   ];
   const consumptions = rewards.consumptions || [];
   return (
