@@ -1741,6 +1741,588 @@
   }
 }
 
+/* Tela 02 - Detalhe da rifa premium mobile-first. */
+.cfx-detail-shell {
+  width: min(100%, 430px);
+  padding: 10px 14px 110px;
+}
+
+.cfx-detail-shell .cfx-raffle-topbar {
+  min-height: 44px;
+  justify-content: flex-start;
+  margin: -10px -14px 10px;
+  padding: 8px 14px;
+  background: linear-gradient(180deg, rgba(6, 3, 13, .86), rgba(6, 3, 13, .28), transparent);
+  backdrop-filter: none;
+}
+
+.cfx-detail-shell .cfx-top-action {
+  width: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  border-color: rgba(255,255,255,.12);
+  padding: 0;
+  background: rgba(255,255,255,.045);
+  color: rgba(255,255,255,.86);
+}
+
+.cfx-detail-shell .cfx-top-action svg {
+  width: 22px;
+  height: 22px;
+}
+
+.cfx-detail-layout,
+.cfx-detail-main,
+.cfx-detail-purchase,
+.cfx-detail-progress {
+  display: grid;
+  gap: 12px;
+}
+
+.cfx-detail-banner {
+  display: block;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid rgba(168, 85, 247, .72);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(168, 85, 247, .32), transparent 16rem),
+    linear-gradient(145deg, rgba(16, 8, 32, .94), rgba(4, 2, 10, .98));
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.08) inset,
+    0 0 38px rgba(168, 85, 247, .32),
+    0 28px 76px rgba(0,0,0,.56);
+}
+
+.cfx-detail-banner::before {
+  content: none;
+}
+
+.cfx-detail-banner::after {
+  content: none;
+}
+
+.cfx-detail-banner > :not(img):not(video):not(.cfx-media-fallback) {
+  display: none !important;
+}
+
+.cfx-detail-banner > img,
+.cfx-detail-banner > video,
+.cfx-detail-banner .cfx-media-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.cfx-detail-banner .cfx-media-fallback {
+  background:
+    radial-gradient(circle at 50% 35%, rgba(168, 85, 247, .28), transparent 11rem),
+    radial-gradient(circle at 75% 70%, rgba(34, 211, 238, .16), transparent 9rem),
+    linear-gradient(145deg, #090414, #040208);
+}
+
+.cfx-detail-title {
+  margin-top: 2px;
+  border: 0;
+  padding: 0 4px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.cfx-detail-title h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2rem, 10vw, 3.1rem);
+  font-weight: 950;
+  line-height: .96;
+  text-transform: uppercase;
+  text-wrap: balance;
+  text-shadow: 0 0 30px rgba(168, 85, 247, .28);
+}
+
+.cfx-detail-title p {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  color: rgba(255,255,255,.66);
+  font-size: .82rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.cfx-detail-stat,
+.cfx-detail-countdown,
+.cfx-detail-buybox {
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(21, 26, 42, .76), rgba(7, 8, 18, .88)),
+    radial-gradient(circle at 4% 50%, rgba(168, 85, 247, .34), transparent 8rem);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 18px 52px rgba(0,0,0,.34);
+}
+
+.cfx-detail-stat {
+  position: relative;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 86px;
+  overflow: hidden;
+  padding: 14px 16px;
+}
+
+.cfx-detail-stat::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, #a855f7, transparent);
+  box-shadow: 0 0 18px #a855f7;
+}
+
+.cfx-detail-stat > span {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border: 1px solid rgba(168, 85, 247, .52);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(168, 85, 247, .32), rgba(168, 85, 247, .08));
+  color: #c084fc;
+}
+
+.cfx-detail-stat svg {
+  width: 26px;
+  height: 26px;
+}
+
+.cfx-detail-stat small,
+.cfx-detail-subtitle,
+.cfx-detail-buybox h2,
+.cfx-detail-countdown p {
+  color: rgba(255,255,255,.66);
+  font-size: .78rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.cfx-detail-stat strong {
+  display: block;
+  margin-top: 3px;
+  color: #fff;
+  font-size: clamp(1.6rem, 8vw, 2.5rem);
+  font-weight: 950;
+  line-height: 1;
+}
+
+.cfx-detail-stat.is-gold > span {
+  border-color: rgba(250, 204, 21, .5);
+  color: #facc15;
+}
+
+.cfx-detail-stat.is-progress {
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  padding-bottom: 24px;
+}
+
+.cfx-detail-stat.is-progress b {
+  color: #a855f7;
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.cfx-detail-stat.is-progress i {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  left: 100px;
+  height: 9px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+}
+
+.cfx-detail-stat.is-progress em {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7c3aed, #d946ef, #22d3ee);
+  box-shadow: 0 0 22px rgba(168, 85, 247, .72);
+}
+
+.cfx-detail-countdown {
+  padding: 16px;
+}
+
+.cfx-detail-countdown p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: #d8b4fe;
+}
+
+.cfx-detail-countdown > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cfx-detail-countdown span {
+  display: grid;
+  place-items: center;
+  min-height: 62px;
+  border: 1px solid rgba(168, 85, 247, .22);
+  border-radius: 14px;
+  background: rgba(255,255,255,.055);
+}
+
+.cfx-detail-countdown strong {
+  color: #fff;
+  font-size: 1.35rem;
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 0 18px rgba(168, 85, 247, .65);
+}
+
+.cfx-detail-countdown small {
+  color: rgba(255,255,255,.48);
+  font-size: .62rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.cfx-detail-super-cotas {
+  border-color: rgba(250, 204, 21, .22);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(250, 204, 21, .18), transparent 13rem),
+    radial-gradient(circle at 92% 20%, rgba(168, 85, 247, .22), transparent 14rem),
+    linear-gradient(145deg, rgba(22, 18, 12, .82), rgba(7, 8, 18, .92));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 18px 52px rgba(0,0,0,.34),
+    0 0 26px rgba(250, 204, 21, .1);
+}
+
+.cfx-detail-super-cotas header {
+  display: grid;
+  gap: 6px;
+}
+
+.cfx-detail-super-cotas header span {
+  color: #facc15;
+}
+
+.cfx-detail-super-cotas header span svg {
+  filter: drop-shadow(0 0 12px rgba(250, 204, 21, .38));
+}
+
+.cfx-detail-super-cotas header strong {
+  color: #fff;
+  letter-spacing: .06em;
+}
+
+.cfx-detail-super-cotas header small {
+  color: rgba(255,255,255,.56);
+  font-size: .76rem;
+  line-height: 1.45;
+}
+
+.cfx-detail-super-cotas > div {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cfx-detail-super-cotas article {
+  position: relative;
+  gap: 6px;
+  min-height: 94px;
+  overflow: hidden;
+  border-color: rgba(250, 204, 21, .2);
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.025)),
+    radial-gradient(circle at 0% 0%, rgba(250, 204, 21, .16), transparent 8rem);
+}
+
+.cfx-detail-super-cotas article::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+}
+
+.cfx-detail-super-cotas article b {
+  color: #fff;
+  font-size: 1.05rem;
+}
+
+.cfx-detail-super-cotas article span {
+  color: #facc15;
+  font-weight: 950;
+}
+
+.cfx-detail-super-cotas article em {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  margin: 2px auto 0;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: .62rem;
+  font-style: normal;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cfx-detail-super-cotas article em.is-available {
+  border-color: rgba(34, 197, 94, .34);
+  background: rgba(34, 197, 94, .1);
+  color: #86efac;
+}
+
+.cfx-detail-super-cotas article em.is-claimed {
+  border-color: rgba(168, 85, 247, .3);
+  background: rgba(168, 85, 247, .1);
+  color: #d8b4fe;
+}
+
+.cfx-detail-buybox {
+  padding: 14px;
+}
+
+.cfx-detail-buybox h2 {
+  margin: 0 0 12px;
+  font-size: .88rem;
+  line-height: 1.2;
+}
+
+.cfx-detail-subtitle {
+  display: block;
+  margin: 18px 0 10px;
+  max-width: 100%;
+  font-size: clamp(1rem, 5vw, 1.35rem) !important;
+  line-height: 1.12;
+  white-space: normal;
+}
+
+.cfx-detail-buybox .cfx-quick-amounts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cfx-detail-buybox .cfx-quick-amounts button {
+  min-height: 62px;
+  border-color: rgba(216, 180, 254, .62);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(168, 85, 247, .36), transparent 90%),
+    rgba(255,255,255,.045);
+  text-align: center;
+  box-shadow: 0 0 20px rgba(168, 85, 247, .28);
+}
+
+.cfx-detail-buybox .cfx-quick-amounts strong {
+  font-size: clamp(1rem, 5vw, 1.3rem);
+}
+
+.cfx-auto-number-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  color: rgba(255,255,255,.58);
+  font-size: clamp(.72rem, 3.4vw, .86rem);
+  font-weight: 750;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.cfx-auto-number-note svg {
+  width: 17px;
+  height: 17px;
+  color: #d8b4fe;
+}
+
+.cfx-detail-buybox .cfx-quantity-control {
+  grid-template-columns: 56px minmax(0, 1fr) 56px;
+  gap: 0;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 999px;
+  background: rgba(255,255,255,.045);
+}
+
+.cfx-detail-buybox .cfx-quantity-control button,
+.cfx-detail-buybox .cfx-quantity-control input {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: center;
+}
+
+.cfx-detail-buybox .cfx-quantity-control button {
+  color: #fff;
+}
+
+.cfx-detail-buybox .cfx-quantity-control button:last-child {
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(168, 85, 247, .48), rgba(168, 85, 247, .14));
+  color: #fff;
+}
+
+.cfx-detail-buybox .cfx-quantity-control label span {
+  display: none;
+}
+
+.cfx-detail-buybox .cfx-checkout-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cfx-detail-buybox .cfx-checkout-row > span {
+  display: grid;
+  min-width: 0;
+  min-height: 64px;
+  align-content: center;
+  justify-items: center;
+  gap: 4px;
+  border-color: rgba(255,255,255,.1);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.05);
+  text-align: center;
+}
+
+.cfx-detail-buybox .cfx-checkout-row > span:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.cfx-detail-buybox .cfx-checkout-row small {
+  display: block;
+  overflow-wrap: anywhere;
+  color: rgba(255,255,255,.58);
+  font-size: clamp(.62rem, 2.8vw, .72rem);
+  font-weight: 850;
+  line-height: 1.05;
+  text-align: center;
+}
+
+.cfx-detail-buybox .cfx-checkout-row strong {
+  display: block;
+  color: #fff;
+  font-size: clamp(1.25rem, 6vw, 1.8rem);
+  line-height: 1;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 1fr;
+  place-items: center;
+  gap: 8px;
+  min-height: 68px;
+  border-color: rgba(255,255,255,.26);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background:
+    linear-gradient(135deg, #7c3aed, #a855f7 45%, #d946ef 78%, #22d3ee);
+  color: #fff;
+  text-align: center;
+  letter-spacing: 0;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.18) inset,
+    0 0 36px rgba(168, 85, 247, .66),
+    0 16px 46px rgba(0,0,0,.48);
+}
+
+.cfx-detail-buybox .cfx-checkout-row button > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 100%;
+  color: #fff;
+  font-size: clamp(1.05rem, 5.4vw, 1.45rem);
+  font-weight: 950;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: rgba(255,255,255,.82);
+  font-size: clamp(.7rem, 3.2vw, .82rem);
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+}
+
+@media (max-width: 360px) {
+  .cfx-detail-buybox .cfx-quick-amounts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cfx-detail-countdown > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 700px) {
+  .cfx-detail-shell {
+    width: min(100%, 860px);
+    padding-inline: 20px;
+  }
+
+  .cfx-detail-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, .72fr);
+    align-items: start;
+  }
+
+  .cfx-detail-purchase {
+    position: sticky;
+    top: 86px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .cfx-detail-shell {
+    width: min(100%, 1120px);
+  }
+
+  .cfx-detail-layout {
+    grid-template-columns: minmax(0, 1fr) 390px;
+    gap: 18px;
+  }
+
+  .cfx-detail-banner {
+    aspect-ratio: 16 / 9;
+  }
+}
+
 /* Affiliate Premium 2.0 - dashboard principal */
 .affiliate-premium-v2 {
   --affiliate-bg: #050607;

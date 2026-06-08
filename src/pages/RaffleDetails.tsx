@@ -9,18 +9,14 @@ import {
   Copy,
   Gift,
   Headphones,
-  Heart,
   Lock,
-  Maximize2,
   Minus,
   Plus,
-  PlayCircle,
   QrCode,
   Share2,
   ShieldCheck,
   Ticket,
   Trophy,
-  Volume2,
   WalletCards
 } from "lucide-react";
 import { toast } from "sonner";
@@ -516,27 +512,21 @@ function RafflePremiumPage({
   const unitPrice = Number(raffle.price || 0);
 
   return (
-    <main className="cfx-raffle-shell">
+    <main className="cfx-raffle-shell cfx-detail-shell">
       <RafflePremiumTopbar onParticipate={onParticipate} />
-      <div className="cfx-raffle-brand"><RifaProWordmark /></div>
-      <div className="cfx-raffle-layout">
-        <section className="cfx-raffle-main">
+      <div className="cfx-detail-layout">
+        <section className="cfx-detail-main">
           <RafflePremiumHero raffle={raffle} mediaUrl={mediaUrl} isVideo={isVideo} />
           <RaffleTitleBlock raffle={raffle} />
-          <RaffleActionRow onParticipate={onParticipate} />
-          <ProgressPanel progress={progress} soldTickets={soldTickets} totalTickets={totalTickets} remaining={remaining} />
+          <RaffleMetricCard icon={<Ticket />} label="Valor da cota" value={formatCurrency(unitPrice)} tone="gold" />
+          <RaffleProgressSummary progress={progress} soldTickets={soldTickets} remaining={remaining} />
+          <RaffleCountdownPanel countdown={countdown} />
           <SuperCotasPanel prizes={prizes} />
-          <HowItWorksPanel raffle={raffle} />
-          <TrustFooter />
-          <WinnersPanel ranking={ranking} />
         </section>
-        <aside className="cfx-raffle-sidebar">
+        <aside className="cfx-detail-purchase">
           <NumberSelectionPanel
             tickets={tickets}
             remaining={remaining}
-            soldTickets={soldTickets}
-            totalTickets={totalTickets}
-            progress={progress}
             unitPrice={unitPrice}
             totalValue={totalValue}
             onSelectTickets={onSelectTickets}
@@ -544,30 +534,8 @@ function RafflePremiumPage({
             onParticipate={onParticipate}
             isSubmitting={isSubmitting}
           />
-          <CountdownPrizeCard raffle={raffle} countdown={countdown} compact />
-          <TrustStack unitPrice={unitPrice} />
         </aside>
       </div>
-
-      <div className="cfx-mobile-countdown">
-        <CountdownPrizeCard raffle={raffle} countdown={countdown} />
-      </div>
-      <div className="cfx-mobile-purchase">
-        <NumberSelectionPanel
-          tickets={tickets}
-          remaining={remaining}
-          soldTickets={soldTickets}
-          totalTickets={totalTickets}
-          progress={progress}
-          unitPrice={unitPrice}
-          totalValue={totalValue}
-          onSelectTickets={onSelectTickets}
-          onQuickSelect={onQuickSelect}
-          onParticipate={onParticipate}
-          isSubmitting={isSubmitting}
-        />
-      </div>
-      <CertificationBar />
       <div className="cfx-compat" aria-hidden="true">
         {/* Top compradores RankingSection ranking.slice(0, 4) */}
         <span>{ranking.slice(0, 4).length}</span>
@@ -577,15 +545,10 @@ function RafflePremiumPage({
   );
 }
 
-function RafflePremiumTopbar({ onParticipate }: { onParticipate: () => void }) {
+function RafflePremiumTopbar({ onParticipate: _onParticipate }: { onParticipate: () => void }) {
   return (
     <header className="cfx-raffle-topbar">
-      <Link to="/" className="cfx-top-action"><ChevronLeft /> Voltar</Link>
-      <strong>Sorteio</strong>
-      <span>
-        <Link to="/meus-bilhetes"><Ticket /> <span>Meus Bilhetes</span></Link>
-        <button type="button" onClick={onParticipate}><Heart /> <span>Participar</span></button>
-      </span>
+      <Link to="/" className="cfx-top-action" aria-label="Voltar"><ChevronLeft /></Link>
     </header>
   );
 }
@@ -595,35 +558,95 @@ function RifaProWordmark() {
 }
 
 function RafflePremiumHero({ raffle, mediaUrl, isVideo }: { raffle: Raffle; mediaUrl: string; isVideo: boolean }) {
+  const primaryMediaUrl = typeof mediaUrl === "string" ? mediaUrl.trim() : "";
+  const fallbackImageUrl = typeof raffle.image === "string" ? raffle.image.trim() : "";
+  const [activeMediaUrl, setActiveMediaUrl] = useState(primaryMediaUrl || fallbackImageUrl);
+  const [hasMediaError, setHasMediaError] = useState(false);
+
+  useEffect(() => {
+    setActiveMediaUrl(primaryMediaUrl || fallbackImageUrl);
+    setHasMediaError(false);
+  }, [fallbackImageUrl, primaryMediaUrl]);
+
+  const handleMediaError = () => {
+    if (fallbackImageUrl && activeMediaUrl !== fallbackImageUrl) {
+      setActiveMediaUrl(fallbackImageUrl);
+      return;
+    }
+    setHasMediaError(true);
+    setActiveMediaUrl("");
+  };
+
+  const renderVideo = isVideo && activeMediaUrl && !hasMediaError && activeMediaUrl !== fallbackImageUrl;
+
   return (
-    <section className="cfx-raffle-hero">
-      <span className="cfx-hero-badge">Próximo sorteio</span>
-      <span className="cfx-video-label">Assista ao vídeo <PlayCircle /></span>
-      {isVideo && mediaUrl ? (
-        <video src={mediaUrl} poster={raffle.image || undefined} controls preload="metadata" />
-      ) : mediaUrl ? (
-        <img src={mediaUrl} alt={raffle.title} />
+    <section className="cfx-raffle-hero cfx-detail-banner">
+      {renderVideo ? (
+        <video src={activeMediaUrl} poster={fallbackImageUrl || undefined} controls preload="metadata" onError={handleMediaError} />
+      ) : activeMediaUrl && !hasMediaError ? (
+        <img src={activeMediaUrl} alt={raffle.title} onError={handleMediaError} />
       ) : (
-        <div className="cfx-media-fallback"><Trophy /></div>
+        <div className="cfx-media-fallback" aria-label="Mídia da campanha indisponível" role="img" />
       )}
-      <button type="button" className="cfx-play" aria-label="Reproduzir"><PlayCircle /></button>
-      <div className="cfx-media-controls" aria-hidden="true">
-        <PlayCircle />
-        <span>0:04 / 1:25</span>
-        <i><b /></i>
-        <Volume2 />
-        <Maximize2 />
-      </div>
     </section>
   );
 }
 
 function RaffleTitleBlock({ raffle }: { raffle: Raffle }) {
   return (
-    <section className="cfx-title-row">
+    <section className="cfx-title-row cfx-detail-title">
+      <h1>{raffle.title}</h1>
+      <p><Clock3 /> Sorteio ao vivo <span /> <ShieldCheck /> Compra por quantidade</p>
+    </section>
+  );
+}
+
+function RaffleMetricCard({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone?: "gold" | "purple" }) {
+  return (
+    <section className={`cfx-detail-stat${tone ? ` is-${tone}` : ""}`}>
+      <span>{icon}</span>
       <div>
-        <h1>{raffle.title}</h1>
-        <p><Clock3 /> Sorteio hoje às 21h00 <span /> <Ticket /> Valor da cota: {formatCurrency(Number(raffle.price || 0))}</p>
+        <small>{label}</small>
+        <strong>{value}</strong>
+      </div>
+    </section>
+  );
+}
+
+function RaffleProgressSummary({ progress, soldTickets, remaining }: { progress: number; soldTickets: number; remaining: number }) {
+  return (
+    <section className="cfx-detail-progress">
+      <RaffleMetricCard icon={<Ticket />} label="Quantidade vendida" value={soldTickets.toLocaleString("pt-BR")} />
+      <div className="cfx-detail-stat is-progress">
+        <span><Trophy /></span>
+        <div>
+          <small>Quantidade restante</small>
+          <strong>{remaining.toLocaleString("pt-BR")}</strong>
+        </div>
+        <b>{progress.toFixed(1).replace(".", ",")}%</b>
+        <i><em style={{ width: `${progress}%` }} /></i>
+      </div>
+    </section>
+  );
+}
+
+function RaffleCountdownPanel({ countdown }: { countdown: CountdownParts }) {
+  const parts = [
+    ["Dias", countdown.days],
+    ["Horas", countdown.hours],
+    ["Minutos", countdown.minutes],
+    ["Segundos", countdown.seconds]
+  ] as const;
+  return (
+    <section className="cfx-detail-countdown">
+      <p><Clock3 /> Contador regressivo</p>
+      <div>
+        {parts.map(([label, value]) => (
+          <span key={label}>
+            <strong>{String(value).padStart(2, "0")}</strong>
+            <small>{label}</small>
+          </span>
+        ))}
       </div>
     </section>
   );
@@ -655,24 +678,28 @@ function ProgressPanel({ progress, soldTickets, totalTickets, remaining }: { pro
 }
 
 function SuperCotasPanel({ prizes }: { prizes: Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }> }) {
-  const available = prizes.filter(prize => prize.status === "available").slice(0, 8);
-  if (!available.length) return null;
+  const publicPrizes = prizes.filter(prize => Number.isFinite(Number(prize.numeroPremiado))).slice(0, 8);
+  if (!publicPrizes.length) return null;
   return (
-    <section className="cfx-panel cfx-super-cotas" data-public-super-cotas="visible">
+    <section className="cfx-panel cfx-super-cotas cfx-detail-super-cotas" data-public-super-cotas="visible">
       <header>
         <span>
           <Gift />
-          <strong>SUPER COTAS</strong>
+          <strong>SUPER COTAS DISPONÍVEIS</strong>
         </span>
-        <small>Numeros especiais cadastrados pelo admin. O premio so libera apos pagamento confirmado.</small>
+        <small>Números especiais da campanha. O prêmio só libera após pagamento confirmado.</small>
       </header>
       <div>
-        {available.map(prize => (
+        {publicPrizes.map(prize => {
+          const isAvailable = String(prize.status || "").toLowerCase() === "available";
+          return (
           <article key={prize.id}>
             <b>{String(prize.numeroPremiado).padStart(6, "0")}</b>
             <span>{formatCurrency(Number(prize.valorPremio || 0))}</span>
+            <em className={isAvailable ? "is-available" : "is-claimed"}>{isAvailable ? "Disponível" : "Resgatada"}</em>
           </article>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
@@ -718,9 +745,6 @@ function CountdownStrip({ countdown, expired = false }: { countdown: CountdownPa
 function NumberSelectionPanel({
   tickets,
   remaining,
-  soldTickets,
-  totalTickets,
-  progress,
   unitPrice,
   totalValue,
   onSelectTickets,
@@ -730,9 +754,6 @@ function NumberSelectionPanel({
 }: {
   tickets: number;
   remaining: number;
-  soldTickets: number;
-  totalTickets: number;
-  progress: number;
   unitPrice: number;
   totalValue: number;
   onSelectTickets: (value: number) => void;
@@ -745,29 +766,12 @@ function NumberSelectionPanel({
   const updateQuantity = (value: number) => onSelectTickets(Math.min(maxQuantity, Math.max(1, Math.floor(Number(value) || 1))));
 
   return (
-    <section className="cfx-panel cfx-quantity-card" data-random-raffle-checkout="quantity-only">
-      <header>
-        <span>
-          <h2>Escolha a quantidade</h2>
-          <p>Seus números serão gerados automaticamente após a confirmação do pagamento.</p>
-        </span>
-        <b>Preço por cota: {formatCurrency(unitPrice)}</b>
-      </header>
-
-      <div className="cfx-quantity-stats" aria-label="Disponibilidade da rifa">
-        <span><small>Total disponível</small><strong>{totalTickets.toLocaleString("pt-BR")}</strong></span>
-        <span><small>Cotas vendidas</small><strong>{soldTickets.toLocaleString("pt-BR")}</strong></span>
-        <span><small>Cotas restantes</small><strong>{remaining.toLocaleString("pt-BR")}</strong></span>
-        <span><small>Percentual</small><strong>{progress.toFixed(0)}%</strong></span>
-      </div>
-
+    <section className="cfx-panel cfx-quantity-card cfx-detail-buybox" data-random-raffle-checkout="quantity-only">
+      <h2>Escolha rápida</h2>
       <div className="cfx-quick-amounts" aria-label="Adicionar cotas">
         {quickAmounts.map(amount => (
           <button type="button" key={amount} onClick={() => onQuickSelect(Math.min(amount, maxQuantity))} disabled={amount > maxQuantity}>
             <strong>+{amount.toLocaleString("pt-BR")}</strong>
-            <span>{amount === 1 ? "cota" : "cotas"}</span>
-            <small>{formatCurrency(amount * unitPrice)}</small>
-            {amount >= 20 && <em>{amount >= 500 ? "VIP" : "Bônus"}</em>}
           </button>
         ))}
       </div>
@@ -777,7 +781,7 @@ function NumberSelectionPanel({
           <Minus />
         </button>
         <label>
-          <span>Quantidade de bilhetes</span>
+          <span>Cotas</span>
           <input
             type="number"
             min={1}
@@ -791,12 +795,13 @@ function NumberSelectionPanel({
           <Plus />
         </button>
       </div>
+      <p className="cfx-auto-number-note"><ShieldCheck /> Seus números serão gerados automaticamente após a confirmação do pagamento.</p>
       <div className="cfx-checkout-row">
-        <span><small>Subtotal</small><strong>{formatCurrency(totalValue)}</strong></span>
-        <span><small>Desconto</small><strong>{formatCurrency(0)}</strong></span>
-        <span><small>Total final</small><strong>{formatCurrency(totalValue)}</strong></span>
+        <span><small>Quantidade</small><strong>{tickets.toLocaleString("pt-BR")}</strong></span>
+        <span><small>Valor unitário</small><strong>{formatCurrency(unitPrice)}</strong></span>
+        <span><small>Total calculado</small><strong>{formatCurrency(totalValue)}</strong></span>
         <button type="button" onClick={onParticipate} disabled={isSubmitting}>
-          <QrCode /> Gerar PIX e comprar
+          <span><Ticket /> PARTICIPAR AGORA</span>
           <small><Lock /> Pagamento via PIX 100% seguro</small>
         </button>
       </div>

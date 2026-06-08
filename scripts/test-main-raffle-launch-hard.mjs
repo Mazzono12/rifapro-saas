@@ -24,8 +24,12 @@ function check(name, fn) {
 
 check("1. Rifa principal compra por quantidade", () => {
   assert.match(raffleDetails, /data-random-raffle-checkout="quantity-only"/);
-  assert.match(raffleDetails, /Escolha a quantidade/);
-  assert.match(raffleDetails, /Quantidade de bilhetes/);
+  assert.match(raffleDetails, /Escolha r[aá]pida/);
+  assert.match(raffleDetails, /cfx-quantity-control/);
+  assert.match(raffleDetails, /Total calculado/);
+  for (const amount of [200, 700, 1800, 3000, 5000, 10000]) {
+    assert.match(raffleDetails, new RegExp(`\\+\\{amount\\.toLocaleString\\("pt-BR"\\)\\}|${amount}`));
+  }
   assert.match(server, /const tickets = normalizeTickets\(req\.body\.tickets\)/);
 });
 
@@ -43,9 +47,11 @@ check("1b. Rotas visuais do sorteio apontam para o fluxo publico sem backend nov
 
 check("1c. Pagina da rifa tem atalhos visuais para participar e meus bilhetes", () => {
   assert.match(raffleDetails, /<RafflePremiumTopbar onParticipate=\{onParticipate\} \/>/);
-  assert.match(raffleDetails, /<RaffleActionRow onParticipate=\{onParticipate\} \/>/);
+  assert.match(raffleDetails, /cfx-detail-banner/);
+  assert.match(raffleDetails, /cfx-detail-progress/);
+  assert.match(raffleDetails, /cfx-detail-countdown/);
   assert.match(raffleDetails, /to="\/meus-bilhetes"[\s\S]*Meus Bilhetes/);
-  assert.match(raffleDetails, /onClick=\{onParticipate\}[\s\S]*Participar/);
+  assert.match(raffleDetails, /onClick=\{onParticipate\}[\s\S]*PARTICIPAR AGORA/);
 });
 
 check("2. Nao existe selecao manual de numero no checkout publico", () => {
