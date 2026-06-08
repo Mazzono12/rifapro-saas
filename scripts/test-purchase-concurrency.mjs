@@ -137,9 +137,8 @@ try {
   assert.equal(rejected.length, 20, "Compras excedentes devem ser recusadas.");
   assert.ok(rejected.every(item => [400, 409].includes(item.response.status)), "Excedentes devem falhar por indisponibilidade/reserva.");
 
-  const reservedNumbers = successes.flatMap(item => item.body.numeros || []);
-  assert.equal(reservedNumbers.length, 10, "Cada compra aprovada deve receber uma cota reservada.");
-  assert.equal(new Set(reservedNumbers).size, reservedNumbers.length, "Nao pode existir numero duplicado em reservas simultaneas.");
+  const publicPendingNumbers = successes.flatMap(item => item.body.numeros || []);
+  assert.equal(publicPendingNumbers.length, 0, "Resposta publica pendente nao deve revelar cotas antes do pagamento.");
 
   const purchases = await json("/api/admin/purchases", { headers: tenantHeaders });
   assert.equal(purchases.response.status, 200);
@@ -149,17 +148,18 @@ try {
   assert.ok(rafflePurchases.every(item => item.reservedUntil), "Toda reserva pendente deve ter expiracao.");
 
   const persistedNumbers = rafflePurchases.flatMap(item => item.numeros || []);
+  assert.equal(persistedNumbers.length, 10, "Cada compra aprovada deve reservar uma cota internamente.");
   assert.equal(new Set(persistedNumbers).size, persistedNumbers.length, "Persistencia nao pode ter cotas duplicadas.");
-  assert.deepEqual([...new Set(persistedNumbers)].sort((a, b) => a - b), [...new Set(reservedNumbers)].sort((a, b) => a - b));
 
-  const paid = successes[0].body;
+  const paid = rafflePurchases[0];
+  const reservedBeforePayment = [...(paid.numeros || [])];
   const confirm = await json(`/api/admin/orders/${paid.purchaseId}/manual-confirm-payment`, {
     method: "POST",
     headers: tenantHeaders,
     body: JSON.stringify({ reason: "Teste de concorrencia de compra" })
   });
   assert.equal(confirm.response.status, 200, "Confirmacao deve usar a cota ja reservada.");
-  assert.deepEqual((confirm.body.purchase || confirm.body).numeros, paid.numeros, "Pagamento nao pode realocar a cota reservada.");
+  assert.deepEqual((confirm.body.purchase || confirm.body).numeros, reservedBeforePayment, "Pagamento nao pode realocar a cota reservada.");
 
   const afterConfirm = await json("/api/admin/purchases", { headers: tenantHeaders });
   const finalNumbers = afterConfirm.body.filter(item => item.raffleId === raffle.id).flatMap(item => item.numeros || []);

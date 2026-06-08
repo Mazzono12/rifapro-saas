@@ -8632,6 +8632,27 @@ async function startServer() {
     return safe as T;
   }
 
+  function sanitizePublicPurchase(purchase: PurchaseRecord): PurchaseRecord {
+    const safe = stripSensitiveCustomerFields({
+      ...purchase,
+      linkedPurchases: purchase.linkedPurchases?.map(linked => sanitizePublicPurchase(linked))
+    });
+    if (safe.status !== "paid") {
+      safe.numeros = [];
+      safe.premiosInstantaneos = [];
+      safe.ticketWeights = [];
+      safe.earnedLootboxes = 0;
+      if (safe.gamification) {
+        const prePaymentGamification = { ...safe.gamification };
+        delete prePaymentGamification.scratchcardEventId;
+        delete prePaymentGamification.mysteryBoxEventId;
+        delete prePaymentGamification.autoPrizes;
+        safe.gamification = prePaymentGamification;
+      }
+    }
+    return safe;
+  }
+
   function requestOwnsCustomer(req: express.Request, customer: CustomerRecord) {
     const browserId = getBrowserIdFromRequest(req);
     return Boolean(browserId && customer.browserId && browserId === customer.browserId);
@@ -13796,7 +13817,7 @@ async function startServer() {
       purchase.linkedPurchases?.forEach(confirmPurchase);
     }
 
-    res.json(stripSensitiveCustomerFields(purchase));
+    res.json(sanitizePublicPurchase(purchase));
   });
 
   app.get("/api/raffles/:id/addon-suggestion", (req, res) => {
@@ -20572,7 +20593,7 @@ async function startServer() {
     // Attach to purchase object so frontend polling / confirmation receives it
     const finalPurchase = { ...purchase, earnedLootboxes: purchase.earnedLootboxes };
 
-    res.json(stripSensitiveCustomerFields(finalPurchase));
+    res.json(sanitizePublicPurchase(finalPurchase));
   });
 
   app.get("/api/checkout/orders/:orderId/status", (req, res) => {
@@ -20593,7 +20614,7 @@ async function startServer() {
         pixPayload: purchase.status === "pending" && !expired ? purchase.pixPayload : "",
         pixExpiresAt: purchase.pixExpiresAt || purchase.reservedUntil,
         reservedUntil: purchase.reservedUntil,
-        purchase,
+        purchase: sanitizePublicPurchase(purchase),
         ticketUrl: purchase.status === "paid" ? buildPublicTicketUrl(purchase) : "",
         message: purchase.status === "paid" ? "Pagamento confirmado" : expired ? "PIX expirado" : purchase.status === "cancelled" ? "Pedido cancelado" : "Aguardando pagamento"
       }));
@@ -20647,7 +20668,7 @@ async function startServer() {
         res.status(404).json({ error: "Purchase not found" });
         return;
     }
-    res.json(stripSensitiveCustomerFields(purchase));
+    res.json(sanitizePublicPurchase(purchase));
   });
 
   // Admin insights & CRUD
