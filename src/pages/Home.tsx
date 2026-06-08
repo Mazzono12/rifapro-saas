@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Bell, ChevronRight, Gift, Headphones, Home as HomeIcon, LockKeyhole, ShieldCheck, Ticket, Trophy, TrendingUp, UserRound } from "lucide-react";
+import { ChevronRight, Gift, Headphones, Home as HomeIcon, LockKeyhole, ShieldCheck, Ticket, Trophy, TrendingUp, UserRound } from "lucide-react";
 import { useRaffles } from "../hooks/useRaffles";
 import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout } from "../components/premium/PremiumUI";
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
@@ -115,7 +115,9 @@ function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raff
   const totalTickets = Math.max(1, Math.floor(safeNumber(rawRaffle.totalTickets, 1)));
   const soldTickets = Math.max(0, Math.floor(safeNumber(rawRaffle.soldTickets)));
   const image = safeText(rawRaffle.image || rawRaffle.imageUrl, "");
-  const mediaUrl = safeText(rawRaffle.mediaUrl || image, "");
+  const rawMediaUrl = safeText(rawRaffle.mediaUrl, "");
+  const mediaUrl = rawMediaUrl || image;
+  const mediaType = rawMediaUrl ? normalizeRaffleMediaType(rawRaffle.mediaType) : image ? "image" : normalizeRaffleMediaType(rawRaffle.mediaType);
   return {
     ...rawRaffle,
     id: String(rawRaffle.id),
@@ -127,7 +129,7 @@ function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raff
     status: normalizeRaffleStatus(rawRaffle.status),
     image,
     mediaUrl,
-    mediaType: normalizeRaffleMediaType(rawRaffle.mediaType),
+    mediaType,
     mediaFit: normalizeRaffleMediaFit(rawRaffle.mediaFit),
     drawDate: safeText(rawRaffle.drawDate, new Date().toISOString()),
     countdownEnabled: rawRaffle.countdownEnabled === true,
@@ -150,14 +152,6 @@ function getDrawHour(value?: string) {
   const date = value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) return "21h";
   return `${String(date.getHours()).padStart(2, "0")}h`;
-}
-
-function RifaProLogo() {
-  return (
-    <Link to="/" className="cfx-home-logo" aria-label="RifaPro">
-      <span className="cfx-home-logo-text">Rifa<span>Pro</span></span>
-    </Link>
-  );
 }
 
 function HomeContent() {
@@ -208,7 +202,6 @@ function HomeContent() {
   return (
     <PremiumPageLayout className="cfx-home-page">
       <main className="cfx-home-shell" aria-label="Home CIFHER Prime">
-        <Header />
         <Hero raffle={featuredRaffle} ranking={ranking} />
         <TopBuyers ranking={ranking} />
         <HomeTrustRail />
@@ -226,19 +219,6 @@ function RifaProLoading() {
         <div className="cfx-skeleton cfx-skeleton-hero" />
       </main>
     </PremiumPageLayout>
-  );
-}
-
-function Header() {
-  return (
-    <header className="cfx-home-header">
-      <span className="cfx-device-time" aria-hidden="true">9:41</span>
-      <RifaProLogo />
-      <Link to="/meus-bilhetes" className="cfx-home-bell" aria-label="Notificações e bilhetes">
-        <Bell />
-        <span />
-      </Link>
-    </header>
   );
 }
 
@@ -264,6 +244,7 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
           mediaType={raffle.mediaType}
           title={raffle.title}
           href={`/raffle/${raffle.id}`}
+          fallbackImageUrl={raffle.image}
           priority
           showDescriptionBelow={false}
           preferredFit={raffle.mediaFit === "contain" ? "contain" : raffle.mediaFit === "cover" ? "cover" : "auto"}

@@ -109,13 +109,13 @@ export function Dashboard() {
 
   if (!customer) {
     return (
-      <PremiumPageLayout className="px-4 pb-10 pt-6">
-      <div className="container mx-auto max-w-xl">
-        <div className="glass-card p-8 text-center">
+      <PremiumPageLayout className="cfx-customer-page px-4 pb-10 pt-6">
+      <div className="cfx-customer-shell mx-auto max-w-xl">
+        <div className="cfx-customer-panel p-8 text-center">
           <User className="w-12 h-12 mx-auto mb-4 text-slate-400" />
           <h1 className="text-2xl font-display font-bold">Acesse suas cotas</h1>
           <p className="text-slate-400 mb-6">Seu cadastro é criado automaticamente na primeira compra, na etapa do PIX.</p>
-          <Link to="/" className="neon-button inline-flex px-6 py-3 rounded-xl">Comprar cotas</Link>
+          <Link to="/" className="cfx-customer-cta inline-flex px-6 py-3 rounded-xl">Comprar cotas</Link>
         </div>
       </div>
       </PremiumPageLayout>
@@ -124,9 +124,9 @@ export function Dashboard() {
 
   if (!unlocked) {
     return (
-      <PremiumPageLayout className="px-4 pb-10 pt-6">
-      <div className="container mx-auto max-w-xl">
-        <form onSubmit={unlockArea} className="glass-card p-8 text-center">
+      <PremiumPageLayout className="cfx-customer-page px-4 pb-10 pt-6">
+      <div className="cfx-customer-shell mx-auto max-w-xl">
+        <form onSubmit={unlockArea} className="cfx-customer-panel p-8 text-center">
           <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-neon-cyan/20 bg-neon-cyan/10 text-neon-cyan">
             <LockKeyhole className="h-7 w-7" />
           </div>
@@ -142,7 +142,7 @@ export function Dashboard() {
             placeholder="000000"
             className="mt-6 w-full px-5 py-4 text-center font-mono text-2xl tracking-[0.35em]"
           />
-          <button className="neon-button mt-5 w-full rounded-xl py-4">
+          <button className="cfx-customer-cta mt-5 w-full rounded-xl py-4">
             Entrar
           </button>
           <button type="button" onClick={logoutCustomer} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08]">
@@ -161,14 +161,14 @@ export function Dashboard() {
   ];
 
   return (
-    <PremiumPageLayout className="customer-premium px-4 pb-24 pt-4 md:pb-8" data-premium-surface="customer">
-    <div className="container mx-auto max-w-6xl">
-      <div className="mb-6">
+    <PremiumPageLayout className="cfx-customer-page px-4 pb-24 pt-4 md:pb-8" data-premium-surface="customer">
+    <div className="cfx-customer-shell mx-auto max-w-6xl">
+      <div className="cfx-customer-title mb-6">
         <SectionTitle eyebrow="Área do cliente" title="Meus bilhetes e perfil" description="Comprovantes, histórico e dados protegidos em uma experiência mobile-first." compact />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
         <div className="md:col-span-4 lg:col-span-3 space-y-6">
-          <div className="glass-card p-6 text-center">
+          <div className="cfx-customer-panel p-6 text-center">
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-neon-cyan to-neon-purple p-1 mx-auto mb-4">
               <div className="w-full h-full bg-cyber-900 rounded-full overflow-hidden flex items-center justify-center">
                 {customer.photoUrl ? <img src={customer.photoUrl} alt={customer.name} className="w-full h-full object-cover" /> : <User className="w-10 h-10 text-slate-400" />}
@@ -184,7 +184,7 @@ export function Dashboard() {
             </button>
           </div>
 
-          <div className="glass-card overflow-hidden">
+          <div className="cfx-customer-panel overflow-hidden">
             <nav className="flex flex-col">
               {tabs.map(tab => {
                 const active = location.pathname === tab.path || (!isProfile && tab.path === "/minhas-cotas");
@@ -204,7 +204,7 @@ export function Dashboard() {
 
         <div className="md:col-span-8 lg:col-span-9">
           {isProfile ? (
-            <form onSubmit={saveProfile} className="glass-card p-6 md:p-8 space-y-6">
+            <form onSubmit={saveProfile} className="cfx-customer-panel p-6 md:p-8 space-y-6">
               <h1 className="text-2xl font-display font-bold flex items-center gap-3"><User className="w-6 h-6 text-neon-cyan" /> Meu Perfil</h1>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <label className="space-y-2">
@@ -256,10 +256,10 @@ export function Dashboard() {
                   />
                 </label>
               </div>
-              <button className="neon-button px-6 py-3 rounded-xl flex items-center gap-2"><Save className="w-4 h-4" /> Salvar dados</button>
+              <button className="cfx-customer-cta px-6 py-3 rounded-xl flex items-center gap-2"><Save className="w-4 h-4" /> Salvar dados</button>
             </form>
           ) : (
-            <div className="glass-card p-6 md:p-8 min-h-[500px]">
+            <div className="cfx-customer-panel cfx-ticket-vault p-6 md:p-8 min-h-[500px]">
               <h1 className="text-2xl font-display font-bold mb-6 flex items-center gap-3"><Package className="w-6 h-6 text-neon-cyan" /> Minhas Cotas</h1>
               <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-6">
                 {["Compras", "Favoritos", "Prêmios", "Tickets", "Notificações", "Afiliado"].map(item => (

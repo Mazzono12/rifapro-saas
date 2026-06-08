@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const server = readFileSync("server.ts", "utf8");
+const app = readFileSync("src/App.tsx", "utf8");
 const raffleDetails = readFileSync("src/pages/RaffleDetails.tsx", "utf8");
 const gamificationPanel = readFileSync("src/components/GamificationPanel.tsx", "utf8");
 const adminRaffles = readFileSync("src/pages/admin/AdminRaffles.tsx", "utf8");
@@ -26,6 +27,25 @@ check("1. Rifa principal compra por quantidade", () => {
   assert.match(raffleDetails, /Escolha a quantidade/);
   assert.match(raffleDetails, /Quantidade de bilhetes/);
   assert.match(server, /const tickets = normalizeTickets\(req\.body\.tickets\)/);
+});
+
+check("1b. Rotas visuais do sorteio apontam para o fluxo publico sem backend novo", () => {
+  assert.match(app, /path="\/raffle\/:id" element=\{<RaffleDetails \/>}/);
+  assert.match(app, /path="\/rifa\/:id" element=\{<RaffleDetails \/>}/);
+  assert.match(app, /path="\/sorteio\/:id" element=\{<RaffleDetails \/>}/);
+  assert.match(app, /path="\/meus-bilhetes" element=\{<UserDashboard \/>}/);
+  assert.match(app, /path="\/meus-numeros" element=\{<UserDashboard \/>}/);
+  assert.match(app, /path="\/meus-jogos" element=\{<UserDashboard \/>}/);
+  assert.match(app, /path="\/contato" element=\{<Messages \/>}/);
+  assert.match(app, /path="\/termos-de-uso" element=\{<Transparency \/>}/);
+  assert.match(app, /const isRaffleRoute = \/\^\\\/\(raffle\|rifa\|sorteio\)\\\/\[\^\/\]\+\\\/\?\$\/\.test\(location\.pathname\)/);
+});
+
+check("1c. Pagina da rifa tem atalhos visuais para participar e meus bilhetes", () => {
+  assert.match(raffleDetails, /<RafflePremiumTopbar onParticipate=\{onParticipate\} \/>/);
+  assert.match(raffleDetails, /<RaffleActionRow onParticipate=\{onParticipate\} \/>/);
+  assert.match(raffleDetails, /to="\/meus-bilhetes"[\s\S]*Meus Bilhetes/);
+  assert.match(raffleDetails, /onClick=\{onParticipate\}[\s\S]*Participar/);
 });
 
 check("2. Nao existe selecao manual de numero no checkout publico", () => {

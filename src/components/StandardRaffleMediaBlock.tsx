@@ -1,5 +1,6 @@
 import { ImageOff } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { cn } from "../lib/utils";
 import type { Raffle } from "../types";
 import { ResponsiveMediaFrame } from "./ResponsiveMediaFrame";
@@ -8,6 +9,7 @@ import type { ResponsiveMediaAspectMode, ResponsiveMediaFit } from "../utils/med
 type StandardRaffleMediaBlockProps = {
   mediaUrl?: string | null;
   mediaType?: Raffle["mediaType"] | null;
+  fallbackImageUrl?: string | null;
   title: string;
   description?: string;
   price?: number;
@@ -33,6 +35,7 @@ function formatCurrency(value: unknown) {
 export function StandardRaffleMediaBlock({
   mediaUrl,
   mediaType,
+  fallbackImageUrl,
   title,
   description,
   price,
@@ -48,18 +51,40 @@ export function StandardRaffleMediaBlock({
   aspectMode = "auto",
   className
 }: StandardRaffleMediaBlockProps) {
-  const hasMedia = Boolean(mediaUrl);
+  const [activeMedia, setActiveMedia] = useState<{ url: string; type: Raffle["mediaType"] } | null>(null);
   const safeProgress = Math.min(100, Math.max(0, Number.isFinite(Number(progress)) ? Number(progress) : 0));
   const safeSold = Math.max(0, Math.floor(Number(soldTickets || 0)));
   const safeTotal = Math.max(1, Math.floor(Number(totalTickets || 1)));
+  const primaryUrl = typeof mediaUrl === "string" ? mediaUrl.trim() : "";
+  const fallbackUrl = typeof fallbackImageUrl === "string" ? fallbackImageUrl.trim() : "";
+
+  useEffect(() => {
+    if (primaryUrl) {
+      setActiveMedia({ url: primaryUrl, type: mediaType || "image" });
+      return;
+    }
+    if (fallbackUrl) {
+      setActiveMedia({ url: fallbackUrl, type: "image" });
+      return;
+    }
+    setActiveMedia(null);
+  }, [fallbackUrl, mediaType, primaryUrl]);
+
+  const handleMediaError = () => {
+    if (fallbackUrl && activeMedia?.url !== fallbackUrl) {
+      setActiveMedia({ url: fallbackUrl, type: "image" });
+      return;
+    }
+    setActiveMedia(null);
+  };
 
   return (
     <article className={cn("overflow-hidden rounded-[1.25rem] border border-[var(--theme-border)] bg-[var(--theme-surface)]", className)}>
       <div className="clean-media-block relative w-full overflow-hidden bg-black">
-        {hasMedia ? (
+        {activeMedia ? (
           <ResponsiveMediaFrame
-            src={mediaUrl}
-            type={mediaType || "image"}
+            src={activeMedia.url}
+            type={activeMedia.type}
             alt={title}
             preferredFit={preferredFit}
             aspectMode={aspectMode}
@@ -71,12 +96,14 @@ export function StandardRaffleMediaBlock({
             interactive={false}
             className="h-full max-h-[min(78svh,720px)] w-full rounded-none"
             mediaClassName="h-full w-full"
+            onError={handleMediaError}
           />
         ) : (
-          <div className="grid min-h-[clamp(390px,72svh,620px)] w-full place-items-center bg-[#030805] text-emerald-50/80 sm:min-h-[360px]">
-            <div className="flex flex-col items-center gap-3 text-center">
-              <ImageOff className="h-10 w-10 text-emerald-300" />
-              <span className="text-xs font-black uppercase tracking-[0.24em]">Banner da campanha</span>
+          <div className="cfx-premium-media-placeholder grid min-h-[clamp(390px,72svh,620px)] w-full place-items-center bg-[#07030d] text-white sm:min-h-[360px]">
+            <div className="flex max-w-[15rem] flex-col items-center gap-3 text-center">
+              <ImageOff className="h-10 w-10 text-[#c084fc]" />
+              <span className="text-xs font-black uppercase tracking-[0.24em]">Midia premium da campanha</span>
+              <small className="text-xs font-semibold text-white/55">Imagem ou video sera exibido assim que for publicado.</small>
             </div>
           </div>
         )}

@@ -37,7 +37,7 @@ async function waitForServer() {
   for (let attempt = 0; attempt < 60; attempt += 1) {
     try {
       const response = await fetch(`${baseUrl}/api/auth/session`);
-      if (response.status >= 400) return;
+      if (response.status > 0) return;
     } catch {
       await wait(100);
     }

@@ -157,6 +157,9 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
       minWithdrawAmount: 50,
       allowBalancePayments: true
     },
+    publicModules: {
+      affiliates: true
+    },
     affiliateLevelConfig: defaultAffiliateLevelConfig,
     affiliatePerformanceRewards: {
       enabled: false,
@@ -416,6 +419,17 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
       ...settings,
       affiliateProgram: {
         ...(settings.affiliateProgram || {}),
+        ...patch
+      }
+    });
+  };
+
+  const updatePublicModules = (patch: Record<string, any>) => {
+    setSettings({
+      ...settings,
+      publicModules: {
+        affiliates: true,
+        ...(settings.publicModules || {}),
         ...patch
       }
     });
@@ -800,6 +814,25 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                     <h2 className="text-xl font-display font-medium text-white">Programa de Afiliados</h2>
                     <p className="mt-1 text-xs text-slate-500">Configure comissões, prêmios, saques e indicação sem mexer em campos técnicos.</p>
                   </div>
+               </div>
+               <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4">
+                 <label className="flex items-start gap-3 text-sm text-slate-300">
+                   <input
+                     type="checkbox"
+                     checked={settings.publicModules?.affiliates !== false}
+                     onChange={e => updatePublicModules({ affiliates: e.target.checked })}
+                     className="mt-1"
+                   />
+                   <span>
+                     <strong className="flex items-center gap-2 text-white">
+                       <Users className="h-4 w-4 text-emerald-200" />
+                       Exibir Área de Afiliados na página pública
+                     </strong>
+                     <span className="mt-1 block text-xs leading-5 text-slate-500">
+                       Quando desativado, a Home e o menu público deixam de exibir chamadas para afiliados. A rota continua disponível.
+                     </span>
+                   </span>
+                 </label>
                </div>
                <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
                  <div className="grid gap-4">

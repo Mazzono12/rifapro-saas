@@ -724,6 +724,9 @@ async function startServer() {
       minWithdrawAmount: 50,
       allowBalancePayments: true
     },
+    publicModules: {
+      affiliates: true
+    },
     affiliateLevelConfig: deepClone(defaultAffiliateLevelConfigs),
     affiliatePerformanceRewards: {
       enabled: false,
@@ -871,6 +874,11 @@ async function startServer() {
       ...settings.affiliateProgram,
       ...(sourceSettings.affiliateProgram || {}),
       monthlyActivationAmount: Math.max(0, Number(sourceSettings.affiliateProgram?.monthlyActivationAmount || 0))
+    };
+    sourceSettings.publicModules = {
+      ...settings.publicModules,
+      ...(sourceSettings.publicModules || {}),
+      affiliates: sourceSettings.publicModules?.affiliates !== false
     };
     sourceSettings.affiliateLevelConfig = normalizeAffiliateLevelConfigs(sourceSettings.affiliateLevelConfig);
     sourceSettings.reservationSettings = {
@@ -23549,6 +23557,7 @@ async function startServer() {
       smsProvider: { ...currentSettings.smsProvider, ...(req.body.smsProvider || {}) },
       n8nIntegration: { ...currentSettings.n8nIntegration, ...incomingN8n },
       affiliateProgram: { ...currentSettings.affiliateProgram, ...(req.body.affiliateProgram || {}) },
+      publicModules: { ...currentSettings.publicModules, ...(req.body.publicModules || {}) },
       affiliateLevelConfig: Array.isArray(req.body.affiliateLevelConfig) ? req.body.affiliateLevelConfig : currentSettings.affiliateLevelConfig,
       reservationSettings: { ...currentSettings.reservationSettings, ...(req.body.reservationSettings || {}) },
       affiliatePerformanceRewards: {

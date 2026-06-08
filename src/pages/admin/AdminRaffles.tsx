@@ -277,7 +277,7 @@ export function AdminRaffles() {
             <form onSubmit={handleSave} className="space-y-4">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-mono text-slate-400 mb-1">Título</label>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Nome da rifa / edital</label>
                     <input required type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
                            value={currentRaffle.title || ''} onChange={e => setCurrentRaffle({...currentRaffle, title: e.target.value})} />
                   </div>

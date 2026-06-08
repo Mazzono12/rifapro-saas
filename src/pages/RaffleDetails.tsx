@@ -371,7 +371,7 @@ export function RaffleDetails() {
   if (error || !raffle) return <div className="premium-page min-h-screen px-6 py-28 text-center text-red-200">{error}</div>;
 
   return (
-    <div className="premium-page raffle-reference-page min-h-screen pb-32 text-white">
+    <div className="premium-page cfx-raffle-page min-h-screen pb-32 text-white">
       <div className="premium-ambient" />
       <div className="relative z-10">
         <RafflePremiumPage
@@ -390,7 +390,7 @@ export function RaffleDetails() {
           prizes={instantPrizeNumbers}
         />
         {salesDeadline && <CountdownStrip countdown={countdown} expired={Boolean((raffle as any).salesExpired)} />}
-        <PublicConversionWidgets raffleId={id} className="rdp-conversion-widgets" />
+        <PublicConversionWidgets raffleId={id} className="cfx-conversion-widgets" />
 
         <CheckoutModal
         open={checkoutOpen}
@@ -516,20 +516,21 @@ function RafflePremiumPage({
   const unitPrice = Number(raffle.price || 0);
 
   return (
-    <main className="rdp-page">
-      <RafflePremiumTopbar />
-      <div className="rdp-desktop-logo"><RifaProWordmark /></div>
-      <div className="rdp-layout">
-        <section className="rdp-main">
+    <main className="cfx-raffle-shell">
+      <RafflePremiumTopbar onParticipate={onParticipate} />
+      <div className="cfx-raffle-brand"><RifaProWordmark /></div>
+      <div className="cfx-raffle-layout">
+        <section className="cfx-raffle-main">
           <RafflePremiumHero raffle={raffle} mediaUrl={mediaUrl} isVideo={isVideo} />
           <RaffleTitleBlock raffle={raffle} />
+          <RaffleActionRow onParticipate={onParticipate} />
           <ProgressPanel progress={progress} soldTickets={soldTickets} totalTickets={totalTickets} remaining={remaining} />
           <SuperCotasPanel prizes={prizes} />
           <HowItWorksPanel raffle={raffle} />
           <TrustFooter />
           <WinnersPanel ranking={ranking} />
         </section>
-        <aside className="rdp-sidebar">
+        <aside className="cfx-raffle-sidebar">
           <NumberSelectionPanel
             tickets={tickets}
             remaining={remaining}
@@ -548,10 +549,10 @@ function RafflePremiumPage({
         </aside>
       </div>
 
-      <div className="rdp-mobile-countdown">
+      <div className="cfx-mobile-countdown">
         <CountdownPrizeCard raffle={raffle} countdown={countdown} />
       </div>
-      <div className="rdp-mobile-purchase">
+      <div className="cfx-mobile-purchase">
         <NumberSelectionPanel
           tickets={tickets}
           remaining={remaining}
@@ -567,7 +568,7 @@ function RafflePremiumPage({
         />
       </div>
       <CertificationBar />
-      <div className="rdp-compat" aria-hidden="true">
+      <div className="cfx-compat" aria-hidden="true">
         {/* Top compradores RankingSection ranking.slice(0, 4) */}
         <span>{ranking.slice(0, 4).length}</span>
         <span>{prizes.length}</span>
@@ -576,37 +577,37 @@ function RafflePremiumPage({
   );
 }
 
-function RafflePremiumTopbar() {
+function RafflePremiumTopbar({ onParticipate }: { onParticipate: () => void }) {
   return (
-    <header className="rdp-topbar">
-      <Link to="/" className="rdp-top-action"><ChevronLeft /> Voltar</Link>
+    <header className="cfx-raffle-topbar">
+      <Link to="/" className="cfx-top-action"><ChevronLeft /> Voltar</Link>
       <strong>Sorteio</strong>
       <span>
-        <button type="button"><Share2 /> <span>Compartilhar</span></button>
-        <button type="button"><Heart /> <span>Favoritar</span></button>
+        <Link to="/meus-bilhetes"><Ticket /> <span>Meus Bilhetes</span></Link>
+        <button type="button" onClick={onParticipate}><Heart /> <span>Participar</span></button>
       </span>
     </header>
   );
 }
 
 function RifaProWordmark() {
-  return <span className="rdp-wordmark">CIFHER<span>Prime</span></span>;
+  return <span className="cfx-wordmark">CIFHER<span>Prime</span></span>;
 }
 
 function RafflePremiumHero({ raffle, mediaUrl, isVideo }: { raffle: Raffle; mediaUrl: string; isVideo: boolean }) {
   return (
-    <section className="rdp-hero home-featured-raffle-block">
-      <span className="rdp-hero-badge">Próximo sorteio</span>
-      <span className="rdp-video-label">Assista ao vídeo <PlayCircle /></span>
+    <section className="cfx-raffle-hero">
+      <span className="cfx-hero-badge">Próximo sorteio</span>
+      <span className="cfx-video-label">Assista ao vídeo <PlayCircle /></span>
       {isVideo && mediaUrl ? (
         <video src={mediaUrl} poster={raffle.image || undefined} controls preload="metadata" />
       ) : mediaUrl ? (
         <img src={mediaUrl} alt={raffle.title} />
       ) : (
-        <div className="rdp-media-fallback"><Trophy /></div>
+        <div className="cfx-media-fallback"><Trophy /></div>
       )}
-      <button type="button" className="rdp-play" aria-label="Reproduzir"><PlayCircle /></button>
-      <div className="rdp-controls" aria-hidden="true">
+      <button type="button" className="cfx-play" aria-label="Reproduzir"><PlayCircle /></button>
+      <div className="cfx-media-controls" aria-hidden="true">
         <PlayCircle />
         <span>0:04 / 1:25</span>
         <i><b /></i>
@@ -619,7 +620,7 @@ function RafflePremiumHero({ raffle, mediaUrl, isVideo }: { raffle: Raffle; medi
 
 function RaffleTitleBlock({ raffle }: { raffle: Raffle }) {
   return (
-    <section className="rdp-title-row">
+    <section className="cfx-title-row">
       <div>
         <h1>{raffle.title}</h1>
         <p><Clock3 /> Sorteio hoje às 21h00 <span /> <Ticket /> Valor da cota: {formatCurrency(Number(raffle.price || 0))}</p>
@@ -628,18 +629,18 @@ function RaffleTitleBlock({ raffle }: { raffle: Raffle }) {
   );
 }
 
-function RaffleActionRow() {
+function RaffleActionRow({ onParticipate }: { onParticipate: () => void }) {
   return (
-    <div className="rdp-actions">
-      <button type="button"><Share2 /> Compartilhar</button>
-      <button type="button"><Heart /> Favoritar</button>
+    <div className="cfx-raffle-actions">
+      <Link to="/meus-bilhetes"><Ticket /> Meus Bilhetes</Link>
+      <button type="button" onClick={onParticipate}><Share2 /> Participar</button>
     </div>
   );
 }
 
 function ProgressPanel({ progress, soldTickets, totalTickets, remaining }: { progress: number; soldTickets: number; totalTickets: number; remaining: number }) {
   return (
-    <section className="rdp-card rdp-progress-card">
+    <section className="cfx-panel cfx-progress-panel">
       <div>
         <span>Cotas vendidas</span>
         <strong>{soldTickets.toLocaleString("pt-BR")} <em>/ {totalTickets.toLocaleString("pt-BR")}</em></strong>
@@ -657,7 +658,7 @@ function SuperCotasPanel({ prizes }: { prizes: Array<{ id: string; numeroPremiad
   const available = prizes.filter(prize => prize.status === "available").slice(0, 8);
   if (!available.length) return null;
   return (
-    <section className="rdp-card rdp-super-cotas" data-public-super-cotas="visible">
+    <section className="cfx-panel cfx-super-cotas" data-public-super-cotas="visible">
       <header>
         <span>
           <Gift />
@@ -679,8 +680,8 @@ function SuperCotasPanel({ prizes }: { prizes: Array<{ id: string; numeroPremiad
 
 function CountdownPrizeCard({ raffle, countdown, compact = false }: { raffle: Raffle; countdown: CountdownParts; compact?: boolean }) {
   return (
-    <section className={`rdp-card rdp-count-prize${compact ? " is-compact" : ""}`}>
-      <div className="rdp-countdown">
+    <section className={`cfx-panel cfx-count-prize${compact ? " is-compact" : ""}`}>
+      <div className="cfx-countdown">
         <h2>O sorteio acontece em:</h2>
         <div>
           {[
@@ -695,7 +696,7 @@ function CountdownPrizeCard({ raffle, countdown, compact = false }: { raffle: Ra
           ))}
         </div>
       </div>
-      <div className="rdp-prize">
+      <div className="cfx-prize">
         <Trophy />
         <span>Premiação</span>
         <strong>1º Prêmio</strong>
@@ -707,7 +708,7 @@ function CountdownPrizeCard({ raffle, countdown, compact = false }: { raffle: Ra
 
 function CountdownStrip({ countdown, expired = false }: { countdown: CountdownParts; expired?: boolean }) {
   return (
-    <section className="rdp-card rdp-sales-countdown" aria-live="polite">
+    <section className="cfx-panel cfx-sales-countdown" aria-live="polite">
       <span>{expired ? "Vendas encerradas" : "Vendas encerram em"}</span>
       <strong>{String(countdown.hours).padStart(2, "0")}:{String(countdown.minutes).padStart(2, "0")}:{String(countdown.seconds).padStart(2, "0")}</strong>
     </section>
@@ -740,11 +741,11 @@ function NumberSelectionPanel({
   isSubmitting: boolean;
 }) {
   const maxQuantity = Math.max(1, Math.floor(remaining || 1));
-  const quickAmounts = [1, 5, 10, 20, 50, 100, 200, 500, 1000];
+  const quickAmounts = [200, 700, 1800, 3000, 5000, 10000];
   const updateQuantity = (value: number) => onSelectTickets(Math.min(maxQuantity, Math.max(1, Math.floor(Number(value) || 1))));
 
   return (
-    <section className="rdp-card rdp-quantity-card" data-random-raffle-checkout="quantity-only">
+    <section className="cfx-panel cfx-quantity-card" data-random-raffle-checkout="quantity-only">
       <header>
         <span>
           <h2>Escolha a quantidade</h2>
@@ -753,17 +754,17 @@ function NumberSelectionPanel({
         <b>Preço por cota: {formatCurrency(unitPrice)}</b>
       </header>
 
-      <div className="rdp-quantity-stats" aria-label="Disponibilidade da rifa">
+      <div className="cfx-quantity-stats" aria-label="Disponibilidade da rifa">
         <span><small>Total disponível</small><strong>{totalTickets.toLocaleString("pt-BR")}</strong></span>
         <span><small>Cotas vendidas</small><strong>{soldTickets.toLocaleString("pt-BR")}</strong></span>
         <span><small>Cotas restantes</small><strong>{remaining.toLocaleString("pt-BR")}</strong></span>
         <span><small>Percentual</small><strong>{progress.toFixed(0)}%</strong></span>
       </div>
 
-      <div className="rdp-quick-amounts" aria-label="Adicionar cotas">
+      <div className="cfx-quick-amounts" aria-label="Adicionar cotas">
         {quickAmounts.map(amount => (
           <button type="button" key={amount} onClick={() => onQuickSelect(Math.min(amount, maxQuantity))} disabled={amount > maxQuantity}>
-            <strong>{amount.toLocaleString("pt-BR")}</strong>
+            <strong>+{amount.toLocaleString("pt-BR")}</strong>
             <span>{amount === 1 ? "cota" : "cotas"}</span>
             <small>{formatCurrency(amount * unitPrice)}</small>
             {amount >= 20 && <em>{amount >= 500 ? "VIP" : "Bônus"}</em>}
@@ -771,7 +772,7 @@ function NumberSelectionPanel({
         ))}
       </div>
 
-      <div className="rdp-quantity-control">
+      <div className="cfx-quantity-control">
         <button type="button" onClick={() => updateQuantity(tickets - 1)} disabled={tickets <= 1} aria-label="Diminuir quantidade">
           <Minus />
         </button>
@@ -790,7 +791,7 @@ function NumberSelectionPanel({
           <Plus />
         </button>
       </div>
-      <div className="rdp-checkout-row">
+      <div className="cfx-checkout-row">
         <span><small>Subtotal</small><strong>{formatCurrency(totalValue)}</strong></span>
         <span><small>Desconto</small><strong>{formatCurrency(0)}</strong></span>
         <span><small>Total final</small><strong>{formatCurrency(totalValue)}</strong></span>
@@ -810,7 +811,7 @@ function HowItWorksPanel({ raffle }: { raffle: Raffle }) {
     { icon: <Gift />, title: "Receba seus números", text: "Os números são gerados automaticamente." }
   ];
   return (
-    <section className="rdp-card rdp-how">
+    <section className="cfx-panel cfx-how">
       <h2>Como funciona?</h2>
       <div>
         {steps.map((step, index) => (
@@ -839,7 +840,7 @@ function WinnersPanel({ ranking }: { ranking: Array<{ name: string; tickets: num
   ];
   const winners = ranking.slice(0, 3);
   return (
-    <section className="rdp-card rdp-winners">
+    <section className="cfx-panel cfx-winners">
       <header><h2>Últimos ganhadores</h2><Link to="/ganhadores">Ver mais</Link></header>
       <div>
         {(winners.length ? winners : fallback).map((winner, index) => (
@@ -858,7 +859,7 @@ function WinnersPanel({ ranking }: { ranking: Array<{ name: string; tickets: num
 
 function CertificationBar() {
   return (
-    <section className="rdp-card rdp-certification">
+    <section className="cfx-panel cfx-certification">
       <ShieldCheck />
       <span><strong>Ambiente seguro e certificado</strong><small>Seus dados estão protegidos e sua compra é 100% segura.</small></span>
       <b><Lock /> SSL Seguro</b>
@@ -869,19 +870,19 @@ function CertificationBar() {
 
 function TrustStack({ unitPrice }: { unitPrice: number }) {
   return (
-    <section className="rdp-card rdp-trust-stack">
+    <section className="cfx-panel cfx-trust-stack">
       <TrustItem icon={<ShieldCheck />} title="Sorteio 100% legal" text="E transparente" />
       <TrustItem icon={<Lock />} title="Ambiente 100% seguro" text="Seus dados protegidos" />
       <TrustItem icon={<Headphones />} title="Suporte especializado" text="Estamos aqui para ajudar" />
       <TrustItem icon={<Gift />} title="Prêmios entregues" text="Ou seu dinheiro de volta" />
-      <div className="rdp-unit-price"><small>Valor da cota</small><strong>{formatCurrency(unitPrice)}</strong></div>
+      <div className="cfx-unit-price"><small>Valor da cota</small><strong>{formatCurrency(unitPrice)}</strong></div>
     </section>
   );
 }
 
 function TrustFooter() {
   return (
-    <section className="rdp-card rdp-trust-footer">
+    <section className="cfx-panel cfx-trust-footer">
       <TrustItem icon={<ShieldCheck />} title="Sorteios 100% legais" text="E transparentes" />
       <TrustItem icon={<Lock />} title="Ambiente 100% seguro" text="Seus dados protegidos" />
       <TrustItem icon={<Headphones />} title="Suporte especializado" text="Estamos aqui para ajudar" />
@@ -891,7 +892,7 @@ function TrustFooter() {
 }
 
 function TrustItem({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
-  return <div className="rdp-trust-item"><span>{icon}</span><p><strong>{title}</strong><small>{text}</small></p></div>;
+  return <div className="cfx-trust-item"><span>{icon}</span><p><strong>{title}</strong><small>{text}</small></p></div>;
 }
 
 function CheckoutModal(props: {
@@ -942,7 +943,7 @@ function CheckoutModal(props: {
           eyebrow={props.step === "review" ? "Escolha e dados" : props.step === "payment" ? "PIX instantaneo" : "Pagamento confirmado"}
           onClose={props.onClose}
           compact={props.step !== "review"}
-          shellClassName="checkout-screen checkout-modal-shell cp-checkout-shell"
+          shellClassName="checkout-screen checkout-modal-shell cfx-checkout-shell"
         >
               {props.step === "review" && <CheckoutReview {...props} />}
               {props.step === "payment" && <PaymentPix {...props} />}
@@ -956,8 +957,8 @@ function CheckoutModal(props: {
 
 function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
   return (
-    <form onSubmit={props.onSubmit} className="cp-checkout-form">
-      <section className="cp-stepper" aria-label="Etapas do checkout">
+    <form onSubmit={props.onSubmit} className="cfx-checkout-form">
+      <section className="cfx-checkout-stepper" aria-label="Etapas do checkout">
         {["Escolha", "Dados", "Pagamento"].map((label, index) => (
           <span key={label} className={index === 0 ? "is-active" : ""}>
             <strong>{index + 1}</strong>
@@ -966,25 +967,25 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         ))}
       </section>
 
-      <section className="cp-panel cp-order-card">
-        <div className="cp-panel-head">
-          <span className="cp-icon-bubble"><Ticket /></span>
+      <section className="cfx-checkout-panel cfx-order-card">
+        <div className="cfx-panel-head">
+          <span className="cfx-icon-bubble"><Ticket /></span>
           <div>
             <p>Resumo da compra</p>
             <h3>{props.raffle.title}</h3>
           </div>
         </div>
-        <div className="cp-order-lines">
+        <div className="cfx-order-lines">
           <InfoCard label="Quantidade" value={props.tickets.toLocaleString("pt-BR")} />
           <InfoCard label="Valor unitario" value={formatCurrency(props.raffle.price)} />
           <InfoCard label="Total" value={formatCurrency(props.totalValue)} />
         </div>
-        <p className="cp-safe-line"><ShieldCheck /> Ambiente seguro</p>
+        <p className="cfx-safe-line"><ShieldCheck /> Ambiente seguro</p>
       </section>
 
-      <section className="cp-panel">
-        <div className="cp-panel-head">
-          <span className="cp-icon-bubble"><WalletCards /></span>
+      <section className="cfx-checkout-panel">
+        <div className="cfx-panel-head">
+          <span className="cfx-icon-bubble"><WalletCards /></span>
           <div>
             <p>Dados do comprador</p>
             <h3>{props.customer && !props.requireIdentity ? "Cliente identificado" : "Informe seus dados"}</h3>
@@ -992,13 +993,13 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         </div>
 
       {props.customer && !props.requireIdentity ? (
-        <div className="cp-identified">
+        <div className="cfx-identified">
           <CheckCircle2 />
           <span>Olá, {(props.customer.name || "cliente").split(/\s+/)[0]}. Seus dados estão protegidos.</span>
         </div>
       ) : (
         <>
-          <div className="cp-segmented">
+          <div className="cfx-segmented">
             <button type="button" onClick={() => props.setCustomerMode("register")} className={props.customerMode === "register" ? "is-active" : ""}>Novo</button>
             <button type="button" onClick={() => props.setCustomerMode("login")} className={props.customerMode === "login" ? "is-active" : ""}>Já tenho</button>
           </div>
@@ -1006,7 +1007,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
             <>
               <Field label="Nome completo" value={props.customerForm.name} onChange={value => props.setCustomerForm((current: any) => ({ ...current, name: value }))} required />
               <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value }))} required />
-              <div className="cp-field-grid">
+              <div className="cfx-field-grid">
                 <Field label="Cidade" value={props.customerForm.city} onChange={value => props.setCustomerForm((current: any) => ({ ...current, city: value }))} required />
                 <Field label="UF" value={props.customerForm.state} onChange={value => props.setCustomerForm((current: any) => ({ ...current, state: value.toUpperCase().slice(0, 2) }))} />
               </div>
@@ -1021,24 +1022,24 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
       )}
       </section>
 
-      <section className="cp-panel">
-        <div className="cp-panel-head">
-          <span className="cp-icon-bubble"><QrCode /></span>
+      <section className="cfx-checkout-panel">
+        <div className="cfx-panel-head">
+          <span className="cfx-icon-bubble"><QrCode /></span>
           <div>
             <p>Pagamento</p>
             <h3>PIX Instantâneo</h3>
           </div>
         </div>
-        <div className="cp-payment-option is-active">
+        <div className="cfx-payment-option is-active">
           <span>PIX</span>
           <small>Aprovação automática</small>
           <CheckCircle2 />
         </div>
-        <div className="cp-coupon-row">
+        <div className="cfx-coupon-row">
           <input value={props.couponCode} onChange={e => props.setCouponCode(e.target.value.toUpperCase())} placeholder="Cupom" />
           <button type="button" onClick={props.validateCoupon}>Aplicar</button>
         </div>
-        {props.couponPreview && <p className="cp-safe-line"><CheckCircle2 /> Cupom aplicado no resumo.</p>}
+        {props.couponPreview && <p className="cfx-safe-line"><CheckCircle2 /> Cupom aplicado no resumo.</p>}
       </section>
 
       {props.addonSuggestion && (
@@ -1051,7 +1052,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         <ToggleCard checked={props.useBalance} onChange={props.setUseBalance} title="Usar saldo afiliado" description="Abater valor com saldo disponivel." />
       )}
 
-      <CheckoutPrimaryActionButton type="submit" disabled={props.isSubmitting} className="cp-main-cta disabled:opacity-60">
+      <CheckoutPrimaryActionButton type="submit" disabled={props.isSubmitting} className="cfx-main-cta disabled:opacity-60">
         <WalletCards className="h-5 w-5" /> {props.isSubmitting ? "Calculando resumo..." : "Continuar"}
       </CheckoutPrimaryActionButton>
     </form>
@@ -1065,41 +1066,41 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
   const expiresIn = useCountdown(expiresAt);
   const gateway = props.purchase?.pixGateway || props.purchase?.gateway || props.purchase?.paymentGateway || "PIX";
   return (
-    <div className="cp-pix-screen text-center">
-      <div className="cp-pix-icon mx-auto grid h-16 w-16 place-items-center rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-primary)]">
+    <div className="cfx-pix-screen text-center">
+      <div className="cfx-pix-icon mx-auto grid h-16 w-16 place-items-center rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-primary)]">
         <QrCode className="h-8 w-8" />
       </div>
-      <div className="cp-pix-title">
+      <div className="cfx-pix-title">
         <h3 className="text-3xl font-black">Pague com PIX</h3>
-        <p className="mt-2 text-sm text-slate-400">Confirmacao automatica em tempo real. Pedido #{props.purchase?.purchaseId}</p>
+        <p className="mt-2 text-sm text-slate-400">Aguardando pagamento. Confirmacao automatica em tempo real. Pedido #{props.purchase?.purchaseId}</p>
       </div>
-      <div className="cp-pix-meta checkout-info-grid grid gap-2 rounded-3xl border border-white/10 bg-white/[0.045] p-3 text-left sm:grid-cols-3">
-        <InfoCard label="Status" value={props.purchase?.status === "paid" ? "Pago" : "Aguardando"} />
+      <div className="cfx-pix-meta checkout-info-grid grid gap-2 rounded-3xl border border-white/10 bg-white/[0.045] p-3 text-left sm:grid-cols-3">
+        <InfoCard label="Status" value={props.purchase?.status === "paid" ? "Pago" : "Aguardando pagamento"} />
         <InfoCard label="Gateway" value={String(gateway).toUpperCase()} />
         <InfoCard label="Total" value={formatCurrency(props.totalValue)} />
       </div>
       {props.purchase?.pixPayload ? (
-        <div className="cp-qr-wrap mx-auto w-full max-w-[min(18rem,calc(100vw-3rem))] rounded-[1.35rem] bg-white p-3 shadow-[0_0_42px_rgba(34,211,238,0.18)] sm:w-fit sm:max-w-none sm:rounded-[1.75rem] sm:p-5">
+        <div className="cfx-qr-wrap mx-auto w-full max-w-[min(18rem,calc(100vw-3rem))] rounded-[1.35rem] bg-white p-3 shadow-[0_0_42px_rgba(34,211,238,0.18)] sm:w-fit sm:max-w-none sm:rounded-[1.75rem] sm:p-5">
           <QRCodeSVG value={props.purchase.pixPayload} className="h-auto w-full sm:h-[250px] sm:w-[250px]" bgColor="#ffffff" fgColor="#0f172a" level="M" />
         </div>
       ) : (
         <div className="rounded-2xl border border-red-300/20 bg-red-500/10 p-4 text-sm text-red-100">Pagamento indisponível no momento. Tente novamente em instantes.</div>
       )}
-      <div className="cp-pix-expiry rounded-3xl border border-white/10 bg-white/[0.045] p-4">
+      <div className="cfx-pix-expiry rounded-3xl border border-white/10 bg-white/[0.045] p-4">
         <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Tempo para pagar</p>
         <p className="mt-1 text-2xl font-black text-[var(--theme-primary)]">{String(expiresIn.minutes).padStart(2, "0")}:{String(expiresIn.seconds).padStart(2, "0")}</p>
         <p className="mt-2 text-xs text-slate-400">A tela atualiza sozinha quando o pagamento for confirmado.</p>
       </div>
       {props.purchase?.pixPayload && (
-        <div className="cp-pix-code">
+        <div className="cfx-pix-code">
           <p>Ou copie o codigo PIX</p>
           <code>{props.purchase.pixPayload}</code>
         </div>
       )}
-      <button type="button" onClick={props.onCopyPix} className={cn("cp-copy-pix-button checkout-primary-button flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-black transition", props.copied ? "premium-button" : "border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]")}>
-        <Copy className="h-5 w-5" /> {props.copied ? "PIX copiado" : "Copiar PIX copia e cola"}
+      <button type="button" onClick={props.onCopyPix} title="Copiar PIX copia e cola" className={cn("cfx-copy-pix-button checkout-primary-button flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-black transition", props.copied ? "premium-button" : "border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]")}>
+        <Copy className="h-5 w-5" /> {props.copied ? "PIX copiado" : "Copiar código PIX"}
       </button>
-      <div className="cp-actions-row checkout-actions grid gap-2 sm:grid-cols-2">
+      <div className="cfx-actions-row checkout-actions grid gap-2 sm:grid-cols-2">
         <button type="button" onClick={props.onBackToReview} className="min-h-12 rounded-2xl border border-white/10 py-3 text-sm font-bold text-slate-300">Alterar dados</button>
         <CheckoutPrimaryActionButton onClick={props.onConfirmPix} disabled={props.confirmingPix} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black disabled:opacity-60">
           <CheckCircle2 className="h-4 w-4" /> {props.confirmingPix ? "Consultando status..." : "Confirmar PIX"}
@@ -1115,13 +1116,13 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
   const gateway = props.purchase?.pixGateway || props.purchase?.gateway || props.purchase?.paymentGateway || "PIX";
   const paidAt = props.purchase?.paidAt || props.purchase?.paid_at || props.purchase?.createdAt || props.purchase?.created_at;
   return (
-    <div className="cp-success-screen">
-      <div className="cp-success-card premium-card relative overflow-hidden rounded-[1.75rem] border-emerald-200/25 bg-gradient-to-br from-emerald-300/14 via-white/[0.055] to-cyan-300/10 p-5">
+    <div className="cfx-success-screen">
+      <div className="cfx-success-card premium-card relative overflow-hidden rounded-[1.75rem] border-emerald-200/25 bg-gradient-to-br from-emerald-300/14 via-white/[0.055] to-cyan-300/10 p-5">
         <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-emerald-200/12 blur-2xl" />
         <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-white/12" />
-        <div className="cp-success-hero flex items-start justify-between gap-4">
+        <div className="cfx-success-hero flex items-start justify-between gap-4">
           <div>
-            <span className="cp-success-check"><CheckCircle2 /></span>
+            <span className="cfx-success-check"><CheckCircle2 /></span>
             <p className="inline-flex rounded-full border border-emerald-200/25 bg-emerald-300/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.25em] text-emerald-100">Compra Confirmada</p>
             <h3 className="mt-2 text-3xl font-black">Pagamento confirmado</h3>
             <p className="mt-2 text-sm text-slate-300">Cotas liberadas para {props.raffle.title}. Pedido #{props.purchase?.purchaseId}</p>
@@ -1130,7 +1131,7 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
             <QRCodeSVG value={String(props.purchase?.purchaseId || "rifapro")} size={86} bgColor="#ffffff" fgColor="#0f172a" />
           </div>
         </div>
-        <div className="cp-success-grid checkout-info-grid mt-6 grid gap-2 sm:grid-cols-2">
+        <div className="cfx-success-grid checkout-info-grid mt-6 grid gap-2 sm:grid-cols-2">
           <InfoCard label="Comprador" value={buyer.name || props.customerForm.name || "Cliente"} />
           <InfoCard label="WhatsApp" value={maskPhone(buyer.phone || props.customerForm.phone || props.purchase?.contact)} />
           <InfoCard label="E-mail" value={maskEmail(buyer.email || props.purchase?.email || "")} />
@@ -1140,7 +1141,7 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
           <InfoCard label="Data" value={formatReceiptDate(paidAt)} />
           <InfoCard label="Validacao" value={String(props.purchase?.purchaseId || "").slice(0, 12) || "rifapro"} />
         </div>
-        <div className="cp-ticket-list mt-5 flex flex-wrap gap-2">
+        <div className="cfx-ticket-list mt-5 flex flex-wrap gap-2">
           {numbers.slice(0, 18).map((number: number) => (
             <span key={number} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs font-black">{String(number).padStart(6, "0")}</span>
           ))}
@@ -1156,11 +1157,11 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
           </p>
         </div>
       )}
-      <div className="cp-actions-row checkout-actions grid grid-cols-2 gap-2">
+      <div className="cfx-actions-row checkout-actions grid grid-cols-2 gap-2">
         <button type="button" onClick={props.onShare} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold"><Share2 className="h-4 w-4" /> Compartilhar</button>
         <button type="button" onClick={props.onClose} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold">Voltar ao sorteio</button>
       </div>
-      <CheckoutPrimaryActionButton onClick={props.onShowNumbers} className="cp-main-cta flex min-h-14 w-full items-center justify-center gap-2">
+      <CheckoutPrimaryActionButton onClick={props.onShowNumbers} className="cfx-main-cta flex min-h-14 w-full items-center justify-center gap-2">
         <Ticket className="h-5 w-5" /> Ver meus numeros
       </CheckoutPrimaryActionButton>
     </div>

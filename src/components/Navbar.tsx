@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Bell, Home, Instagram, MessageCircle, Trophy, User, Users, Ticket } from "lucide-react";
+import { Bell, Home, Instagram, MessageCircle, ShieldCheck, Ticket, Trophy, User, Users } from "lucide-react";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { TenantLogo } from "./branding/TenantLogo";
 import { TenantHeaderName } from "./branding/TenantHeaderName";
@@ -16,12 +16,14 @@ export function Navbar() {
   const [heroVideoCinema, setHeroVideoCinema] = useState(false);
   const notifiedMessageIds = useRef<Set<string>>(new Set());
   const { customer } = useCustomerStore();
+  const showAffiliatesPublic = settings?.publicModules?.affiliates !== false;
   const bottomNavItems = [
-    { label: "Início", to: "/", icon: Home, active: location.pathname === "/" && !location.hash },
-    { label: "Sorteios", to: "/#sorteios", icon: Ticket, active: location.hash === "#sorteios" },
+    { label: "Campanhas", to: "/", icon: Home, active: location.pathname === "/" && !location.hash },
+    { label: "Meus Jogos", to: "/minhas-cotas", icon: Ticket, active: location.pathname === "/minhas-cotas" || location.pathname === "/perfil" },
     { label: "Ganhadores", to: "/#ganhadores", icon: Trophy, active: location.hash === "#ganhadores" },
-    { label: "Afiliado", to: "/afiliados", icon: Users, active: location.pathname.startsWith("/afiliad") },
-    { label: "Minha Conta", to: "/perfil", icon: User, active: location.pathname === "/perfil" || location.pathname === "/minhas-cotas" || location.pathname === "/mensagens" }
+    ...(showAffiliatesPublic ? [{ label: "Afiliados", to: "/afiliados", icon: Users, active: location.pathname.startsWith("/afiliad") }] : []),
+    { label: "Termos", to: "/transparencia", icon: ShieldCheck, active: location.pathname === "/transparencia" },
+    { label: "Contato", to: "/mensagens", icon: MessageCircle, active: location.pathname === "/mensagens" }
   ];
 
   useEffect(() => {
@@ -112,8 +114,8 @@ export function Navbar() {
 
   return (
     <>
-      <nav className={`premium-site-header fixed top-0 inset-x-0 z-50 border-b border-[var(--theme-border)] bg-[var(--theme-surface-strong)]/90 backdrop-blur-2xl transition-transform duration-300 ${heroVideoCinema && !isAdmin ? "-translate-y-full" : "translate-y-0"}`}>
-        <div className="app-content-container flex h-16 items-center justify-between gap-3">
+      <nav className={`premium-site-header sticky top-0 z-[80] h-[68px] border-b border-[var(--theme-border)] bg-[var(--theme-surface-strong)]/90 backdrop-blur-2xl transition-transform duration-300 ${heroVideoCinema && !isAdmin ? "-translate-y-full" : "translate-y-0"}`}>
+        <div className="app-content-container flex h-full items-center justify-between gap-3">
           <Link to="/" onClick={goHomeTop} className="group flex min-w-0 items-center gap-2.5 sm:gap-3" aria-label="Ir para a página principal">
             <TenantLogo className="h-9 w-9 shrink-0 sm:h-10 sm:w-10" eager />
             <span className="min-w-0 truncate font-display text-lg font-bold tracking-wide text-[var(--theme-text)] sm:text-xl">
@@ -151,9 +153,6 @@ export function Navbar() {
                   <span className="flex items-center gap-3"><Bell className="w-4 h-4 text-amber-300" /> Mensagens</span>
                   {unreadMessages > 0 && <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-black text-black">{unreadMessages}</span>}
                 </Link>
-                <Link onClick={() => setOpen(false)} to="/afiliados" className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white">
-                  <Users className="w-4 h-4 text-[var(--theme-primary)]" /> Meus Afiliados
-                </Link>
                 <Link onClick={() => setOpen(false)} to="/perfil" className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white">
                   <User className="w-4 h-4 text-white" /> Meu Perfil
                 </Link>
@@ -166,6 +165,14 @@ export function Navbar() {
 
       {!isAdmin && !heroVideoCinema && (settings?.socialLinks || branding.support_whatsapp) && (
         <div className="public-floating-actions fixed right-4 bottom-28 z-50 flex flex-col gap-3 transition duration-200 md:bottom-24">
+          <Link to="/mensagens" className="premium-button relative h-12 w-12 rounded-full p-0" aria-label="Notificações">
+            <Bell className="w-5 h-5" />
+            {unreadMessages > 0 && (
+              <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-amber-300 px-1 text-[10px] font-black text-black">
+                {unreadMessages}
+              </span>
+            )}
+          </Link>
           {settings?.socialLinks?.group && (
             <a href={settings.socialLinks.group} target="_blank" rel="noreferrer" className="premium-button h-12 w-12 rounded-full p-0" aria-label="Participar do grupo">
               <Users className="w-5 h-5" />
@@ -182,7 +189,7 @@ export function Navbar() {
 
       {!isAdmin && !heroVideoCinema && (
         <nav className="public-mobile-bottom-nav fixed inset-x-3 bottom-3 z-50 rounded-[20px] border border-white/10 bg-[#141417]/92 p-1.5 shadow-[0_22px_70px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:hidden" aria-label="Menu inferior">
-          <div className="grid grid-cols-5 gap-1">
+          <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${bottomNavItems.length}, minmax(0, 1fr))` }}>
             {bottomNavItems.map(item => {
               const Icon = item.icon;
               return (

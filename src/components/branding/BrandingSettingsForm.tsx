@@ -62,6 +62,7 @@ export function BrandingSettingsForm({
           <button type="button" onClick={onSave} className="premium-button rounded-xl px-5 py-3">Salvar marca</button>
           <button type="button" onClick={onReset} className="premium-button-ghost min-h-12 rounded-xl px-5 py-3 text-sm font-bold">Resetar padrão</button>
         </div>
+        <p className="text-xs font-semibold text-slate-400">Logo compatível com PNG, JPG, WEBP, SVG e GIF animado.</p>
       </div>
       <BrandingPreview branding={value} />
     </div>
