@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
 function read(path) {
   return readFileSync(path, "utf8");
@@ -20,6 +20,7 @@ function hasNone(content, tokens, context) {
 const home = read("src/pages/Home.tsx");
 const navbar = read("src/components/Navbar.tsx");
 const footer = read("src/components/Footer.tsx");
+const app = read("src/App.tsx");
 const adminConfig = read("src/pages/admin/AdminConfig.tsx");
 const css = read("src/index.css");
 const server = read("server.ts");
@@ -32,6 +33,8 @@ const logoUploader = read("src/components/branding/LogoUploader.tsx");
 hasNone(home, [
   "function PublicHomeFooter",
   "footer-trust-seals.png",
+  "cfx-device-time",
+  "9:41",
   "rp-home-",
   "HomeMinimalLinks",
   "ShortcutRow",
@@ -61,6 +64,7 @@ hasAll(home, [
   "className=\"cfx-home-secondary\"",
   "Meus bilhetes",
   "Link to=\"/minhas-cotas\"",
+  "fallbackImageUrl={raffle.image}",
   "function TopBuyers",
   "className=\"cfx-top-buyers\"",
   "Ranking em apuração com dados reais da campanha.",
@@ -73,6 +77,7 @@ hasAll(home, [
 
 hasAll(css, [
   ".cfx-home-page",
+  "--public-navbar-height: 68px",
   ".cfx-home-hero",
   ".cfx-home-hero-media",
   ".cfx-home-play",
@@ -85,9 +90,15 @@ hasAll(css, [
   ".cfx-top-buyers",
   ".cfx-home-trust-rail",
   ".cfx-home-bottom-nav",
+  ".cfx-premium-media-placeholder",
   "@media (max-width: 899px)",
   "aspect-ratio: 9 / 16"
 ], "CSS da Home Premium deve validar frame mobile 9:16 e identidade cfx");
+
+hasNone(css, [
+  ".public-shell:has(.cfx-home-page) .premium-site-header",
+  ".cfx-device-time"
+], "Home Premium deve usar Navbar real, sem esconder o cabecalho global");
 
 hasNone(home, [
   "selectedNumber",
@@ -99,26 +110,35 @@ hasNone(home, [
   "Escolher números"
 ], "Home nao pode renderizar grid nem escolha manual de numeros");
 
-assert.ok(existsSync("public/footer-trust-seals.png"), "Imagem oficial do rodape deve existir em public.");
 hasAll(footer, [
-  "footer-trust-seals.png",
-  "premium-site-footer-image-only",
-  "premium-site-footer-image"
-], "Rodape premium global deve existir e renderizar a imagem oficial");
+  "export function Footer()",
+  "return null"
+], "Rodape global institucional deve permanecer inerte");
+hasNone(app, [
+  "import { Footer }",
+  "<Footer"
+], "App publico nao deve renderizar rodape institucional global");
 for (const forbiddenFooterText of [
   "CNPJ",
   "FAQ:",
   "Termos:",
   "Transparência dos sorteios",
   "contato@nexusdraw",
-  "Sistema por",
-  "footer_text"
+  "contato@cifher.com",
+  "Rifas digitais premium",
+  "footer-trust-seals.png",
+  "premium-site-footer-image",
+  "premium-site-footer-tenant",
+  "Sistema por"
 ]) {
   assert.equal(footer.includes(forbiddenFooterText), false, `Rodape global nao deve renderizar texto antigo: ${forbiddenFooterText}`);
 }
-hasAll(css, [".premium-site-footer-image-only", ".premium-site-footer-image"], "CSS do rodape premium global");
+hasNone(css, [".premium-site-footer-image-only", ".premium-site-footer-image", ".premium-site-footer-tenant", ".premium-site-footer-logo"], "CSS nao deve manter camada de rodape institucional duplicado");
 
 hasAll(navbar, [
+  "sticky top-0",
+  "h-[68px]",
+  "z-[80]",
   "bottomNavItems",
   "label: \"Campanhas\"",
   "label: \"Meus Jogos\"",

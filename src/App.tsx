@@ -2,7 +2,6 @@ import React, { Suspense, lazy, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { Navbar } from "./components/Navbar";
-import { Footer } from "./components/Footer";
 import { SupportChat } from "./components/SupportChat";
 import { PremiumAtmosphere } from "./components/PremiumAtmosphere";
 import { ThemeProvider } from "./context/theme/ThemeContext";
@@ -151,8 +150,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const isAuthRoute = ["/login", "/cadastro", "/recuperar-senha"].includes(location.pathname);
   const isAdminRoute = isAuthRoute || location.pathname.startsWith('/admin') || location.pathname.startsWith('/superadmin') || location.pathname.startsWith('/perfil-saas');
-  const isPaymentRoute = location.pathname.startsWith('/raffle/') || ["/fazendinha", "/dezena", "/centena", "/milhar"].includes(location.pathname);
-  const isRaffleRoute = location.pathname.startsWith('/raffle/');
+  const isRaffleRoute = /^\/(raffle|rifa|sorteio)\/[^/]+\/?$/.test(location.pathname);
   const [heroVideoCinema, setHeroVideoCinema] = React.useState(false);
 
   useEffect(() => {
@@ -173,13 +171,12 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className={`public-shell min-h-screen flex flex-col transition-[padding] duration-300 ${heroVideoCinema || isRaffleRoute ? "pt-0" : "pt-16"}`}>
+    <div className="public-shell min-h-screen flex flex-col">
       {!isRaffleRoute && <Navbar />}
       <main className="flex-1 w-full relative z-10">
         <TenantOperationalGate>{children}</TenantOperationalGate>
       </main>
       <SupportChat />
-      {!isPaymentRoute && <Footer />}
     </div>
   );
 }
@@ -279,6 +276,10 @@ export default function App() {
               <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/raffle/:id" element={<RaffleDetails />} />
+              <Route path="/rifa/:id" element={<RaffleDetails />} />
+              <Route path="/sorteio/:id" element={<RaffleDetails />} />
+              <Route path="/campanhas" element={<Navigate to="/" replace />} />
+              <Route path="/sorteios" element={<Navigate to="/" replace />} />
               <Route path="/fazendinha" element={<Fazendinha />} />
               <Route path="/auth" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<Login />} />
@@ -288,11 +289,18 @@ export default function App() {
               <Route path="/painel" element={<ProtectedRoute roles={["operador", "admin", "superadmin"]}><UserDashboard /></ProtectedRoute>} />
               <Route path="/perfil-saas" element={<ProtectedRoute roles={["superadmin", "admin", "operador", "afiliado"]}><Profile /></ProtectedRoute>} />
               <Route path="/minhas-cotas" element={<UserDashboard />} />
+              <Route path="/meus-bilhetes" element={<UserDashboard />} />
+              <Route path="/meus-numeros" element={<UserDashboard />} />
+              <Route path="/meus-jogos" element={<UserDashboard />} />
               <Route path="/perfil" element={<UserDashboard />} />
               <Route path="/afiliado" element={<Navigate to="/afiliados" replace />} />
               <Route path="/afiliados" element={<AffiliateAccessRoute />} />
               <Route path="/mensagens" element={<Messages />} />
+              <Route path="/contato" element={<Messages />} />
               <Route path="/transparencia" element={<Transparency />} />
+              <Route path="/termos" element={<Transparency />} />
+              <Route path="/termos-de-uso" element={<Transparency />} />
+              <Route path="/ganhadores" element={<Navigate to="/#ganhadores" replace />} />
               <Route path="/sorteio/:raffleId/auditoria" element={<DrawAudit />} />
               <Route path="/caixinhas" element={<Navigate to="/" replace />} />
               <Route path="/:mode" element={<NumberModePage />} />

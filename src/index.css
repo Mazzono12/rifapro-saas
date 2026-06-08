@@ -40,7 +40,6 @@
   color: var(--cfx-text);
 }
 
-.public-shell:has(.cfx-home-page) .premium-site-header,
 .public-shell:has(.cfx-raffle-page) .premium-site-header {
   display: none !important;
 }
@@ -170,6 +169,13 @@
 
 .cfx-home-media-block .media-info-block {
   display: none !important;
+}
+
+.cfx-premium-media-placeholder {
+  background:
+    radial-gradient(circle at 50% 24%, rgba(168, 85, 247, .28), transparent 15rem),
+    radial-gradient(circle at 80% 72%, rgba(34, 197, 94, .12), transparent 11rem),
+    linear-gradient(145deg, #090414, #050208 72%, #020104) !important;
 }
 
 .cfx-home-hero-copy,
@@ -1177,6 +1183,7 @@
 
 /* Phase 01 Home reference implementation. */
 .cfx-home-page {
+  --public-navbar-height: 68px;
   background:
     radial-gradient(circle at 50% 0%, rgba(119, 45, 255, .26), transparent 24rem),
     radial-gradient(circle at 12% 24%, rgba(168, 85, 247, .16), transparent 16rem),
@@ -1190,27 +1197,23 @@
 }
 
 .cfx-home-header {
-  position: relative;
-  min-height: 132px;
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  min-height: var(--public-navbar-height);
   margin: 0 -14px;
-  padding: 22px 24px 12px;
+  padding: 0 24px;
   display: grid;
   grid-template-columns: 64px 1fr 64px;
-  align-items: start;
+  align-items: center;
   background:
     radial-gradient(circle at 50% 78%, rgba(139, 92, 246, .2), transparent 13rem),
     linear-gradient(180deg, rgba(0, 0, 0, .96), rgba(0, 0, 0, .12));
 }
 
-.cfx-device-time {
-  color: #fff;
-  font-size: 16px;
-  font-weight: 950;
-}
-
 .cfx-home-logo {
   justify-self: center;
-  margin-top: 40px;
+  margin-top: 0;
 }
 
 .cfx-home-logo-text {
@@ -1264,6 +1267,7 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  scroll-margin-top: var(--public-navbar-height);
 }
 
 .cfx-home-hero::before {
@@ -1271,7 +1275,7 @@
 }
 
 .cfx-home-title-lockup {
-  margin-top: -12px;
+  margin-top: 0;
   text-align: center;
   text-transform: uppercase;
 }
@@ -3149,24 +3153,6 @@
   text-align: center;
   text-decoration: none;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-}
-
-.premium-site-footer-image-only {
-  width: min(100% - 1rem, var(--public-content-max-width, 72rem));
-  margin-inline: auto;
-  padding: 0 0 max(6rem, env(safe-area-inset-bottom));
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.premium-site-footer-image {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  height: auto;
-  border-radius: 12px;
-  object-fit: contain;
 }
 
 @media (max-width: 390px) {
