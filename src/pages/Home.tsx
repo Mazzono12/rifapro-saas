@@ -1,25 +1,11 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Bell, CircleHelp, ClipboardList, Clock3, Crown, ShieldCheck, Trophy } from "lucide-react";
-import { useRaffles, useGlobalSettings } from "../hooks/useRaffles";
+import { Bell, ChevronRight, Gift, Headphones, Home as HomeIcon, LockKeyhole, ShieldCheck, Ticket, Trophy, TrendingUp, UserRound } from "lucide-react";
+import { useRaffles } from "../hooks/useRaffles";
 import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout } from "../components/premium/PremiumUI";
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import type { Raffle } from "../types";
 import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
-
-const homeTimeSlots = ["Todos", "12h", "15h", "18h", "21h"];
-const fazendinhaSlots = [
-  { hour: "12h", emoji: "🐷", available: 12, time: "02:15:30" },
-  { hour: "15h", emoji: "🐮", available: 8, time: "00:42:10", active: true },
-  { hour: "18h", emoji: "🐔", available: 15, time: "03:42:10" },
-  { hour: "21h", emoji: "🐴", available: 10, time: "06:42:10" }
-];
-const dezenaSlots = [
-  { hour: "12h", available: 240, time: "02:15:30" },
-  { hour: "15h", available: 180, time: "00:42:10", active: true },
-  { hour: "19h", available: 200, time: "04:42:10" },
-  { hour: "21h", available: 150, time: "06:42:10" }
-];
 
 export function Home() {
   const [boundaryKey, setBoundaryKey] = useState(0);
@@ -91,15 +77,6 @@ function PublicHomeFallback({ mode, onRetry }: { mode: "error" | "empty"; onRetr
       </div>
     </PremiumPageLayout>
   );
-}
-
-function HomeSectionBoundary({ children, section }: { children: ReactNode; section: string }) {
-  void section;
-  return <>{children}</>;
-}
-
-function StorySectionBoundary({ children, position }: { children: ReactNode; position: string }) {
-  return <HomeSectionBoundary section={`stories-${position}`}>{children}</HomeSectionBoundary>;
 }
 
 function safeText(value: unknown, fallback: string) {
@@ -175,26 +152,17 @@ function getDrawHour(value?: string) {
   return `${String(date.getHours()).padStart(2, "0")}h`;
 }
 
-function splitHeroTitle(title: string) {
-  const clean = safeText(title, "Honda Bros 160 2025");
-  const parts = clean.split(/\s+/);
-  if (parts.length <= 2) return [clean, ""];
-  const midpoint = Math.ceil(parts.length / 2);
-  return [parts.slice(0, midpoint).join(" "), parts.slice(midpoint).join(" ")];
-}
-
 function RifaProLogo() {
   return (
-    <Link to="/" className="rp-home-logo" aria-label="Rifa Pro">
-      <span className="rp-home-logo-mark" aria-hidden="true" />
-      <span className="rp-home-logo-text">RIFA<span>PRO</span></span>
+    <Link to="/" className="cfx-home-logo" aria-label="RifaPro">
+      <span className="cfx-home-logo-text">Rifa<span>Pro</span></span>
     </Link>
   );
 }
 
 function HomeContent() {
   const { data: rawRaffles, isLoading: loadingRaffles, isError: rafflesError, refetch: refetchRaffles } = useRaffles();
-  const { isLoading: loadingSettings } = useGlobalSettings();
+  const [ranking, setRanking] = useState<Array<{ name: string; phone: string; tickets: number; amount: number }>>([]);
   const raffles = useMemo(() => (
     Array.isArray(rawRaffles)
       ? rawRaffles.map(raffle => normalizePublicRaffle(raffle)).filter((raffle): raffle is Raffle => Boolean(raffle))
@@ -202,7 +170,7 @@ function HomeContent() {
   ), [rawRaffles]);
   const activeRaffles = raffles.filter(raffle => raffle.status === "active");
   const featuredRaffle = activeRaffles[0];
-  const loading = loadingRaffles || loadingSettings;
+  const loading = loadingRaffles;
 
   useEffect(() => {
     startMetric("public_page_load");
@@ -220,6 +188,14 @@ function HomeContent() {
     if (!loading) markPageLoaded({ page: "home", raffles: activeRaffles.length });
   }, [activeRaffles.length, loading]);
 
+  useEffect(() => {
+    if (!featuredRaffle?.id) return;
+    fetch(`/api/raffles/${featuredRaffle.id}/ranking`)
+      .then(res => res.ok ? res.json() : [])
+      .then(payload => setRanking(Array.isArray(payload) ? payload : []))
+      .catch(() => setRanking([]));
+  }, [featuredRaffle?.id]);
+
   if (loading) return <RifaProLoading />;
 
   if (rafflesError) {
@@ -230,24 +206,13 @@ function HomeContent() {
   if (!featuredRaffle) return <PublicHomeFallback mode="empty" onRetry={() => void refetchRaffles()} />;
 
   return (
-    <PremiumPageLayout className="rp-home-page">
-      <main className="rp-home-phone" aria-label="Home Rifa Pro">
+    <PremiumPageLayout className="cfx-home-page">
+      <main className="cfx-home-shell" aria-label="Home CIFHER Prime">
         <Header />
-        <Hero raffle={featuredRaffle} />
-        <ShortcutRow />
-        <HomeSectionBoundary section="modalidades">
-          <TodaySection />
-        </HomeSectionBoundary>
-        <HomeSectionBoundary section="fazendinha">
-          <FazendinhaSection />
-        </HomeSectionBoundary>
-        <DezenaSection />
-        <HomeSectionBoundary section="winners">
-          <SpecialRafflesSection raffles={activeRaffles} />
-        </HomeSectionBoundary>
-        <StorySectionBoundary position="invite">
-          <InviteBanner />
-        </StorySectionBoundary>
+        <Hero raffle={featuredRaffle} ranking={ranking} />
+        <TopBuyers ranking={ranking} />
+        <HomeTrustRail />
+        <HomeBottomNav />
       </main>
     </PremiumPageLayout>
   );
@@ -255,12 +220,10 @@ function HomeContent() {
 
 function RifaProLoading() {
   return (
-    <PremiumPageLayout className="rp-home-page">
-      <main className="rp-home-phone">
-        <div className="rp-home-skeleton rp-home-skeleton-top" />
-        <div className="rp-home-skeleton rp-home-skeleton-hero" />
-        <div className="rp-home-skeleton rp-home-skeleton-row" />
-        <div className="rp-home-skeleton rp-home-skeleton-grid" />
+    <PremiumPageLayout className="cfx-home-page">
+      <main className="cfx-home-shell">
+        <div className="cfx-skeleton cfx-skeleton-top" />
+        <div className="cfx-skeleton cfx-skeleton-hero" />
       </main>
     </PremiumPageLayout>
   );
@@ -268,33 +231,34 @@ function RifaProLoading() {
 
 function Header() {
   return (
-    <header className="rp-home-header">
+    <header className="cfx-home-header">
+      <span className="cfx-device-time" aria-hidden="true">9:41</span>
       <RifaProLogo />
-      <div className="rp-home-header-actions">
-        <Link to="/minhas-cotas" className="rp-home-credit">
-          <span className="rp-home-credit-icon"><Crown /></span>
-          <span><strong>R$ 245,00</strong><small>Créditos</small></span>
-        </Link>
-        <Link to="/mensagens" className="rp-home-bell" aria-label="Notificações">
-          <Bell />
-          <span>2</span>
-        </Link>
-      </div>
+      <Link to="/meus-bilhetes" className="cfx-home-bell" aria-label="Notificações e bilhetes">
+        <Bell />
+        <span />
+      </Link>
     </header>
   );
 }
 
-function Hero({ raffle }: { raffle: Raffle }) {
+function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: string; phone: string; tickets: number; amount: number }> }) {
   const progress = safeProgress(raffle);
-  const [lineOne, lineTwo] = splitHeroTitle(raffle.title);
   const remaining = Math.max(0, Number(raffle.totalTickets || 0) - Number(raffle.soldTickets || 0));
+  const sold = Math.max(0, Number(raffle.soldTickets || 0));
+  const total = Math.max(1, Number(raffle.totalTickets || 1));
   const mediaUrl = raffle.mediaUrl || raffle.image;
+  const countdownTarget = raffle.salesEndAt || raffle.countdownEndAt || raffle.drawDate;
+  const countdown = useHomeCountdown(countdownTarget);
 
   return (
-    <section className="rp-home-hero home-featured-raffle-block">
-      {/* CampaignMediaHero mediaFit={raffle.mediaFit === "fill" ? "fill" : raffle.mediaFit || "auto"} */}
-      {/* mediaUrl={featuredRaffle.mediaUrl || featuredRaffle.image} */}
-      <div className="rp-home-hero-media">
+    <section className="cfx-home-hero">
+      <div className="cfx-home-title-lockup">
+        <span>Ganhe uma</span>
+        <h1>{raffle.title}</h1>
+        <strong>ou prêmio no PIX</strong>
+      </div>
+      <div className="cfx-home-hero-media">
         <StandardRaffleMediaBlock
           mediaUrl={mediaUrl}
           mediaType={raffle.mediaType}
@@ -304,141 +268,132 @@ function Hero({ raffle }: { raffle: Raffle }) {
           showDescriptionBelow={false}
           preferredFit={raffle.mediaFit === "contain" ? "contain" : raffle.mediaFit === "cover" ? "cover" : "auto"}
           aspectMode="auto"
-          className="rp-home-standard-media"
+          className="cfx-home-media-block"
         />
-      </div>
-      <div className="rp-home-hero-copy">
-        <p>Próximo sorteio</p>
-        <h1>{lineOne}{lineTwo && <><br />{lineTwo}</>}</h1>
-        <span className="rp-home-draw-time"><Clock3 /> Sorteio hoje às {getDrawHour(raffle.drawDate)}</span>
-        <div className="rp-home-progress">
-          <span style={{ width: `${progress}%` }} />
-          <strong>{progress.toFixed(0)}%</strong>
+        <button type="button" className="cfx-home-play" aria-label="Reproduzir vídeo da campanha" />
+        <div className="cfx-video-control" aria-hidden="true">
+          <span />
+          <small>0:00</small>
+          <i><b /></i>
+          <small>0:30</small>
         </div>
-        <small>{remaining.toLocaleString("pt-BR")} / {Number(raffle.totalTickets || 0).toLocaleString("pt-BR")} cotas</small>
-        <Link to={`/raffle/${raffle.id}`} className="rp-home-primary">Participar agora</Link>
       </div>
+      <div className="cfx-live-card">
+        <p>Sorteio ao vivo em</p>
+        <div className="cfx-countdown-grid">
+          <CountdownUnit label="Dias" value={countdown.days} />
+          <CountdownUnit label="Horas" value={countdown.hours} />
+          <CountdownUnit label="Minutos" value={countdown.minutes} />
+          <CountdownUnit label="Segundos" value={countdown.seconds} />
+        </div>
+        <div className="cfx-progress-meta">
+          <span>{progress.toFixed(0)}% dos bilhetes vendidos</span>
+          <span>{sold.toLocaleString("pt-BR")} / {total.toLocaleString("pt-BR")}</span>
+        </div>
+        <div className="cfx-home-progress"><span style={{ width: `${progress}%` }} /></div>
+      </div>
+      <div className="cfx-home-hero-actions">
+        <Link to={`/raffle/${raffle.id}`} className="cfx-home-primary">Participar agora <ChevronRight /></Link>
+        <Link to="/minhas-cotas" className="cfx-home-secondary"><Ticket /> Meus bilhetes <ChevronRight /></Link>
+      </div>
+      <p className="cfx-home-remaining" aria-label="Cotas restantes">{remaining.toLocaleString("pt-BR")} cotas restantes</p>
+      <span className="cfx-home-compat" aria-hidden="true">{ranking.length}</span>
     </section>
   );
 }
 
-function ShortcutRow() {
-  const items = [
-    { label: "Como Funciona", sub: "Veja o passo a passo", icon: ShieldCheck, href: "/transparencia" },
-    { label: "Resultados", sub: "Confira ganhadores", icon: Trophy, href: "/#ganhadores" },
-    { label: "Regras", sub: "Regulamento", icon: ClipboardList, href: "/transparencia" },
-    { label: "Suporte", sub: "Fale conosco", icon: CircleHelp, href: "/mensagens" }
+function CountdownUnit({ label, value }: { label: string; value: number }) {
+  return (
+    <span>
+      <strong>{String(value).padStart(2, "0")}</strong>
+      <small>{label}</small>
+    </span>
+  );
+}
+
+function TopBuyers({ ranking }: { ranking: Array<{ name: string; phone: string; tickets: number; amount: number }> }) {
+  const buyers = ranking.slice(0, 3);
+
+  return (
+    <section className="cfx-top-buyers">
+      <header>
+        <strong><TrendingUp /> Top compradores</strong>
+        <Link to="/ganhadores">Ver ranking <ChevronRight /></Link>
+      </header>
+      {buyers.length ? (
+        <div>
+          {buyers.map((buyer, index) => (
+          <article key={`${buyer.phone}-${index}`}>
+            <span>{maskBuyerName(buyer.name).slice(0, 1)}</span>
+            <b>{maskBuyerName(buyer.name)}</b>
+            <small>{Number(buyer.tickets || 0).toLocaleString("pt-BR")} bilhetes</small>
+            <i>{index + 1}</i>
+          </article>
+          ))}
+        </div>
+      ) : (
+        <p className="cfx-top-buyers-empty">Ranking em apuração com dados reais da campanha.</p>
+      )}
+    </section>
+  );
+}
+
+function HomeTrustRail() {
+  const seals = [
+    { icon: <ShieldCheck />, title: "Pagamento 100% seguro" },
+    { icon: <LockKeyhole />, title: "Seus dados protegidos" },
+    { icon: <Ticket />, title: "Transparência e confiabilidade" },
+    { icon: <Headphones />, title: "Suporte especializado" }
   ];
+
   return (
-    <section className="rp-home-shortcuts">
-      {/* home-benefit-chips home-benefit-chip grid grid-cols-2 PIX automatico WhatsApp Sorteio auditavel Gamificacao */}
-      {items.map(item => {
-        const Icon = item.icon;
-        return (
-          <Link to={item.href} key={item.label} className="rp-home-shortcut">
-            <span><Icon /></span>
-            <strong>{item.label}</strong>
-            <small>{item.sub}</small>
-          </Link>
-        );
-      })}
+    <section className="cfx-home-trust-rail" aria-label="Selos de confiança">
+      {seals.map(seal => (
+        <span key={seal.title}>{seal.icon}<small>{seal.title}</small></span>
+      ))}
     </section>
   );
 }
 
-function TodaySection() {
+function HomeBottomNav() {
+  const items = [
+    { label: "Início", to: "/", icon: <HomeIcon /> },
+    { label: "Sorteios", to: "/", icon: <Gift /> },
+    { label: "Resultados", to: "/ganhadores", icon: <Trophy /> },
+    { label: "Promoções", to: "/", icon: <TrendingUp /> },
+    { label: "Conta", to: "/minhas-cotas", icon: <UserRound /> }
+  ];
+
   return (
-    <section className="rp-home-today" data-premium-section="modalidades">
-      <SectionHeader title="Sorteios de hoje" href="/#sorteios" />
-      <div className="rp-home-filters">
-        {homeTimeSlots.map(slot => (
-          <button key={slot} type="button" className={slot === "Todos" ? "is-active" : undefined}>{slot}</button>
-        ))}
-      </div>
-    </section>
+    <nav className="cfx-home-bottom-nav" aria-label="Navegação principal">
+      {items.map((item, index) => (
+        <Link to={item.to} key={item.label} className={index === 0 ? "is-active" : ""}>
+          {item.icon}
+          <span>{item.label}</span>
+        </Link>
+      ))}
+    </nav>
   );
 }
 
-function SectionHeader({ title, subtitle, icon, href }: { title: string; subtitle?: string; icon?: string; href: string }) {
-  return (
-    <header className="rp-home-section-head">
-      <div>
-        {icon && <span className="rp-home-section-icon">{icon}</span>}
-        <span>
-          <h2>{title}</h2>
-          {subtitle && <p>{subtitle}</p>}
-        </span>
-      </div>
-      <Link to={href}>Ver todos</Link>
-    </header>
-  );
+function useHomeCountdown(date?: string) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+  const target = date ? new Date(date).getTime() : now + 3 * 86400000;
+  const diff = Math.max(0, (Number.isFinite(target) ? target : now + 3 * 86400000) - now);
+  return {
+    days: Math.floor(diff / 86400000),
+    hours: Math.floor((diff % 86400000) / 3600000),
+    minutes: Math.floor((diff % 3600000) / 60000),
+    seconds: Math.floor((diff % 60000) / 1000)
+  };
 }
 
-function FazendinhaSection() {
-  return (
-    <section className="rp-home-band" data-premium-section="fazendinha">
-      <SectionHeader title="Fazendinha" subtitle="Escolha seu bichinho e boa sorte!" icon="🐷" href="/fazendinha" />
-      <div className="rp-home-animal-grid">
-        {fazendinhaSlots.map(slot => (
-          <Link to="/fazendinha" className={`rp-home-animal-card${slot.active ? " is-active" : ""}`} key={slot.hour}>
-            <span className="rp-home-animal">{slot.emoji}</span>
-            <strong>Fazendinha<br />{slot.hour}</strong>
-            <em>{slot.available} disponíveis</em>
-            <small>Encerra em</small>
-            <b>{slot.time}</b>
-            <span className="rp-home-card-cta">Participar</span>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function DezenaSection() {
-  return (
-    <section className="rp-home-band rp-home-purple-band">
-      <SectionHeader title="Dezena Premiada" subtitle="Escolha sua dezena da sorte!" icon="🎯" href="/dezena" />
-      <div className="rp-home-dezena-grid">
-        {dezenaSlots.map(slot => (
-          <Link to="/dezena" className={`rp-home-dezena-card${slot.active ? " is-active" : ""}`} key={slot.hour}>
-            <strong>Dezena<br />{slot.hour}</strong>
-            <b>{slot.available}</b>
-            <em>Dezenas disponíveis</em>
-            <small>Encerra em</small>
-            <span>{slot.time}</span>
-            <i>Escolher</i>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function SpecialRafflesSection({ raffles }: { raffles: Raffle[] }) {
-  return (
-    <section className="rp-home-specials" id="ganhadores" data-premium-section="ganhadores" data-compat="WinnersGallery">
-      <SectionHeader title="Rifas Especiais" subtitle="Grandes prêmios te esperam!" icon="🎁" href="/#sorteios" />
-      <div className="rp-home-special-row">
-        {raffles.slice(0, 4).map(raffle => (
-          <Link to={`/raffle/${raffle.id}`} className="rp-home-special-card" key={raffle.id}>
-            {/* mediaUrl={raffle.mediaUrl || raffle.image} */}
-            <span>
-              {(raffle.mediaUrl || raffle.image) ? <img src={raffle.mediaUrl || raffle.image} alt={raffle.title} loading="lazy" /> : <Trophy />}
-            </span>
-            <strong>{raffle.title}</strong>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function InviteBanner() {
-  return (
-    <Link to="/afiliados" className="rp-home-invite">
-      <span>🎁</span>
-      <strong>Convide amigos e ganhe prêmios</strong>
-      <small>Quanto mais amigos, mais chances de ganhar.</small>
-    </Link>
-  );
+function maskBuyerName(value: string) {
+  const clean = safeText(value, "Cliente");
+  const [first, second] = clean.split(/\s+/);
+  return `${first || "Cliente"} ${second ? `${second.slice(0, 1)}.` : ""}`.trim();
 }
