@@ -13735,3 +13735,565 @@ html[data-admin-theme="light"] .admin-shell {
     grid-template-columns: 1fr;
   }
 }
+
+.cfx-tickets-premium {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(168, 85, 247, .24);
+  border-radius: 28px;
+  padding: clamp(16px, 3vw, 28px);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(168, 85, 247, .2), transparent 18rem),
+    radial-gradient(circle at 100% 18%, rgba(34, 211, 238, .08), transparent 16rem),
+    linear-gradient(145deg, rgba(7, 8, 16, .94), rgba(3, 5, 12, .98));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 24px 70px rgba(0, 0, 0, .34);
+}
+
+.cfx-tickets-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.cfx-tickets-hero span {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 1px solid rgba(168, 85, 247, .45);
+  border-radius: 18px;
+  background: rgba(168, 85, 247, .14);
+  color: #c084fc;
+  box-shadow: 0 0 28px rgba(168, 85, 247, .16);
+}
+
+.cfx-tickets-hero span svg {
+  width: 28px;
+  height: 28px;
+}
+
+.cfx-tickets-hero h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2rem, 7vw, 4rem);
+  font-weight: 950;
+  line-height: .96;
+}
+
+.cfx-tickets-hero p {
+  margin: 0;
+  color: rgba(255, 255, 255, .68);
+  font-size: clamp(.95rem, 3vw, 1.15rem);
+  font-weight: 650;
+}
+
+.cfx-tickets-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.cfx-ticket-summary-card {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+.cfx-ticket-summary-card span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(168, 85, 247, .15);
+  color: #c084fc;
+}
+
+.cfx-ticket-summary-card[data-tone="success"] span {
+  background: rgba(34, 197, 94, .15);
+  color: #86efac;
+}
+
+.cfx-ticket-summary-card[data-tone="warning"] span {
+  background: rgba(250, 204, 21, .13);
+  color: #fde047;
+}
+
+.cfx-ticket-summary-card[data-tone="gold"] span {
+  background: rgba(247, 201, 72, .16);
+  color: var(--cfx-gold);
+}
+
+.cfx-ticket-summary-card span svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cfx-ticket-summary-card small {
+  display: block;
+  margin-top: 10px;
+  color: rgba(255, 255, 255, .58);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.cfx-ticket-summary-card strong {
+  display: block;
+  margin-top: 3px;
+  color: #fff;
+  font-size: clamp(1.25rem, 4vw, 2rem);
+  font-weight: 950;
+  line-height: 1;
+}
+
+.cfx-ticket-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 22px;
+  padding: 5px;
+  background: rgba(0, 0, 0, .32);
+}
+
+.cfx-ticket-tabs button {
+  min-height: 46px;
+  min-width: 0;
+  border: 0;
+  border-radius: 17px;
+  background: transparent;
+  color: rgba(255, 255, 255, .66);
+  font-size: 13px;
+  font-weight: 900;
+  transition: .2s ease;
+}
+
+.cfx-ticket-tabs button[data-active="true"] {
+  background: linear-gradient(135deg, rgba(126, 34, 206, .96), rgba(192, 38, 211, .72));
+  color: #fff;
+  box-shadow: 0 0 28px rgba(168, 85, 247, .38), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+
+.cfx-ticket-list {
+  display: grid;
+  gap: 14px;
+}
+
+.cfx-ticket-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 24px;
+  padding: 14px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(168, 85, 247, .13), transparent 14rem),
+    linear-gradient(145deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .035));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 18px 44px rgba(0, 0, 0, .24);
+}
+
+.cfx-ticket-card[data-status="paid"] {
+  border-color: rgba(34, 197, 94, .22);
+}
+
+.cfx-ticket-card-main {
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.cfx-ticket-media {
+  display: grid;
+  width: 124px;
+  aspect-ratio: 1 / .78;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(168, 85, 247, .28);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(168, 85, 247, .32), transparent 7rem),
+    rgba(0, 0, 0, .32);
+  color: #c084fc;
+}
+
+.cfx-ticket-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cfx-ticket-media svg {
+  width: 34px;
+  height: 34px;
+}
+
+.cfx-ticket-info {
+  min-width: 0;
+}
+
+.cfx-ticket-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cfx-ticket-title-row h2 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1.05rem, 3vw, 1.45rem);
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+.cfx-ticket-status {
+  flex: 0 0 auto;
+  border: 1px solid rgba(34, 197, 94, .36);
+  border-radius: 999px;
+  padding: 6px 11px;
+  background: rgba(34, 197, 94, .12);
+  color: #86efac;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.cfx-ticket-card[data-status="pending"] .cfx-ticket-status {
+  border-color: rgba(250, 204, 21, .38);
+  background: rgba(250, 204, 21, .12);
+  color: #fde047;
+}
+
+.cfx-ticket-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 9px;
+  color: rgba(255, 255, 255, .67);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.cfx-ticket-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cfx-ticket-meta svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cfx-ticket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.cfx-ticket-actions button,
+.cfx-tickets-cta a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid rgba(168, 85, 247, .36);
+  border-radius: 14px;
+  background: rgba(168, 85, 247, .14);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+  text-align: center;
+}
+
+.cfx-ticket-actions button {
+  padding: 0 12px;
+}
+
+.cfx-ticket-actions button:nth-child(2) {
+  border-color: rgba(34, 197, 94, .34);
+  background: rgba(34, 197, 94, .13);
+  color: #bbf7d0;
+}
+
+.cfx-ticket-actions svg,
+.cfx-tickets-cta svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cfx-ticket-numbers,
+.cfx-ticket-super,
+.cfx-ticket-benefits {
+  margin-top: 12px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(0, 0, 0, .2);
+}
+
+.cfx-ticket-numbers h3,
+.cfx-ticket-super h3,
+.cfx-ticket-benefits h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 10px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.cfx-ticket-numbers > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.cfx-ticket-numbers span {
+  display: grid;
+  min-width: 66px;
+  min-height: 36px;
+  place-items: center;
+  border: 1px solid rgba(168, 85, 247, .35);
+  border-radius: 12px;
+  background: rgba(168, 85, 247, .11);
+  color: #e9d5ff;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.cfx-ticket-numbers p {
+  margin: 0;
+  color: rgba(255, 255, 255, .62);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.cfx-ticket-numbers button {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 10px;
+  border: 1px solid rgba(168, 85, 247, .38);
+  border-radius: 14px;
+  background: rgba(168, 85, 247, .13);
+  color: #e9d5ff;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.cfx-ticket-super {
+  border-color: rgba(247, 201, 72, .5);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(247, 201, 72, .24), transparent 12rem),
+    rgba(36, 24, 0, .34);
+}
+
+.cfx-ticket-super h3 {
+  color: var(--cfx-gold);
+}
+
+.cfx-ticket-super > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 9px;
+}
+
+.cfx-ticket-super article {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  border: 1px solid rgba(247, 201, 72, .5);
+  border-radius: 15px;
+  padding: 10px;
+  background: linear-gradient(135deg, rgba(247, 201, 72, .22), rgba(0, 0, 0, .2));
+}
+
+.cfx-ticket-super strong {
+  color: #fef3c7;
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.cfx-ticket-super span {
+  color: #facc15;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.cfx-ticket-benefits > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cfx-ticket-benefits span {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(168, 85, 247, .25);
+  border-radius: 999px;
+  padding: 0 11px;
+  background: rgba(168, 85, 247, .11);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cfx-ticket-benefits svg {
+  width: 16px;
+  height: 16px;
+  color: #c084fc;
+}
+
+.cfx-tickets-cta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.cfx-tickets-cta a {
+  min-height: 54px;
+  padding: 0 14px;
+}
+
+.cfx-tickets-cta a:first-child {
+  border-color: rgba(247, 201, 72, .48);
+  background: linear-gradient(135deg, rgba(247, 201, 72, .28), rgba(168, 85, 247, .18));
+  color: #fef3c7;
+}
+
+@media (max-width: 900px) {
+  .cfx-tickets-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cfx-ticket-summary-card:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 639px) {
+  .cfx-customer-page {
+    padding-inline: 10px !important;
+    padding-bottom: max(112px, calc(88px + env(safe-area-inset-bottom))) !important;
+    padding-top: 10px !important;
+  }
+
+  .cfx-customer-title,
+  .cfx-customer-shell > .grid > .md\:col-span-4 {
+    display: none !important;
+  }
+
+  .cfx-customer-shell {
+    max-width: 100% !important;
+  }
+
+  .cfx-tickets-premium {
+    border-radius: 0;
+    border-width: 0;
+    padding: 18px 6px 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .cfx-tickets-hero {
+    margin-bottom: 16px;
+    padding: 0 4px;
+  }
+
+  .cfx-tickets-hero span {
+    width: 54px;
+    height: 54px;
+  }
+
+  .cfx-tickets-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 0 2px;
+  }
+
+  .cfx-ticket-summary-card {
+    border-radius: 16px;
+    padding: 10px;
+  }
+
+  .cfx-ticket-tabs {
+    position: sticky;
+    top: 72px;
+    z-index: 5;
+    overflow-x: auto;
+    grid-template-columns: repeat(4, minmax(92px, 1fr));
+    margin-inline: 2px;
+    scrollbar-width: none;
+  }
+
+  .cfx-ticket-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .cfx-ticket-card {
+    border-radius: 21px;
+    padding: 11px;
+  }
+
+  .cfx-ticket-card-main {
+    grid-template-columns: 94px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .cfx-ticket-media {
+    width: 94px;
+    border-radius: 16px;
+  }
+
+  .cfx-ticket-title-row {
+    display: grid;
+    gap: 7px;
+  }
+
+  .cfx-ticket-status {
+    width: fit-content;
+    padding: 5px 9px;
+  }
+
+  .cfx-ticket-meta {
+    display: grid;
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .cfx-ticket-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .cfx-ticket-actions button {
+    width: 100%;
+  }
+
+  .cfx-ticket-numbers span {
+    min-width: calc((100% - 14px) / 3);
+  }
+
+  .cfx-tickets-cta {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,24 +1,83 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Camera, ChevronRight, LockKeyhole, LogOut, Package, Save, Ticket, UploadCloud, User, Users, Wallet } from "lucide-react";
+import { CalendarDays, Camera, CheckCircle2, ChevronRight, Clock3, Gift, LockKeyhole, LogOut, ReceiptText, Save, Sparkles, Ticket, Trophy, UploadCloud, User, Users } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { uploadCustomerProfilePhoto } from "../utils/customerMedia";
 import { PremiumEmptyState, PremiumPageLayout, SectionTitle } from "../components/premium/PremiumUI";
+import type { Raffle } from "../types";
+
+type TicketFilter = "all" | "pending" | "paid" | "prized";
 
 export function Dashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   const { customer, setCustomer, clearCustomer } = useCustomerStore();
   const [purchases, setPurchases] = useState<any[]>([]);
+  const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [expandedPurchase, setExpandedPurchase] = useState<string | null>(null);
+  const [activeTicketFilter, setActiveTicketFilter] = useState<TicketFilter>("all");
   const [form, setForm] = useState({ name: "", phone: "", photoUrl: "", city: "", state: "", accessPassword: "" });
   const [areaPassword, setAreaPassword] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const isProfile = location.pathname === "/perfil";
+  const tabs = [
+    { label: "Minhas Cotas", icon: Ticket, path: "/minhas-cotas" },
+    { label: "Meus Afiliados", icon: Users, path: "/afiliados" },
+    { label: "Meu Perfil", icon: User, path: "/perfil" },
+  ];
+  const ticketPurchases = useMemo(() => {
+    return purchases.map(item => {
+      const raffle = raffles.find(candidate => String(candidate.id) === String(item.raffleId));
+      const status = String(item.status || "pending").toLowerCase();
+      const isPaid = status === "paid";
+      const mediaType = String(item.mediaType || raffle?.mediaType || raffle?.checkoutMediaType || "").toLowerCase();
+      const image = item.raffleImage || item.image || (!mediaType.includes("video") ? (raffle?.image || raffle?.checkoutMediaUrl || raffle?.mediaUrl) : raffle?.image) || "";
+      const numbers = isPaid && Array.isArray(item.numeros) ? item.numeros : [];
+      const instantPrizes = isPaid && Array.isArray(item.premiosInstantaneos) ? item.premiosInstantaneos : [];
+      const games = [
+        item.gamification?.scratchcardEventId ? "Raspadinha" : null,
+        item.gamification?.mysteryBoxEventId || Number(item.earnedLootboxes || 0) > 0 ? "Caixinha" : null,
+        Number(item.earnedLootboxes || 0) > 0 ? "Roleta" : null
+      ].filter(Boolean) as string[];
+
+      return {
+        ...item,
+        raffle,
+        image,
+        title: item.raffleTitle || raffle?.title || item.raffleName || `Campanha ${item.raffleId || ""}`.trim(),
+        status,
+        isPaid,
+        isPending: status === "pending",
+        isPrized: instantPrizes.length > 0,
+        amount: Number(item.amount || item.totalValue || 0),
+        tickets: Number(item.tickets || numbers.length || 0),
+        numbers,
+        instantPrizes,
+        games,
+        createdAt: item.createdAt || item.created_at || item.paidAt || item.paid_at || ""
+      };
+    });
+  }, [purchases, raffles]);
+  const ticketSummary = useMemo(() => {
+    return ticketPurchases.reduce((summary, item) => {
+      summary.total += 1;
+      if (item.isPaid) summary.paid += 1;
+      if (item.isPending) summary.pending += 1;
+      summary.numbers += item.isPaid ? item.numbers.length : 0;
+      summary.prizes += item.instantPrizes.length;
+      return summary;
+    }, { total: 0, paid: 0, pending: 0, numbers: 0, prizes: 0 });
+  }, [ticketPurchases]);
+  const filteredTicketPurchases = useMemo(() => {
+    if (activeTicketFilter === "pending") return ticketPurchases.filter(item => item.isPending);
+    if (activeTicketFilter === "paid") return ticketPurchases.filter(item => item.isPaid);
+    if (activeTicketFilter === "prized") return ticketPurchases.filter(item => item.isPrized);
+    return ticketPurchases;
+  }, [activeTicketFilter, ticketPurchases]);
 
   useEffect(() => {
     if (!customer) return;
@@ -33,6 +92,7 @@ export function Dashboard() {
       accessPassword: ""
     });
     fetch(`/api/customers/${customer.id}/purchases`).then(res => res.json()).then(setPurchases).catch(() => null);
+    fetch("/api/raffles").then(res => res.ok ? res.json() : []).then(payload => setRaffles(Array.isArray(payload) ? payload : [])).catch(() => setRaffles([]));
   }, [customer?.id]);
 
   const saveProfile = async (e: React.FormEvent) => {
@@ -154,12 +214,6 @@ export function Dashboard() {
     );
   }
 
-  const tabs = [
-    { label: "Minhas Cotas", icon: Ticket, path: "/minhas-cotas" },
-    { label: "Meus Afiliados", icon: Users, path: "/afiliados" },
-    { label: "Meu Perfil", icon: User, path: "/perfil" },
-  ];
-
   return (
     <PremiumPageLayout className="cfx-customer-page px-4 pb-24 pt-4 md:pb-8" data-premium-surface="customer">
     <div className="cfx-customer-shell mx-auto max-w-6xl">
@@ -259,71 +313,158 @@ export function Dashboard() {
               <button className="cfx-customer-cta px-6 py-3 rounded-xl flex items-center gap-2"><Save className="w-4 h-4" /> Salvar dados</button>
             </form>
           ) : (
-            <div className="cfx-customer-panel cfx-ticket-vault p-6 md:p-8 min-h-[500px]">
-              <h1 className="text-2xl font-display font-bold mb-6 flex items-center gap-3"><Package className="w-6 h-6 text-neon-cyan" /> Minhas Cotas</h1>
-              <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-6">
-                {["Compras", "Favoritos", "Prêmios", "Tickets", "Notificações", "Afiliado"].map(item => (
-                  <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-4 text-center">
-                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{item}</p>
-                  </div>
+            <section className="cfx-tickets-premium">
+              <header className="cfx-tickets-hero">
+                <span><Ticket /></span>
+                <h1>MEUS BILHETES</h1>
+                <p>Acompanhe suas compras, números e prêmios.</p>
+              </header>
+
+              <div className="cfx-tickets-summary">
+                <TicketSummaryCard icon={<ReceiptText />} label="Total de compras" value={ticketSummary.total.toLocaleString("pt-BR")} />
+                <TicketSummaryCard icon={<CheckCircle2 />} label="Pagas" value={ticketSummary.paid.toLocaleString("pt-BR")} tone="success" />
+                <TicketSummaryCard icon={<Clock3 />} label="Pendentes" value={ticketSummary.pending.toLocaleString("pt-BR")} tone="warning" />
+                <TicketSummaryCard icon={<Ticket />} label="Números recebidos" value={ticketSummary.numbers.toLocaleString("pt-BR")} />
+                <TicketSummaryCard icon={<Trophy />} label="Prêmios encontrados" value={ticketSummary.prizes.toLocaleString("pt-BR")} tone="gold" />
+              </div>
+
+              <div className="cfx-ticket-tabs" role="tablist" aria-label="Filtrar bilhetes">
+                {[
+                  ["all", "Todos"],
+                  ["pending", "Pendentes"],
+                  ["paid", "Pagos"],
+                  ["prized", "Premiados"]
+                ].map(([value, label]) => (
+                  <button key={value} type="button" data-active={activeTicketFilter === value} onClick={() => setActiveTicketFilter(value as TicketFilter)}>
+                    {label}
+                  </button>
                 ))}
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5"><Wallet className="w-5 h-5 text-emerald-400 mb-3" /><p className="text-xs text-slate-500 font-mono uppercase">Comissões</p><p className="text-2xl text-white">R$ {(customer.affiliate?.commissionBalance ?? customer.affiliate?.commission ?? 0).toFixed(2)}</p></div>
-                <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5"><Wallet className="w-5 h-5 text-amber-300 mb-3" /><p className="text-xs text-slate-500 font-mono uppercase">Prêmios</p><p className="text-2xl text-white">R$ {(customer.affiliate?.prizeBalance || 0).toFixed(2)}</p></div>
-                <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5"><Ticket className="w-5 h-5 text-neon-cyan mb-3" /><p className="text-xs text-slate-500 font-mono uppercase">Total cotas</p><p className="text-2xl text-white">{customer.totalTickets}</p></div>
-                <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5"><Users className="w-5 h-5 text-neon-purple mb-3" /><p className="text-xs text-slate-500 font-mono uppercase">Link afiliado</p><p className="text-sm text-white truncate">?ref={customer.affiliateRefCode}</p></div>
-              </div>
-              <div className="space-y-4">
-                {purchases.length === 0 ? (
+
+              <div className="cfx-ticket-list">
+                {filteredTicketPurchases.length === 0 ? (
                   <PremiumEmptyState
-                    title="Nenhuma compra encontrada"
-                    description="Quando o primeiro PIX for confirmado, seus bilhetes, cotas e comprovantes aparecem aqui."
+                    title="Nenhum bilhete encontrado"
+                    description="Quando uma compra aparecer neste filtro, seus dados reais serão exibidos aqui."
                     action={<Link to="/" className="premium-button mt-4 px-5">Participar agora</Link>}
                   />
-                ) : purchases.map((item, idx) => (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} key={item.purchaseId} className="bg-cyber-900/50 border border-white/5 p-5 rounded-xl">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                      <h3 className="font-bold text-lg">Pedido #{item.purchaseId}</h3>
-                        <p className="text-sm text-slate-400">
-                          {item.raffleTitle || item.raffleId} • {new Date(item.createdAt).toLocaleDateString("pt-BR")} • {item.tickets} cotas
-                        </p>
+                ) : filteredTicketPurchases.map((item, idx) => (
+                  <motion.article initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }} key={item.purchaseId || `${item.raffleId}-${idx}`} className="cfx-ticket-card" data-status={item.status}>
+                    <div className="cfx-ticket-card-main">
+                      <div className="cfx-ticket-media">
+                        {item.image ? <img src={item.image} alt={item.title} onError={event => { event.currentTarget.style.display = "none"; }} /> : <Ticket />}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setExpandedPurchase(expandedPurchase === item.purchaseId ? null : item.purchaseId)}
-                          className="rounded-xl border border-neon-cyan/30 px-4 py-2 text-xs font-mono uppercase tracking-widest text-neon-cyan hover:bg-neon-cyan/10"
-                        >
-                          {expandedPurchase === item.purchaseId ? "Ocultar cotas" : "Ver cotas"}
-                        </button>
-                        <span className={cn("px-3 py-1 rounded-full text-xs font-semibold border", item.status === "paid" ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-yellow-500/10 border-yellow-500/30 text-yellow-400")}>{String(item.status).toUpperCase()}</span>
+                      <div className="cfx-ticket-info">
+                        <div className="cfx-ticket-title-row">
+                          <h2>{item.title}</h2>
+                          <span className="cfx-ticket-status">{item.isPaid ? "PAGO" : item.isPending ? "PENDENTE" : String(item.status).toUpperCase()}</span>
+                        </div>
+                        <div className="cfx-ticket-meta">
+                          <span><CalendarDays /> {formatTicketDate(item.createdAt)}</span>
+                          <span>{formatTicketCurrency(item.amount)}</span>
+                          <span>{item.tickets.toLocaleString("pt-BR")} cotas</span>
+                        </div>
+                        <div className="cfx-ticket-actions">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedPurchase(expandedPurchase === item.purchaseId ? null : item.purchaseId)}
+                          >
+                            <Ticket /> Ver Bilhete
+                          </button>
+                          {item.isPaid && (
+                            <button type="button" onClick={() => setExpandedPurchase(item.purchaseId)}>
+                              <ReceiptText /> Comprovante
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    {expandedPurchase === item.purchaseId && (
-                      <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
-                        {(item.numeros || []).length ? (
-                          <div className="flex flex-wrap gap-2">
-                            {(item.numeros || []).map((number: number | string, index: number) => (
-                              <span key={`${number}-${index}`} className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-white">
-                                {typeof number === "number" ? String(number).padStart(6, "0") : number}
-                              </span>
+
+                    <section className="cfx-ticket-numbers">
+                      <h3>Números</h3>
+                      {item.isPaid && item.numbers.length > 0 ? (
+                        <>
+                          <div>
+                            {(expandedPurchase === item.purchaseId ? item.numbers : item.numbers.slice(0, 10)).map((number: number | string, index: number) => (
+                              <span key={`${number}-${index}`}>{formatTicketNumber(number)}</span>
                             ))}
                           </div>
-                        ) : (
-                          <p className="text-sm text-slate-500">Cotas aguardando aprovação do PIX.</p>
-                        )}
-                      </div>
+                          {item.numbers.length > 10 && (
+                            <button type="button" onClick={() => setExpandedPurchase(expandedPurchase === item.purchaseId ? null : item.purchaseId)}>
+                              {expandedPurchase === item.purchaseId ? "Ver menos" : `Ver todos os ${item.numbers.length.toLocaleString("pt-BR")}`}
+                            </button>
+                          )}
+                        </>
+                      ) : item.isPaid ? (
+                        <p>Compra paga sem números informados.</p>
+                      ) : (
+                        <p>Números liberados após pagamento.</p>
+                      )}
+                    </section>
+
+                    {item.instantPrizes.length > 0 && (
+                      <section className="cfx-ticket-super">
+                        <h3><Trophy /> Super Cotas</h3>
+                        <div>
+                          {item.instantPrizes.map((prize: any, prizeIndex: number) => (
+                            <article key={`${prize.numeroPremiado}-${prize.valorPremio}-${prizeIndex}`}>
+                              <strong>{formatTicketNumber(prize.numeroPremiado)}</strong>
+                              <span>{formatTicketCurrency(Number(prize.valorPremio || 0))}</span>
+                            </article>
+                          ))}
+                        </div>
+                      </section>
                     )}
-                  </motion.div>
+
+                    {item.games.length > 0 && (
+                      <section className="cfx-ticket-benefits">
+                        <h3><Sparkles /> Benefícios liberados</h3>
+                        <div>
+                          {item.games.map((game: string) => (
+                            <span key={game}><Gift /> {game}</span>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                  </motion.article>
                 ))}
               </div>
-            </div>
+
+              <div className="cfx-tickets-cta">
+                <Link to="/">Comprar mais cotas</Link>
+                <Link to="/">Voltar para campanhas</Link>
+              </div>
+            </section>
           )}
         </div>
       </div>
     </div>
     </PremiumPageLayout>
   );
+}
+
+function TicketSummaryCard({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone?: "success" | "warning" | "gold" }) {
+  return (
+    <article className="cfx-ticket-summary-card" data-tone={tone || "purple"}>
+      <span>{icon}</span>
+      <small>{label}</small>
+      <strong>{value}</strong>
+    </article>
+  );
+}
+
+function formatTicketDate(value?: string) {
+  if (!value) return "Data não informada";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Data não informada";
+  return date.toLocaleDateString("pt-BR");
+}
+
+function formatTicketCurrency(value: number) {
+  return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatTicketNumber(value: number | string) {
+  const text = String(value);
+  return /^\d+$/.test(text) ? text.padStart(6, "0") : text;
 }
