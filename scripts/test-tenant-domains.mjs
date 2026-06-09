@@ -17,9 +17,12 @@ async function findAvailablePort() {
 
 const port = await findAvailablePort();
 const baseUrl = `http://127.0.0.1:${port}`;
-const env = { ...process.env, PORT: String(port), NODE_ENV: "production", SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", SUPERADMIN_EMAIL: "superadmin.domains@test.local", SUPERADMIN_PASSWORD: "SenhaSuper123!", JWT_SECRET: "test-tenant-domains-secret", GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-tenant-domains-gateway-key" };
+const env = { ...process.env, PORT: String(port), NODE_ENV: "production", RIFAPRO_TEST_MODE: "true", SUPABASE_URL: "", VITE_SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", SUPABASE_SERVICE_KEY: "", SUPERADMIN_EMAIL: "superadmin.domains@test.local", SUPERADMIN_PASSWORD: "SenhaSuper123!", JWT_SECRET: "test-tenant-domains-secret-long-value", GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-tenant-domains-gateway-key" };
 const server = spawn(process.execPath, ["dist/server.js"], { cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"] });
-async function wait() { for (let i = 0; i < 60; i++) { try { const r = await fetch(`${baseUrl}/api/public/health`); if (r.status === 200) return; } catch {} await new Promise(r => setTimeout(r, 100)); } throw new Error("Servidor nao iniciou"); }
+let serverOutput = "";
+server.stdout.on("data", chunk => { serverOutput += chunk.toString(); });
+server.stderr.on("data", chunk => { serverOutput += chunk.toString(); });
+async function wait() { for (let i = 0; i < 100; i++) { try { const r = await fetch(`${baseUrl}/api/public/health`); if (r.status === 200) return; } catch {} await new Promise(r => setTimeout(r, 100)); } throw new Error(`Servidor nao iniciou\n${serverOutput.slice(-2000)}`); }
 async function json(path, options = {}) { const res = await fetch(`${baseUrl}${path}`, { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } }); return { response: res, body: await res.json().catch(() => ({})) }; }
 async function login(email, password) { const { response, body } = await json("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }); assert.equal(response.status, 200); return body.token; }
 async function createAdmin(superHeaders, tenantId, suffix) { const email = `admin.domains.${suffix}@test.local`; const { response } = await json("/api/superadmin/users", { method: "POST", headers: superHeaders, body: JSON.stringify({ nome: "Admin Domain", email, password: "SenhaTenant123!", role: "tenant_admin", tenant_id: tenantId }) }); assert.equal(response.status, 201); return login(email, "SenhaTenant123!"); }

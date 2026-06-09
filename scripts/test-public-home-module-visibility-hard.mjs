@@ -54,8 +54,6 @@ hasAll(home, [
   "className=\"cfx-home-hero\"",
   "className=\"cfx-home-hero-media\"",
   "className=\"cfx-home-media-block\"",
-  "className=\"cfx-home-play\"",
-  "className=\"cfx-video-control\"",
   "className=\"cfx-countdown-grid\"",
   "className=\"cfx-home-progress\"",
   "className=\"cfx-home-primary\"",
@@ -74,6 +72,11 @@ hasAll(home, [
   "function HomeBottomNav",
   "className=\"cfx-home-bottom-nav\""
 ], "Home Premium deve expor contratos visuais novos da Fase 01");
+
+hasNone(home, [
+  "className=\"cfx-home-play\"",
+  "className=\"cfx-video-control\""
+], "Frame de midia da Home deve ficar limpo, sem play fake ou controles sobrepostos");
 
 hasAll(css, [
   ".cfx-home-page",
@@ -156,7 +159,7 @@ hasAll(raffleDetails, [
   "Seus números serão gerados automaticamente após a confirmação do pagamento.",
   "Aguardando pagamento",
   "Copiar código PIX",
-  "Ver meus numeros",
+  "MEUS BILHETES",
   "data-random-raffle-checkout=\"quantity-only\""
 ], "Pagina da rifa mantem compra por quantidade e fluxo visual solicitado");
 

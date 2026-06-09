@@ -251,13 +251,6 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
           aspectMode="auto"
           className="cfx-home-media-block"
         />
-        <button type="button" className="cfx-home-play" aria-label="Reproduzir vídeo da campanha" />
-        <div className="cfx-video-control" aria-hidden="true">
-          <span />
-          <small>0:00</small>
-          <i><b /></i>
-          <small>0:30</small>
-        </div>
       </div>
       <div className="cfx-live-card">
         <p>Sorteio ao vivo em</p>

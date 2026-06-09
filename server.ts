@@ -8645,6 +8645,19 @@ async function startServer() {
       ...purchase,
       linkedPurchases: purchase.linkedPurchases?.map(linked => sanitizePublicPurchase(linked))
     });
+    const safePix = safe as PurchaseRecord & Record<string, any>;
+    const pixPayload = String(safePix.pixPayload || safePix.pix_payload || safePix.pix_copy_paste || "");
+    const pixQrCodeBase64 = String(safePix.pixQrCodeBase64 || safePix.qrCodeBase64 || safePix.qr_code_base64 || "");
+    if (pixPayload) {
+      safePix.pixPayload = pixPayload;
+      safePix.pix_payload = pixPayload;
+      safePix.pix_copy_paste = pixPayload;
+    }
+    if (pixQrCodeBase64) {
+      safePix.pixQrCodeBase64 = pixQrCodeBase64;
+      safePix.qrCodeBase64 = pixQrCodeBase64;
+      safePix.qr_code_base64 = pixQrCodeBase64;
+    }
     if (safe.status !== "paid") {
       safe.numeros = [];
       safe.premiosInstantaneos = [];
@@ -10263,7 +10276,9 @@ async function startServer() {
     const asaasPaymentId = String(payment.id || "");
     if (!asaasPaymentId) throw new Error("Asaas nao retornou ID da cobranca");
     const qrCode = await asaas.provider.getPixQrCode(asaasPaymentId);
-    const pixPayload = qrCode.payload || "ASAAS_PIX_PAYLOAD_PENDING";
+    const pixPayload = String(qrCode.payload || "");
+    const pixQrCodeBase64 = String(qrCode.encodedImage || "");
+    if (!pixPayload && !pixQrCodeBase64) throw new Error("Asaas nao retornou QR Code PIX nem codigo copia e cola");
     const pixExpiresAt = input.pixExpiresAt || qrCode.expirationDate || new Date(Date.now() + asaas.config.orderExpirationMinutes * 60_000).toISOString();
     Object.assign(input.purchase, {
       pixPayload,
@@ -10271,7 +10286,7 @@ async function startServer() {
       pixWebhookUrl: "/api/webhooks/asaas",
       externalReference: asaasExternalReference,
       externalPaymentId: asaasPaymentId,
-      pixQrCodeBase64: qrCode.encodedImage || "",
+      pixQrCodeBase64,
       pixExpiresAt
     });
     upsertPaymentRecord({
@@ -10284,7 +10299,7 @@ async function startServer() {
       provider_reference: asaasExternalReference,
       billing_type: "PIX",
       status: String(payment.status || "PENDING"),
-      qr_code_base64: qrCode.encodedImage || "",
+      qr_code_base64: pixQrCodeBase64,
       pix_payload: pixPayload,
       pix_copy_paste: pixPayload,
       expiration_date: pixExpiresAt,
@@ -13720,8 +13735,10 @@ async function startServer() {
       releaseReservedNumbers(raffle, reservedNumbers);
       if (addonRaffle && addonReservedNumbers.length) releaseReservedNumbers(addonRaffle, addonReservedNumbers);
       purchase.status = "cancelled";
-      recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "asaas", purchaseId, status: "failed", message: error instanceof Error ? error.message : "Falha ao criar PIX Asaas", statusCode: 502, eventStatus: "PAYMENT_CREATE_FAILED" });
-      res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao criar PIX Asaas" });
+      const gateway = purchase.pixGateway || pixConfig.gateway || "pix";
+      const message = error instanceof Error ? error.message : `Falha ao criar PIX ${gateway}`;
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId, status: "failed", message, statusCode: 502, eventStatus: "PAYMENT_CREATE_FAILED" });
+      res.status(502).json({ error: message });
       return;
     }
 

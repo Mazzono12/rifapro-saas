@@ -272,6 +272,21 @@ function normalizeGateways(input: any) {
   };
 }
 
+function hasGatewaySecret(value: unknown) {
+  return String(value || "").trim().length > 0;
+}
+
+function validateAsaasGateway(config: any) {
+  const missing = [
+    !hasGatewaySecret(config.asaas?.apiKey) && "API Key",
+    !hasGatewaySecret(config.asaas?.userAgent) && "User-Agent",
+    !hasGatewaySecret(config.asaas?.webhookSecret) && "Webhook Token"
+  ].filter(Boolean);
+  if (missing.length) {
+    throw new Error(`Asaas incompleto: informe ${missing.join(", ")} antes de salvar.`);
+  }
+}
+
 export function AdminPaymentGateways() {
   const [loading, setLoading] = useState(true);
   const [testResults, setTestResults] = useState<Record<string, any>>({});
@@ -327,6 +342,11 @@ export function AdminPaymentGateways() {
     try {
       const normalized = normalizeGateways(gateways);
       attemptedProvider = normalized.active;
+      if (normalized.active === "asaas") {
+        validateAsaasGateway(normalized);
+        normalized.pix = { ...normalized.pix, enabled: true, sandbox: normalized.asaas.environment !== "production", webhookUrl: "/api/webhooks/asaas" };
+        normalized.asaas = { ...normalized.asaas, enabled: true };
+      }
       const configs = [{
         provider: normalized.active,
         display_name: gatewayLabels[normalized.active] || normalized.active,
@@ -406,8 +426,13 @@ export function AdminPaymentGateways() {
     setGateways({
       ...normalized,
       active: gateway,
+      ...(gateway === "asaas" ? { [gateway]: {
+        ...normalized[gateway],
+        enabled: true
+      } } : {}),
       pix: {
         ...normalized.pix,
+        enabled: gateway === "asaas" ? true : normalized.pix.enabled,
         sandbox: gateway === "primepag" ? normalized.primepag.environment !== "production" : gateway === "cora" ? normalized.cora.environment !== "production" : gateway === "mercadopago" ? normalized.mercadopago.environment !== "production" : gateway === "asaas" ? normalized.asaas.environment !== "production" : gateway === "pay2m" ? normalized.pay2m.environment !== "production" : gateway === "pagbank" ? normalized.pagbank.environment !== "production" : normalized.pix.sandbox,
         webhookUrl: gateway === "primepag" ? "/api/webhooks/primepag" : gateway === "cora" ? "/api/webhooks/cora" : gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`
       }
@@ -664,6 +689,7 @@ export function AdminPaymentGateways() {
                             setGateways({
                               ...normalized,
                               active: "asaas",
+                              asaas: { ...normalized.asaas, enabled: e.target.checked },
                               pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.asaas.environment !== "production", webhookUrl: "/api/webhooks/asaas" }
                             });
                             setHasPendingChanges(true);

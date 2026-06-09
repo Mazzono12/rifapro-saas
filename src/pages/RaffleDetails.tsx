@@ -54,6 +54,32 @@ function getLatestSalesDeadline(raffle?: Raffle | null) {
     .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || "";
 }
 
+function getPixPayload(purchase: any) {
+  return String(purchase?.pixPayload || purchase?.pix_payload || purchase?.pixCopyPaste || purchase?.pix_copy_paste || "").trim();
+}
+
+function getPixQrCodeBase64(purchase: any) {
+  return String(purchase?.pixQrCodeBase64 || purchase?.qrCodeBase64 || purchase?.qr_code_base64 || "").trim();
+}
+
+function getPixQrImageSrc(purchase: any) {
+  const qrCode = getPixQrCodeBase64(purchase);
+  if (!qrCode) return "";
+  if (/^(data:image\/|https?:\/\/)/i.test(qrCode)) return qrCode;
+  return `data:image/png;base64,${qrCode}`;
+}
+
+function normalizePixPurchase<T extends Record<string, any> | null | undefined>(purchase: T): T {
+  if (!purchase) return purchase;
+  const pixPayload = getPixPayload(purchase);
+  const qrCodeBase64 = getPixQrCodeBase64(purchase);
+  return {
+    ...purchase,
+    ...(pixPayload ? { pixPayload, pix_payload: pixPayload, pix_copy_paste: pixPayload } : {}),
+    ...(qrCodeBase64 ? { pixQrCodeBase64: qrCodeBase64, qrCodeBase64, qr_code_base64: qrCodeBase64 } : {})
+  } as T;
+}
+
 export function RaffleDetails() {
   const { id } = useParams();
   const { branding } = useTenantBranding();
@@ -144,14 +170,14 @@ export function RaffleDetails() {
   useEffect(() => {
     if (!polledPurchase) return;
     if (polledPurchase.status === "paid" && purchase?.status !== "paid") {
-      setPurchase(polledPurchase);
+      setPurchase(normalizePixPurchase(polledPurchase));
       if (polledPurchase.customer) setCustomer(polledPurchase.customer);
       setPaymentResult("approved");
       setCheckoutStep("ticket");
       toast.success("Pagamento confirmado", { description: "Seus bilhetes foram liberados." });
     }
     if (polledPurchase.status === "cancelled" && purchase?.status !== "cancelled") {
-      setPurchase(polledPurchase);
+      setPurchase(normalizePixPurchase(polledPurchase));
       setPaymentResult("rejected");
       toast.error("Pagamento recusado", { description: "Tente gerar um novo PIX." });
     }
@@ -292,8 +318,11 @@ export function RaffleDetails() {
           orderBumpAccepted: acceptOrderBump
         })
       });
-      const data = await res.json();
+      const data = normalizePixPurchase(await res.json());
       if (!res.ok) throw new Error(data.error || "Nao foi possivel gerar PIX");
+      if (data.status !== "paid" && !getPixPayload(data) && !getPixQrCodeBase64(data)) {
+        throw new Error("Pedido criado, mas o gateway nao retornou QR Code nem codigo PIX. Tente novamente em instantes.");
+      }
       setPurchase(data);
       if (data.customer) setCustomer(data.customer);
       setRequireIdentity(false);
@@ -313,11 +342,12 @@ export function RaffleDetails() {
   };
 
   const copyPix = async () => {
-    if (!purchase?.pixPayload) {
-      toast.error("PIX indisponivel");
+    const pixPayload = getPixPayload(purchase);
+    if (!pixPayload) {
+      toast.error("PIX copia e cola indisponivel", { description: "Use o QR Code exibido ou gere um novo PIX se o problema continuar." });
       return;
     }
-    await navigator.clipboard.writeText(purchase.pixPayload);
+    await navigator.clipboard.writeText(pixPayload);
     setCopied(true);
     toast.success("PIX copia e cola copiado");
     window.setTimeout(() => setCopied(false), 1800);
@@ -331,8 +361,13 @@ export function RaffleDetails() {
     setConfirmingPix(true);
     try {
       const status = await checkoutService.checkPixPaymentStatus(purchase.purchaseId);
-      const refreshedPurchase = status.purchase || purchase;
-      setPurchase((current: any) => ({ ...current, ...refreshedPurchase, pixPayload: refreshedPurchase?.pixPayload || current?.pixPayload }));
+      const refreshedPurchase = normalizePixPurchase(status.purchase || purchase);
+      setPurchase((current: any) => normalizePixPurchase({
+        ...current,
+        ...refreshedPurchase,
+        pixPayload: getPixPayload(refreshedPurchase) || getPixPayload(current),
+        pixQrCodeBase64: getPixQrCodeBase64(refreshedPurchase) || getPixQrCodeBase64(current)
+      }));
       if (refreshedPurchase?.customer) setCustomer(refreshedPurchase.customer);
       if (status.paid || refreshedPurchase?.status === "paid") {
         setPaymentResult("approved");
@@ -1158,6 +1193,8 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
 }
 
 function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
+  const pixPayload = getPixPayload(props.purchase);
+  const pixQrImageSrc = getPixQrImageSrc(props.purchase);
   const expiresAt = useMemo(() => {
     return props.purchase?.expiresAt || props.purchase?.expires_at || props.purchase?.pixExpiresAt || props.purchase?.reservedUntil || new Date(Date.now() + 15 * 60 * 1000).toISOString();
   }, [props.purchase?.expiresAt, props.purchase?.expires_at, props.purchase?.pixExpiresAt, props.purchase?.reservedUntil, props.purchase?.purchaseId]);
@@ -1184,6 +1221,7 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
         </div>
         <h2>PAGAMENTO VIA PIX</h2>
         <p>Escaneie o QR Code ou copie o código PIX.</p>
+        <small>Aguardando pagamento</small>
       </header>
 
       <section className="cfx-pix-card cfx-pix-qr-card">
@@ -1194,19 +1232,23 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
             <strong>QR Code PIX</strong>
           </div>
         </div>
-      {props.purchase?.pixPayload ? (
+      {pixQrImageSrc ? (
         <div className="cfx-qr-wrap">
-          <QRCodeSVG value={props.purchase.pixPayload} className="cfx-qr-code" bgColor="#ffffff" fgColor="#0f172a" level="M" />
+          <img src={pixQrImageSrc} className="cfx-qr-code" alt="QR Code PIX" />
+        </div>
+      ) : pixPayload ? (
+        <div className="cfx-qr-wrap">
+          <QRCodeSVG value={pixPayload} className="cfx-qr-code" bgColor="#ffffff" fgColor="#0f172a" level="M" />
         </div>
       ) : (
-        <div className="cfx-pix-unavailable">Pagamento indisponível no momento. Tente novamente em instantes.</div>
+        <div className="cfx-pix-unavailable">O gateway nao retornou QR Code nem codigo PIX para este pedido. Gere um novo PIX ou tente novamente em instantes.</div>
       )}
       </section>
 
-      {props.purchase?.pixPayload && (
+      {pixPayload && (
         <section className="cfx-pix-card cfx-pix-code">
           <p>CÓDIGO PIX</p>
-          <code>{props.purchase.pixPayload}</code>
+          <code>{pixPayload}</code>
           <button type="button" onClick={props.onCopyPix} title="Copiar PIX copia e cola" aria-label={props.copied ? "PIX copiado" : "Copiar código PIX"} className={cn("cfx-copy-pix-button checkout-primary-button", props.copied && "is-copied")}>
             <Copy /> {props.copied ? "PIX COPIADO" : "COPIAR PIX"}
           </button>

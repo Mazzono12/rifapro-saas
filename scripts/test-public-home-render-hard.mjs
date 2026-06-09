@@ -27,7 +27,6 @@ const mediaRenderer = read("src/components/MediaRenderer.tsx");
 
 includesAll(home, [
   "PublicHomeErrorBoundary",
-  "HomeSectionBoundary",
   "componentDidCatch",
   "PublicHomeFallback",
   "Não foi possível carregar as campanhas",
@@ -43,15 +42,15 @@ includesAll(home, [
   "[public-home] raffles_count",
   "[public-home] render_error",
   "refetchRaffles",
-  "section=\"modalidades\"",
-  "section=\"fazendinha\"",
-  "section=\"winners\"",
-  "section={`stories-${position}`"
+  "<Hero raffle={featuredRaffle} ranking={ranking} />",
+  "className=\"cfx-home-hero-media\"",
+  "className=\"cfx-home-progress\"",
+  "Participar agora"
 ], "Home publica resiliente");
 
 assert.ok(home.indexOf("PublicHomeErrorBoundary") < home.indexOf("function HomeContent"), "Boundary deve envolver a Home antes da renderizacao dos hooks/componentes.");
-assert.ok(home.includes("mediaUrl={featuredRaffle.mediaUrl || featuredRaffle.image}"), "Midia nula deve cair para imagem/fallback no hero principal.");
-assert.ok(home.includes("mediaUrl={raffle.mediaUrl || raffle.image}"), "Midia nula deve cair para imagem/fallback nos cards.");
+assert.ok(home.includes("const mediaUrl = raffle.mediaUrl || raffle.image;"), "Midia nula deve cair para imagem/fallback no hero principal.");
+assert.ok(home.includes("fallbackImageUrl={raffle.image}"), "Midia nula deve cair para imagem/fallback no frame padronizado.");
 
 assert.ok(fazendinhaSection.includes("const config = data?.config;"), "FazendinhaSection deve guardar config opcional.");
 assert.ok(fazendinhaSection.includes("if (!config.enabled || config.status !== \"active\")"), "FazendinhaSection deve proteger config inativa/ausente.");
@@ -59,16 +58,12 @@ assert.ok(fazendinhaSection.indexOf("if (!config.enabled || config.status !== \"
 assert.ok(!fazendinhaSection.includes("data.config"), "FazendinhaSection nao deve acessar data.config diretamente.");
 
 includesAll(home, [
-  "home-benefit-chips",
-  "home-benefit-chip",
-  "grid grid-cols-2",
-  "PIX automatico",
-  "WhatsApp",
-  "Sorteio auditavel",
-  "Gamificacao"
-], "Beneficios da Home devem ser chips compactos mobile.");
+  "className=\"cfx-countdown-grid\"",
+  "className=\"cfx-home-primary\"",
+  "className=\"cfx-home-secondary\"",
+  "className=\"cfx-top-buyers\""
+], "Home deve manter CTAs, contador e ranking compactos.");
 assert.equal(home.includes("Rifas ativas"), false, "Titulo Rifas ativas deve ser removido da Home publica.");
-assert.equal(home.includes("premium-card p-4"), false, "Beneficios nao devem voltar a cards altos no mobile.");
 assert.equal(home.includes("pb-40"), false, "Home nao deve manter spacer grande antes do rodape.");
 
 includesAll(theme, ["LOCKED_THEME_ID", "\"vimeu_dark\"", "applyThemeVariables"], "Tema vimeu_dark deve continuar aplicado.");

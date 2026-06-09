@@ -104,7 +104,9 @@ check("9. Pagamento atrasado nao libera reserva expirada", () => {
 });
 
 check("10. PIX gera QR Code e copia e cola", () => {
-  assert.match(raffleDetails, /QRCodeSVG value=\{props\.purchase\.pixPayload\}/);
+  assert.match(raffleDetails, /<img src=\{pixQrImageSrc\} className="cfx-qr-code" alt="QR Code PIX" \/>/);
+  assert.match(raffleDetails, /QRCodeSVG value=\{pixPayload\}/);
+  assert.match(raffleDetails, /O gateway nao retornou QR Code nem codigo PIX/);
   assert.match(raffleDetails, /Copiar PIX copia e cola/);
   assert.match(server, /pixPayload: buildPixPayload\(payableAmount, raffle, purchaseId\)/);
 });

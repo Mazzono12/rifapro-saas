@@ -82,9 +82,9 @@ excludesAll(adminStories, ["bg-gradient-to-t from-black via-transparent", "absol
 
 includesAll(home, [
   "StandardRaffleMediaBlock",
-  "CampaignMediaHero",
-  "home-featured-raffle-block",
-  "mediaFit={raffle.mediaFit === \"fill\" ? \"fill\" : raffle.mediaFit || \"auto\"}"
+  "className=\"cfx-home-media-block\"",
+  "showDescriptionBelow={false}",
+  "preferredFit={raffle.mediaFit === \"contain\" ? \"contain\" : raffle.mediaFit === \"cover\" ? \"cover\" : \"auto\"}"
 ], "Home usa blocos padronizados");
 excludesAll(home, ["absolute inset-x-0 bottom-0 h-44", "absolute right-4 top-4"], "Home sem mascara/badge dentro da midia dos cards");
 includesAll(details, ["StandardRaffleMediaBlock", "CheckoutCampaignMedia"], "RaffleDetails usa midia limpa");
