@@ -408,6 +408,8 @@ export function RaffleDetails() {
         gamification={gamification}
         acceptOrderBump={acceptOrderBump}
         setAcceptOrderBump={setAcceptOrderBump}
+        prizes={instantPrizeNumbers}
+        ranking={ranking}
         couponCode={couponCode}
         setCouponCode={setCouponCode}
         couponPreview={couponPreview}
@@ -418,7 +420,10 @@ export function RaffleDetails() {
         copied={copied}
         confirmingPix={confirmingPix}
         onClose={() => setCheckoutOpen(false)}
-        onSubmit={openPrePaymentReceipt}
+        onSubmit={event => {
+          event.preventDefault();
+          executeBuy();
+        }}
         onCopyPix={copyPix}
         onConfirmPix={confirmPixStatus}
         onBackToReview={() => setCheckoutStep("review")}
@@ -920,6 +925,8 @@ function CheckoutModal(props: {
   gamification: any;
   acceptOrderBump: boolean;
   setAcceptOrderBump: (value: boolean) => void;
+  prizes: Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }>;
+  ranking: Array<{ name: string; phone: string; tickets: number; amount: number }>;
   couponCode: string;
   setCouponCode: (value: string) => void;
   couponPreview: any;
@@ -948,7 +955,7 @@ function CheckoutModal(props: {
           eyebrow={props.step === "review" ? "Escolha e dados" : props.step === "payment" ? "PIX instantaneo" : "Pagamento confirmado"}
           onClose={props.onClose}
           compact={props.step !== "review"}
-          shellClassName="checkout-screen checkout-modal-shell cfx-checkout-shell"
+          shellClassName={`checkout-screen checkout-modal-shell cfx-checkout-shell cfx-checkout-shell-${props.step}`}
         >
               {props.step === "review" && <CheckoutReview {...props} />}
               {props.step === "payment" && <PaymentPix {...props} />}
@@ -961,105 +968,191 @@ function CheckoutModal(props: {
 }
 
 function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
+  const [showRegistration, setShowRegistration] = useState(false);
+  const buyer = props.customer || {};
+  const buyerName = buyer.name || props.customerForm.name || "";
+  const buyerPhone = buyer.phone || props.customerForm.phone || "";
+  const buyerEmail = (buyer as any).email || props.customerForm.email || "";
+  const buyerCpf = buyer.cpf || props.customerForm.cpf || "";
+  const subtotal = props.tickets * Number(props.raffle.price || 0);
+  const discount = Number(props.couponPreview?.discount || 0);
+  const fees = 0;
+  const needsCustomerData = !props.customer || props.requireIdentity;
+  const cpfDigits = String(props.customerForm.cpf || buyerCpf || "").replace(/\D/g, "");
+  const campaignImage = props.raffle.image || props.raffle.checkoutMediaUrl || props.raffle.mediaUrl || "";
+  const rawPixPrize = (props.raffle as any).pixPrizeValue ?? (props.raffle as any).pixPrize ?? (props.raffle as any).cashPrize ?? "";
+  const pixPrize = typeof rawPixPrize === "number" && rawPixPrize > 0
+    ? formatCurrency(rawPixPrize)
+    : String(rawPixPrize || "").trim();
+  const publicPrizes = props.prizes
+    .filter(prize => Number.isFinite(Number(prize.numeroPremiado)))
+    .slice(0, 6);
+  const lootboxConfig = props.raffle.lootboxConfig || {};
+  const rewardModes = (lootboxConfig as any).rewardModes || {};
+  const benefits = [
+    publicPrizes.length ? { icon: <Gift />, title: "Super Cotas", detail: "Inclusas", tone: "gold" } : null,
+    props.raffle.lootboxEnabled && (rewardModes.wheel || (lootboxConfig as any).experienceType === "wheel")
+      ? { icon: <Trophy />, title: "Roleta", detail: "Premiada", tone: "blue" }
+      : null,
+    props.raffle.lootboxEnabled && (rewardModes.box || (lootboxConfig as any).experienceType === "box")
+      ? { icon: <Gift />, title: "Caixinha", detail: "Premiada", tone: "cyan" }
+      : null,
+    props.gamification?.scratchcard?.enabled || props.gamification?.scratchcard?.prizes?.length
+      ? { icon: <Ticket />, title: "Raspadinha", detail: "Premiada", tone: "purple" }
+      : null,
+    props.ranking.length || props.gamification?.buyerRanking?.enabled
+      ? { icon: <Trophy />, title: "Ranking", detail: "Top Compradores", tone: "gold" }
+      : null
+  ].filter(Boolean) as Array<{ icon: React.ReactNode; title: string; detail: string; tone: string }>;
+  const reservationMinutes = Number((props.raffle as any).reservationMinutes || (props.raffle.pixConfig as any)?.reservationMinutes || 0);
+  const reserveExpiresAt = useMemo(() => new Date(Date.now() + Math.max(1, reservationMinutes || 5) * 60 * 1000).toISOString(), [reservationMinutes]);
+  const reserveCountdown = useCountdown(reserveExpiresAt);
+
+  const handleReviewSubmit = (event: React.FormEvent) => {
+    if (needsCustomerData && !showRegistration) {
+      event.preventDefault();
+      if (cpfDigits.length !== 11) {
+        toast.error("Informe seu CPF para continuar");
+        return;
+      }
+      setShowRegistration(true);
+      return;
+    }
+    props.onSubmit(event);
+  };
+
   return (
-    <form onSubmit={props.onSubmit} className="cfx-checkout-form">
-      <section className="cfx-checkout-stepper" aria-label="Etapas do checkout">
-        {["Escolha", "Dados", "Pagamento"].map((label, index) => (
-          <span key={label} className={index === 0 ? "is-active" : ""}>
-            <strong>{index + 1}</strong>
-            <small>{label}</small>
-          </span>
+    <form onSubmit={handleReviewSubmit} className="cfx-checkout-form cfx-review-premium">
+      <header className="cfx-review-top">
+        <button type="button" onClick={props.onClose} aria-label="Voltar para o sorteio">
+          <ChevronLeft />
+        </button>
+        <h2>REVISÃO DA COMPRA</h2>
+        <p>Confira os dados e gere seu PIX.</p>
+      </header>
+
+      <section className="cfx-review-prize-card">
+        {campaignImage ? (
+          <img src={campaignImage} alt={props.raffle.title} onError={event => { event.currentTarget.style.display = "none"; }} />
+        ) : (
+          <div className="cfx-review-prize-placeholder"><Gift /></div>
+        )}
+        <div className="cfx-review-prize-copy">
+          <h3>{props.raffle.title}</h3>
+          {pixPrize && (
+            <>
+              <span>ou</span>
+              <strong>{pixPrize} NO PIX</strong>
+            </>
+          )}
+          <b><Trophy /> SUPER PRÊMIO</b>
+        </div>
+      </section>
+
+      <div className="cfx-review-grid">
+        <section className="cfx-review-panel cfx-review-summary">
+          <div className="cfx-review-panel-head">
+            <span><Ticket /></span>
+            <h3>RESUMO DO PEDIDO</h3>
+          </div>
+          <dl>
+            <div><dt>Quantidade de cotas:</dt><dd>{props.tickets.toLocaleString("pt-BR")}</dd></div>
+            <div><dt>Valor unitário:</dt><dd>{formatCurrency(props.raffle.price)}</dd></div>
+            <div><dt>Subtotal:</dt><dd>{formatCurrency(subtotal)}</dd></div>
+            <div><dt>Descontos:</dt><dd>{formatCurrency(discount)}</dd></div>
+            <div><dt>Taxas:</dt><dd>{formatCurrency(fees)}</dd></div>
+          </dl>
+          <div className="cfx-review-total">
+            <small>TOTAL A PAGAR</small>
+            <strong>{formatCurrency(props.totalValue)}</strong>
+          </div>
+        </section>
+      </div>
+
+      <section className="cfx-review-panel cfx-review-buyer">
+        <div className="cfx-review-panel-head">
+          <span><WalletCards /></span>
+          <h3>DADOS DO COMPRADOR</h3>
+        </div>
+
+        {props.customer && !props.requireIdentity ? (
+          <div className="cfx-review-buyer-readonly">
+            <InfoCard label="Nome" value={buyerName || "Cliente"} />
+            <InfoCard label="Telefone" value={maskPhone(buyerPhone)} />
+            <InfoCard label="Email" value={maskEmail(buyerEmail)} />
+            <InfoCard label="CPF" value={maskCpf(buyerCpf)} />
+          </div>
+        ) : (
+          <div className="cfx-review-buyer-form">
+            <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value.replace(/\D/g, "").slice(0, 11) }))} required inputMode="numeric" maxLength={11} />
+            {!showRegistration ? (
+              <p className="cfx-review-cpf-hint">Informe o CPF para localizar ou iniciar seu cadastro com segurança.</p>
+            ) : (
+              <>
+                <Field label="Nome completo" value={props.customerForm.name} onChange={value => props.setCustomerForm((current: any) => ({ ...current, name: value }))} required />
+                <Field label="WhatsApp" value={props.customerForm.phone} onChange={value => props.setCustomerForm((current: any) => ({ ...current, phone: value }))} required inputMode="tel" />
+                <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} required inputMode="numeric" maxLength={6} />
+              </>
+            )}
+          </div>
+        )}
+      </section>
+
+      {benefits.length > 0 && (
+        <section className="cfx-review-panel cfx-review-benefits cfx-review-benefits-mobile">
+          <div className="cfx-review-panel-head">
+            <span><Gift /></span>
+            <h3>BENEFÍCIOS DA CAMPANHA</h3>
+          </div>
+          <div>
+            {benefits.map(benefit => (
+              <article key={`mobile-${benefit.title}-${benefit.detail}`} data-tone={benefit.tone}>
+                {benefit.icon}
+                <span><strong>{benefit.title}</strong><small>{benefit.detail}</small></span>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {publicPrizes.length > 0 && (
+        <section className="cfx-review-super-prizes cfx-review-super-prizes-mobile">
+          <h3>SUPER COTAS RECEBIDAS</h3>
+          <div>
+            {publicPrizes.map(prize => (
+              <article key={`mobile-${prize.id}`}>
+                <strong>{String(prize.numeroPremiado).padStart(5, "0")}</strong>
+                <small>{formatCurrency(Number(prize.valorPremio || 0))}</small>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="cfx-review-reserve">
+        <Clock3 />
+        <div>
+          <h3>RESERVA DO PIX</h3>
+          <p>Após gerar o PIX, você terá tempo limitado para pagar.</p>
+        </div>
+        <strong>{String(reserveCountdown.minutes).padStart(2, "0")}:{String(reserveCountdown.seconds).padStart(2, "0")}<small>MINUTOS</small></strong>
+      </section>
+
+      <section className="cfx-review-security">
+        {[
+          [<ShieldCheck />, "COMPRA SEGURA"],
+          [<WalletCards />, "PIX INSTANTÂNEO"],
+          [<Lock />, "DADOS PROTEGIDOS"],
+          [<Trophy />, "SORTEIO TRANSPARENTE"]
+        ].map(([icon, label]) => (
+          <span key={String(label)}>{icon}<strong>{label}</strong></span>
         ))}
       </section>
 
-      <section className="cfx-checkout-panel cfx-order-card">
-        <div className="cfx-panel-head">
-          <span className="cfx-icon-bubble"><Ticket /></span>
-          <div>
-            <p>Resumo da compra</p>
-            <h3>{props.raffle.title}</h3>
-          </div>
-        </div>
-        <div className="cfx-order-lines">
-          <InfoCard label="Quantidade" value={props.tickets.toLocaleString("pt-BR")} />
-          <InfoCard label="Valor unitario" value={formatCurrency(props.raffle.price)} />
-          <InfoCard label="Total" value={formatCurrency(props.totalValue)} />
-        </div>
-        <p className="cfx-safe-line"><ShieldCheck /> Ambiente seguro</p>
-      </section>
-
-      <section className="cfx-checkout-panel">
-        <div className="cfx-panel-head">
-          <span className="cfx-icon-bubble"><WalletCards /></span>
-          <div>
-            <p>Dados do comprador</p>
-            <h3>{props.customer && !props.requireIdentity ? "Cliente identificado" : "Informe seus dados"}</h3>
-          </div>
-        </div>
-
-      {props.customer && !props.requireIdentity ? (
-        <div className="cfx-identified">
-          <CheckCircle2 />
-          <span>Olá, {(props.customer.name || "cliente").split(/\s+/)[0]}. Seus dados estão protegidos.</span>
-        </div>
-      ) : (
-        <>
-          <div className="cfx-segmented">
-            <button type="button" onClick={() => props.setCustomerMode("register")} className={props.customerMode === "register" ? "is-active" : ""}>Novo</button>
-            <button type="button" onClick={() => props.setCustomerMode("login")} className={props.customerMode === "login" ? "is-active" : ""}>Já tenho</button>
-          </div>
-          {props.customerMode === "register" && (
-            <>
-              <Field label="Nome completo" value={props.customerForm.name} onChange={value => props.setCustomerForm((current: any) => ({ ...current, name: value }))} required />
-              <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value }))} required />
-              <div className="cfx-field-grid">
-                <Field label="Cidade" value={props.customerForm.city} onChange={value => props.setCustomerForm((current: any) => ({ ...current, city: value }))} required />
-                <Field label="UF" value={props.customerForm.state} onChange={value => props.setCustomerForm((current: any) => ({ ...current, state: value.toUpperCase().slice(0, 2) }))} />
-              </div>
-            </>
-          )}
-          <Field label="WhatsApp" value={props.customerForm.phone} onChange={value => props.setCustomerForm((current: any) => ({ ...current, phone: value }))} required inputMode="tel" />
-        </>
-      )}
-
-      {(!props.customer || props.requireIdentity) && (
-        <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} required inputMode="numeric" maxLength={6} />
-      )}
-      </section>
-
-      <section className="cfx-checkout-panel">
-        <div className="cfx-panel-head">
-          <span className="cfx-icon-bubble"><QrCode /></span>
-          <div>
-            <p>Pagamento</p>
-            <h3>PIX Instantâneo</h3>
-          </div>
-        </div>
-        <div className="cfx-payment-option is-active">
-          <span>PIX</span>
-          <small>Aprovação automática</small>
-          <CheckCircle2 />
-        </div>
-        <div className="cfx-coupon-row">
-          <input value={props.couponCode} onChange={e => props.setCouponCode(e.target.value.toUpperCase())} placeholder="Cupom" />
-          <button type="button" onClick={props.validateCoupon}>Aplicar</button>
-        </div>
-        {props.couponPreview && <p className="cfx-safe-line"><CheckCircle2 /> Cupom aplicado no resumo.</p>}
-      </section>
-
-      {props.addonSuggestion && (
-        <ToggleCard checked={props.acceptAddon} onChange={props.setAcceptAddon} title={`Adicionar ${props.addonSuggestion.tickets} cotas extras`} description={`${props.addonSuggestion.raffle.title} por + ${formatCurrency(props.addonSuggestion.amount)}`} />
-      )}
-
-      <GamificationPanel data={props.gamification} onOrderBumpChange={props.setAcceptOrderBump} orderBumpAccepted={props.acceptOrderBump} />
-
-      {props.canUseBalance && (
-        <ToggleCard checked={props.useBalance} onChange={props.setUseBalance} title="Usar saldo afiliado" description="Abater valor com saldo disponivel." />
-      )}
-
-      <CheckoutPrimaryActionButton type="submit" disabled={props.isSubmitting} className="cfx-main-cta disabled:opacity-60">
-        <WalletCards className="h-5 w-5" /> {props.isSubmitting ? "Calculando resumo..." : "Continuar"}
+      <CheckoutPrimaryActionButton type="submit" disabled={props.isSubmitting} className="cfx-review-submit disabled:opacity-45">
+        <WalletCards /> {props.isSubmitting ? "GERANDO PIX..." : "GERAR PIX"}
       </CheckoutPrimaryActionButton>
+      <p className="cfx-review-footnote"><Lock /> Ao clicar em GERAR PIX, você será direcionado para a etapa de pagamento seguro via PIX.</p>
     </form>
   );
 }
@@ -1069,46 +1162,92 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
     return props.purchase?.expiresAt || props.purchase?.expires_at || props.purchase?.pixExpiresAt || props.purchase?.reservedUntil || new Date(Date.now() + 15 * 60 * 1000).toISOString();
   }, [props.purchase?.expiresAt, props.purchase?.expires_at, props.purchase?.pixExpiresAt, props.purchase?.reservedUntil, props.purchase?.purchaseId]);
   const expiresIn = useCountdown(expiresAt);
-  const gateway = props.purchase?.pixGateway || props.purchase?.gateway || props.purchase?.paymentGateway || "PIX";
+  const mediaCandidate = props.raffle.image || props.raffle.checkoutMediaUrl || props.raffle.mediaUrl || "";
+  const mediaType = String(props.raffle.checkoutMediaType || props.raffle.mediaType || "").toLowerCase();
+  const campaignImage = mediaType.includes("video") || mediaType.includes("bunny") ? props.raffle.image || "" : mediaCandidate;
+  const trustItems: Array<[React.ReactNode, string]> = [
+    [<ShieldCheck />, "PIX Seguro"],
+    [<Lock />, "Compra Protegida"],
+    [<Clock3 />, "Reserva Garantida"],
+    [<CheckCircle2 />, "Dados Criptografados"]
+  ];
+
   return (
-    <div className="cfx-pix-screen text-center">
-      <div className="cfx-pix-icon mx-auto grid h-16 w-16 place-items-center rounded-3xl border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-primary)]">
-        <QrCode className="h-8 w-8" />
-      </div>
-      <div className="cfx-pix-title">
-        <h3 className="text-3xl font-black">Pague com PIX</h3>
-        <p className="mt-2 text-sm text-slate-400">Aguardando pagamento. Confirmacao automatica em tempo real. Pedido #{props.purchase?.purchaseId}</p>
-      </div>
-      <div className="cfx-pix-meta checkout-info-grid grid gap-2 rounded-3xl border border-white/10 bg-white/[0.045] p-3 text-left sm:grid-cols-3">
-        <InfoCard label="Status" value={props.purchase?.status === "paid" ? "Pago" : "Aguardando pagamento"} />
-        <InfoCard label="Gateway" value={String(gateway).toUpperCase()} />
-        <InfoCard label="Total" value={formatCurrency(props.totalValue)} />
-      </div>
+    <div className="cfx-pix-screen cfx-pix-premium">
+      <header className="cfx-pix-premium-top">
+        <div className="cfx-pix-campaign-logo">
+          {campaignImage ? (
+            <img src={campaignImage} alt={props.raffle.title} onError={event => { event.currentTarget.style.display = "none"; }} />
+          ) : (
+            <Gift />
+          )}
+        </div>
+        <h2>PAGAMENTO VIA PIX</h2>
+        <p>Escaneie o QR Code ou copie o código PIX.</p>
+      </header>
+
+      <section className="cfx-pix-card cfx-pix-qr-card">
+        <div className="cfx-pix-card-head is-centered">
+          <span><QrCode /></span>
+          <div>
+            <small>Escaneie com o app do seu banco</small>
+            <strong>QR Code PIX</strong>
+          </div>
+        </div>
       {props.purchase?.pixPayload ? (
-        <div className="cfx-qr-wrap mx-auto w-full max-w-[min(18rem,calc(100vw-3rem))] rounded-[1.35rem] bg-white p-3 shadow-[0_0_42px_rgba(34,211,238,0.18)] sm:w-fit sm:max-w-none sm:rounded-[1.75rem] sm:p-5">
-          <QRCodeSVG value={props.purchase.pixPayload} className="h-auto w-full sm:h-[250px] sm:w-[250px]" bgColor="#ffffff" fgColor="#0f172a" level="M" />
+        <div className="cfx-qr-wrap">
+          <QRCodeSVG value={props.purchase.pixPayload} className="cfx-qr-code" bgColor="#ffffff" fgColor="#0f172a" level="M" />
         </div>
       ) : (
-        <div className="rounded-2xl border border-red-300/20 bg-red-500/10 p-4 text-sm text-red-100">Pagamento indisponível no momento. Tente novamente em instantes.</div>
+        <div className="cfx-pix-unavailable">Pagamento indisponível no momento. Tente novamente em instantes.</div>
       )}
-      <div className="cfx-pix-expiry rounded-3xl border border-white/10 bg-white/[0.045] p-4">
-        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Tempo para pagar</p>
-        <p className="mt-1 text-2xl font-black text-[var(--theme-primary)]">{String(expiresIn.minutes).padStart(2, "0")}:{String(expiresIn.seconds).padStart(2, "0")}</p>
-        <p className="mt-2 text-xs text-slate-400">A tela atualiza sozinha quando o pagamento for confirmado.</p>
-      </div>
+      </section>
+
       {props.purchase?.pixPayload && (
-        <div className="cfx-pix-code">
-          <p>Ou copie o codigo PIX</p>
+        <section className="cfx-pix-card cfx-pix-code">
+          <p>CÓDIGO PIX</p>
           <code>{props.purchase.pixPayload}</code>
-        </div>
+          <button type="button" onClick={props.onCopyPix} title="Copiar PIX copia e cola" aria-label={props.copied ? "PIX copiado" : "Copiar código PIX"} className={cn("cfx-copy-pix-button checkout-primary-button", props.copied && "is-copied")}>
+            <Copy /> {props.copied ? "PIX COPIADO" : "COPIAR PIX"}
+          </button>
+        </section>
       )}
-      <button type="button" onClick={props.onCopyPix} title="Copiar PIX copia e cola" className={cn("cfx-copy-pix-button checkout-primary-button flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl font-black transition", props.copied ? "premium-button" : "border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)]")}>
-        <Copy className="h-5 w-5" /> {props.copied ? "PIX copiado" : "Copiar código PIX"}
-      </button>
-      <div className="cfx-actions-row checkout-actions grid gap-2 sm:grid-cols-2">
-        <button type="button" onClick={props.onBackToReview} className="min-h-12 rounded-2xl border border-white/10 py-3 text-sm font-bold text-slate-300">Alterar dados</button>
+
+      <section className="cfx-pix-card cfx-pix-summary-card">
+        <div className="cfx-pix-campaign">
+          {campaignImage ? (
+            <img src={campaignImage} alt={props.raffle.title} onError={event => { event.currentTarget.style.display = "none"; }} />
+          ) : (
+            <div><Gift /></div>
+          )}
+          <span>
+            <small>Prêmio</small>
+            <strong>{props.raffle.title}</strong>
+          </span>
+        </div>
+        <div className="cfx-pix-summary-grid">
+          <InfoCard label="Quantidade" value={props.tickets.toLocaleString("pt-BR")} />
+          <InfoCard label="Valor total" value={formatCurrency(props.totalValue)} />
+        </div>
+      </section>
+
+      <section className="cfx-pix-card cfx-pix-timer-card">
+        <Clock3 />
+        <span>
+          <small>TEMPO RESTANTE</small>
+          <strong>{String(expiresIn.minutes).padStart(2, "0")}:{String(expiresIn.seconds).padStart(2, "0")}</strong>
+        </span>
+      </section>
+
+      <section className="cfx-pix-card cfx-pix-trust-card">
+        {trustItems.map(([icon, label]) => (
+          <span key={String(label)}>{icon}<strong>{label}</strong></span>
+        ))}
+      </section>
+
+      <div className="cfx-actions-row checkout-actions cfx-pix-actions">
         <CheckoutPrimaryActionButton onClick={props.onConfirmPix} disabled={props.confirmingPix} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black disabled:opacity-60">
-          <CheckCircle2 className="h-4 w-4" /> {props.confirmingPix ? "Consultando status..." : "Confirmar PIX"}
+          <CheckCircle2 className="h-4 w-4" /> {props.confirmingPix ? "CONSULTANDO..." : "JÁ REALIZEI O PAGAMENTO"}
         </CheckoutPrimaryActionButton>
       </div>
     </div>
@@ -1250,6 +1389,12 @@ function maskEmail(value?: string) {
   const [user, domain] = email.split("@");
   if (!user || !domain) return "Nao informado";
   return `${user.slice(0, 2)}***@${domain}`;
+}
+
+function maskCpf(value?: string) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length < 11) return "Nao informado";
+  return `***.${digits.slice(3, 6)}.${digits.slice(6, 9)}-**`;
 }
 
 function formatReceiptDate(value?: string) {
