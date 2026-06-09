@@ -205,7 +205,7 @@ export function AdminRaffles() {
             <p className="mt-2 text-sm text-slate-400">Crie, publique e acompanhe suas campanhas comerciais.</p>
          </div>
          <button 
-           onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
+           onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
            className="bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/50 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
          >
            <Plus className="w-4 h-4" /> Nova campanha
@@ -362,6 +362,39 @@ export function AdminRaffles() {
                       mediaType={currentRaffle.mediaType}
                       onChange={(mediaUrl, mediaType) => setCurrentRaffle({ ...currentRaffle, mediaUrl, mediaType })}
                     />
+                    <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                      <p className="mb-3 text-xs font-mono uppercase tracking-widest text-slate-400">Tipo da mídia principal</p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {[
+                          { value: "image", label: "Imagem", help: "A Home usa proporção 5:6 automaticamente." },
+                          { value: "video", label: "Vídeo", help: "A Home usa proporção 16:9 automaticamente." }
+                        ].map(option => {
+                          const currentType = String(currentRaffle.mediaType || "image").toLowerCase();
+                          const selected = option.value === "video"
+                            ? ["video", "youtube", "vimeo", "bunny"].includes(currentType)
+                            : !["video", "youtube", "vimeo", "bunny"].includes(currentType);
+                          return (
+                            <label key={option.value} className={cn("flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition", selected ? "border-neon-cyan/60 bg-neon-cyan/10 text-white" : "border-white/10 bg-black/10 text-slate-300 hover:border-white/20")}>
+                              <input
+                                type="radio"
+                                name="home-media-type"
+                                className="mt-1"
+                                checked={selected}
+                                onChange={() => {
+                                  const inferredType = currentRaffle.mediaUrl ? inferMediaType(currentRaffle.mediaUrl) : "video";
+                                  const nextMediaType = option.value === "video" && inferredType !== "image" ? inferredType : option.value;
+                                  setCurrentRaffle({ ...currentRaffle, mediaType: nextMediaType as Raffle["mediaType"] });
+                                }}
+                              />
+                              <span>
+                                <span className="block text-sm font-bold">{option.label}</span>
+                                <span className="mt-1 block text-xs text-slate-400">{option.help}</span>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                   <div className="md:col-span-2">
                     <MediaPicker
@@ -374,33 +407,6 @@ export function AdminRaffles() {
                     <p className="mt-2 text-[11px] text-slate-500">
                       Se este campo ficar vazio, o checkout usa automaticamente a mídia da landing page.
                     </p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono text-slate-400 mb-1">Proporção da landing</label>
-                    <select
-                      className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
-                      value={currentRaffle.mediaAspect || "wide"}
-                      onChange={e => setCurrentRaffle({ ...currentRaffle, mediaAspect: e.target.value as any })}
-                    >
-                      <option value="auto">Automático / tela cheia</option>
-                      <option value="wide">Horizontal 16:9</option>
-                      <option value="cinematic">Cinema 21:9</option>
-                      <option value="square">Quadrado 1:1</option>
-                      <option value="portrait">Vertical 4:5</option>
-                      <option value="story">Stories 9:16</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono text-slate-400 mb-1">Encaixe da landing</label>
-                    <select
-                      className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
-                      value={currentRaffle.mediaFit || "cover"}
-                      onChange={e => setCurrentRaffle({ ...currentRaffle, mediaFit: e.target.value as any })}
-                    >
-                      <option value="cover">Preencher cortando bordas</option>
-                      <option value="contain">Mostrar inteiro sem cortar</option>
-                      <option value="fill">Esticar para ocupar tudo</option>
-                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-mono text-slate-400 mb-1">Proporção do checkout</label>
@@ -441,9 +447,9 @@ export function AdminRaffles() {
                     />
                   </div>
                   <div className="md:col-span-2 rounded-3xl border border-fuchsia-300/15 bg-fuchsia-300/[0.03] p-5">
-                    <h3 className="font-display text-lg font-bold text-white">Textos e botões do vídeo principal</h3>
+                    <h3 className="font-display text-lg font-bold text-white">Textos editáveis da Home</h3>
                     <p className="mt-1 text-xs text-slate-400">
-                      Configure se a chamada fica em cima do vídeo ou abaixo dele na tela principal.
+                      Configure os textos exibidos abaixo da mídia principal. Se algum campo ficar vazio, a Home usa nome da rifa, prêmio e data do sorteio como fallback.
                     </p>
                     <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                       <label>
@@ -468,21 +474,30 @@ export function AdminRaffles() {
                       <TextField label="Etiqueta pequena" value={currentRaffle.heroEyebrow || ""} onChange={value => setCurrentRaffle({ ...currentRaffle, heroEyebrow: value })} placeholder="Experiência premium" />
                       <TextField label="Texto do botão principal" value={currentRaffle.heroPrimaryButton || ""} onChange={value => setCurrentRaffle({ ...currentRaffle, heroPrimaryButton: value })} placeholder="Participar agora" />
                       <label className="md:col-span-2">
-                        <span className="block text-xs font-mono text-slate-400 mb-1">Título principal</span>
+                        <span className="block text-xs font-mono text-slate-400 mb-1">Título da Home</span>
                         <input
                           className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
-                          value={currentRaffle.heroTitle || ""}
-                          onChange={e => setCurrentRaffle({ ...currentRaffle, heroTitle: e.target.value })}
-                          placeholder="Sorteios com experiência cinematográfica."
+                          value={currentRaffle.homeTitle ?? currentRaffle.heroTitle ?? ""}
+                          onChange={e => setCurrentRaffle({ ...currentRaffle, homeTitle: e.target.value, heroTitle: currentRaffle.heroTitle || e.target.value })}
+                          placeholder="Rifa do iPhone 17 Pro Max"
                         />
                       </label>
                       <label className="md:col-span-2">
-                        <span className="block text-xs font-mono text-slate-400 mb-1">Texto de apoio</span>
+                        <span className="block text-xs font-mono text-slate-400 mb-1">Subtítulo da Home</span>
                         <textarea
                           className="min-h-24 w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
-                          value={currentRaffle.heroSubtitle || ""}
-                          onChange={e => setCurrentRaffle({ ...currentRaffle, heroSubtitle: e.target.value })}
-                          placeholder="Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa."
+                          value={currentRaffle.homeSubtitle ?? currentRaffle.heroSubtitle ?? ""}
+                          onChange={e => setCurrentRaffle({ ...currentRaffle, homeSubtitle: e.target.value, heroSubtitle: currentRaffle.heroSubtitle || e.target.value })}
+                          placeholder="Concorra ao iPhone ou R$ 5.000 no PIX"
+                        />
+                      </label>
+                      <label className="md:col-span-2">
+                        <span className="block text-xs font-mono text-slate-400 mb-1">Destaque abaixo da mídia</span>
+                        <input
+                          className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                          value={currentRaffle.homeHighlightText || ""}
+                          onChange={e => setCurrentRaffle({ ...currentRaffle, homeHighlightText: e.target.value })}
+                          placeholder="Sorteio ao vivo em 25/12/2025 às 20:00"
                         />
                       </label>
                       <label className="md:col-span-2">
@@ -633,7 +648,7 @@ export function AdminRaffles() {
                   Nenhum registro encontrado.
                 </p>
                 <button
-                  onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
+                  onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true }); setIsEditing(true); }}
                   className="neon-button mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3"
                 >
                   <Plus className="h-4 w-4" /> Nova campanha

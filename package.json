@@ -185,6 +185,7 @@
     ,"test:sponsor-rewards-hard": "node scripts/test-sponsor-rewards-hard.mjs"
     ,"test:affiliate-levels-hard": "node scripts/test-affiliate-levels-hard.mjs"
     ,"test:main-raffle-launch-hard": "node scripts/test-main-raffle-launch-hard.mjs"
+    ,"test:home-instant-rewards-hard": "node scripts/test-home-instant-rewards-hard.mjs"
     ,"test:raffle-media-persistence-hard": "node scripts/test-raffle-media-persistence-hard.mjs"
     ,"test:super-cota-hard": "node scripts/test-super-cota-hard.mjs"
     ,"test:roulette-hard": "node scripts/test-roulette-hard.mjs"

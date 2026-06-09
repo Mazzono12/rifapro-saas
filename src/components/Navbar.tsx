@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Bell, Home, Instagram, MessageCircle, ShieldCheck, Ticket, Trophy, User, Users } from "lucide-react";
+import { Bell, Home, Instagram, MessageCircle, Ticket, Trophy, User, Users } from "lucide-react";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { TenantLogo } from "./branding/TenantLogo";
 import { TenantHeaderName } from "./branding/TenantHeaderName";
@@ -16,15 +16,17 @@ export function Navbar() {
   const [heroVideoCinema, setHeroVideoCinema] = useState(false);
   const notifiedMessageIds = useRef<Set<string>>(new Set());
   const { customer } = useCustomerStore();
+  const whatsappUrl = String(settings?.socialLinks?.whatsapp || branding.support_whatsapp || "").trim();
+  const instagramUrl = String(settings?.socialLinks?.instagram || "").trim();
   const showAffiliatesPublic = settings?.publicModules?.affiliates !== false;
+  const isExternalUrl = (value: string) => /^https?:\/\//i.test(value);
   const bottomNavItems = [
-    { label: "Campanhas", to: "/", icon: Home, active: location.pathname === "/" && !location.hash },
-    { label: "Meus Jogos", to: "/minhas-cotas", icon: Ticket, active: location.pathname === "/minhas-cotas" || location.pathname === "/perfil" },
+    { label: "Início", to: "/", icon: Home, active: location.pathname === "/" && !location.hash },
+    { label: "Sorteios", to: "/", icon: Ticket, active: location.pathname.startsWith("/raffle") },
     { label: "Ganhadores", to: "/#ganhadores", icon: Trophy, active: location.hash === "#ganhadores" },
-    ...(showAffiliatesPublic ? [{ label: "Afiliados", to: "/afiliados", icon: Users, active: location.pathname.startsWith("/afiliad") }] : []),
-    { label: "Termos", to: "/transparencia", icon: ShieldCheck, active: location.pathname === "/transparencia" },
-    { label: "Contato", to: "/mensagens", icon: MessageCircle, active: location.pathname === "/mensagens" }
-  ];
+    ...(whatsappUrl ? [{ label: "WhatsApp", to: whatsappUrl, icon: MessageCircle, active: false, external: isExternalUrl(whatsappUrl), tone: "whatsapp" }] : []),
+    ...(instagramUrl ? [{ label: "Instagram", to: instagramUrl, icon: Instagram, active: false, external: isExternalUrl(instagramUrl), tone: "instagram" }] : [])
+  ].slice(0, 5);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -156,6 +158,11 @@ export function Navbar() {
                 <Link onClick={() => setOpen(false)} to="/perfil" className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white">
                   <User className="w-4 h-4 text-white" /> Meu Perfil
                 </Link>
+                {showAffiliatesPublic && (
+                  <Link onClick={() => setOpen(false)} to="/afiliados" className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white">
+                    <Users className="w-4 h-4 text-emerald-300" /> Afiliados
+                  </Link>
+                )}
               </div>
             )}
             </div>
@@ -163,41 +170,31 @@ export function Navbar() {
         </div>
       </nav>
 
-      {!isAdmin && !heroVideoCinema && (settings?.socialLinks || branding.support_whatsapp) && (
-        <div className="public-floating-actions fixed right-4 bottom-28 z-50 flex flex-col gap-3 transition duration-200 md:bottom-24">
-          <Link to="/mensagens" className="premium-button relative h-12 w-12 rounded-full p-0" aria-label="Notificações">
-            <Bell className="w-5 h-5" />
-            {unreadMessages > 0 && (
-              <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-amber-300 px-1 text-[10px] font-black text-black">
-                {unreadMessages}
-              </span>
-            )}
-          </Link>
-          {settings?.socialLinks?.group && (
-            <a href={settings.socialLinks.group} target="_blank" rel="noreferrer" className="premium-button h-12 w-12 rounded-full p-0" aria-label="Participar do grupo">
-              <Users className="w-5 h-5" />
-            </a>
-          )}
-          {(branding.support_whatsapp || settings?.socialLinks?.whatsapp) && <a href={branding.support_whatsapp || settings.socialLinks.whatsapp} target="_blank" rel="noreferrer" className="premium-button h-12 w-12 rounded-full p-0" aria-label="WhatsApp">
-            <MessageCircle className="w-6 h-6" />
-          </a>}
-          {settings?.socialLinks?.instagram && <a href={settings.socialLinks.instagram} target="_blank" rel="noreferrer" className="premium-button h-12 w-12 rounded-full p-0" aria-label="Instagram">
-            <Instagram className="w-6 h-6" />
-          </a>}
-        </div>
-      )}
-
       {!isAdmin && !heroVideoCinema && (
         <nav className="public-mobile-bottom-nav fixed inset-x-3 bottom-3 z-50 rounded-[20px] border border-white/10 bg-[#141417]/92 p-1.5 shadow-[0_22px_70px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:hidden" aria-label="Menu inferior">
           <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${bottomNavItems.length}, minmax(0, 1fr))` }}>
             {bottomNavItems.map(item => {
               const Icon = item.icon;
-              return (
+              const socialTone = item.tone === "whatsapp" ? "text-emerald-300" : item.tone === "instagram" ? "text-fuchsia-300" : "";
+              const className = `flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-black transition ${item.active ? "bg-[#22C55E] text-black shadow-[0_10px_30px_rgba(34,197,94,0.35)]" : `text-[#A1A1AA] hover:bg-white/5 hover:text-white ${socialTone}`}`;
+              return item.external ? (
+                <a
+                  key={item.label}
+                  href={item.to}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setOpen(false)}
+                  className={className}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="max-w-full truncate">{item.label}</span>
+                </a>
+              ) : (
                 <Link
                   key={item.label}
                   to={item.to}
                   onClick={() => setOpen(false)}
-                  className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-black transition ${item.active ? "bg-[#22C55E] text-black shadow-[0_10px_30px_rgba(34,197,94,0.35)]" : "text-[#A1A1AA] hover:bg-white/5 hover:text-white"}`}
+                  className={className}
                 >
                   <Icon className="h-5 w-5" />
                   <span className="max-w-full truncate">{item.label}</span>

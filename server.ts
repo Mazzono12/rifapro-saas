@@ -2988,12 +2988,16 @@ async function startServer() {
       mediaType: TEST_VIDEO_MEDIA_TYPE,
       mediaAspect: "wide",
       mediaFit: "cover",
+      homeMediaLayout: "balanced",
       checkoutMediaUrl: TEST_VIDEO_URL,
       checkoutMediaType: TEST_VIDEO_MEDIA_TYPE,
       checkoutMediaAspect: "wide",
       checkoutMediaFit: "contain",
       heroContentPlacement: "below",
       heroEyebrow: "Plataforma de rifas premium",
+      homeTitle: "Sorteios com experiência cinematográfica.",
+      homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.",
+      homeHighlightText: "Sorteio ao vivo em 15/10/2026 às 20h",
       heroTitle: "Sorteios com experiência cinematográfica.",
       heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.",
       heroPrimaryButton: "Participar agora",
@@ -3035,12 +3039,16 @@ async function startServer() {
       mediaType: TEST_VIDEO_MEDIA_TYPE,
       mediaAspect: "wide",
       mediaFit: "cover",
+      homeMediaLayout: "balanced",
       checkoutMediaUrl: TEST_VIDEO_URL,
       checkoutMediaType: TEST_VIDEO_MEDIA_TYPE,
       checkoutMediaAspect: "wide",
       checkoutMediaFit: "contain",
       heroContentPlacement: "below",
       heroEyebrow: "Plataforma de rifas premium",
+      homeTitle: "Sorteios com experiência cinematográfica.",
+      homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.",
+      homeHighlightText: "Sorteio ao vivo em 01/06/2026 às 20h",
       heroTitle: "Sorteios com experiência cinematográfica.",
       heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.",
       heroPrimaryButton: "Participar agora",
@@ -11825,8 +11833,9 @@ async function startServer() {
   });
 
   app.get("/api/public/raffles/:raffleId/super-cotas", (req, res) => {
-    const tenantId = resolveRequestTenantId(req);
     const raffleId = req.params.raffleId;
+    const raffle = raffles.find(item => item.id === raffleId);
+    const tenantId = raffle?.tenant_id || resolveRequestTenantId(req);
     const prizes = instantPrizes.filter(prize => prize.tenant_id === tenantId && prize.raffleId === raffleId);
     const winners = prizes
       .filter(prize => prize.status === "claimed" && (prize as any).claimedPurchaseId)

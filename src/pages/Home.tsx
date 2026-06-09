@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, Gift, Headphones, Home as HomeIcon, LockKeyhole, ShieldCheck, Ticket, Trophy, TrendingUp, UserRound } from "lucide-react";
+import { ChevronRight, Crown, Gift, Goal, Headphones, Home as HomeIcon, Instagram, LockKeyhole, MessageCircle, ShieldCheck, Ticket, Trophy, TrendingUp } from "lucide-react";
 import { useRaffles } from "../hooks/useRaffles";
 import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout } from "../components/premium/PremiumUI";
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import type { Raffle } from "../types";
 import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
+import { cn } from "../lib/utils";
 
 export function Home() {
   const [boundaryKey, setBoundaryKey] = useState(0);
@@ -89,6 +90,10 @@ function safeNumber(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function asArray<T = any>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
 function normalizeRaffleStatus(status: unknown): Raffle["status"] {
   const normalized = String(status || "active").trim().toLowerCase();
   if (["active", "completed", "draft", "paused", "cancelled"].includes(normalized)) return normalized as Raffle["status"];
@@ -132,6 +137,9 @@ function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raff
     mediaUrl,
     mediaType,
     mediaFit: normalizeRaffleMediaFit(rawRaffle.mediaFit),
+    homeTitle: safeText(rawRaffle.homeTitle, ""),
+    homeSubtitle: safeText(rawRaffle.homeSubtitle, ""),
+    homeHighlightText: safeText(rawRaffle.homeHighlightText, ""),
     drawDate: safeText(rawRaffle.drawDate, new Date().toISOString()),
     countdownEnabled: rawRaffle.countdownEnabled === true,
     countdownEndAt: safeText(rawRaffle.countdownEndAt, ""),
@@ -141,6 +149,36 @@ function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raff
     countdownLabel: rawRaffle.countdownLabel ? String(rawRaffle.countdownLabel) : undefined
   } as Raffle;
 }
+
+function isVideoMediaType(type: unknown) {
+  const normalized = String(type || "").trim().toLowerCase();
+  return ["video", "youtube", "vimeo", "bunny"].includes(normalized);
+}
+
+type HomeRewardStatus = "available" | "claimed" | "drawn";
+
+type HomeRewardItem = {
+  id: string;
+  number?: number;
+  prize: string;
+  value?: number;
+  buyerName?: string;
+  status: HomeRewardStatus;
+};
+
+type HomeInstantRewardsData = {
+  superCotas: HomeRewardItem[];
+  wheel: HomeRewardItem[];
+  scratchcard: HomeRewardItem[];
+  mysteryBox: HomeRewardItem[];
+};
+
+const emptyHomeRewards: HomeInstantRewardsData = {
+  superCotas: [],
+  wheel: [],
+  scratchcard: [],
+  mysteryBox: []
+};
 
 function safeProgress(raffle: Raffle) {
   const total = Math.max(1, Number(raffle.totalTickets || 1));
@@ -155,9 +193,16 @@ function getDrawHour(value?: string) {
   return `${String(date.getHours()).padStart(2, "0")}h`;
 }
 
+function formatHomeDrawText(value?: string) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "";
+  return `Sorteio ao vivo em ${date.toLocaleDateString("pt-BR")} às ${getDrawHour(value)}`;
+}
+
 function HomeContent() {
   const { data: rawRaffles, isLoading: loadingRaffles, isError: rafflesError, refetch: refetchRaffles } = useRaffles();
   const [ranking, setRanking] = useState<Array<{ name: string; phone: string; tickets: number; amount: number }>>([]);
+  const [instantRewards, setInstantRewards] = useState<HomeInstantRewardsData>(emptyHomeRewards);
   const raffles = useMemo(() => (
     Array.isArray(rawRaffles)
       ? rawRaffles.map(raffle => normalizePublicRaffle(raffle)).filter((raffle): raffle is Raffle => Boolean(raffle))
@@ -185,11 +230,29 @@ function HomeContent() {
 
   useEffect(() => {
     if (!featuredRaffle?.id) return;
+    let active = true;
     fetch(`/api/raffles/${featuredRaffle.id}/ranking`)
       .then(res => res.ok ? res.json() : [])
-      .then(payload => setRanking(Array.isArray(payload) ? payload : []))
-      .catch(() => setRanking([]));
+      .then(payload => active && setRanking(Array.isArray(payload) ? payload : []))
+      .catch(() => active && setRanking([]));
+    return () => {
+      active = false;
+    };
   }, [featuredRaffle?.id]);
+
+  useEffect(() => {
+    if (!featuredRaffle?.id) {
+      setInstantRewards(emptyHomeRewards);
+      return;
+    }
+    let active = true;
+    loadHomeInstantRewards(featuredRaffle)
+      .then(payload => active && setInstantRewards(payload))
+      .catch(() => active && setInstantRewards(emptyHomeRewards));
+    return () => {
+      active = false;
+    };
+  }, [featuredRaffle]);
 
   if (loading) return <RifaProLoading />;
 
@@ -204,6 +267,7 @@ function HomeContent() {
     <PremiumPageLayout className="cfx-home-page">
       <main className="cfx-home-shell" aria-label="Home CIFHER Prime">
         <Hero raffle={featuredRaffle} ranking={ranking} />
+        <HomeInstantRewards rewards={instantRewards} />
         <TopBuyers ranking={ranking} />
         <HomeTrustRail />
         <HomeBottomNav />
@@ -226,20 +290,18 @@ function RifaProLoading() {
 function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: string; phone: string; tickets: number; amount: number }> }) {
   const progress = safeProgress(raffle);
   const remaining = Math.max(0, Number(raffle.totalTickets || 0) - Number(raffle.soldTickets || 0));
-  const sold = Math.max(0, Number(raffle.soldTickets || 0));
-  const total = Math.max(1, Number(raffle.totalTickets || 1));
   const mediaUrl = raffle.mediaUrl || raffle.image;
   const countdownTarget = raffle.salesEndAt || raffle.countdownEndAt || raffle.drawDate;
   const countdown = useHomeCountdown(countdownTarget);
+  const headline = safeText(raffle.homeTitle, safeText(raffle.heroTitle, raffle.title));
+  const description = safeText(raffle.homeSubtitle, safeText(raffle.heroSubtitle, raffle.description));
+  const highlight = safeText(raffle.homeHighlightText, formatHomeDrawText(raffle.drawDate));
+  const isVideo = isVideoMediaType(raffle.mediaType);
+  const mediaKind = isVideo ? "video" : "image";
 
   return (
     <section className="cfx-home-hero">
-      <div className="cfx-home-title-lockup">
-        <span>Ganhe uma</span>
-        <h1>{raffle.title}</h1>
-        <strong>ou prêmio no PIX</strong>
-      </div>
-      <div className="cfx-home-hero-media">
+      <div className="cfx-home-hero-media" data-home-media-type={mediaKind}>
         <StandardRaffleMediaBlock
           mediaUrl={mediaUrl}
           mediaType={raffle.mediaType}
@@ -248,10 +310,20 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
           fallbackImageUrl={raffle.image}
           priority
           showDescriptionBelow={false}
-          preferredFit={raffle.mediaFit === "contain" ? "contain" : raffle.mediaFit === "cover" ? "cover" : "auto"}
-          aspectMode="auto"
+          preferredFit="cover"
+          aspectMode={isVideo ? "horizontal" : "portrait"}
           className="cfx-home-media-block"
         />
+      </div>
+      <div className="cfx-home-hero-actions">
+        <Link to={`/raffle/${raffle.id}`} className="cfx-home-primary">Participar agora <ChevronRight /></Link>
+        <Link to="/minhas-cotas" className="cfx-home-secondary"><Ticket /> Meus bilhetes <ChevronRight /></Link>
+      </div>
+      <div className="cfx-home-title-lockup">
+        {raffle.heroEyebrow && <span>{raffle.heroEyebrow}</span>}
+        <h1>{headline}</h1>
+        {description && <p>{description}</p>}
+        {highlight && <strong>{highlight}</strong>}
       </div>
       <div className="cfx-live-card">
         <p>Sorteio ao vivo em</p>
@@ -262,14 +334,9 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
           <CountdownUnit label="Segundos" value={countdown.seconds} />
         </div>
         <div className="cfx-progress-meta">
-          <span>{progress.toFixed(0)}% dos bilhetes vendidos</span>
-          <span>{sold.toLocaleString("pt-BR")} / {total.toLocaleString("pt-BR")}</span>
+          <span>{progress.toFixed(0)}% das cotas vendidas</span>
         </div>
         <div className="cfx-home-progress"><span style={{ width: `${progress}%` }} /></div>
-      </div>
-      <div className="cfx-home-hero-actions">
-        <Link to={`/raffle/${raffle.id}`} className="cfx-home-primary">Participar agora <ChevronRight /></Link>
-        <Link to="/minhas-cotas" className="cfx-home-secondary"><Ticket /> Meus bilhetes <ChevronRight /></Link>
       </div>
       <p className="cfx-home-remaining" aria-label="Cotas restantes">{remaining.toLocaleString("pt-BR")} cotas restantes</p>
       <span className="cfx-home-compat" aria-hidden="true">{ranking.length}</span>
@@ -282,6 +349,300 @@ function CountdownUnit({ label, value }: { label: string; value: number }) {
     <span>
       <strong>{String(value).padStart(2, "0")}</strong>
       <small>{label}</small>
+    </span>
+  );
+}
+
+async function safeJson(url: string) {
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  return res.json().catch(() => null);
+}
+
+async function loadHomeInstantRewards(raffle: Raffle): Promise<HomeInstantRewardsData> {
+  const raffleId = encodeURIComponent(raffle.id);
+  const [instantPrizesPayload, superCotasPayload, gamificationPayload] = await Promise.all([
+    safeJson(`/api/raffles/${raffleId}/instant-prizes`),
+    safeJson(`/api/public/raffles/${raffleId}/super-cotas`),
+    safeJson(`/api/raffles/${raffleId}/gamification`)
+  ]);
+
+  const rewards = {
+    superCotas: buildSuperCotaRewards(instantPrizesPayload, superCotasPayload),
+    wheel: buildWheelRewards(raffle),
+    scratchcard: buildScratchcardRewards(gamificationPayload),
+    mysteryBox: buildMysteryBoxRewards(raffle, gamificationPayload)
+  };
+
+  if (!import.meta.env.PROD) {
+    console.info("[home-instant-rewards]", {
+      raffleId: raffle.id,
+      hasSuperCotas: rewards.superCotas.length > 0,
+      hasRoulette: rewards.wheel.length > 0,
+      hasScratchcard: rewards.scratchcard.length > 0,
+      hasLootbox: rewards.mysteryBox.length > 0
+    });
+  }
+
+  return rewards;
+}
+
+function normalizeRewardStatus(value: unknown): HomeRewardStatus {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["claimed", "won", "opened", "drawn", "sorteada", "resgatada"].includes(normalized)) return normalized === "claimed" || normalized === "resgatada" ? "claimed" : "drawn";
+  return "available";
+}
+
+function buildSuperCotaRewards(instantPrizesPayload: unknown, superCotasPayload: any): HomeRewardItem[] {
+  const winners = new Map<number, { name?: string }>();
+  asArray(superCotasPayload?.winners).forEach((winner: any) => {
+    const number = Number(winner?.numeroPremiado);
+    if (Number.isFinite(number)) winners.set(number, { name: safeText(winner?.name, "") });
+  });
+
+  const rows: Array<HomeRewardItem | null> = asArray(instantPrizesPayload)
+    .map((prize: any, index) => {
+      const number = Number(prize?.numeroPremiado);
+      const value = Number(prize?.valorPremio);
+      if (!Number.isFinite(number)) return null;
+      const status = normalizeRewardStatus(prize?.status);
+      const winner = winners.get(number);
+      return {
+        id: String(prize?.id || `super-cota-${number}-${index}`),
+        number,
+        prize: value > 0 ? formatCurrency(value) : "Super Cota",
+        value: Number.isFinite(value) ? value : undefined,
+        buyerName: winner?.name,
+        status
+      } satisfies HomeRewardItem;
+    });
+  return rows.filter((item): item is HomeRewardItem => Boolean(item));
+}
+
+function buildWheelRewards(raffle: Raffle): HomeRewardItem[] {
+  const config = (raffle.lootboxConfig || {}) as any;
+  const wheelEnabled = Boolean(config?.rewardModes?.wheel || config?.experienceType === "wheel");
+  if (!wheelEnabled) return [];
+  const rows: Array<HomeRewardItem | null> = asArray(config.wheelSegments)
+    .map((segment: any, index) => {
+      const reward = segment?.reward;
+      const label = safeText(reward?.name || segment?.label, "");
+      if (!label) return null;
+      const value = Number(reward?.value);
+      return {
+        id: String(reward?.id || `wheel-${index}`),
+        prize: label,
+        value: Number.isFinite(value) ? value : undefined,
+        status: normalizeRewardStatus(reward?.status)
+      } satisfies HomeRewardItem;
+    });
+  return rows.filter((item): item is HomeRewardItem => Boolean(item));
+}
+
+function buildScratchcardRewards(gamificationPayload: any): HomeRewardItem[] {
+  return asArray(gamificationPayload?.scratchcard?.prizes)
+    .map((prize: any, index) => {
+      const value = Number(prize?.value);
+      const stock = Number(prize?.stock);
+      return {
+        id: String(prize?.id || `scratchcard-${index}`),
+        prize: safeText(prize?.name, "Prêmio da raspadinha"),
+        value: Number.isFinite(value) ? value : undefined,
+        status: normalizeRewardStatus(prize?.status || (Number.isFinite(stock) && stock <= 0 ? "drawn" : "available"))
+      } satisfies HomeRewardItem;
+    })
+    .filter(item => item.prize.trim() && item.prize.toLowerCase() !== "vazio");
+}
+
+function buildMysteryBoxRewards(raffle: Raffle, gamificationPayload: any): HomeRewardItem[] {
+  const config = (raffle.lootboxConfig || {}) as any;
+  const configuredRows: Array<HomeRewardItem | null> = asArray(config.milestones)
+    .map((milestone: any, index) => {
+      const value = Number(milestone?.value);
+      if (!safeText(milestone?.name, "") && !Number.isFinite(value)) return null;
+      return {
+        id: String(milestone?.id || milestone?.tier || `mystery-${index}`),
+        prize: safeText(milestone?.name, "Prêmio da caixinha"),
+        value: Number.isFinite(value) ? value : undefined,
+        status: normalizeRewardStatus(milestone?.status)
+      } satisfies HomeRewardItem;
+    });
+  const configured = configuredRows.filter((item): item is HomeRewardItem => Boolean(item));
+
+  if (configured.length) return configured;
+
+  const rows: Array<HomeRewardItem | null> = asArray(gamificationPayload?.mysteryBox?.boxes)
+    .map((box: any, index) => {
+      const value = Number(box?.value);
+      const prize = safeText(box?.prize || box?.label, "");
+      if (!prize || prize.toLowerCase() === "vazio") return null;
+      return {
+        id: String(box?.id || `box-${index}`),
+        prize,
+        value: Number.isFinite(value) ? value : undefined,
+        status: normalizeRewardStatus(box?.status)
+      } satisfies HomeRewardItem;
+    });
+  return rows.filter((item): item is HomeRewardItem => Boolean(item));
+}
+
+function formatCurrency(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return "—";
+  return parsed.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function statusLabel(status: HomeRewardStatus) {
+  if (status === "available") return "Disponível";
+  if (status === "claimed") return "Resgatada";
+  return "Sorteada";
+}
+
+function HomeInstantRewards({ rewards }: { rewards: HomeInstantRewardsData }) {
+  const sections = [
+    {
+      id: "superCotas" as const,
+      title: "SUPER COTAS PREMIADAS",
+      icon: <Crown />,
+      tone: "gold",
+      description: "Concorra a prêmios especiais com números exclusivos!",
+      items: rewards.superCotas,
+      columns: { primary: "Número", secondary: "Prêmio/valor", person: "Comprador" }
+    },
+    {
+      id: "wheel" as const,
+      title: "ROLETA PREMIADA",
+      icon: <Goal />,
+      tone: "purple",
+      cta: "VER PRÊMIOS DA ROLETA",
+      items: rewards.wheel,
+      columns: { primary: "Prêmio", secondary: "Valor", person: "Ganhador" }
+    },
+    {
+      id: "scratchcard" as const,
+      title: "RASPADINHA PREMIADA",
+      icon: <Ticket />,
+      tone: "green",
+      cta: "VER PRÊMIOS DA RASPADINHA",
+      items: rewards.scratchcard,
+      columns: { primary: "Prêmio", secondary: "Valor", person: "Ganhador" }
+    },
+    {
+      id: "mysteryBox" as const,
+      title: "CAIXINHA PREMIADA",
+      icon: <Gift />,
+      tone: "pink",
+      cta: "VER PRÊMIOS DA CAIXINHA",
+      items: rewards.mysteryBox,
+      columns: { primary: "Prêmio", secondary: "Valor", person: "Ganhador" }
+    }
+  ].filter(section => section.items.length > 0);
+
+  if (!sections.length) return null;
+
+  return (
+    <section className="cfx-instant-rewards" aria-label="Prêmios instantâneos da campanha">
+      {sections.map(section => (
+        <InstantRewardSection
+          key={section.id}
+          id={section.id}
+          title={section.title}
+          icon={section.icon}
+          tone={section.tone}
+          description={section.description}
+          cta={section.cta}
+          items={section.items}
+          columns={section.columns}
+        />
+      ))}
+    </section>
+  );
+}
+
+function InstantRewardSection({
+  id,
+  title,
+  icon,
+  tone,
+  description,
+  cta,
+  items,
+  columns
+}: {
+  key?: React.Key;
+  id: keyof HomeInstantRewardsData;
+  title: string;
+  icon: ReactNode;
+  tone: string;
+  description?: string;
+  cta?: string;
+  items: HomeRewardItem[];
+  columns: { primary: string; secondary: string; person: string };
+}) {
+  const [visible, setVisible] = useState(10);
+  const cappedItems = items.slice(0, 50);
+  const visibleItems = cappedItems.slice(0, visible);
+  const available = cappedItems.filter(item => item.status === "available").length;
+  const claimed = cappedItems.filter(item => item.status !== "available").length;
+  const totalValue = cappedItems.reduce((sum, item) => sum + (Number(item.value) > 0 ? Number(item.value) : 0), 0);
+  const canShowMore = visible < cappedItems.length && visible < 50;
+
+  return (
+    <article className="cfx-reward-section" data-reward-tone={tone} data-reward-id={id}>
+      <header className="cfx-reward-header">
+        <span>{icon}</span>
+        <div>
+          <h2>{title}</h2>
+          {description && <p>{description}</p>}
+        </div>
+        <strong className="cfx-reward-total-badge"><small>Total</small>{cappedItems.length}<em>{id === "superCotas" ? "Super Cotas" : "Prêmios"}</em></strong>
+      </header>
+
+      <div className="cfx-reward-summary" data-summary-count={id === "superCotas" && totalValue > 0 ? 4 : 3}>
+        <RewardSummaryCard label="Disponíveis" value={available} />
+        <RewardSummaryCard label={id === "superCotas" ? "Resgatadas" : "Sorteadas"} value={claimed} />
+        <RewardSummaryCard label="Total" value={cappedItems.length} />
+        {id === "superCotas" && totalValue > 0 && <RewardSummaryCard label="Valor total" value={formatCurrency(totalValue)} />}
+      </div>
+
+      <div className="cfx-reward-list" role="list">
+        {visibleItems.map(item => (
+          <div className="cfx-reward-card" role="listitem" key={item.id}>
+            <div>
+              <small>{columns.primary}</small>
+              <strong>{typeof item.number === "number" ? `#${String(item.number).padStart(6, "0")}` : item.prize}</strong>
+            </div>
+            <div>
+              <small>{columns.secondary}</small>
+              <strong>{typeof item.number === "number" ? item.prize : formatCurrency(item.value)}</strong>
+            </div>
+            <div>
+              <small>{columns.person}</small>
+              <strong>{item.buyerName ? maskBuyerName(item.buyerName) : "—"}</strong>
+            </div>
+            <span className={item.status === "available" ? "is-available" : "is-claimed"}>{statusLabel(item.status)}</span>
+          </div>
+        ))}
+      </div>
+
+      {canShowMore && (
+        <button
+          type="button"
+          className="cfx-reward-more"
+          onClick={() => setVisible(current => Math.min(50, current + 10, cappedItems.length))}
+        >
+          {cta || "MOSTRAR MAIS"} (10)
+        </button>
+      )}
+    </article>
+  );
+}
+
+function RewardSummaryCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <span>
+      <small>{label}</small>
+      <strong>{value}</strong>
     </span>
   );
 }
@@ -315,37 +676,53 @@ function TopBuyers({ ranking }: { ranking: Array<{ name: string; phone: string; 
 
 function HomeTrustRail() {
   const seals = [
-    { icon: <ShieldCheck />, title: "Pagamento 100% seguro" },
-    { icon: <LockKeyhole />, title: "Seus dados protegidos" },
-    { icon: <Ticket />, title: "Transparência e confiabilidade" },
-    { icon: <Headphones />, title: "Suporte especializado" }
+    { icon: <ShieldCheck />, title: "Pagamento Seguro" },
+    { icon: <LockKeyhole />, title: "Dados Protegidos" },
+    { icon: <Ticket />, title: "Transparência" },
+    { icon: <Headphones />, title: "Suporte", tone: "support" }
   ];
 
   return (
     <section className="cfx-home-trust-rail" aria-label="Selos de confiança">
       {seals.map(seal => (
-        <span key={seal.title}>{seal.icon}<small>{seal.title}</small></span>
+        <span key={seal.title} className={seal.tone === "support" ? "is-support" : ""}>{seal.icon}<small>{seal.title}</small></span>
       ))}
     </section>
   );
 }
 
 function HomeBottomNav() {
+  const [settings, setSettings] = useState<any>(null);
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(res => res.ok ? res.json() : null)
+      .then(payload => setSettings(payload && typeof payload === "object" && !Array.isArray(payload) ? payload : null))
+      .catch(() => setSettings(null));
+  }, []);
+  const whatsappUrl = typeof settings?.socialLinks?.whatsapp === "string" ? settings.socialLinks.whatsapp.trim() : "";
+  const instagramUrl = typeof settings?.socialLinks?.instagram === "string" ? settings.socialLinks.instagram.trim() : "";
   const items = [
     { label: "Início", to: "/", icon: <HomeIcon /> },
     { label: "Sorteios", to: "/", icon: <Gift /> },
-    { label: "Resultados", to: "/ganhadores", icon: <Trophy /> },
-    { label: "Promoções", to: "/", icon: <TrendingUp /> },
-    { label: "Conta", to: "/minhas-cotas", icon: <UserRound /> }
+    { label: "Ganhadores", to: "/ganhadores", icon: <Trophy /> },
+    ...(whatsappUrl ? [{ label: "WhatsApp", to: whatsappUrl, icon: <MessageCircle />, external: /^https?:\/\//i.test(whatsappUrl), tone: "whatsapp" }] : []),
+    ...(instagramUrl ? [{ label: "Instagram", to: instagramUrl, icon: <Instagram />, external: /^https?:\/\//i.test(instagramUrl), tone: "instagram" }] : [])
   ];
 
   return (
-    <nav className="cfx-home-bottom-nav" aria-label="Navegação principal">
+    <nav className="cfx-home-bottom-nav" data-count={items.length} aria-label="Navegação principal">
       {items.map((item, index) => (
-        <Link to={item.to} key={item.label} className={index === 0 ? "is-active" : ""}>
-          {item.icon}
-          <span>{item.label}</span>
-        </Link>
+        item.external ? (
+          <a href={item.to} key={item.label} target="_blank" rel="noreferrer" className={cn(index === 0 ? "is-active" : "", item.tone === "whatsapp" ? "is-whatsapp" : "", item.tone === "instagram" ? "is-instagram" : "")}>
+            {item.icon}
+            <span>{item.label}</span>
+          </a>
+        ) : (
+          <Link to={item.to} key={item.label} className={cn(index === 0 ? "is-active" : "", item.tone === "whatsapp" ? "is-whatsapp" : "", item.tone === "instagram" ? "is-instagram" : "")}>
+            {item.icon}
+            <span>{item.label}</span>
+          </Link>
+        )
       ))}
     </nav>
   );

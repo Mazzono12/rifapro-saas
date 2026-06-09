@@ -17,6 +17,7 @@ export interface Raffle {
   mediaType?: 'video' | 'image' | 'youtube' | 'vimeo' | 'bunny';
   mediaAspect?: 'auto' | 'wide' | 'cinematic' | 'square' | 'portrait' | 'story';
   mediaFit?: 'cover' | 'contain' | 'fill';
+  homeMediaLayout?: 'compact' | 'balanced' | 'vertical' | 'wide';
   checkoutMediaUrl?: string;
   checkoutMediaType?: 'video' | 'image' | 'youtube' | 'vimeo' | 'bunny';
   checkoutMediaAspect?: 'auto' | 'wide' | 'cinematic' | 'square' | 'portrait' | 'story';
@@ -26,6 +27,9 @@ export interface Raffle {
   heroEyebrow?: string;
   heroTitle?: string;
   heroSubtitle?: string;
+  homeTitle?: string;
+  homeSubtitle?: string;
+  homeHighlightText?: string;
   heroPrimaryButton?: string;
   heroSecondaryText?: string;
   heroShowStats?: boolean;

@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Headphones, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomerStore } from "../store/useCustomerStore";
 import type { SupportTicket } from "../types";
 
 export function SupportChat() {
+  const location = useLocation();
   const { customer } = useCustomerStore();
   const [open, setOpen] = useState(false);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [form, setForm] = useState({ name: "", phone: "", message: "" });
   const [reply, setReply] = useState("");
   const activeTicket = tickets[0];
+  const hideOnHome = location.pathname === "/";
 
   useEffect(() => {
     if (!customer) return;
@@ -70,6 +73,8 @@ export function SupportChat() {
     setTickets(current => current.map(ticket => ticket.id === data.id ? data : ticket));
     setReply("");
   };
+
+  if (hideOnHome) return null;
 
   return (
     <div className="fixed bottom-5 right-5 z-50">
