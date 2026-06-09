@@ -14297,3 +14297,319 @@ html[data-admin-theme="light"] .admin-shell {
     grid-template-columns: 1fr;
   }
 }
+
+.cfx-pix-premium .cfx-pix-summary-card .cfx-info-card,
+.cfx-pix-premium .cfx-pix-summary-card .checkout-info-card {
+  display: grid !important;
+  min-height: 106px;
+  place-items: center !important;
+  align-content: center !important;
+  justify-items: center !important;
+  text-align: center !important;
+}
+
+.cfx-pix-premium .cfx-pix-summary-card .cfx-info-card p,
+.cfx-pix-premium .cfx-pix-summary-card .checkout-info-card p {
+  width: 100%;
+  margin-inline: auto;
+  text-align: center !important;
+}
+
+.cfx-pix-premium .cfx-pix-summary-card .cfx-info-card p:first-child,
+.cfx-pix-premium .cfx-pix-summary-card .checkout-info-card p:first-child {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.cfx-pix-premium .cfx-pix-summary-card .cfx-info-card p:last-child,
+.cfx-pix-premium .cfx-pix-summary-card .checkout-info-card p:last-child {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.05;
+}
+
+.cfx-pix-premium .cfx-pix-timer-card {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 18px !important;
+  text-align: center !important;
+}
+
+.cfx-pix-premium .cfx-pix-timer-card span {
+  display: grid !important;
+  min-height: 78px;
+  place-items: center !important;
+  align-content: center !important;
+  justify-items: center !important;
+  text-align: center !important;
+}
+
+.cfx-pix-premium .cfx-pix-timer-card small,
+.cfx-pix-premium .cfx-pix-timer-card strong {
+  width: 100%;
+  text-align: center !important;
+}
+
+@media (max-width: 639px) {
+  .cfx-pix-premium .cfx-pix-summary-card .cfx-info-card,
+  .cfx-pix-premium .cfx-pix-summary-card .checkout-info-card {
+    min-height: 96px;
+    padding-inline: 10px !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-timer-card {
+    gap: 14px !important;
+    justify-content: center !important;
+    padding-inline: 14px !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-timer-card span {
+    min-height: 68px;
+  }
+}
+
+.cfx-pix-premium {
+  font-size: 16px;
+}
+
+.cfx-pix-premium-top h2 {
+  font-size: clamp(2.05rem, 8vw, 3.25rem) !important;
+  letter-spacing: .01em;
+}
+
+.cfx-pix-premium-top p {
+  font-size: clamp(1rem, 3.5vw, 1.2rem) !important;
+}
+
+.cfx-pix-premium .cfx-pix-card-head small,
+.cfx-pix-premium .cfx-pix-code p,
+.cfx-pix-premium .cfx-pix-timer-card small,
+.cfx-pix-premium .cfx-pix-summary-card .cfx-info-card p:first-child,
+.cfx-pix-premium .cfx-pix-summary-card .checkout-info-card p:first-child {
+  font-size: clamp(.82rem, 2.6vw, 1rem) !important;
+  letter-spacing: .12em !important;
+}
+
+.cfx-pix-premium .cfx-pix-card-head strong {
+  font-size: clamp(1.15rem, 4vw, 1.55rem) !important;
+}
+
+.cfx-pix-premium .cfx-pix-code code {
+  font-size: clamp(.86rem, 2.7vw, 1rem) !important;
+  line-height: 1.55 !important;
+}
+
+.cfx-pix-premium .cfx-copy-pix-button {
+  font-size: clamp(1.25rem, 4.8vw, 1.9rem) !important;
+}
+
+.cfx-pix-premium .cfx-copy-pix-button svg,
+.cfx-pix-premium .cfx-pix-actions button svg {
+  width: 1.45em !important;
+  height: 1.45em !important;
+}
+
+.cfx-pix-premium .cfx-pix-summary-card .cfx-info-card p:last-child,
+.cfx-pix-premium .cfx-pix-summary-card .checkout-info-card p:last-child {
+  font-size: clamp(1.25rem, 4.5vw, 1.7rem) !important;
+}
+
+.cfx-pix-premium .cfx-pix-timer-card strong {
+  font-size: clamp(2.45rem, 9vw, 3.5rem) !important;
+}
+
+.cfx-pix-premium .cfx-pix-trust-card strong {
+  font-size: clamp(.92rem, 3.2vw, 1.08rem) !important;
+}
+
+.cfx-pix-premium .cfx-pix-actions button {
+  font-size: clamp(.98rem, 3.8vw, 1.18rem) !important;
+}
+
+@media (max-width: 639px) {
+  .cfx-pix-premium-top h2 {
+    font-size: clamp(2rem, 9vw, 2.65rem) !important;
+  }
+
+  .cfx-pix-premium-top p {
+    font-size: 1rem !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-card-head small,
+  .cfx-pix-premium .cfx-pix-code p,
+  .cfx-pix-premium .cfx-pix-timer-card small,
+  .cfx-pix-premium .cfx-pix-summary-card .cfx-info-card p:first-child,
+  .cfx-pix-premium .cfx-pix-summary-card .checkout-info-card p:first-child {
+    font-size: .82rem !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-card-head strong {
+    font-size: 1.18rem !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-code code {
+    font-size: .84rem !important;
+  }
+
+  .cfx-pix-premium .cfx-copy-pix-button {
+    font-size: 1.35rem !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-summary-card .cfx-info-card p:last-child,
+  .cfx-pix-premium .cfx-pix-summary-card .checkout-info-card p:last-child {
+    font-size: 1.32rem !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-timer-card strong {
+    font-size: 2.55rem !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-trust-card strong {
+    font-size: .92rem !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-actions button {
+    font-size: 1rem !important;
+  }
+}
+
+/* Public premium readability layer: keep mobile text consistent across the rebuilt flow. */
+.public-shell :where(
+  .cfx-home-page,
+  .cfx-raffle-page,
+  .cfx-review-premium,
+  .cfx-pix-premium,
+  .cfx-success-premium,
+  .cfx-receipt-modal,
+  .cfx-tickets-premium
+) {
+  font-size: 16px;
+}
+
+.public-shell :where(
+  .cfx-home-page,
+  .cfx-raffle-page,
+  .cfx-review-premium,
+  .cfx-pix-premium,
+  .cfx-success-premium,
+  .cfx-receipt-modal,
+  .cfx-tickets-premium
+) :where(p, li, label, button, a) {
+  font-size: max(1rem, 16px);
+}
+
+.public-shell :where(
+  .cfx-home-page,
+  .cfx-raffle-page,
+  .cfx-review-premium,
+  .cfx-pix-premium,
+  .cfx-success-premium,
+  .cfx-receipt-modal,
+  .cfx-tickets-premium
+) :where(small, dt, .cfx-detail-subtitle, .cfx-ticket-meta, .cfx-ticket-status) {
+  font-size: max(.88rem, 14px) !important;
+  line-height: 1.35;
+}
+
+.public-shell :where(
+  .cfx-home-progress strong,
+  .cfx-home-progress > span,
+  .cfx-home-trust-rail small,
+  .cfx-home-bottom-nav a,
+  .cfx-detail-stat small,
+  .cfx-detail-countdown small,
+  .cfx-detail-super-cotas header small,
+  .cfx-detail-super-cotas article em,
+  .cfx-detail-buybox .cfx-checkout-row small,
+  .cfx-review-summary dt,
+  .cfx-review-summary dd,
+  .cfx-review-benefits small,
+  .cfx-review-security strong,
+  .cfx-review-footnote,
+  .cfx-pix-card-head small,
+  .cfx-pix-code p,
+  .cfx-pix-trust-card strong,
+  .cfx-success-summary h3,
+  .cfx-success-numbers h3,
+  .cfx-success-games small,
+  .cfx-receipt-card h3,
+  .cfx-receipt-lines span,
+  .cfx-receipt-benefits small,
+  .cfx-ticket-summary-card small,
+  .cfx-ticket-numbers h3,
+  .cfx-ticket-super h3,
+  .cfx-ticket-benefits h3
+) {
+  font-size: max(.9rem, 14px) !important;
+}
+
+.public-shell :where(
+  .cfx-home-primary,
+  .cfx-home-secondary,
+  .cfx-detail-buybox .cfx-quick-amounts button,
+  .cfx-detail-buybox .cfx-quantity-control input,
+  .cfx-detail-buybox .cfx-checkout-row button,
+  .cfx-review-submit,
+  .cfx-copy-pix-button,
+  .cfx-pix-actions button,
+  .cfx-success-actions button,
+  .cfx-success-actions a,
+  .cfx-success-repeat,
+  .cfx-receipt-actions button,
+  .cfx-receipt-actions a,
+  .cfx-ticket-actions button,
+  .cfx-tickets-cta a
+) {
+  font-size: max(1rem, 16px) !important;
+}
+
+.public-shell :where(
+  .cfx-detail-stat strong,
+  .cfx-detail-countdown strong,
+  .cfx-detail-super-cotas article b,
+  .cfx-detail-buybox .cfx-checkout-row strong,
+  .cfx-review-total strong,
+  .cfx-pix-summary-card .cfx-info-card p:last-child,
+  .cfx-pix-summary-card .checkout-info-card p:last-child,
+  .cfx-success-summary .cfx-info-card p:last-child,
+  .cfx-receipt-lines b,
+  .cfx-ticket-summary-card strong,
+  .cfx-ticket-numbers span,
+  .cfx-ticket-super strong
+) {
+  font-size: max(1.18rem, 18px) !important;
+}
+
+.public-mobile-bottom-nav a {
+  font-size: max(.72rem, 11.5px) !important;
+  line-height: 1.1;
+}
+
+@media (max-width: 639px) {
+  .public-shell :where(
+    .cfx-home-page,
+    .cfx-raffle-page,
+    .cfx-review-premium,
+    .cfx-pix-premium,
+    .cfx-success-premium,
+    .cfx-receipt-modal,
+    .cfx-tickets-premium
+  ) :where(p, li, label, button, a) {
+    font-size: max(.96rem, 15.5px);
+  }
+
+  .public-shell :where(
+    .cfx-home-page,
+    .cfx-raffle-page,
+    .cfx-review-premium,
+    .cfx-pix-premium,
+    .cfx-success-premium,
+    .cfx-receipt-modal,
+    .cfx-tickets-premium
+  ) :where(small, dt, .cfx-ticket-meta, .cfx-ticket-status) {
+    font-size: max(.82rem, 13.25px) !important;
+  }
+}

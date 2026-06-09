@@ -197,7 +197,7 @@ export function Navbar() {
                   key={item.label}
                   to={item.to}
                   onClick={() => setOpen(false)}
-                  className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-black transition ${item.active ? "bg-[#22C55E] text-black shadow-[0_10px_30px_rgba(34,197,94,0.35)]" : "text-[#A1A1AA] hover:bg-white/5 hover:text-white"}`}
+                  className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-black transition ${item.active ? "bg-[#22C55E] text-black shadow-[0_10px_30px_rgba(34,197,94,0.35)]" : "text-[#A1A1AA] hover:bg-white/5 hover:text-white"}`}
                 >
                   <Icon className="h-5 w-5" />
                   <span className="max-w-full truncate">{item.label}</span>
