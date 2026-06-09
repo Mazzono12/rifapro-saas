@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Gift, PackageOpen, Sparkles, Trophy, Zap } from "lucide-react";
+import { Crown, Eraser, Gift, LockKeyhole, PackageOpen, Sparkles, Ticket, Trophy, XCircle, Zap } from "lucide-react";
 
 type Props = {
   data: any;
@@ -12,6 +12,13 @@ export function GamificationPanel({ data, purchase, onOrderBumpChange, orderBump
   const [scratchResult, setScratchResult] = useState<any>(null);
   const [boxResult, setBoxResult] = useState<any>(null);
   const [busy, setBusy] = useState("");
+  const purchaseStatus = String(purchase?.status || purchase?.statusPagamento || purchase?.paymentStatus || "").toLowerCase();
+  const isPurchasePaid = ["paid", "approved", "confirmed"].includes(purchaseStatus);
+  const scratchEventId = purchase?.gamification?.scratchcardEventId;
+  const scratchEvent = scratchResult?.event || scratchResult?.scratchcard || scratchResult;
+  const scratchPrize = scratchEvent?.result?.prize || scratchResult?.prize?.name || scratchResult?.prize?.label || "";
+  const scratchPrizeValue = Number(scratchEvent?.result?.value ?? scratchResult?.prize?.value ?? 0);
+  const scratchWon = Boolean(scratchResult && String(scratchEvent?.status || "").toLowerCase() === "won" && scratchPrize);
 
   async function revealScratch() {
     const eventId = purchase?.gamification?.scratchcardEventId;
@@ -98,17 +105,90 @@ export function GamificationPanel({ data, purchase, onOrderBumpChange, orderBump
         </div>
       )}
 
-      {purchase?.gamification?.scratchcardEventId && (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-white">
-          <div className="mb-3 flex items-center gap-2 font-bold"><Gift className="h-4 w-4" /> Raspadinha liberada</div>
-          {scratchResult ? (
-            <p className="text-sm">{scratchResult.event?.status === "won" ? `Você ganhou ${scratchResult.event?.result?.prize}` : "Não foi dessa vez."}</p>
-          ) : (
-            <button type="button" onClick={revealScratch} disabled={busy === "scratch"} className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-slate-950 disabled:opacity-50">
-              Raspar agora
+      {scratchEventId && (
+        <section className="relative isolate overflow-hidden rounded-[1.75rem] border border-fuchsia-300/25 bg-[#05030a] p-4 text-white shadow-[0_24px_70px_rgba(88,28,135,0.28)] sm:p-5">
+          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,rgba(168,85,247,0.34),transparent_36%),radial-gradient(circle_at_50%_58%,rgba(245,158,11,0.18),transparent_34%),linear-gradient(180deg,#08040f_0%,#020104_100%)]" />
+          <div className="pointer-events-none absolute inset-x-8 top-28 -z-10 h-40 rounded-full bg-fuchsia-500/25 blur-[70px]" />
+
+          <div className="mb-5 text-center">
+            <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl border border-fuchsia-300/35 bg-fuchsia-400/10 text-fuchsia-100 shadow-[0_0_30px_rgba(217,70,239,0.35)]">
+              <Ticket className="h-6 w-6" />
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-[0.38em] text-amber-200">RifaPro Premium</p>
+            <h3 className="mt-2 text-3xl font-black uppercase leading-none tracking-wide text-transparent [background:linear-gradient(180deg,#fff7c2_0%,#fbbf24_44%,#8a4b05_100%)] bg-clip-text sm:text-4xl">
+              Raspadinha
+            </h3>
+            <p className="mt-1 text-lg font-black uppercase tracking-[0.32em] text-white/85">Premiada</p>
+            <p className="mx-auto mt-3 max-w-xs text-sm font-medium leading-relaxed text-slate-200">
+              {scratchResult ? "Resultado oficial da sua raspadinha." : "Raspe e descubra seu prêmio."}
+            </p>
+          </div>
+
+          <div className="relative mx-auto max-w-sm rounded-[1.45rem] border border-amber-300/55 bg-[#08070a] p-3 shadow-[0_0_0_1px_rgba(217,70,239,0.22),0_22px_60px_rgba(0,0,0,0.55)]">
+            <div className="absolute inset-1 rounded-[1.2rem] border border-fuchsia-400/25" />
+            <div className="relative overflow-hidden rounded-[1.1rem] border border-amber-200/30 bg-[linear-gradient(145deg,#0b090d_0%,#17100c_48%,#070509_100%)] p-4 text-center">
+              <Crown className="mx-auto mb-2 h-8 w-8 text-amber-300 drop-shadow-[0_0_14px_rgba(251,191,36,0.75)]" />
+              <p className="text-2xl font-black uppercase tracking-wide text-amber-300">Raspadinha</p>
+              <p className="mt-1 text-sm font-black uppercase tracking-[0.34em] text-white/85">Premium</p>
+
+              <div className="relative mt-4 min-h-44 overflow-hidden rounded-2xl border border-amber-200/45 bg-[#070609] p-4">
+                {!scratchResult ? (
+                  <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(250,204,21,0.96)_0%,rgba(120,78,18,0.94)_24%,rgba(251,191,36,0.98)_48%,rgba(71,48,17,0.92)_72%,rgba(253,224,71,0.96)_100%)]">
+                    <div className="absolute inset-0 opacity-60 [background-image:repeating-linear-gradient(160deg,rgba(255,255,255,0.32)_0_2px,transparent_2px_9px),radial-gradient(circle_at_22%_18%,rgba(255,255,255,0.45),transparent_18%),radial-gradient(circle_at_78%_78%,rgba(0,0,0,0.22),transparent_22%)]" />
+                    <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_0%,rgba(255,255,255,0.45)_46%,transparent_58%)]" />
+                    <div className="relative flex h-full min-h-44 flex-col items-center justify-center text-slate-950">
+                      <Eraser className="mb-3 h-10 w-10 drop-shadow" />
+                      <strong className="text-2xl font-black uppercase">Área metálica</strong>
+                      <span className="mt-2 text-xs font-black uppercase tracking-[0.24em]">toque para revelar</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative flex min-h-36 flex-col items-center justify-center gap-2">
+                    {scratchWon ? (
+                      <>
+                        <Sparkles className="h-11 w-11 text-amber-300 drop-shadow-[0_0_18px_rgba(251,191,36,0.85)]" />
+                        <strong className="text-2xl font-black uppercase text-amber-200">Parabéns!</strong>
+                        <span className="text-sm font-black uppercase tracking-[0.18em] text-white">Você ganhou</span>
+                        <b className="max-w-full break-words text-3xl font-black text-transparent [background:linear-gradient(180deg,#fff7ad,#f59e0b)] bg-clip-text">
+                          {scratchPrizeValue > 0 ? scratchPrizeValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : scratchPrize}
+                        </b>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-11 w-11 text-slate-300" />
+                        <strong className="text-2xl font-black uppercase text-white">Não foi dessa vez</strong>
+                        <span className="text-sm font-medium text-slate-300">Resultado oficial registrado.</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-fuchsia-300/25 bg-black/45 p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-fuchsia-300/40 bg-fuchsia-400/15 text-fuchsia-100">
+                {isPurchasePaid ? <Gift className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
+              </div>
+              <p className="min-w-0 text-sm leading-snug text-slate-100">
+                {isPurchasePaid ? "Você tem uma raspadinha disponível." : "Raspadinha bloqueada até a confirmação do pagamento."}
+              </p>
+            </div>
+          </div>
+
+          {!scratchResult && (
+            <button
+              type="button"
+              onClick={revealScratch}
+              disabled={busy === "scratch" || !isPurchasePaid}
+              className="mt-5 flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl border border-fuchsia-200/45 bg-[linear-gradient(180deg,#a855f7_0%,#6d28d9_100%)] px-5 text-base font-black uppercase tracking-wide text-white shadow-[0_0_34px_rgba(168,85,247,0.62)] transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              {isPurchasePaid ? <Eraser className="h-5 w-5" /> : <LockKeyhole className="h-5 w-5" />}
+              {busy === "scratch" ? "Raspando..." : "Raspar agora"}
             </button>
           )}
-        </div>
+        </section>
       )}
 
       {purchase?.gamification?.mysteryBoxEventId && (
