@@ -7,7 +7,13 @@ export interface Raffle {
   soldTickets: number;
   reservationMinutes?: number;
   image: string; // Fallback or main image
+  imageUrl?: string;
+  bannerUrl?: string;
+  coverImageUrl?: string;
+  thumbnailUrl?: string;
   mediaUrl?: string;
+  videoUrl?: string;
+  campaignMedia?: string | { url?: string; mediaUrl?: string; mediaType?: 'video' | 'image' | 'youtube' | 'vimeo' | 'bunny' };
   mediaType?: 'video' | 'image' | 'youtube' | 'vimeo' | 'bunny';
   mediaAspect?: 'auto' | 'wide' | 'cinematic' | 'square' | 'portrait' | 'story';
   mediaFit?: 'cover' | 'contain' | 'fill';

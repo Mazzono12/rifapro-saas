@@ -622,7 +622,7 @@ function RafflePremiumHero({ raffle, mediaUrl, isVideo }: { raffle: Raffle; medi
   return (
     <section className="cfx-raffle-hero cfx-detail-banner">
       {renderVideo ? (
-        <video src={activeMediaUrl} poster={fallbackImageUrl || undefined} controls preload="metadata" onError={handleMediaError} />
+        <video src={activeMediaUrl} poster={fallbackImageUrl || undefined} autoPlay muted loop playsInline controls={false} preload="metadata" onError={handleMediaError} />
       ) : activeMediaUrl && !hasMediaError ? (
         <img src={activeMediaUrl} alt={raffle.title} onError={handleMediaError} />
       ) : (

@@ -11,6 +11,49 @@ import { toast } from "sonner";
 
 const DEFAULT_MEDIADELIVERY_VIDEO_URL = "https://player.mediadelivery.net/play/670514/b27261d2-ffd9-4e39-aa23-d7c400424177";
 
+function cleanMediaUrl(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeRaffleMediaDraft(raffle: Partial<Raffle>) {
+  const image = cleanMediaUrl(raffle.image || (raffle as any).imageUrl || (raffle as any).bannerUrl || (raffle as any).coverImageUrl || (raffle as any).thumbnailUrl);
+  const mediaUrl = cleanMediaUrl(raffle.mediaUrl || (raffle as any).videoUrl || (raffle as any).campaignMedia?.url || (raffle as any).campaignMedia);
+  const checkoutMediaUrl = cleanMediaUrl(raffle.checkoutMediaUrl);
+  const next: Partial<Raffle> & Record<string, any> = { ...raffle };
+
+  if (image) {
+    next.image = image;
+    next.imageUrl = image;
+    next.bannerUrl = image;
+    next.coverImageUrl = image;
+    next.thumbnailUrl = cleanMediaUrl((raffle as any).thumbnailUrl) || image;
+  } else {
+    delete next.image;
+    delete next.imageUrl;
+    delete next.bannerUrl;
+    delete next.coverImageUrl;
+    delete next.thumbnailUrl;
+  }
+
+  if (mediaUrl) {
+    next.mediaUrl = mediaUrl;
+    next.mediaType = inferMediaType(mediaUrl);
+  } else {
+    delete next.mediaUrl;
+    delete next.mediaType;
+  }
+
+  if (checkoutMediaUrl) {
+    next.checkoutMediaUrl = checkoutMediaUrl;
+    next.checkoutMediaType = inferMediaType(checkoutMediaUrl);
+  } else {
+    delete next.checkoutMediaUrl;
+    delete next.checkoutMediaType;
+  }
+
+  return next;
+}
+
 export function AdminRaffles() {
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -57,11 +100,7 @@ export function AdminRaffles() {
     const method = currentRaffle.id ? "PUT" : "POST";
     const url = currentRaffle.id ? `/api/admin/raffles/${currentRaffle.id}` : "/api/admin/raffles";
     
-    const payload = {
-      ...currentRaffle,
-      mediaType: currentRaffle.mediaUrl ? inferMediaType(currentRaffle.mediaUrl) : currentRaffle.mediaType,
-      checkoutMediaType: currentRaffle.checkoutMediaUrl ? inferMediaType(currentRaffle.checkoutMediaUrl) : currentRaffle.checkoutMediaType,
-    };
+    const payload = normalizeRaffleMediaDraft(currentRaffle);
 
     try {
       const res = await fetch(url, {

@@ -111,16 +111,95 @@ async function startServer() {
   const TEST_VIDEO_URL = "https://player.mediadelivery.net/play/670514/b27261d2-ffd9-4e39-aa23-d7c400424177";
   const TEST_VIDEO_MEDIA_TYPE = "bunny" as const;
   type MediaKind = "image" | "video" | "youtube" | "vimeo" | "bunny";
+  const mediaKindSet = new Set<MediaKind>(["image", "video", "youtube", "vimeo", "bunny"]);
+  const directImagePattern = /\.(avif|gif|jpe?g|png|webp)(\?.*)?$/i;
+  const directVideoPattern = /\.(m3u8|mov|mp4|webm|wmv|wma|wmi)(\?.*)?$/i;
+  function cleanMediaUrl(value: unknown) {
+    return typeof value === "string" ? value.trim() : "";
+  }
   function isMediaDeliveryPlayerUrl(value: unknown) {
     return typeof value === "string" && /(^https?:\/\/)?player\.mediadelivery\.net\/play\//i.test(value.trim());
   }
+  function inferMediaTypeForUrl(mediaUrl: unknown): MediaKind {
+    const url = cleanMediaUrl(mediaUrl);
+    if (!url) return "image";
+    if (isMediaDeliveryPlayerUrl(url) || /iframe\.mediadelivery\.net|video\.bunnycdn\.com|bunny\.net/i.test(url)) return "bunny";
+    if (/youtu\.be|youtube\.com/i.test(url)) return "youtube";
+    if (/vimeo\.com/i.test(url)) return "vimeo";
+    if (directVideoPattern.test(url)) return "video";
+    if (directImagePattern.test(url)) return "image";
+    return "image";
+  }
   function normalizeMediaTypeForUrl(mediaUrl: unknown, mediaType: unknown): MediaKind | unknown {
-    return isMediaDeliveryPlayerUrl(mediaUrl) ? TEST_VIDEO_MEDIA_TYPE : mediaType;
+    const explicit = String(mediaType || "").toLowerCase();
+    const url = cleanMediaUrl(mediaUrl);
+    if (!url) return mediaKindSet.has(explicit as MediaKind) ? explicit as MediaKind : mediaType;
+    const inferred = inferMediaTypeForUrl(url);
+    if (inferred !== "image" || !mediaKindSet.has(explicit as MediaKind)) return inferred;
+    return explicit as MediaKind;
   }
   function normalizeMediaPayload<T extends Record<string, any>>(payload: T): T {
     const next: Record<string, any> = { ...payload };
     if ("mediaUrl" in next) next.mediaType = normalizeMediaTypeForUrl(next.mediaUrl, next.mediaType) || next.mediaType;
     if ("checkoutMediaUrl" in next) next.checkoutMediaType = normalizeMediaTypeForUrl(next.checkoutMediaUrl, next.checkoutMediaType) || next.checkoutMediaType;
+    return next as T;
+  }
+  function firstMediaUrl(...values: unknown[]) {
+    for (const value of values) {
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        const nested = value as Record<string, unknown>;
+        const nestedUrl = firstMediaUrl(nested.url, nested.mediaUrl, nested.image, nested.imageUrl, nested.videoUrl);
+        if (nestedUrl) return nestedUrl;
+      }
+      const text = cleanMediaUrl(value);
+      if (text) return text;
+    }
+    return "";
+  }
+  function normalizeRaffleMediaPayload<T extends Record<string, any>>(payload: T, current?: Record<string, any>): T {
+    const next = normalizeMediaPayload(payload) as Record<string, any>;
+    const image = firstMediaUrl(
+      payload.image,
+      payload.imageUrl,
+      payload.bannerUrl,
+      payload.coverImageUrl,
+      payload.thumbnailUrl,
+      current?.image,
+      current?.imageUrl,
+      current?.bannerUrl,
+      current?.coverImageUrl,
+      current?.thumbnailUrl
+    );
+    const mediaUrl = firstMediaUrl(
+      payload.mediaUrl,
+      payload.videoUrl,
+      payload.campaignMedia,
+      current?.mediaUrl,
+      current?.videoUrl,
+      current?.campaignMedia
+    );
+    const checkoutMediaUrl = firstMediaUrl(payload.checkoutMediaUrl, current?.checkoutMediaUrl);
+    if (image) {
+      next.image = image;
+      next.imageUrl = image;
+      next.bannerUrl = image;
+      next.coverImageUrl = image;
+      next.thumbnailUrl = firstMediaUrl(payload.thumbnailUrl, current?.thumbnailUrl, image);
+    }
+    if (mediaUrl) {
+      next.mediaUrl = mediaUrl;
+      next.mediaType = normalizeMediaTypeForUrl(mediaUrl, payload.mediaType || current?.mediaType) || inferMediaTypeForUrl(mediaUrl);
+    } else {
+      delete next.mediaUrl;
+      delete next.mediaType;
+    }
+    if (checkoutMediaUrl) {
+      next.checkoutMediaUrl = checkoutMediaUrl;
+      next.checkoutMediaType = normalizeMediaTypeForUrl(checkoutMediaUrl, payload.checkoutMediaType || current?.checkoutMediaType) || inferMediaTypeForUrl(checkoutMediaUrl);
+    } else {
+      delete next.checkoutMediaUrl;
+      delete next.checkoutMediaType;
+    }
     return next as T;
   }
   const isNodeProduction = process.env.NODE_ENV === "production";
@@ -11303,10 +11382,11 @@ async function startServer() {
 
   function sanitizeRaffleForPublic(raffle: typeof raffles[number]) {
     const { soldNumbers, pixConfig, n8nEnabled, ...safeRaffle } = raffle;
+    const normalizedRaffle = normalizeRaffleMediaPayload(safeRaffle, raffle);
     const salesDeadline = getRaffleSalesDeadline(raffle);
     const salesExpired = isRaffleSalesExpired(raffle);
     return {
-      ...safeRaffle,
+      ...normalizedRaffle,
       salesDeadline,
       salesExpired,
       countdownLabel: salesDeadline
@@ -11325,8 +11405,9 @@ async function startServer() {
 
   function sanitizeRaffleForAdmin(raffle: typeof raffles[number]) {
     const { soldNumbers, ...safeRaffle } = raffle;
+    const normalizedRaffle = normalizeRaffleMediaPayload(safeRaffle, raffle);
     return {
-      ...safeRaffle,
+      ...normalizedRaffle,
       salesDeadline: getRaffleSalesDeadline(raffle),
       salesExpired: isRaffleSalesExpired(raffle)
     };
@@ -22616,7 +22697,7 @@ async function startServer() {
       id: createPublicId("R_"),
       soldNumbers: new Set<number>(),
       soldTickets: 0,
-      ...normalizeMediaPayload(req.body),
+      ...normalizeRaffleMediaPayload(req.body),
       tenant_id: tenantId,
       ...normalizeRaffleCountdownPayload(req.body),
       manuallyClosedAt: req.body.status && req.body.status !== "active" ? new Date().toISOString() : "",
@@ -22650,7 +22731,7 @@ async function startServer() {
       const statusChangedToActive = req.body.status === "active";
       raffles[index] = {
         ...raffles[index],
-        ...normalizeMediaPayload(req.body),
+        ...normalizeRaffleMediaPayload(req.body, raffles[index]),
         tenant_id: raffles[index].tenant_id,
         ...nextCountdown,
         manuallyClosedAt: statusChangedToActive ? "" : statusChangedToClosed ? new Date().toISOString() : raffles[index].manuallyClosedAt,

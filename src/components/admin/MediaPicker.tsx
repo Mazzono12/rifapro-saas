@@ -108,7 +108,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, required =
     }
   };
 
-  const applyExternalVideo = () => {
+  const applyExternalMedia = () => {
     const url = externalUrl.trim();
     setLastError("");
     try {
@@ -122,15 +122,15 @@ export function MediaPicker({ label, value = "", mediaType, onChange, required =
     }
 
     const detectedType = inferMediaType(url);
-    if (detectedType === "image") {
-      const message = "Use link do YouTube, Vimeo, MediaDelivery/Bunny.net ou um arquivo de vídeo direto (.mp4, .webm, .mov ou .m3u8).";
+    if (detectedType === "youtube" || detectedType === "vimeo") {
+      const message = "Use link direto de vídeo .mp4/.webm ou arquivo enviado.";
       setLastError(message);
-      toast.error("Link de vídeo não reconhecido");
+      toast.error("Player externo não suportado neste campo");
       return;
     }
     onChange(url, detectedType);
     setDetectedUploadType(detectedType);
-    toast.success("Vídeo externo aplicado");
+    toast.success(detectedType === "image" ? "Imagem por link aplicada" : "Vídeo por link aplicado");
   };
 
   return (
@@ -168,20 +168,21 @@ export function MediaPicker({ label, value = "", mediaType, onChange, required =
         {allowExternalVideo && <div className="rounded-lg border border-[var(--admin-border)] p-3">
           <label className="block space-y-2">
             <span className="flex items-center gap-2 text-xs font-semibold text-[var(--admin-muted)]">
-              <Link2 className="h-4 w-4" /> Vídeo por link externo
+              <Link2 className="h-4 w-4" /> URL de mídia da campanha
             </span>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 type="url"
                 value={externalUrl}
                 onChange={event => setExternalUrl(event.target.value)}
-                placeholder="YouTube, Vimeo, MediaDelivery/Bunny.net ou URL direta do vídeo"
+                placeholder="Imagem ou vídeo direto .mp4/.webm/.mov"
                 className="admin-input min-h-12 min-w-0 flex-1"
               />
-              <button type="button" onClick={applyExternalVideo} className="admin-button-secondary min-h-12 shrink-0">
+              <button type="button" onClick={applyExternalMedia} className="admin-button-secondary min-h-12 shrink-0">
                 Aplicar link
               </button>
             </div>
+            <small className="block text-xs text-[var(--admin-muted)]">Aceita imagem ou vídeo direto .mp4/.webm/.mov. Para YouTube/Vimeo, use um arquivo enviado ou link direto de CDN/storage.</small>
           </label>
         </div>
         }
@@ -234,7 +235,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, required =
         </div>
       )}
       <p className="mt-2 text-xs text-[var(--admin-muted)]">
-        Arquivos aceitos: {accept.toUpperCase()}. Tipo atual: {mediaType || inferMediaType(value)}. Aceita links player.mediadelivery.net/play.
+        Arquivos aceitos: {accept.toUpperCase()}. Tipo atual: {mediaType || inferMediaType(value)}. Aceita imagem ou vídeo direto .mp4/.webm/.mov.
       </p>
     </div>
   );

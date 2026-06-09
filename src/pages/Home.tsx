@@ -110,12 +110,13 @@ function normalizeRaffleMediaFit(fit: unknown): Raffle["mediaFit"] {
 
 function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raffle | null {
   if (!raffle || !raffle.id) return null;
-  const rawRaffle = raffle as Partial<Raffle> & { imageUrl?: string };
+  const rawRaffle = raffle as Partial<Raffle> & { imageUrl?: string; bannerUrl?: string; coverImageUrl?: string; thumbnailUrl?: string; videoUrl?: string; campaignMedia?: string | { url?: string; mediaUrl?: string } };
   const price = safeNumber(rawRaffle.price);
   const totalTickets = Math.max(1, Math.floor(safeNumber(rawRaffle.totalTickets, 1)));
   const soldTickets = Math.max(0, Math.floor(safeNumber(rawRaffle.soldTickets)));
-  const image = safeText(rawRaffle.image || rawRaffle.imageUrl, "");
-  const rawMediaUrl = safeText(rawRaffle.mediaUrl, "");
+  const campaignMediaUrl = typeof rawRaffle.campaignMedia === "string" ? rawRaffle.campaignMedia : rawRaffle.campaignMedia?.url || rawRaffle.campaignMedia?.mediaUrl;
+  const image = safeText(rawRaffle.image || rawRaffle.imageUrl || rawRaffle.bannerUrl || rawRaffle.coverImageUrl || rawRaffle.thumbnailUrl, "");
+  const rawMediaUrl = safeText(rawRaffle.mediaUrl || rawRaffle.videoUrl || campaignMediaUrl, "");
   const mediaUrl = rawMediaUrl || image;
   const mediaType = rawMediaUrl ? normalizeRaffleMediaType(rawRaffle.mediaType) : image ? "image" : normalizeRaffleMediaType(rawRaffle.mediaType);
   return {
