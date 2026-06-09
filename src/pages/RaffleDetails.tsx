@@ -1049,7 +1049,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         </div>
       </section>
 
-      <div className="cfx-review-grid">
+      <div className="cfx-review-columns">
         <section className="cfx-review-panel cfx-review-summary">
           <div className="cfx-review-panel-head">
             <span><Ticket /></span>
@@ -1225,7 +1225,7 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
             <strong>{props.raffle.title}</strong>
           </span>
         </div>
-        <div className="cfx-pix-summary-grid">
+        <div className="cfx-pix-summary-columns">
           <InfoCard label="Quantidade" value={props.tickets.toLocaleString("pt-BR")} />
           <InfoCard label="Valor total" value={formatCurrency(props.totalValue)} />
         </div>
@@ -1255,6 +1255,8 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
 }
 
 function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [showAllReceiptNumbers, setShowAllReceiptNumbers] = useState(false);
   const isPaid = props.purchase?.status === "paid";
   const numbers = props.purchase?.numeros || [];
   const paidNumbers = isPaid ? numbers : [];
@@ -1272,6 +1274,22 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
       ? { icon: <Trophy />, title: "Roleta Premiada", detail: `${Number(props.purchase?.earnedLootboxes || 1)} giro(s)` }
       : null
   ].filter(Boolean) as Array<{ icon: React.ReactNode; title: string; detail: string }>;
+  const openPremiumReceipt = () => {
+    if (!isPaid) {
+      toast.error("Comprovante indisponível", { description: "A compra ainda não foi confirmada." });
+      return;
+    }
+    setReceiptOpen(true);
+  };
+  const shareReceipt = async () => {
+    const text = `Comprovante oficial - ${props.raffle.title} - ${props.tickets.toLocaleString("pt-BR")} cotas - ${formatCurrency(props.totalValue)}.`;
+    if (navigator.share) {
+      await navigator.share({ title: "Comprovante oficial", text }).catch(() => null);
+      return;
+    }
+    await navigator.clipboard.writeText(text);
+    toast.success("Resumo do comprovante copiado");
+  };
 
   return (
     <div className="cfx-success-screen cfx-success-premium">
@@ -1331,7 +1349,7 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
       )}
 
       <section className="cfx-success-actions">
-        <button type="button" onClick={props.onShowNumbers}><WalletCards /> VER COMPROVANTE</button>
+        <button type="button" onClick={openPremiumReceipt}><WalletCards /> VER COMPROVANTE</button>
         <Link to="/dashboard"><Ticket /> MEUS BILHETES</Link>
         <button type="button" onClick={props.onShare}><Share2 /> COMPARTILHAR</button>
       </section>
@@ -1339,7 +1357,178 @@ function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
       <button type="button" onClick={props.onClose} className="cfx-success-repeat">
         PARTICIPAR NOVAMENTE
       </button>
+
+      {receiptOpen && isPaid && (
+        <PremiumReceiptModal
+          raffle={props.raffle}
+          purchase={props.purchase}
+          customer={props.customer}
+          customerForm={props.customerForm}
+          tickets={props.tickets}
+          totalValue={props.totalValue}
+          paidAt={paidAt}
+          numbers={paidNumbers}
+          instantPrizes={instantPrizes}
+          unlockedGames={unlockedGames}
+          showAllNumbers={showAllReceiptNumbers}
+          onToggleReceiptList={() => setShowAllReceiptNumbers(current => !current)}
+          onClose={() => setReceiptOpen(false)}
+          onShare={shareReceipt}
+        />
+      )}
     </div>
+  );
+}
+
+function PremiumReceiptModal({
+  raffle,
+  purchase,
+  customer,
+  customerForm,
+  tickets,
+  totalValue,
+  paidAt,
+  numbers,
+  instantPrizes,
+  unlockedGames,
+  showAllNumbers,
+  onToggleReceiptList,
+  onClose,
+  onShare
+}: {
+  raffle: Raffle;
+  purchase: any;
+  customer: any;
+  customerForm: any;
+  tickets: number;
+  totalValue: number;
+  paidAt?: string;
+  numbers: number[];
+  instantPrizes: Array<{ numeroPremiado: number; valorPremio: number; claimedAt?: string }>;
+  unlockedGames: Array<{ icon: React.ReactNode; title: string; detail: string }>;
+  showAllNumbers: boolean;
+  onToggleReceiptList: () => void;
+  onClose: () => void;
+  onShare: () => void;
+}) {
+  if (purchase?.status !== "paid") return null;
+
+  const mediaCandidate = raffle.image || raffle.checkoutMediaUrl || raffle.mediaUrl || "";
+  const mediaType = String(raffle.checkoutMediaType || raffle.mediaType || "").toLowerCase();
+  const campaignImage = mediaType.includes("video") || mediaType.includes("bunny") ? raffle.image || "" : mediaCandidate;
+  const buyer = purchase?.customer || customer || {};
+  const visibleNumbers = showAllNumbers ? numbers : numbers.slice(0, 30);
+  const orderId = purchase?.purchaseId || purchase?.id || "Não informado";
+  const paymentGateway = String(purchase?.pixGateway || purchase?.gateway || purchase?.paymentGateway || "PIX").toUpperCase();
+  const mainPrize = String((raffle as any).mainPrize || (raffle as any).premio || (raffle as any).prize || "").trim();
+
+  return (
+    <div className="cfx-receipt-overlay" role="dialog" aria-modal="true" aria-label="Comprovante oficial">
+      <div className="cfx-receipt-modal">
+        <button type="button" className="cfx-receipt-close" onClick={onClose} aria-label="Fechar comprovante">×</button>
+
+        <header className="cfx-receipt-top">
+          <span className="cfx-receipt-approved"><CheckCircle2 /> PAGAMENTO APROVADO</span>
+          <h2>COMPROVANTE OFICIAL</h2>
+          <p>Compra confirmada com sucesso</p>
+        </header>
+
+        <section className="cfx-receipt-card cfx-receipt-campaign">
+          {campaignImage ? (
+            <img src={campaignImage} alt={raffle.title} onError={event => { event.currentTarget.style.display = "none"; }} />
+          ) : (
+            <div className="cfx-receipt-image-fallback"><Gift /></div>
+          )}
+          <div>
+            <small>Campanha</small>
+            <strong>{raffle.title}</strong>
+            {mainPrize && <span>{mainPrize}</span>}
+          </div>
+        </section>
+
+        <section className="cfx-receipt-card">
+          <h3>Transação</h3>
+          <div className="cfx-receipt-lines">
+            <ReceiptLine label="Pedido" value={String(orderId)} />
+            <ReceiptLine label="Data e hora" value={formatReceiptDate(paidAt)} />
+            <ReceiptLine label="Status" value="PAGO" />
+            <ReceiptLine label="Gateway" value={paymentGateway} />
+            <ReceiptLine label="Valor pago" value={formatCurrency(totalValue)} strong />
+            <ReceiptLine label="Quantidade de cotas" value={tickets.toLocaleString("pt-BR")} />
+          </div>
+        </section>
+
+        {numbers.length > 0 && (
+          <section className="cfx-receipt-card cfx-receipt-numbers">
+            <h3>Números</h3>
+            <div>
+              {visibleNumbers.map(number => (
+                <span key={number}>{String(number).padStart(6, "0")}</span>
+              ))}
+            </div>
+            {numbers.length > 30 && (
+              <button type="button" onClick={onToggleReceiptList}>
+                {showAllNumbers ? "VER MENOS" : `VER TODOS OS ${numbers.length.toLocaleString("pt-BR")} NÚMEROS`}
+              </button>
+            )}
+          </section>
+        )}
+
+        {instantPrizes.length > 0 && (
+          <section className="cfx-receipt-card cfx-receipt-super">
+            <h3>Super Cotas</h3>
+            <div>
+              {instantPrizes.map((prize, index) => (
+                <article key={`${prize.numeroPremiado}-${prize.valorPremio}-${index}`}>
+                  <strong>{String(prize.numeroPremiado).padStart(6, "0")}</strong>
+                  <span>{formatCurrency(Number(prize.valorPremio || 0))}</span>
+                  <small>{formatReceiptDate(prize.claimedAt || paidAt)}</small>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {unlockedGames.length > 0 && (
+          <section className="cfx-receipt-card cfx-receipt-benefits">
+            <h3>Benefícios liberados</h3>
+            <div>
+              {unlockedGames.map(game => (
+                <article key={game.title}>
+                  {game.icon}
+                  <span><strong>{game.title}</strong><small>{game.detail}</small></span>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="cfx-receipt-card">
+          <h3>Comprador</h3>
+          <div className="cfx-receipt-lines">
+            <ReceiptLine label="Nome" value={maskName(buyer.name || customerForm.name)} />
+            <ReceiptLine label="CPF" value={maskCpf(buyer.cpf || customerForm.cpf)} />
+            <ReceiptLine label="Telefone" value={maskPhone(buyer.phone || customerForm.phone || purchase?.contact)} />
+          </div>
+        </section>
+
+        <section className="cfx-receipt-actions">
+          <button type="button" disabled title="Gerador PDF ainda não configurado">BAIXAR PDF</button>
+          <button type="button" onClick={onShare}><Share2 /> COMPARTILHAR</button>
+          <Link to="/minhas-cotas"><Ticket /> VER MEUS BILHETES</Link>
+          <Link to="/"><ChevronLeft /> VOLTAR AO INÍCIO</Link>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function ReceiptLine({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <p>
+      <span>{label}</span>
+      <b className={strong ? "is-strong" : undefined}>{value || "Não informado"}</b>
+    </p>
   );
 }
 
@@ -1379,7 +1568,7 @@ function RaffleSkeleton() {
       <div className="mx-auto max-w-3xl space-y-4">
         <div className="h-[520px] animate-pulse rounded-[2rem] bg-white/[0.06]" />
         <div className="h-24 animate-pulse rounded-[1.5rem] bg-white/[0.05]" />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex gap-3">
           <div className="h-32 animate-pulse rounded-2xl bg-white/[0.05]" />
           <div className="h-32 animate-pulse rounded-2xl bg-white/[0.05]" />
         </div>
@@ -1420,6 +1609,13 @@ function maskEmail(value?: string) {
   const [user, domain] = email.split("@");
   if (!user || !domain) return "Nao informado";
   return `${user.slice(0, 2)}***@${domain}`;
+}
+
+function maskName(value?: string) {
+  const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "Não informado";
+  if (parts.length === 1) return `${parts[0].slice(0, 1)}***`;
+  return `${parts[0]} ${parts.slice(1).map(part => `${part.slice(0, 1)}.`).join(" ")}`;
 }
 
 function maskCpf(value?: string) {

@@ -1197,7 +1197,7 @@
   height: 17px;
 }
 
-.cfx-review-grid {
+.cfx-review-columns {
   display: grid;
   grid-template-columns: 1fr;
   gap: 14px;
@@ -1617,7 +1617,7 @@
     max-width: 62%;
   }
 
-  .cfx-review-grid {
+  .cfx-review-columns {
     grid-template-columns: minmax(0, .9fr) minmax(0, 1fr);
   }
 
@@ -1779,7 +1779,7 @@
 }
 
 .cfx-pix-buyer-grid,
-.cfx-pix-summary-grid {
+.cfx-pix-summary-columns {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
@@ -1804,13 +1804,13 @@
   word-break: break-word;
 }
 
-.cfx-pix-summary-grid .cfx-info-card:last-child {
+.cfx-pix-summary-columns .cfx-info-card:last-child {
   border-color: rgba(247, 201, 72, .4);
   background: linear-gradient(135deg, rgba(247, 201, 72, .14), rgba(168, 85, 247, .16));
   box-shadow: 0 0 28px rgba(247, 201, 72, .1);
 }
 
-.cfx-pix-summary-grid .cfx-info-card:last-child strong {
+.cfx-pix-summary-columns .cfx-info-card:last-child strong {
   color: var(--cfx-gold);
   font-size: 24px;
 }
@@ -2020,12 +2020,12 @@
   }
 
   .cfx-pix-buyer-grid,
-  .cfx-pix-summary-grid,
+  .cfx-pix-summary-columns,
   .cfx-pix-trust-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .cfx-pix-summary-grid .cfx-info-card:last-child {
+  .cfx-pix-summary-columns .cfx-info-card:last-child {
     grid-column: span 2;
   }
 }
@@ -12403,7 +12403,7 @@ html[data-admin-theme="light"] .admin-shell {
     font-size: 11px !important;
   }
 
-  .cfx-review-grid {
+  .cfx-review-columns {
     display: block !important;
   }
 
@@ -12714,7 +12714,7 @@ html[data-admin-theme="light"] .admin-shell {
   font-size: clamp(1.1rem, 5vw, 1.7rem) !important;
 }
 
-.cfx-pix-summary-card .cfx-pix-summary-grid {
+.cfx-pix-summary-card .cfx-pix-summary-columns {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -13339,5 +13339,399 @@ html[data-admin-theme="light"] .admin-shell {
   .cfx-success-actions button:first-child {
     min-height: 58px !important;
     font-size: 1.2rem !important;
+  }
+}
+
+.cfx-receipt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  width: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 12px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(168, 85, 247, .2), transparent 20rem),
+    rgba(0, 0, 0, .84);
+  backdrop-filter: blur(18px);
+}
+
+.cfx-receipt-modal {
+  position: relative;
+  box-sizing: border-box;
+  width: min(680px, 100%);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(168, 85, 247, .35);
+  border-radius: 28px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(168, 85, 247, .24), transparent 18rem),
+    radial-gradient(circle at 100% 34%, rgba(34, 197, 94, .12), transparent 16rem),
+    linear-gradient(145deg, rgba(9, 10, 18, .98), rgba(2, 4, 10, .99));
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .62), inset 0 1px 0 rgba(255, 255, 255, .08);
+  color: #fff;
+}
+
+.cfx-receipt-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, .32);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.cfx-receipt-top {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 18px 42px 14px;
+  text-align: center;
+}
+
+.cfx-receipt-top h2 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1.55rem, 7vw, 2.6rem);
+  font-weight: 950;
+  line-height: 1;
+}
+
+.cfx-receipt-top p {
+  margin: 0;
+  color: rgba(255, 255, 255, .72);
+  font-weight: 750;
+}
+
+.cfx-receipt-approved {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(74, 222, 128, .45);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(22, 163, 74, .14);
+  color: #86efac;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.cfx-receipt-approved svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cfx-receipt-card {
+  margin-top: 12px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 20px;
+  padding: 13px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(168, 85, 247, .13), transparent 14rem),
+    rgba(255, 255, 255, .045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+.cfx-receipt-card h3 {
+  margin: 0 0 11px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.cfx-receipt-campaign {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.cfx-receipt-campaign img,
+.cfx-receipt-image-fallback {
+  width: 92px;
+  height: 72px;
+  border: 1px solid rgba(168, 85, 247, .35);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, .28), rgba(34, 211, 238, .1));
+  object-fit: cover;
+}
+
+.cfx-receipt-image-fallback {
+  display: grid;
+  place-items: center;
+  color: #c084fc;
+}
+
+.cfx-receipt-campaign small,
+.cfx-receipt-campaign span {
+  display: block;
+  color: rgba(255, 255, 255, .66);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.cfx-receipt-campaign strong {
+  display: block;
+  margin-top: 2px;
+  color: #fff;
+  font-size: 19px;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.cfx-receipt-campaign span {
+  margin-top: 5px;
+  color: #f7c948;
+}
+
+.cfx-receipt-lines {
+  display: grid;
+  gap: 8px;
+}
+
+.cfx-receipt-lines p {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+  padding-bottom: 8px;
+}
+
+.cfx-receipt-lines p:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.cfx-receipt-lines span {
+  color: rgba(255, 255, 255, .62);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.cfx-receipt-lines b {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+  text-align: right;
+  word-break: break-word;
+}
+
+.cfx-receipt-lines .is-strong {
+  color: #86efac;
+  font-size: 17px;
+}
+
+.cfx-receipt-numbers {
+  border-color: rgba(247, 201, 72, .34);
+}
+
+.cfx-receipt-numbers h3,
+.cfx-receipt-super h3 {
+  color: var(--cfx-gold);
+}
+
+.cfx-receipt-numbers > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.cfx-receipt-numbers span {
+  display: grid;
+  min-width: 62px;
+  min-height: 36px;
+  place-items: center;
+  border: 1px solid rgba(168, 85, 247, .34);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, .34);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.cfx-receipt-numbers button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 10px;
+  border: 1px solid rgba(168, 85, 247, .44);
+  border-radius: 14px;
+  background: rgba(168, 85, 247, .16);
+  color: #e9d5ff;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.cfx-receipt-super {
+  border-color: rgba(247, 201, 72, .55);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(247, 201, 72, .24), transparent 14rem),
+    rgba(24, 16, 0, .5);
+}
+
+.cfx-receipt-super > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 9px;
+}
+
+.cfx-receipt-super article {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  border: 1px solid rgba(247, 201, 72, .54);
+  border-radius: 16px;
+  padding: 11px 8px;
+  background: linear-gradient(135deg, rgba(247, 201, 72, .22), rgba(0, 0, 0, .18));
+  text-align: center;
+}
+
+.cfx-receipt-super strong {
+  color: #fef3c7;
+  font-size: 20px;
+  font-weight: 950;
+}
+
+.cfx-receipt-super span {
+  color: #facc15;
+  font-weight: 950;
+}
+
+.cfx-receipt-super small {
+  color: rgba(254, 243, 199, .74);
+  font-size: 10px;
+}
+
+.cfx-receipt-benefits > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 9px;
+}
+
+.cfx-receipt-benefits article {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(168, 85, 247, .25);
+  border-radius: 15px;
+  padding: 10px;
+  background: rgba(0, 0, 0, .24);
+}
+
+.cfx-receipt-benefits svg {
+  width: 23px;
+  height: 23px;
+  color: #c084fc;
+}
+
+.cfx-receipt-benefits strong,
+.cfx-receipt-benefits small {
+  display: block;
+}
+
+.cfx-receipt-benefits strong {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.cfx-receipt-benefits small {
+  color: rgba(255, 255, 255, .64);
+  font-size: 11px;
+}
+
+.cfx-receipt-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.cfx-receipt-actions button,
+.cfx-receipt-actions a {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(168, 85, 247, .35);
+  border-radius: 15px;
+  background: rgba(168, 85, 247, .14);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+  text-align: center;
+}
+
+.cfx-receipt-actions button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.cfx-receipt-actions svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 639px) {
+  .cfx-receipt-overlay {
+    padding: 0;
+  }
+
+  .cfx-receipt-modal {
+    width: 100%;
+    min-height: 100dvh;
+    margin: 0;
+    border-width: 0;
+    border-radius: 0;
+    padding: 14px 12px max(96px, calc(76px + env(safe-area-inset-bottom)));
+  }
+
+  .cfx-receipt-close {
+    top: 10px;
+    right: 10px;
+  }
+
+  .cfx-receipt-top {
+    padding: 12px 42px 10px;
+  }
+
+  .cfx-receipt-campaign {
+    grid-template-columns: 82px minmax(0, 1fr);
+  }
+
+  .cfx-receipt-campaign img,
+  .cfx-receipt-image-fallback {
+    width: 82px;
+    height: 66px;
+  }
+
+  .cfx-receipt-campaign strong {
+    font-size: 16px;
+  }
+
+  .cfx-receipt-lines p {
+    align-items: flex-start;
+  }
+
+  .cfx-receipt-numbers span {
+    min-width: calc((100% - 14px) / 3);
+  }
+
+  .cfx-receipt-actions {
+    grid-template-columns: 1fr;
   }
 }
