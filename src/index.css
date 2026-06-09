@@ -12928,3 +12928,416 @@ html[data-admin-theme="light"] .admin-shell {
     font-size: 13px !important;
   }
 }
+
+/* Premium paid ticket/success stage. */
+.cfx-checkout-shell-ticket .checkout-modal-header {
+  display: none !important;
+}
+
+.cfx-checkout-shell-ticket,
+.cfx-checkout-shell-ticket *,
+.cfx-checkout-shell-ticket *::before,
+.cfx-checkout-shell-ticket *::after {
+  box-sizing: border-box;
+}
+
+.cfx-checkout-shell-ticket {
+  width: min(100%, 720px) !important;
+  max-width: min(100%, 720px) !important;
+  border-color: rgba(34, 197, 94, .32) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(34, 197, 94, .2), transparent 19rem),
+    radial-gradient(circle at 80% 20%, rgba(247, 201, 72, .12), transparent 15rem),
+    linear-gradient(180deg, #031007, #050409 72%) !important;
+}
+
+.cfx-checkout-shell-ticket .checkout-content-area,
+.cfx-success-premium {
+  width: 100%;
+  max-width: 100%;
+}
+
+.cfx-success-premium {
+  position: relative;
+  display: grid;
+  gap: 13px;
+  overflow: hidden;
+  padding: 4px;
+}
+
+.cfx-success-confetti {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.cfx-success-confetti i {
+  position: absolute;
+  display: block;
+  width: 7px;
+  height: 18px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #fde68a, #f59e0b);
+  box-shadow: 0 0 14px rgba(247, 201, 72, .38);
+  opacity: .8;
+  transform: rotate(var(--rotate, 18deg));
+}
+
+.cfx-success-confetti i:nth-child(1) { left: 8%; top: 5%; --rotate: -22deg; }
+.cfx-success-confetti i:nth-child(2) { left: 18%; top: 17%; --rotate: 38deg; }
+.cfx-success-confetti i:nth-child(3) { left: 28%; top: 7%; --rotate: 12deg; }
+.cfx-success-confetti i:nth-child(4) { left: 39%; top: 14%; --rotate: -46deg; }
+.cfx-success-confetti i:nth-child(5) { left: 51%; top: 5%; --rotate: 26deg; }
+.cfx-success-confetti i:nth-child(6) { left: 64%; top: 16%; --rotate: -14deg; }
+.cfx-success-confetti i:nth-child(7) { left: 77%; top: 6%; --rotate: 42deg; }
+.cfx-success-confetti i:nth-child(8) { left: 89%; top: 18%; --rotate: -26deg; }
+.cfx-success-confetti i:nth-child(9) { left: 10%; top: 42%; --rotate: 18deg; }
+.cfx-success-confetti i:nth-child(10) { left: 88%; top: 45%; --rotate: 33deg; }
+.cfx-success-confetti i:nth-child(11) { left: 18%; top: 72%; --rotate: -10deg; }
+.cfx-success-confetti i:nth-child(12) { left: 81%; top: 76%; --rotate: 22deg; }
+.cfx-success-confetti i:nth-child(13) { left: 46%; top: 26%; --rotate: -33deg; }
+.cfx-success-confetti i:nth-child(14) { left: 58%; top: 66%; --rotate: 45deg; }
+.cfx-success-confetti i:nth-child(15) { left: 31%; top: 86%; --rotate: -20deg; }
+.cfx-success-confetti i:nth-child(16) { left: 70%; top: 88%; --rotate: 16deg; }
+.cfx-success-confetti i:nth-child(17) { left: 6%; top: 88%; --rotate: 40deg; }
+.cfx-success-confetti i:nth-child(18) { left: 94%; top: 86%; --rotate: -34deg; }
+
+.cfx-success-premium .cfx-success-card {
+  position: relative;
+  border: 1px solid rgba(34, 197, 94, .22);
+  border-radius: 22px;
+  padding: 14px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(34, 197, 94, .12), transparent 12rem),
+    linear-gradient(145deg, rgba(9, 18, 14, .86), rgba(3, 5, 9, .96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 20px 50px rgba(0, 0, 0, .26);
+}
+
+.cfx-success-hero {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  padding: 18px 8px 10px;
+  text-align: center;
+}
+
+.cfx-success-hero .cfx-success-check {
+  display: grid;
+  width: 118px;
+  height: 118px;
+  place-items: center;
+  border: 2px solid rgba(74, 222, 128, .8);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(134, 239, 172, .42), rgba(22, 163, 74, .16) 54%, rgba(6, 78, 59, .18));
+  color: #86efac;
+  box-shadow: 0 0 44px rgba(34, 197, 94, .45), inset 0 0 28px rgba(34, 197, 94, .28);
+}
+
+.cfx-success-hero .cfx-success-check svg {
+  width: 78px;
+  height: 78px;
+  filter: drop-shadow(0 0 18px rgba(34, 197, 94, .5));
+}
+
+.cfx-success-hero h2 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2rem, 8vw, 3.3rem);
+  font-weight: 950;
+  line-height: .95;
+  text-align: center;
+}
+
+.cfx-success-hero p {
+  margin: 0;
+  color: #bbf7d0;
+  font-size: clamp(.95rem, 4vw, 1.2rem);
+  font-weight: 800;
+}
+
+.cfx-success-summary h3,
+.cfx-success-numbers h3,
+.cfx-success-games h3 {
+  margin: 0 0 10px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.cfx-success-summary > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.cfx-success-summary .cfx-info-card {
+  min-height: 62px;
+  border-color: rgba(255, 255, 255, .1);
+  background: rgba(0, 0, 0, .28);
+}
+
+.cfx-success-summary .cfx-info-card:first-child {
+  grid-column: 1 / -1;
+}
+
+.cfx-success-numbers {
+  border-color: rgba(247, 201, 72, .42) !important;
+}
+
+.cfx-success-numbers h3 {
+  color: var(--cfx-gold);
+  text-align: center;
+}
+
+.cfx-success-numbers > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.cfx-success-numbers span {
+  display: grid;
+  min-width: 68px;
+  min-height: 44px;
+  place-items: center;
+  border: 1px solid rgba(247, 201, 72, .55);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .38);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+  box-shadow: inset 0 0 14px rgba(247, 201, 72, .08);
+}
+
+.cfx-success-super-cota {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(247, 201, 72, .82);
+  border-radius: 22px;
+  padding: 16px 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, .2), transparent 24%),
+    linear-gradient(135deg, #f7c948, #b7791f 48%, #facc15);
+  color: #1f1300;
+  box-shadow: 0 0 32px rgba(247, 201, 72, .28);
+  text-align: center;
+}
+
+.cfx-success-super-cota small,
+.cfx-success-super-cota strong,
+.cfx-success-super-cota b,
+.cfx-success-super-cota span {
+  position: relative;
+  z-index: 1;
+}
+
+.cfx-success-super-cota small {
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.cfx-success-super-cota strong {
+  border-radius: 14px;
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, .82);
+  color: #fef3c7;
+  font-size: clamp(1.5rem, 7vw, 2.2rem);
+  font-weight: 950;
+}
+
+.cfx-success-super-cota b {
+  font-size: clamp(1.35rem, 6vw, 2rem);
+  font-weight: 950;
+}
+
+.cfx-success-super-cota span {
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.cfx-success-games > div {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 9px;
+}
+
+.cfx-success-games article {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(168, 85, 247, .26);
+  border-radius: 16px;
+  padding: 11px;
+  background: rgba(255, 255, 255, .045);
+}
+
+.cfx-success-games article svg {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  color: #c084fc;
+}
+
+.cfx-success-games strong,
+.cfx-success-games small {
+  display: block;
+}
+
+.cfx-success-games strong {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.cfx-success-games small {
+  color: rgba(255, 255, 255, .7);
+  font-size: 12px;
+}
+
+.cfx-success-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 9px;
+}
+
+.cfx-success-actions button,
+.cfx-success-actions a,
+.cfx-success-repeat {
+  display: inline-flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, .055);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+  text-align: center;
+}
+
+.cfx-success-actions button:first-child {
+  min-height: 62px;
+  border-color: rgba(74, 222, 128, .55);
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #03140a;
+  font-size: clamp(1.05rem, 5vw, 1.5rem);
+  box-shadow: 0 0 32px rgba(34, 197, 94, .28);
+}
+
+.cfx-success-actions svg,
+.cfx-success-repeat svg {
+  width: 20px;
+  height: 20px;
+}
+
+.cfx-success-repeat {
+  width: 100%;
+  border-color: rgba(168, 85, 247, .34);
+  background: rgba(168, 85, 247, .12);
+  color: #d8b4fe;
+}
+
+@media (min-width: 640px) {
+  .cfx-success-actions {
+    grid-template-columns: 1.3fr 1fr 1fr;
+  }
+
+  .cfx-success-games > div {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .checkout-modal-overlay:has(.cfx-checkout-shell-ticket) {
+    padding: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  .cfx-checkout-shell-ticket {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    height: auto !important;
+    margin: 0 !important;
+    border-width: 0 !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+
+  .cfx-checkout-shell-ticket .checkout-content-area {
+    flex: 0 0 auto !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
+  }
+
+  .cfx-success-premium {
+    min-height: 100dvh;
+    gap: 10px !important;
+    padding: 14px 12px max(104px, calc(72px + env(safe-area-inset-bottom))) !important;
+  }
+
+  .cfx-success-hero {
+    padding-top: 10px !important;
+  }
+
+  .cfx-success-hero .cfx-success-check {
+    width: 94px !important;
+    height: 94px !important;
+  }
+
+  .cfx-success-hero .cfx-success-check svg {
+    width: 62px !important;
+    height: 62px !important;
+  }
+
+  .cfx-success-hero h2 {
+    font-size: clamp(1.75rem, 8.5vw, 2.45rem) !important;
+  }
+
+  .cfx-success-summary > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .cfx-success-summary .cfx-info-card {
+    min-height: 56px !important;
+    padding: 9px !important;
+  }
+
+  .cfx-success-summary .cfx-info-card p:last-child {
+    font-size: 13px !important;
+  }
+
+  .cfx-success-numbers span {
+    min-width: 58px !important;
+    min-height: 38px !important;
+    font-size: 11px !important;
+  }
+
+  .cfx-success-actions button,
+  .cfx-success-actions a,
+  .cfx-success-repeat {
+    min-height: 50px !important;
+    border-radius: 15px !important;
+    font-size: 12px !important;
+  }
+
+  .cfx-success-actions button:first-child {
+    min-height: 58px !important;
+    font-size: 1.2rem !important;
+  }
+}

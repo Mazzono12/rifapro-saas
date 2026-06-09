@@ -1255,59 +1255,90 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
 }
 
 function PremiumTicket(props: Parameters<typeof CheckoutModal>[0]) {
+  const isPaid = props.purchase?.status === "paid";
   const numbers = props.purchase?.numeros || [];
-  const buyer = props.purchase?.customer || props.customer || {};
-  const gateway = props.purchase?.pixGateway || props.purchase?.gateway || props.purchase?.paymentGateway || "PIX";
+  const paidNumbers = isPaid ? numbers : [];
   const paidAt = props.purchase?.paidAt || props.purchase?.paid_at || props.purchase?.createdAt || props.purchase?.created_at;
+  const instantPrizes = isPaid && Array.isArray(props.purchase?.premiosInstantaneos) ? props.purchase.premiosInstantaneos : [];
+  const primaryPrize = instantPrizes[0];
+  const rewardModes = (props.raffle.lootboxConfig?.rewardModes || {}) as { box?: boolean; wheel?: boolean };
+  const legacyExperience = props.raffle.lootboxConfig?.experienceType;
+  const unlockedGames = [
+    props.purchase?.gamification?.scratchcardEventId ? { icon: <Ticket />, title: "Raspadinha", detail: "Liberada" } : null,
+    props.purchase?.gamification?.mysteryBoxEventId || (Number(props.purchase?.earnedLootboxes || 0) > 0 && (rewardModes.box || legacyExperience === "box"))
+      ? { icon: <Gift />, title: "Caixinha Premiada", detail: `${Number(props.purchase?.earnedLootboxes || 1)} abertura(s)` }
+      : null,
+    Number(props.purchase?.earnedLootboxes || 0) > 0 && (rewardModes.wheel || legacyExperience === "wheel")
+      ? { icon: <Trophy />, title: "Roleta Premiada", detail: `${Number(props.purchase?.earnedLootboxes || 1)} giro(s)` }
+      : null
+  ].filter(Boolean) as Array<{ icon: React.ReactNode; title: string; detail: string }>;
+
   return (
-    <div className="cfx-success-screen">
-      <div className="cfx-success-card premium-card relative overflow-hidden rounded-[1.75rem] border-emerald-200/25 bg-gradient-to-br from-emerald-300/14 via-white/[0.055] to-cyan-300/10 p-5">
-        <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-emerald-200/12 blur-2xl" />
-        <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-white/12" />
-        <div className="cfx-success-hero flex items-start justify-between gap-4">
-          <div>
-            <span className="cfx-success-check"><CheckCircle2 /></span>
-            <p className="inline-flex rounded-full border border-emerald-200/25 bg-emerald-300/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.25em] text-emerald-100">Compra Confirmada</p>
-            <h3 className="mt-2 text-3xl font-black">Pagamento confirmado</h3>
-            <p className="mt-2 text-sm text-slate-300">Cotas liberadas para {props.raffle.title}. Pedido #{props.purchase?.purchaseId}</p>
-          </div>
-          <div className="rounded-2xl bg-white p-2">
-            <QRCodeSVG value={String(props.purchase?.purchaseId || "rifapro")} size={86} bgColor="#ffffff" fgColor="#0f172a" />
-          </div>
-        </div>
-        <div className="cfx-success-grid checkout-info-grid mt-6 grid gap-2 sm:grid-cols-2">
-          <InfoCard label="Comprador" value={buyer.name || props.customerForm.name || "Cliente"} />
-          <InfoCard label="WhatsApp" value={maskPhone(buyer.phone || props.customerForm.phone || props.purchase?.contact)} />
-          <InfoCard label="E-mail" value={maskEmail(buyer.email || props.purchase?.email || "")} />
-          <InfoCard label="Gateway" value={String(gateway).toUpperCase()} />
-          <InfoCard label="Cotas" value={String(props.tickets.toLocaleString("pt-BR"))} />
-          <InfoCard label="Valor pago" value={formatCurrency(props.totalValue)} />
+    <div className="cfx-success-screen cfx-success-premium">
+      <div className="cfx-success-confetti" aria-hidden="true">
+        {Array.from({ length: 18 }).map((_, index) => <i key={index} />)}
+      </div>
+
+      <section className="cfx-success-hero">
+        <span className="cfx-success-check"><CheckCircle2 /></span>
+        <h2>PAGAMENTO CONFIRMADO</h2>
+        <p>Boa sorte! Seus números foram liberados.</p>
+      </section>
+
+      <section className="cfx-success-card cfx-success-summary">
+        <h3>Resumo da compra</h3>
+        <div>
+          <InfoCard label="Campanha" value={props.raffle.title} />
+          <InfoCard label="Quantidade" value={props.tickets.toLocaleString("pt-BR")} />
+          <InfoCard label="Valor total" value={formatCurrency(props.totalValue)} />
           <InfoCard label="Data" value={formatReceiptDate(paidAt)} />
-          <InfoCard label="Validacao" value={String(props.purchase?.purchaseId || "").slice(0, 12) || "rifapro"} />
         </div>
-        <div className="cfx-ticket-list mt-5 flex flex-wrap gap-2">
-          {numbers.slice(0, 18).map((number: number) => (
-            <span key={number} className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs font-black">{String(number).padStart(6, "0")}</span>
-          ))}
-          {numbers.length > 18 && <span className="rounded-xl bg-white/10 px-3 py-2 text-xs font-black">+{numbers.length - 18}</span>}
-        </div>
-      </div>
-      <GamificationPanel data={props.gamification} purchase={props.purchase} />
-      {props.purchase?.gamification?.doubleTickets?.applied && (
-        <div className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4 text-emerald-50">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-100">Cotas em dobro</p>
-          <p className="mt-2 text-sm font-semibold">
-            Seu bilhete inclui +{props.purchase.gamification.doubleTickets.bonusTickets} cotas extras, já contando no sorteio.
-          </p>
-        </div>
+      </section>
+
+      {isPaid && paidNumbers.length > 0 && (
+        <section className="cfx-success-card cfx-success-numbers">
+          <h3>Seus números da sorte</h3>
+          <div>
+            {paidNumbers.slice(0, 24).map((number: number) => (
+              <span key={number}>{String(number).padStart(6, "0")}</span>
+            ))}
+            {paidNumbers.length > 24 && <span>+{paidNumbers.length - 24}</span>}
+          </div>
+        </section>
       )}
-      <div className="cfx-actions-row checkout-actions grid grid-cols-2 gap-2">
-        <button type="button" onClick={props.onShare} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold"><Share2 className="h-4 w-4" /> Compartilhar</button>
-        <button type="button" onClick={props.onClose} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] font-bold">Voltar ao sorteio</button>
-      </div>
-      <CheckoutPrimaryActionButton onClick={props.onShowNumbers} className="cfx-main-cta flex min-h-14 w-full items-center justify-center gap-2">
-        <Ticket className="h-5 w-5" /> Ver meus numeros
-      </CheckoutPrimaryActionButton>
+
+      {primaryPrize && (
+        <section className="cfx-success-super-cota">
+          <small>PARABÉNS! VOCÊ ENCONTROU UMA SUPER COTA</small>
+          <strong>{String(primaryPrize.numeroPremiado).padStart(6, "0")}</strong>
+          <b>{formatCurrency(Number(primaryPrize.valorPremio || 0))}</b>
+          <span>{formatReceiptDate(primaryPrize.claimedAt || paidAt)}</span>
+        </section>
+      )}
+
+      {unlockedGames.length > 0 && (
+        <section className="cfx-success-card cfx-success-games">
+          <h3>Gamificações liberadas</h3>
+          <div>
+            {unlockedGames.map(game => (
+              <article key={game.title}>
+                {game.icon}
+                <span><strong>{game.title}</strong><small>{game.detail}</small></span>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="cfx-success-actions">
+        <button type="button" onClick={props.onShowNumbers}><WalletCards /> VER COMPROVANTE</button>
+        <Link to="/dashboard"><Ticket /> MEUS BILHETES</Link>
+        <button type="button" onClick={props.onShare}><Share2 /> COMPARTILHAR</button>
+      </section>
+
+      <button type="button" onClick={props.onClose} className="cfx-success-repeat">
+        PARTICIPAR NOVAMENTE
+      </button>
     </div>
   );
 }
