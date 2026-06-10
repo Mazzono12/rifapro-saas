@@ -11843,6 +11843,7 @@ async function startServer() {
   });
 
   app.get("/api/raffles/:id/instant-prizes", (req, res) => {
+    const getPrizeWinnerName = (prize: any) => String(prize?.winnerName || prize?.ganhadorNome || prize?.nomeGanhador || "");
     res.json(
       instantPrizes
         .filter(p => p.tenant_id === resolveRequestTenantId(req) && p.raffleId === req.params.id)
@@ -11850,35 +11851,46 @@ async function startServer() {
           id: p.id,
           numeroPremiado: p.numeroPremiado,
           valorPremio: p.valorPremio,
+          winnerName: getPrizeWinnerName(p),
           status: p.status
         }))
     );
   });
 
   app.get("/api/public/raffles/:raffleId/super-cotas", (req, res) => {
+    const getPrizeWinnerName = (prize: any) => String(prize?.winnerName || prize?.ganhadorNome || prize?.nomeGanhador || "");
     const raffleId = req.params.raffleId;
     const raffle = raffles.find(item => item.id === raffleId);
     const tenantId = raffle?.tenant_id || resolveRequestTenantId(req);
     const prizes = instantPrizes.filter(prize => prize.tenant_id === tenantId && prize.raffleId === raffleId);
     const winners = prizes
-      .filter(prize => prize.status === "claimed" && (prize as any).claimedPurchaseId)
+      .filter(prize => prize.status === "claimed")
       .map(prize => {
         const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === (prize as any).claimedPurchaseId && item.status === "paid");
-        return purchase ? {
-          name: maskDisplayName(purchase.customer?.name),
+        const winnerName = getPrizeWinnerName(prize);
+        const name = purchase ? maskDisplayName(purchase.customer?.name) : winnerName;
+        return name ? {
+          name,
+          winnerName,
           numeroPremiado: prize.numeroPremiado,
           valorPremio: prize.valorPremio,
-          claimedAt: (prize as any).claimedAt || purchase.paymentHistory?.find(item => item.status === "paid")?.date || purchase.createdAt
+          claimedAt: (prize as any).claimedAt || purchase?.paymentHistory?.find(item => item.status === "paid")?.date || purchase?.createdAt || ""
         } : null;
       })
-      .filter((item): item is { name: string; numeroPremiado: number; valorPremio: number; claimedAt: string } => Boolean(item))
+      .filter((item): item is { name: string; winnerName: string; numeroPremiado: number; valorPremio: number; claimedAt: string } => Boolean(item))
       .sort((a, b) => String(b.claimedAt || "").localeCompare(String(a.claimedAt || "")))
       .slice(0, 20);
     res.json({
       label: "SUPER COTAS",
       available: prizes
         .filter(prize => prize.status === "available")
-        .map(prize => ({ id: prize.id, numeroPremiado: prize.numeroPremiado, valorPremio: prize.valorPremio, status: prize.status })),
+        .map(prize => ({
+          id: prize.id,
+          numeroPremiado: prize.numeroPremiado,
+          valorPremio: prize.valorPremio,
+          winnerName: getPrizeWinnerName(prize),
+          status: prize.status
+        })),
       winners
     });
   });

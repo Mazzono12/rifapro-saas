@@ -21,6 +21,8 @@ const home = read("src/pages/Home.tsx");
 const css = read("src/index.css");
 const packageJson = read("package.json");
 const server = read("server.ts");
+const adminLayout = read("src/pages/admin/AdminLayout.tsx");
+const adminInstantPrizes = read("src/pages/admin/AdminInstantPrizes.tsx");
 
 includesAll(home, [
   "type HomeInstantRewardsData",
@@ -31,11 +33,17 @@ includesAll(home, [
   "safeJson(`/api/raffles/${raffleId}/gamification`)",
   "<HomeInstantRewards rewards={instantRewards} />",
   "<TopBuyers ranking={ranking} />"
-], "Home deve carregar premios reais/configurados e renderizar antes do Top Compradores");
+], "Home deve carregar premios reais/configurados e renderizar Top Compradores no fluxo principal.");
 
 assert.ok(
-  home.indexOf("<HomeInstantRewards rewards={instantRewards} />") < home.indexOf("<TopBuyers ranking={ranking} />"),
-  "Ordem correta: premios instantaneos antes do Top Compradores."
+  home.indexOf("cfx-live-card") < home.indexOf("<TopBuyers ranking={ranking} />"),
+  "Ordem correta dentro do Hero: Top Compradores imediatamente apos o contador."
+);
+
+assert.equal(
+  home.match(/<TopBuyers ranking=\{ranking\} \/>/g)?.length,
+  1,
+  "Top Compradores nao deve ser duplicado."
 );
 
 includesAll(home, [
@@ -52,6 +60,21 @@ includesAll(home, [
   "buildScratchcardRewards(gamificationPayload)",
   "buildMysteryBoxRewards(raffle, gamificationPayload)"
 ], "Home deve ter as quatro secoes premium alimentadas por dados reais.");
+
+includesAll(home, [
+  "columns: { primary: \"Número\", secondary: \"Prêmio\", person: \"Ganhador\" }",
+  "manualWinnerName",
+  "prize?.winnerName || prize?.ganhadorNome || prize?.nomeGanhador",
+  "id === \"superCotas\" ? item.buyerName : maskBuyerName(item.buyerName)"
+], "Super Cotas deve exibir GANHADOR e PREMIO a partir do payload real.");
+includesNone(home, [
+  "COMPRADOR",
+  "Comprador",
+  "PRÊMIO/VALOR",
+  "Prêmio/Valor",
+  "#{String(item.number)",
+  "# {String(item.number)"
+], "Home nao deve manter rotulos antigos nem prefixo # nos numeros de Super Cotas.");
 
 includesAll(home, [
   "sections.length) return null",
@@ -99,7 +122,8 @@ includesAll(home, [
 
 includesAll(home, [
   "maskBuyerName(item.buyerName)",
-  "item.buyerName ? maskBuyerName(item.buyerName) : \"—\"",
+  "id === \"superCotas\" ? item.buyerName : maskBuyerName(item.buyerName)",
+  "item.buyerName ? (id === \"superCotas\" ? item.buyerName : maskBuyerName(item.buyerName)) : \"—\"",
   "statusLabel(item.status)",
   "Disponível",
   "Resgatada",
@@ -120,7 +144,7 @@ includesAll(css, [
   ".cfx-reward-card",
   ".cfx-reward-more",
   "data-reward-id=\"superCotas\"",
-  "grid-template-columns: minmax(0, .88fr) minmax(0, 1fr) minmax(0, .82fr) auto",
+  "grid-template-columns: minmax(0, .88fr) minmax(0, 1fr) minmax(0, .88fr) auto",
   "overflow: hidden",
   "text-overflow: ellipsis",
   "white-space: nowrap"
@@ -131,7 +155,24 @@ assert.match(packageJson, /"test:home-instant-rewards-hard"/, "package.json deve
 includesAll(server, [
   "app.get(\"/api/public/raffles/:raffleId/super-cotas\"",
   "const raffle = raffles.find(item => item.id === raffleId)",
-  "const tenantId = raffle?.tenant_id || resolveRequestTenantId(req)"
-], "Endpoint publico de Super Cotas deve resolver tenant pela rifa quando o host publico/local nao resolve tenant.");
+  "const tenantId = raffle?.tenant_id || resolveRequestTenantId(req)",
+  "const getPrizeWinnerName = (prize: any)",
+  "winnerName: getPrizeWinnerName(p)",
+  "winnerName: getPrizeWinnerName(prize)",
+  ".filter(prize => prize.status === \"claimed\")"
+], "Endpoint publico de Super Cotas deve resolver tenant pela rifa e retornar winnerName.");
+
+includesAll(adminLayout, [
+  "{ name: \"Super Cotas\", path: \"/admin/cotas\", icon: Star, group: \"Operação\" }"
+], "Menu Admin deve expor Super Cotas.");
+
+includesAll(adminInstantPrizes, [
+  "Nome do Ganhador",
+  "value={currentPrize.winnerName || ''}",
+  "setCurrentPrize({...currentPrize, winnerName: e.target.value})",
+  "body: JSON.stringify(currentPrize)",
+  "<th className=\"font-semibold py-4 px-6 border-b border-white/5\">GANHADOR</th>",
+  "{p.winnerName || '—'}"
+], "Admin de Super Cotas deve criar, editar e listar Nome do Ganhador.");
 
 console.log("PASS: Home Instant Rewards validada com dados reais/configurados, 10/+10/max50, status, mascaramento e ordem correta.");

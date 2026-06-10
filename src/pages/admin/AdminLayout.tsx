@@ -110,6 +110,7 @@ function AdminLayoutContent() {
   const navItems = useMemo<SidebarNavItem[]>(() => [
     { name: "Dashboard", path: "/admin", icon: LayoutDashboard, group: "Visão Geral" },
     { name: "Campanhas", path: "/admin/rifas", icon: Ticket, group: "Operação" },
+    { name: "Super Cotas", path: "/admin/cotas", icon: Star, group: "Operação" },
     { name: "Vendas", path: "/admin/vendas", icon: CreditCard, group: "Operação" },
     { name: "Clientes", path: "/admin/crm", icon: Users, group: "Operação" },
     { name: "A Fazendinha", path: "/admin/fazendinha", icon: Sprout, group: "Operação" },

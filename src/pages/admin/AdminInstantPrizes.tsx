@@ -93,6 +93,11 @@ export function AdminInstantPrizes() {
                     <input required type="number" step="0.01" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-amber-400/50" 
                            value={currentPrize.valorPremio || ''} onChange={e => setCurrentPrize({...currentPrize, valorPremio: parseFloat(e.target.value)})} />
                   </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Nome do Ganhador</label>
+                    <input type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-amber-400/50"
+                           value={currentPrize.winnerName || ''} onChange={e => setCurrentPrize({...currentPrize, winnerName: e.target.value})} />
+                  </div>
                </div>
                
                <div className="flex justify-end pt-4">
@@ -110,6 +115,7 @@ export function AdminInstantPrizes() {
                   <th className="font-semibold py-4 px-6 border-b border-white/5">RIFA ID</th>
                   <th className="font-semibold py-4 px-6 border-b border-white/5">NÚMERO</th>
                   <th className="font-semibold py-4 px-6 border-b border-white/5">VALOR</th>
+                  <th className="font-semibold py-4 px-6 border-b border-white/5">GANHADOR</th>
                   <th className="font-semibold py-4 px-6 border-b border-white/5 text-center">STATUS</th>
                   <th className="font-semibold py-4 px-6 border-b border-white/5 text-right">AÇÕES</th>
                 </tr>
@@ -120,6 +126,7 @@ export function AdminInstantPrizes() {
                        <td className="py-4 px-6 text-slate-400">{raffles.find(raffle => raffle.id === p.raffleId)?.title || p.raffleId}</td>
                        <td className="py-4 px-6 text-amber-400 font-bold text-lg">{String(p.numeroPremiado).padStart(6, '0')}</td>
                        <td className="py-4 px-6 text-emerald-400 font-bold">{p.valorPremio.toLocaleString('pt-BR', {style: 'currency', currency:'BRL'})}</td>
+                       <td className="py-4 px-6 text-slate-300">{p.winnerName || '—'}</td>
                        <td className="py-4 px-6 text-center">
                          <span className={`text-[10px] px-3 py-1 font-bold rounded-sm tracking-widest ${p.status === 'available' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'}`}>
                            {p.status === 'available' ? 'DISPONÍVEL' : 'RESGATADO'}
