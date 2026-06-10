@@ -14685,7 +14685,11 @@ html[data-admin-theme="light"] .admin-shell {
 }
 
 .cfx-home-hero-media {
+  display: block !important;
+  align-self: stretch !important;
+  justify-self: stretch !important;
   width: 100% !important;
+  min-width: 0 !important;
   max-width: none !important;
   margin: 0 !important;
   overflow: hidden !important;
@@ -14706,13 +14710,37 @@ html[data-admin-theme="light"] .admin-shell {
 .cfx-home-media-block,
 .cfx-home-media-block .clean-media-block,
 .cfx-home-media-block .responsive-media-frame {
+  display: block !important;
+  width: 100% !important;
   height: 100% !important;
+  min-width: 0 !important;
   min-height: 0 !important;
   max-height: none !important;
+  border-radius: inherit !important;
+  overflow: hidden !important;
+}
+
+.cfx-home-media-block .responsive-media-frame[data-orientation],
+.cfx-home-media-block .responsive-media-frame[data-orientation="story"],
+.cfx-home-media-block .responsive-media-frame[data-orientation="vertical"],
+.cfx-home-media-block .responsive-media-frame[data-orientation="portrait"],
+.cfx-home-media-block .responsive-media-frame[data-orientation="banner"],
+.cfx-home-media-block .responsive-media-frame[data-orientation="square"] {
+  max-height: none !important;
+}
+
+.cfx-home-hero-media[data-home-media-type="image"] .cfx-home-media-block,
+.cfx-home-hero-media[data-home-media-type="image"] .clean-media-block {
+  aspect-ratio: 5 / 6 !important;
 }
 
 .cfx-home-hero-media[data-home-media-type="image"] .responsive-media-frame {
   aspect-ratio: 5 / 6 !important;
+}
+
+.cfx-home-hero-media[data-home-media-type="video"] .cfx-home-media-block,
+.cfx-home-hero-media[data-home-media-type="video"] .clean-media-block {
+  aspect-ratio: 16 / 9 !important;
 }
 
 .cfx-home-hero-media[data-home-media-type="video"] .responsive-media-frame {
@@ -14777,6 +14805,7 @@ html[data-admin-theme="light"] .admin-shell {
 
 .cfx-live-card > p {
   font-size: 12px !important;
+  text-align: center !important;
 }
 
 .cfx-countdown-grid {
@@ -14784,16 +14813,38 @@ html[data-admin-theme="light"] .admin-shell {
 }
 
 .cfx-countdown-grid span {
-  min-height: 54px !important;
+  display: grid !important;
+  min-height: 62px !important;
+  place-items: center !important;
+  align-content: center !important;
+  justify-items: center !important;
+  border-radius: 14px !important;
+  padding: 8px 4px !important;
+  text-align: center !important;
 }
 
 .cfx-countdown-grid strong {
-  font-size: 20px !important;
+  display: grid !important;
+  min-height: 28px !important;
+  place-items: center !important;
+  font-size: clamp(24px, 7vw, 30px) !important;
+  line-height: 1 !important;
+  text-align: center !important;
+}
+
+.cfx-countdown-grid small {
+  display: block !important;
+  width: 100% !important;
+  text-align: center !important;
 }
 
 .cfx-progress-meta span,
 .cfx-home-remaining {
+  display: grid !important;
+  min-height: 28px !important;
+  place-items: center !important;
   font-size: 11px !important;
+  text-align: center !important;
 }
 
 .cfx-home-trust-rail {
@@ -14980,6 +15031,8 @@ html[data-admin-theme="light"] .admin-shell {
   min-width: 76px;
   min-height: 70px;
   place-items: center;
+  align-content: center;
+  justify-items: center;
   border: 1px solid var(--reward-border);
   border-radius: 16px;
   background: rgba(0, 0, 0, .38);
@@ -14994,6 +15047,7 @@ html[data-admin-theme="light"] .admin-shell {
 .cfx-reward-total-badge small,
 .cfx-reward-total-badge em {
   display: block;
+  width: 100%;
   color: rgba(255, 255, 255, .86);
   font-size: 9px;
   font-style: normal;
@@ -15021,15 +15075,21 @@ html[data-admin-theme="light"] .admin-shell {
 }
 
 .cfx-reward-summary span {
+  display: grid;
   min-width: 0;
+  min-height: 68px;
+  align-content: center;
+  justify-items: center;
   border: 1px solid var(--reward-border);
   border-radius: 14px;
   background: linear-gradient(135deg, rgba(255, 255, 255, .055), rgba(0, 0, 0, .18));
   padding: 11px 10px;
+  text-align: center;
 }
 
 .cfx-reward-summary small {
   display: block;
+  width: 100%;
   overflow: hidden;
   color: rgba(221, 217, 232, .66);
   font-size: 9px;
@@ -15041,9 +15101,12 @@ html[data-admin-theme="light"] .admin-shell {
 }
 
 .cfx-reward-summary strong {
-  display: block;
+  display: grid;
+  width: 100%;
+  min-height: 28px;
   margin-top: 5px;
   overflow: hidden;
+  place-items: center;
   color: var(--reward-accent);
   font-size: clamp(18px, 5.2vw, 28px);
   font-weight: 950;
@@ -15084,11 +15147,17 @@ html[data-admin-theme="light"] .admin-shell {
 }
 
 .cfx-reward-card div {
+  display: grid;
   min-width: 0;
+  min-height: 44px;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
 }
 
 .cfx-reward-card small {
   display: block;
+  width: 100%;
   overflow: hidden;
   color: rgba(221, 217, 232, .54);
   font-size: 9px;
@@ -15100,9 +15169,12 @@ html[data-admin-theme="light"] .admin-shell {
 }
 
 .cfx-reward-card strong {
-  display: block;
+  display: grid;
+  width: 100%;
+  min-height: 22px;
   margin-top: 5px;
   overflow: hidden;
+  place-items: center;
   color: #f8f7fb;
   font-size: 14px;
   font-weight: 900;
@@ -15116,6 +15188,8 @@ html[data-admin-theme="light"] .admin-shell {
   max-width: 100%;
   align-items: center;
   justify-content: center;
+  margin-left: auto;
+  margin-right: auto;
   border: 1px solid rgba(247, 201, 72, .5);
   border-radius: 8px;
   background: rgba(247, 201, 72, .08);
@@ -15133,6 +15207,8 @@ html[data-admin-theme="light"] .admin-shell {
   min-height: 30px;
   align-items: center;
   justify-content: center;
+  justify-self: center;
+  text-align: center;
   border-radius: 999px;
   padding: 0 10px;
   font-size: 10px;
@@ -15140,6 +15216,18 @@ html[data-admin-theme="light"] .admin-shell {
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card div:first-child {
+  justify-items: start;
+  text-align: left;
+}
+
+.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card div:first-child strong,
+.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card div:first-child small {
+  justify-content: start;
+  justify-items: start;
+  text-align: left;
 }
 
 .cfx-reward-card span.is-available {
@@ -15199,6 +15287,47 @@ html[data-admin-theme="light"] .admin-shell {
     grid-column: 2;
     grid-row: 2;
   }
+}
+
+.cfx-top-buyers article {
+  grid-template-columns: 1fr !important;
+  justify-items: center !important;
+  align-content: center !important;
+  min-height: 108px !important;
+  border: 1px solid rgba(255, 255, 255, .08) !important;
+  border-radius: 16px !important;
+  background: rgba(255, 255, 255, .035) !important;
+  padding: 12px 8px 10px !important;
+  text-align: center !important;
+}
+
+.cfx-top-buyers article > span {
+  width: 44px !important;
+  height: 44px !important;
+  margin: 0 auto 6px !important;
+}
+
+.cfx-top-buyers b,
+.cfx-top-buyers small {
+  width: 100% !important;
+  text-align: center !important;
+}
+
+.cfx-top-buyers small {
+  display: grid !important;
+  grid-column: auto !important;
+  min-height: 22px !important;
+  place-items: center !important;
+}
+
+.cfx-top-buyers i {
+  left: auto !important;
+  right: 8px !important;
+  bottom: 8px !important;
+  width: 24px !important;
+  height: 24px !important;
+  place-items: center !important;
+  text-align: center !important;
 }
 
 @media (min-width: 768px) {
