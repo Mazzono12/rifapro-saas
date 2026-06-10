@@ -949,6 +949,11 @@ async function startServer() {
   }
 
   function normalizeSettingsShape(sourceSettings: typeof settings) {
+    const defaultReservationSettings = settings.reservationSettings || {
+      raffleMinutes: 15,
+      numberModeMinutes: 15,
+      fazendinhaMinutes: 15
+    };
     sourceSettings.affiliateProgram = {
       ...settings.affiliateProgram,
       ...(sourceSettings.affiliateProgram || {}),
@@ -961,11 +966,11 @@ async function startServer() {
     };
     sourceSettings.affiliateLevelConfig = normalizeAffiliateLevelConfigs(sourceSettings.affiliateLevelConfig);
     sourceSettings.reservationSettings = {
-      ...settings.reservationSettings,
+      ...defaultReservationSettings,
       ...(sourceSettings.reservationSettings || {}),
-      raffleMinutes: Math.max(1, Math.min(1440, Math.floor(Number(sourceSettings.reservationSettings?.raffleMinutes || settings.reservationSettings.raffleMinutes)))),
-      numberModeMinutes: Math.max(1, Math.min(1440, Math.floor(Number(sourceSettings.reservationSettings?.numberModeMinutes || settings.reservationSettings.numberModeMinutes)))),
-      fazendinhaMinutes: Math.max(1, Math.min(1440, Math.floor(Number(sourceSettings.reservationSettings?.fazendinhaMinutes || settings.reservationSettings.fazendinhaMinutes))))
+      raffleMinutes: Math.max(1, Math.min(1440, Math.floor(Number(sourceSettings.reservationSettings?.raffleMinutes || defaultReservationSettings.raffleMinutes)))),
+      numberModeMinutes: Math.max(1, Math.min(1440, Math.floor(Number(sourceSettings.reservationSettings?.numberModeMinutes || defaultReservationSettings.numberModeMinutes)))),
+      fazendinhaMinutes: Math.max(1, Math.min(1440, Math.floor(Number(sourceSettings.reservationSettings?.fazendinhaMinutes || defaultReservationSettings.fazendinhaMinutes))))
     };
     sourceSettings.affiliatePerformanceRewards = normalizeAffiliatePerformanceRewardsSettings(sourceSettings.affiliatePerformanceRewards);
     sourceSettings.socialLinks = {
@@ -4061,6 +4066,26 @@ async function startServer() {
     return !host || host === "localhost" || host === "127.0.0.1" || host === "::1";
   }
 
+  function isPrivateDevHost(host: string) {
+    if (isLocalhost(host)) return true;
+    if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    const match = host.match(/^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+    return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
+  }
+
+  function resolveLocalDevTenant() {
+    const tenantWithActiveRaffle = tenants.find(tenant =>
+      isActiveTenantRecord(tenant) &&
+      raffles.some(raffle => raffle.tenant_id === tenant.id && raffle.status === "active")
+    );
+    return tenantWithActiveRaffle ||
+      tenants.find(item => item.id === legacyTenantId && isActiveTenantRecord(item)) ||
+      tenants.find(item => item.slug === "dev" && isActiveTenantRecord(item)) ||
+      tenants.find(item => isActiveTenantRecord(item)) ||
+      null;
+  }
+
   function isActiveTenantRecord(tenant: Partial<TenantRecord> & { ativo?: boolean } | null | undefined) {
     if (!tenant) return false;
     if ("status" in tenant && tenant.status) return tenant.status !== "canceled" && tenant.status !== "inactive";
@@ -4221,12 +4246,10 @@ async function startServer() {
   async function resolveDomainTenantInfo(req: express.Request): Promise<TenantResolution> {
     const hostRecebido = getRawRequestHost(req);
     const host = normalizeDomainName(hostRecebido);
-    if (isLocalhost(host)) {
-      const tenant = tenants.find(item => item.id === legacyTenantId && isActiveTenantRecord(item)) ||
-        tenants.find(item => item.slug === "dev" && isActiveTenantRecord(item)) ||
-        tenants.find(item => isActiveTenantRecord(item)) ||
-        null;
-      return { hostRecebido, hostNormalizado: host, tenant, fonte: tenant ? "tenants.dominio" : "none", reason: tenant ? "localhost_fallback" : "localhost_no_active_tenant" };
+    if (isLocalhost(host) || (!isProductionRuntime && isPrivateDevHost(host))) {
+      const tenant = resolveLocalDevTenant();
+      const reason = isLocalhost(host) ? "localhost_fallback" : "private_dev_host_fallback";
+      return { hostRecebido, hostNormalizado: host, tenant, fonte: tenant ? "tenants.dominio" : "none", reason: tenant ? reason : "local_dev_no_active_tenant" };
     }
     if (host === "admin" || host.startsWith("admin.")) {
       return { hostRecebido, hostNormalizado: host, tenant: null, fonte: "none", reason: "superadmin_host" };

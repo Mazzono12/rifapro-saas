@@ -212,7 +212,10 @@ hasAll(server, [
   "sourceSettings.publicModules =",
   "publicModules: { ...currentSettings.publicModules, ...(req.body.publicModules || {}) }",
   "getTenantSettings(resolveRequestTenantId(req))",
-  "tenantSettings[tenantId] = updatedSettings"
+  "tenantSettings[tenantId] = updatedSettings",
+  "isPrivateDevHost",
+  "private_dev_host_fallback",
+  "resolveLocalDevTenant"
 ], "Configuracao publica e multitenant");
 
 hasAll(adminRaffles, ["Nome da rifa / edital", "currentRaffle.title"], "Admin permite editar nome da rifa/edital");
