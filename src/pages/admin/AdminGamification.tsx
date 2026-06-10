@@ -198,7 +198,7 @@ function RewardPlanner({ label, value, onChange, mode = "reward" }: { label: str
     next[index] = { ...current, [key]: key === "quantity" || key === "chance" ? Number(nextValue || 0) : nextValue };
     onChange(next);
   };
-  const addItem = () => onChange([...items, mode === "window" ? { label: "Nova janela", startsAt: "", endsAt: "" } : { label: "Novo prêmio", quantity: 1, chance: 0 }]);
+  const addItem = () => onChange([...items, mode === "window" ? { label: "Nova janela", startsAt: "", endsAt: "" } : { label: "Novo prêmio", quantity: 1, chance: 0, winnerName: "" }]);
 
   return (
     <div className="rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
@@ -219,9 +219,10 @@ function RewardPlanner({ label, value, onChange, mode = "reward" }: { label: str
                 <Field label="Fim" value={item.endsAt || item.end || ""} onChange={next => updateItem(index, "endsAt", next)} />
               </div>
             ) : (
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div className="mt-2 grid gap-2 sm:grid-cols-3">
                 <Field label="Quantidade disponível" value={item.quantity ?? ""} onChange={next => updateItem(index, "quantity", next)} />
                 <Field label="Chance de entrega (%)" value={item.chance ?? item.probability ?? ""} onChange={next => updateItem(index, "chance", next)} />
+                <Field label="Nome do Ganhador" value={item.winnerName || item.ganhadorNome || item.nomeGanhador || ""} onChange={next => updateItem(index, "winnerName", next)} />
               </div>
             )}
           </div>

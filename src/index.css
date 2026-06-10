@@ -3192,25 +3192,6 @@
   font-size: clamp(1rem, 5vw, 1.3rem);
 }
 
-.cfx-auto-number-note {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin: 14px 0 0;
-  color: rgba(255,255,255,.58);
-  font-size: clamp(.72rem, 3.4vw, .86rem);
-  font-weight: 750;
-  line-height: 1.35;
-  text-align: center;
-}
-
-.cfx-auto-number-note svg {
-  width: 17px;
-  height: 17px;
-  color: #d8b4fe;
-}
-
 .cfx-detail-buybox .cfx-quantity-control {
   grid-template-columns: 56px minmax(0, 1fr) 56px;
   gap: 0;
@@ -15199,11 +15180,6 @@ html[data-admin-theme="light"] .admin-shell {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card div:nth-child(2),
-.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card div:nth-child(3) {
-  display: none;
-}
-
 .cfx-reward-card div {
   display: grid;
   min-width: 0;
@@ -15475,4 +15451,678 @@ html[data-admin-theme="light"] .admin-shell {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
+}
+
+/* Final conversion polish: Home, instant rewards, raffle detail and mobile nav. */
+.cfx-home-price-strip {
+  display: grid;
+  min-height: 58px;
+  place-items: center;
+  gap: 2px;
+  margin-top: 10px;
+  border: 1px solid rgba(247, 201, 72, .36);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(247, 201, 72, .16), transparent 9rem),
+    linear-gradient(180deg, rgba(15, 13, 24, .92), rgba(7, 7, 13, .96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 14px 42px rgba(0, 0, 0, .28);
+  text-align: center;
+}
+
+.cfx-home-price-strip small {
+  color: rgba(255, 255, 255, .62);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.cfx-home-price-strip strong {
+  color: #f7c948;
+  font-size: clamp(1.25rem, 6vw, 1.75rem);
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 0 18px rgba(247, 201, 72, .42);
+}
+
+.cfx-live-card {
+  padding: 10px 12px 12px !important;
+  border-radius: 16px !important;
+}
+
+.cfx-live-card > p {
+  font-size: 11px !important;
+}
+
+.cfx-countdown-grid {
+  margin-top: 9px !important;
+}
+
+.cfx-countdown-grid span {
+  min-height: 56px !important;
+  border: 1px solid rgba(168, 85, 247, .18);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .035);
+}
+
+.cfx-countdown-grid strong {
+  font-size: clamp(27px, 8vw, 36px) !important;
+}
+
+.cfx-home-progress {
+  height: 16px !important;
+  margin-top: 10px !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), 0 0 22px rgba(168, 85, 247, .18);
+}
+
+.cfx-home-progress > span {
+  background: linear-gradient(90deg, #f7c948, #d946ef 48%, #22d3ee) !important;
+  box-shadow: 0 0 22px rgba(216, 46, 237, .66) !important;
+}
+
+.cfx-reward-section[data-reward-id="wheel"] {
+  --reward-accent: #a855f7;
+  --reward-soft: rgba(168, 85, 247, .18);
+  --reward-border: rgba(168, 85, 247, .38);
+}
+
+.cfx-reward-section[data-reward-id="mysteryBox"] {
+  --reward-accent: #f7c948;
+  --reward-soft: rgba(99, 102, 241, .18);
+  --reward-border: rgba(247, 201, 72, .32);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(247, 201, 72, .12), transparent 12rem),
+    radial-gradient(circle at 88% 18%, rgba(168, 85, 247, .2), transparent 14rem),
+    linear-gradient(180deg, rgba(12, 10, 24, .95), rgba(4, 3, 10, .98)) !important;
+}
+
+.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card {
+  grid-template-columns: minmax(0, 1fr) minmax(0, .78fr) minmax(0, .82fr) auto !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-height: 68px;
+  padding: 9px !important;
+}
+
+.cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card,
+.cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr) auto !important;
+}
+
+.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card div:nth-child(2),
+.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card div:nth-child(3) {
+  display: grid !important;
+}
+
+.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card div,
+.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card div:first-child,
+.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card div:first-child strong,
+.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card div:first-child small {
+  justify-items: center !important;
+  text-align: center !important;
+}
+
+.cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card strong {
+  min-height: 22px;
+  font-size: clamp(12px, 3.5vw, 14px);
+}
+
+.cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card {
+  border-color: rgba(247, 201, 72, .18);
+  background:
+    radial-gradient(circle at 8% 50%, rgba(247, 201, 72, .1), transparent 7rem),
+    rgba(5, 3, 10, .78);
+}
+
+.cfx-detail-layout--single {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.cfx-detail-layout--single .cfx-detail-main {
+  width: min(100%, 560px);
+  margin-inline: auto;
+}
+
+.cfx-detail-ranking {
+  padding: 14px;
+}
+
+.cfx-detail-ranking header,
+.cfx-detail-ranking header strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cfx-detail-ranking header {
+  justify-content: space-between;
+}
+
+.cfx-detail-ranking header strong {
+  color: #fff;
+  font-size: .9rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.cfx-detail-ranking header a {
+  color: #d8b4fe;
+  font-size: .78rem;
+  font-weight: 850;
+}
+
+.cfx-detail-ranking > div {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.cfx-detail-ranking article {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .045);
+  padding: 8px 10px;
+}
+
+.cfx-detail-ranking article span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f7c948, #a855f7);
+  color: #fff;
+  font-weight: 950;
+}
+
+.cfx-detail-ranking article b,
+.cfx-detail-ranking article small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfx-detail-ranking article b {
+  color: #fff;
+  font-size: .9rem;
+}
+
+.cfx-detail-ranking article small {
+  color: rgba(255, 255, 255, .64);
+  font-size: .78rem;
+  font-weight: 850;
+}
+
+.cfx-detail-ranking p {
+  margin: 12px 0 0;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 16px;
+  padding: 14px;
+  color: rgba(255, 255, 255, .68);
+  font-size: .82rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.cfx-home-bottom-nav a.is-active {
+  border: 1px solid rgba(216, 180, 254, .28) !important;
+  background: linear-gradient(135deg, rgba(124, 58, 237, .28), rgba(12, 10, 20, .9)) !important;
+  color: #d8b4fe !important;
+  box-shadow: 0 10px 30px rgba(168, 85, 247, .22) !important;
+}
+
+.cfx-home-bottom-nav a {
+  align-content: center !important;
+  justify-items: center !important;
+}
+
+@media (max-width: 430px) {
+  .cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, .86fr) !important;
+  }
+
+  .cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card,
+  .cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, .9fr) !important;
+  }
+
+  .cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card div:nth-child(3),
+  .cfx-reward-section:not([data-reward-id="superCotas"]) .cfx-reward-card span {
+    grid-column: 1 / -1;
+  }
+
+  .cfx-detail-ranking article {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .cfx-detail-ranking article small {
+    grid-column: 2;
+  }
+}
+
+.cfx-detail-buybox .cfx-checkout-row {
+  gap: 9px !important;
+  margin-top: 12px !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row > span {
+  min-height: 70px !important;
+  border-radius: 17px !important;
+  padding: 12px 10px !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(168, 85, 247, .16), transparent 7rem),
+    rgba(255, 255, 255, .055) !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row > span:nth-child(3) {
+  min-height: 78px !important;
+  border-color: rgba(247, 201, 72, .34) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(247, 201, 72, .18), transparent 8rem),
+    linear-gradient(180deg, rgba(28, 21, 9, .64), rgba(9, 8, 13, .92)) !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row small {
+  font-size: clamp(.68rem, 2.9vw, .76rem) !important;
+  letter-spacing: .08em !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row strong {
+  font-size: clamp(1.45rem, 7vw, 2.05rem) !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row > span:nth-child(3) strong {
+  color: #f7c948 !important;
+  font-size: clamp(1.7rem, 8vw, 2.35rem) !important;
+  text-shadow: 0 0 20px rgba(247, 201, 72, .35);
+}
+
+.cfx-detail-buybox .cfx-checkout-row button {
+  min-height: 74px !important;
+  border-radius: 20px !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.22), transparent 9rem),
+    linear-gradient(135deg, #6d28d9, #a855f7 42%, #d946ef 76%, #f7c948) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.2),
+    0 0 42px rgba(168, 85, 247, .72),
+    0 18px 54px rgba(0, 0, 0, .48) !important;
+}
+
+/* Final premium alignment: raffle price, instant rewards and bottom nav. */
+.cfx-home-price-strip {
+  min-height: 68px !important;
+  border-color: rgba(34, 211, 238, .5) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(34, 211, 238, .22), transparent 9rem),
+    radial-gradient(circle at 12% 80%, rgba(168, 85, 247, .18), transparent 8rem),
+    linear-gradient(180deg, rgba(13, 18, 34, .98), rgba(4, 5, 12, .98)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .12),
+    0 0 0 1px rgba(168, 85, 247, .14),
+    0 18px 46px rgba(34, 211, 238, .18) !important;
+}
+
+.cfx-home-price-strip small {
+  color: rgba(191, 219, 254, .82) !important;
+  font-size: 11px !important;
+  letter-spacing: .16em !important;
+}
+
+.cfx-home-price-strip strong {
+  color: #67e8f9 !important;
+  font-size: clamp(1.55rem, 7vw, 2.15rem) !important;
+  text-shadow: 0 0 22px rgba(34, 211, 238, .56), 0 0 34px rgba(168, 85, 247, .34) !important;
+}
+
+.cfx-detail-stat.is-gold {
+  border-color: rgba(34, 211, 238, .42) !important;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(34, 211, 238, .18), transparent 8rem),
+    linear-gradient(135deg, rgba(12, 20, 36, .96), rgba(9, 7, 18, .98)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 16px 40px rgba(34, 211, 238, .16) !important;
+}
+
+.cfx-detail-stat.is-gold > span,
+.cfx-detail-stat.is-gold strong {
+  color: #67e8f9 !important;
+  text-shadow: 0 0 18px rgba(34, 211, 238, .45) !important;
+}
+
+.cfx-reward-section[data-reward-id="superCotas"] {
+  --reward-accent: #38bdf8 !important;
+  --reward-soft: rgba(14, 165, 233, .18) !important;
+  --reward-border: rgba(34, 211, 238, .38) !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(34, 211, 238, .18), transparent 14rem),
+    radial-gradient(circle at 88% 12%, rgba(168, 85, 247, .18), transparent 13rem),
+    linear-gradient(180deg, rgba(6, 13, 25, .98), rgba(4, 4, 12, .98)) !important;
+}
+
+.cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card {
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1fr) minmax(0, .9fr) auto !important;
+  border-color: rgba(34, 211, 238, .18) !important;
+  background:
+    radial-gradient(circle at 10% 50%, rgba(34, 211, 238, .12), transparent 8rem),
+    rgba(3, 8, 18, .82) !important;
+}
+
+.cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card div {
+  justify-items: center !important;
+  text-align: center !important;
+}
+
+.cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card div:first-child strong {
+  border-color: rgba(34, 211, 238, .52) !important;
+  background: rgba(34, 211, 238, .1) !important;
+  color: #e0f7ff !important;
+  font-size: clamp(1.05rem, 5vw, 1.32rem) !important;
+  box-shadow: inset 0 0 18px rgba(34, 211, 238, .14), 0 0 16px rgba(34, 211, 238, .12) !important;
+}
+
+.cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card div:nth-child(2) strong,
+.cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card div:nth-child(3) strong {
+  color: #67e8f9 !important;
+  font-size: clamp(.98rem, 4.4vw, 1.18rem) !important;
+}
+
+.cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-more {
+  border-color: rgba(34, 211, 238, .35) !important;
+  background: linear-gradient(135deg, rgba(34, 211, 238, .18), rgba(168, 85, 247, .12)) !important;
+}
+
+.cfx-reward-section[data-reward-id="scratchcard"] {
+  --reward-accent: #a855f7;
+  --reward-soft: rgba(168, 85, 247, .18);
+  --reward-border: rgba(34, 211, 238, .3);
+}
+
+.cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card,
+.cfx-reward-section[data-reward-id="scratchcard"] .cfx-reward-card,
+.cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+  min-height: 0 !important;
+  padding: 12px !important;
+}
+
+.cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card div,
+.cfx-reward-section[data-reward-id="scratchcard"] .cfx-reward-card div,
+.cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card div {
+  width: 100%;
+  justify-items: center !important;
+  text-align: center !important;
+}
+
+.cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card div:first-child strong,
+.cfx-reward-section[data-reward-id="scratchcard"] .cfx-reward-card div:first-child strong,
+.cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card div:first-child strong {
+  color: #f8fbff !important;
+  font-size: clamp(1rem, 4.8vw, 1.2rem) !important;
+  white-space: normal !important;
+}
+
+.cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card span,
+.cfx-reward-section[data-reward-id="scratchcard"] .cfx-reward-card span,
+.cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card span {
+  width: min(100%, 210px);
+  justify-content: center;
+  margin-inline: auto;
+}
+
+.public-mobile-bottom-nav a {
+  color: rgba(226, 232, 240, .78) !important;
+  gap: 4px !important;
+}
+
+.public-mobile-bottom-nav a[class*="bg-violet"],
+.public-mobile-bottom-nav a[class*="text-violet"] {
+  color: #e9d5ff !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(168, 85, 247, .34), transparent 3.8rem),
+    linear-gradient(180deg, rgba(88, 28, 135, .4), rgba(15, 12, 24, .72)) !important;
+  box-shadow: inset 0 0 0 1px rgba(216, 180, 254, .22), 0 0 24px rgba(168, 85, 247, .18) !important;
+}
+
+.public-mobile-bottom-nav svg,
+.cfx-home-bottom-nav svg {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+.public-mobile-bottom-nav span {
+  font-size: 11px !important;
+  font-weight: 750 !important;
+  line-height: 1 !important;
+}
+
+@media (max-width: 430px) {
+  .cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card span {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+    width: min(100%, 210px);
+    justify-content: center;
+    margin-inline: auto;
+  }
+}
+
+/* Final request polish: raffle detail countdown removal support, blue Super Cotas and progress readability. */
+.cfx-live-card {
+  padding: 9px 12px 11px !important;
+}
+
+.cfx-live-card > p {
+  font-size: 11px !important;
+  letter-spacing: .08em !important;
+}
+
+.cfx-countdown-grid {
+  gap: 8px !important;
+  margin-top: 9px !important;
+}
+
+.cfx-countdown-grid span {
+  min-height: 58px !important;
+  padding: 7px 5px !important;
+}
+
+.cfx-countdown-grid strong {
+  font-size: clamp(31px, 9vw, 42px) !important;
+  color: #f8fbff !important;
+  text-shadow: 0 0 12px rgba(34, 211, 238, .46), 0 0 24px rgba(168, 85, 247, .52) !important;
+}
+
+.cfx-countdown-grid small {
+  font-size: 10px !important;
+}
+
+.cfx-progress-meta {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  min-height: 20px !important;
+  margin-top: 9px !important;
+  padding-inline: 2px !important;
+  color: rgba(226, 232, 240, .82) !important;
+  font-size: 11px !important;
+  letter-spacing: .08em !important;
+}
+
+.cfx-progress-meta span {
+  display: inline-flex !important;
+  width: auto !important;
+  min-height: 0 !important;
+  place-items: initial !important;
+  text-align: left !important;
+}
+
+.cfx-progress-meta strong {
+  color: #67e8f9 !important;
+  font-size: 13px !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  text-shadow: 0 0 14px rgba(34, 211, 238, .46) !important;
+}
+
+.cfx-home-progress {
+  height: 20px !important;
+  margin-top: 8px !important;
+  border: 1px solid rgba(34, 211, 238, .16) !important;
+  background: rgba(4, 9, 18, .78) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 0 24px rgba(34, 211, 238, .16) !important;
+}
+
+.cfx-home-progress > span {
+  background: linear-gradient(90deg, #22d3ee, #38bdf8 34%, #a855f7 74%, #d946ef) !important;
+  box-shadow: 0 0 22px rgba(34, 211, 238, .58), 0 0 34px rgba(168, 85, 247, .34) !important;
+}
+
+.cfx-detail-super-cotas {
+  border-color: rgba(34, 211, 238, .32) !important;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(34, 211, 238, .18), transparent 13rem),
+    radial-gradient(circle at 92% 18%, rgba(59, 130, 246, .2), transparent 14rem),
+    radial-gradient(circle at 50% 100%, rgba(168, 85, 247, .14), transparent 16rem),
+    linear-gradient(145deg, rgba(4, 12, 26, .9), rgba(5, 5, 16, .94)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 18px 52px rgba(0,0,0,.34),
+    0 0 32px rgba(34, 211, 238, .12) !important;
+}
+
+.cfx-detail-super-cotas header span {
+  color: #67e8f9 !important;
+}
+
+.cfx-detail-super-cotas header span svg {
+  filter: drop-shadow(0 0 12px rgba(34, 211, 238, .42)) !important;
+}
+
+.cfx-detail-super-cotas article {
+  border-color: rgba(34, 211, 238, .18) !important;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.065), rgba(255,255,255,.025)),
+    radial-gradient(circle at 0% 0%, rgba(34, 211, 238, .14), transparent 8rem),
+    radial-gradient(circle at 100% 0%, rgba(168, 85, 247, .12), transparent 8rem) !important;
+}
+
+.cfx-detail-super-cotas article span {
+  color: #67e8f9 !important;
+  text-shadow: 0 0 14px rgba(34, 211, 238, .34) !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row > span:nth-child(3) {
+  border-color: rgba(34, 211, 238, .34) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(34, 211, 238, .16), transparent 8rem),
+    linear-gradient(180deg, rgba(8, 22, 34, .62), rgba(9, 8, 18, .92)) !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row > span:nth-child(3) strong {
+  color: #67e8f9 !important;
+  text-shadow: 0 0 20px rgba(34, 211, 238, .36), 0 0 28px rgba(168, 85, 247, .18) !important;
+}
+
+.cfx-sales-countdown {
+  min-height: 48px !important;
+  padding: 10px 24px !important;
+}
+
+.cfx-sales-countdown strong {
+  color: #67e8f9 !important;
+  text-shadow: 0 0 16px rgba(34, 211, 238, .38) !important;
+}
+
+/* Final rewards table polish: wheel and mystery box use 3 readable columns. */
+.cfx-home-remaining {
+  display: none !important;
+}
+
+.cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card,
+.cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card {
+  grid-template-columns: minmax(0, 1fr) minmax(0, .95fr) minmax(94px, .72fr) !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-height: 74px !important;
+  padding: 10px !important;
+}
+
+.cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card > div,
+.cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card > div {
+  width: 100%;
+  min-width: 0;
+  justify-items: center !important;
+  text-align: center !important;
+}
+
+.cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card > div:first-child strong,
+.cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card > div:first-child strong {
+  font-size: clamp(.95rem, 3.9vw, 1.18rem) !important;
+}
+
+.cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card > span,
+.cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card > span {
+  width: 100% !important;
+  min-width: 0;
+  margin-inline: 0 !important;
+  padding-inline: 8px !important;
+  font-size: clamp(.62rem, 2.6vw, .72rem) !important;
+}
+
+@media (max-width: 380px) {
+  .cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card,
+  .cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, .82fr) minmax(84px, .68fr) !important;
+    gap: 6px !important;
+    padding-inline: 8px !important;
+  }
+}
+
+/* Mobile reward cards: prize/winner stacked, status isolated. */
+@media (max-width: 430px) {
+  .cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card,
+  .cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card {
+    grid-template-columns: minmax(0, 1fr) minmax(96px, .58fr) !important;
+    grid-template-rows: auto auto !important;
+    align-items: center !important;
+    gap: 6px 10px !important;
+    min-height: 92px !important;
+    padding: 12px !important;
+  }
+
+  .cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card > div:first-child,
+  .cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card > div:first-child {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
+
+  .cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card > div:nth-of-type(2),
+  .cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card > div:nth-of-type(2) {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    min-height: 34px !important;
+  }
+
+  .cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card > span,
+  .cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card > span {
+    grid-column: 2 !important;
+    grid-row: 1 / 3 !important;
+    align-self: center !important;
+    width: 100% !important;
+    min-height: 34px !important;
+    font-size: clamp(.62rem, 2.5vw, .72rem) !important;
+  }
 }

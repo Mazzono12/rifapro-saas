@@ -43,15 +43,14 @@ type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
 
 function getLatestSalesDeadline(raffle?: Raffle | null) {
-  if (!raffle?.countdownEnabled) return "";
-  return [raffle.salesEndAt, raffle.countdownEndAt]
+  if (!raffle) return "";
+  return [raffle.salesEndAt, raffle.countdownEndAt, raffle.drawDate]
     .map(value => {
       if (!value) return "";
       const date = new Date(value);
       return Number.isNaN(date.getTime()) ? "" : date.toISOString();
     })
-    .filter(Boolean)
-    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || "";
+    .find(Boolean) || "";
 }
 
 function getPixPayload(purchase: any) {
@@ -554,16 +553,12 @@ function RafflePremiumPage({
   return (
     <main className="cfx-raffle-shell cfx-detail-shell">
       <RafflePremiumTopbar onParticipate={onParticipate} />
-      <div className="cfx-detail-layout">
+      <div className="cfx-detail-layout cfx-detail-layout--single">
         <section className="cfx-detail-main">
           <RafflePremiumHero raffle={raffle} mediaUrl={mediaUrl} isVideo={isVideo} />
           <RaffleTitleBlock raffle={raffle} />
-          <RaffleMetricCard icon={<Ticket />} label="Valor da cota" value={formatCurrency(unitPrice)} tone="gold" />
-          <RaffleProgressSummary progress={progress} soldTickets={soldTickets} remaining={remaining} />
-          <RaffleCountdownPanel countdown={countdown} />
-          <SuperCotasPanel prizes={prizes} />
-        </section>
-        <aside className="cfx-detail-purchase">
+          {raffle.showHomePrice !== false && <RaffleMetricCard icon={<Ticket />} label="POR APENAS" value={formatCurrency(unitPrice)} tone="gold" />}
+          <RaffleTopBuyersPanel ranking={ranking} />
           <NumberSelectionPanel
             tickets={tickets}
             remaining={remaining}
@@ -574,7 +569,8 @@ function RafflePremiumPage({
             onParticipate={onParticipate}
             isSubmitting={isSubmitting}
           />
-        </aside>
+          <SuperCotasPanel prizes={prizes} />
+        </section>
       </div>
       <div className="cfx-compat" aria-hidden="true">
         {/* Top compradores RankingSection ranking.slice(0, 4) */}
@@ -688,6 +684,31 @@ function RaffleCountdownPanel({ countdown }: { countdown: CountdownParts }) {
           </span>
         ))}
       </div>
+    </section>
+  );
+}
+
+function RaffleTopBuyersPanel({ ranking }: { ranking: Array<{ name: string; tickets: number; phone: string }> }) {
+  const buyers = ranking.slice(0, 3);
+  return (
+    <section className="cfx-panel cfx-detail-ranking">
+      <header>
+        <strong><Trophy /> Top compradores</strong>
+        <Link to="/ganhadores">Ver ranking</Link>
+      </header>
+      {buyers.length ? (
+        <div>
+          {buyers.map((buyer, index) => (
+            <article key={`${buyer.phone}-${index}`}>
+              <span>{index + 1}</span>
+              <b>{maskName(buyer.name)}</b>
+              <small>{Number(buyer.tickets || 0).toLocaleString("pt-BR")} cotas</small>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p>Ranking em apuração com dados reais da campanha.</p>
+      )}
     </section>
   );
 }
@@ -835,7 +856,6 @@ function NumberSelectionPanel({
           <Plus />
         </button>
       </div>
-      <p className="cfx-auto-number-note"><ShieldCheck /> Seus números serão gerados automaticamente após a confirmação do pagamento.</p>
       <div className="cfx-checkout-row">
         <span><small>Quantidade</small><strong>{tickets.toLocaleString("pt-BR")}</strong></span>
         <span><small>Valor unitário</small><strong>{formatCurrency(unitPrice)}</strong></span>

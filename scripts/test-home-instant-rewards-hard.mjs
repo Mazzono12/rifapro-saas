@@ -23,6 +23,9 @@ const packageJson = read("package.json");
 const server = read("server.ts");
 const adminLayout = read("src/pages/admin/AdminLayout.tsx");
 const adminInstantPrizes = read("src/pages/admin/AdminInstantPrizes.tsx");
+const adminGamification = read("src/pages/admin/AdminGamification.tsx");
+const lootboxEditor = read("src/components/admin/LootboxRulesEditor.tsx");
+const types = read("src/types.ts");
 
 includesAll(home, [
   "type HomeInstantRewardsData",
@@ -32,12 +35,20 @@ includesAll(home, [
   "safeJson(`/api/public/raffles/${raffleId}/super-cotas`)",
   "safeJson(`/api/raffles/${raffleId}/gamification`)",
   "<HomeInstantRewards rewards={instantRewards} />",
-  "<TopBuyers ranking={ranking} />"
+  "<TopBuyers ranking={ranking} />",
+  "showHomePrice",
+  "raffle.showHomePrice !== false",
+  "showHomeText",
+  "raffle.showHomeText !== false",
+  "<strong>{progress.toFixed(0)}%</strong>"
 ], "Home deve carregar premios reais/configurados e renderizar Top Compradores no fluxo principal.");
 
 assert.ok(
-  home.indexOf("cfx-live-card") < home.indexOf("<TopBuyers ranking={ranking} />"),
-  "Ordem correta dentro do Hero: Top Compradores imediatamente apos o contador."
+  home.indexOf("className=\"cfx-home-title-lockup\"") < home.indexOf("className=\"cfx-home-price-strip\"") &&
+    home.indexOf("className=\"cfx-home-price-strip\"") < home.indexOf("className=\"cfx-home-hero-actions\"") &&
+    home.indexOf("className=\"cfx-home-hero-actions\"") < home.indexOf("cfx-live-card") &&
+    home.indexOf("cfx-live-card") < home.indexOf("<TopBuyers ranking={ranking} />"),
+  "Ordem correta dentro do Hero: nome, valor, CTA, contador e Top Compradores."
 );
 
 assert.equal(
@@ -60,6 +71,11 @@ includesAll(home, [
   "buildScratchcardRewards(gamificationPayload)",
   "buildMysteryBoxRewards(raffle, gamificationPayload)"
 ], "Home deve ter as quatro secoes premium alimentadas por dados reais.");
+includesAll(home, [
+  "columns: { primary: \"Prêmio\", secondary: \"\", person: \"Ganhador\" }",
+  "const showValueColumn = Boolean(columns.secondary)",
+  "{showValueColumn && ("
+], "Roleta e Caixinha devem ocultar valor, mantendo premio, ganhador e status.");
 
 includesAll(home, [
   "columns: { primary: \"Número\", secondary: \"Prêmio\", person: \"Ganhador\" }",
@@ -122,6 +138,10 @@ includesAll(home, [
 
 includesAll(home, [
   "maskBuyerName(item.buyerName)",
+  "rewardWinnerName",
+  "buyerName: rewardWinnerName(reward) || rewardWinnerName(segment)",
+  "buyerName: rewardWinnerName(milestone)",
+  "buyerName: rewardWinnerName(box)",
   "id === \"superCotas\" ? item.buyerName : maskBuyerName(item.buyerName)",
   "item.buyerName ? (id === \"superCotas\" ? item.buyerName : maskBuyerName(item.buyerName)) : \"—\"",
   "statusLabel(item.status)",
@@ -144,11 +164,23 @@ includesAll(css, [
   ".cfx-reward-card",
   ".cfx-reward-more",
   "data-reward-id=\"superCotas\"",
-  "grid-template-columns: minmax(0, .88fr) minmax(0, 1fr) minmax(0, .88fr) auto",
+  "data-reward-id=\"mysteryBox\"",
+  ".cfx-reward-section[data-reward-id=\"scratchcard\"]",
+  "grid-template-columns: minmax(0, .9fr) minmax(0, 1fr) minmax(0, .9fr) auto",
+  "grid-template-columns: minmax(0, 1fr) minmax(96px, .58fr) !important",
+  "grid-row: 1 / 3 !important",
+  "repeat(2, minmax(0, 1fr))",
   "overflow: hidden",
   "text-overflow: ellipsis",
   "white-space: nowrap"
 ], "CSS deve usar cards mobile premium alinhados ao mockup, sem tabela apertada nem overflow horizontal.");
+includesNone(home, [
+  "cfx-home-remaining",
+  "cotas restantes"
+], "Home nao deve exibir texto de cotas restantes abaixo do Top Compradores.");
+includesNone(css, [
+  ".cfx-reward-section:not([data-reward-id=\"superCotas\"]) .cfx-reward-card div:nth-child(2),\n.cfx-reward-section:not([data-reward-id=\"superCotas\"]) .cfx-reward-card div:nth-child(3) {\n  display: none;"
+], "Roleta, Raspadinha e Caixinha nao devem esconder valor/ganhador.");
 
 assert.match(packageJson, /"test:home-instant-rewards-hard"/, "package.json deve registrar test:home-instant-rewards-hard.");
 
@@ -174,5 +206,24 @@ includesAll(adminInstantPrizes, [
   "<th className=\"font-semibold py-4 px-6 border-b border-white/5\">GANHADOR</th>",
   "{p.winnerName || '—'}"
 ], "Admin de Super Cotas deve criar, editar e listar Nome do Ganhador.");
+
+includesAll(lootboxEditor, [
+  "Nome do Ganhador",
+  "winnerName: segment.reward?.winnerName || \"\"",
+  "updateMilestone(index, \"winnerName\", value)",
+  "updateSegmentReward(index, \"winnerName\", value)"
+], "Admin de Roleta/Caixinha deve salvar Nome do Ganhador nos premios configurados.");
+
+includesAll(adminGamification, [
+  "Nome do Ganhador",
+  "winnerName: \"\"",
+  "updateItem(index, \"winnerName\", next)"
+], "Admin de Raspadinha/Caixinha deve permitir Nome do Ganhador nos premios planejados.");
+
+includesAll(types, [
+  "winnerName?: string;",
+  "scratchcard: { prizes:",
+  "mysteryBox: { boxes:"
+], "Tipos devem aceitar winnerName em premios instantaneos configurados.");
 
 console.log("PASS: Home Instant Rewards validada com dados reais/configurados, 10/+10/max50, status, mascaramento e ordem correta.");

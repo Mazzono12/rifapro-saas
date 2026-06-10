@@ -98,6 +98,7 @@ export function LootboxRulesEditor({
         type: segment.reward?.type || "pix",
         value: segment.reward?.value || 0,
         currentCounter: segment.reward?.currentCounter || 0,
+        winnerName: segment.reward?.winnerName || "",
         [field]: nextValue
       }
     });
@@ -189,10 +190,11 @@ export function LootboxRulesEditor({
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
-              <div className="mt-2 grid gap-2 md:grid-cols-3">
+              <div className="mt-2 grid gap-2 md:grid-cols-4">
                 <Field label="Nome do prêmio" value={milestone.name || ""} onChange={value => updateMilestone(index, "name", value)} />
                 <Field label="Tipo" value={milestone.type || "pix"} onChange={value => updateMilestone(index, "type", value)} />
                 <Field label="Valor" type="number" value={String(milestone.value || 0)} onChange={value => updateMilestone(index, "value", Number(value))} />
+                <Field label="Nome do Ganhador" value={milestone.winnerName || ""} onChange={value => updateMilestone(index, "winnerName", value)} />
               </div>
             </div>
           ))}
@@ -272,6 +274,7 @@ export function LootboxRulesEditor({
                       <Field label="Nome do prêmio" value={segment.reward?.name || segment.label} onChange={value => updateSegmentReward(index, "name", value)} />
                       <Field label="Valor" type="number" value={String(segment.reward?.value || 0)} onChange={value => updateSegmentReward(index, "value", Number(value))} />
                       <Field label="Tipo" value={segment.reward?.type || "pix"} onChange={value => updateSegmentReward(index, "type", value)} />
+                      <Field label="Nome do Ganhador" value={segment.reward?.winnerName || ""} onChange={value => updateSegmentReward(index, "winnerName", value)} />
                       <label className="space-y-1">
                         <span className="text-[10px] font-mono uppercase text-slate-500">Raridade</span>
                         <select value={segment.reward?.tier || "mini"} onChange={event => updateSegmentReward(index, "tier", event.target.value)} className="w-full p-3">

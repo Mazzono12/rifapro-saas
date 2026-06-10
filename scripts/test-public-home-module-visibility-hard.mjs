@@ -56,8 +56,12 @@ hasAll(home, [
   "className=\"cfx-home-hero\"",
   "cfx-home-hero-media--story",
   "className=\"cfx-home-media-block\"",
+  "className=\"cfx-home-price-strip\"",
+  "POR APENAS",
   "className=\"cfx-countdown-grid\"",
   "className=\"cfx-home-progress\"",
+  "showHomePrice",
+  "showHomeText",
   "className=\"cfx-home-primary\"",
   "Participar agora",
   "Link to={`/raffle/${raffle.id}`}",
@@ -90,19 +94,40 @@ hasAll(home, [
   "safeText(raffle.homeTitle",
   "safeText(raffle.homeSubtitle",
   "safeText(raffle.homeHighlightText",
+  "raffle.showHomeText !== false",
   "formatHomeDrawText(raffle.drawDate)",
   "label: \"WhatsApp\"",
-  "label: \"Instagram\""
+  "label: \"Instagram\"",
+  "rewardWinnerName",
+  "buyerName: rewardWinnerName"
 ], "Home Premium deve expor contratos visuais novos da Fase 01");
 
 hasNone(home, [
   "className=\"cfx-home-play\"",
   "className=\"cfx-video-control\"",
-  "{sold.toLocaleString(\"pt-BR\")} / {total.toLocaleString(\"pt-BR\")}"
+  "{sold.toLocaleString(\"pt-BR\")} / {total.toLocaleString(\"pt-BR\")}",
+  "cfx-home-remaining",
+  "cotas restantes"
 ], "Frame de midia da Home deve ficar limpo, sem play fake ou controles sobrepostos");
 assert.ok(
   home.indexOf("cfx-home-hero-media") < home.indexOf("className=\"cfx-home-title-lockup\""),
   "Conteudo promocional da Home deve renderizar abaixo da midia principal."
+);
+assert.ok(
+  home.indexOf("className=\"cfx-home-title-lockup\"") < home.indexOf("className=\"cfx-home-price-strip\""),
+  "Nome do sorteio deve aparecer antes do valor da cota."
+);
+assert.ok(
+  home.indexOf("className=\"cfx-home-price-strip\"") < home.indexOf("className=\"cfx-home-hero-actions\""),
+  "Valor da cota deve aparecer junto do CTA principal."
+);
+assert.ok(
+  home.indexOf("className=\"cfx-home-hero-actions\"") < home.indexOf("className=\"cfx-live-card\""),
+  "CTA deve aparecer antes do contador regressivo."
+);
+assert.ok(
+  home.indexOf("className=\"cfx-live-card\"") < home.indexOf("<TopBuyers ranking={ranking} />"),
+  "Top Compradores deve aparecer abaixo do cronometro na Home."
 );
 
 hasAll(css, [
@@ -110,6 +135,7 @@ hasAll(css, [
   "--public-navbar-height: 68px",
   ".cfx-home-hero",
   ".cfx-home-hero-media",
+  ".cfx-home-price-strip",
   ".cfx-live-card",
   ".cfx-countdown-grid",
   ".cfx-home-progress",
@@ -118,6 +144,8 @@ hasAll(css, [
   ".cfx-top-buyers",
   ".cfx-home-trust-rail",
   ".cfx-home-bottom-nav",
+  ".cfx-detail-layout--single",
+  ".cfx-detail-ranking",
   ".cfx-premium-media-placeholder",
   "data-home-media-type=\"image\"",
   "data-home-media-type=\"video\"",
@@ -190,7 +218,9 @@ hasAll(navbar, [
   "bottomNavItems",
   "label: \"Início\"",
   "label: \"Sorteios\"",
+  "to: \"/sorteios\"",
   "label: \"Ganhadores\"",
+  "to: \"/ganhadores\"",
   "label: \"WhatsApp\"",
   "label: \"Instagram\"",
   "].slice(0, 5)",
@@ -216,13 +246,47 @@ hasAll(supportChat, [
 hasAll(raffleDetails, [
   "const quickAmounts = [200, 700, 1800, 3000, 5000, 10000]",
   "<strong>+{amount.toLocaleString(\"pt-BR\")}</strong>",
-  "Seus números serão gerados automaticamente após a confirmação do pagamento.",
   "Aguardando pagamento",
   "Copiar código PIX",
   "MEUS BILHETES",
   "data-random-raffle-checkout=\"quantity-only\""
 ], "Pagina da rifa mantem compra por quantidade e fluxo visual solicitado");
-
+hasNone(raffleDetails, [
+  "Seus números serão gerados automaticamente após a confirmação do pagamento.",
+  "cfx-auto-number-note"
+], "Area de compra nao deve renderizar aviso de numeracao automatica.");
+hasNone(raffleDetails, [
+  "<RaffleCountdownPanel countdown={countdown} />"
+], "Tela publica da rifa nao deve renderizar o card grande de contador regressivo.");
+hasNone(css, [
+  ".cfx-auto-number-note"
+], "CSS nao deve manter bloco visual do aviso removido.");
+hasAll(raffleDetails, [
+  "cfx-detail-layout cfx-detail-layout--single",
+  "<RaffleTitleBlock raffle={raffle} />",
+  "raffle.showHomePrice !== false",
+  "<RaffleMetricCard icon={<Ticket />} label=\"POR APENAS\"",
+  "<RaffleTopBuyersPanel ranking={ranking} />",
+  "<NumberSelectionPanel",
+  "[raffle.salesEndAt, raffle.countdownEndAt, raffle.drawDate]",
+  "Ranking em apuração com dados reais da campanha."
+], "Pagina da rifa deve ordenar banner, nome, valor, ranking e quantidade com dados reais.");
+assert.ok(
+  raffleDetails.indexOf("<RaffleTitleBlock raffle={raffle} />") < raffleDetails.indexOf("<RaffleMetricCard icon={<Ticket />} label=\"POR APENAS\""),
+  "Nome do sorteio deve aparecer antes do valor da cota na tela da rifa."
+);
+assert.ok(
+  raffleDetails.indexOf("<RaffleMetricCard icon={<Ticket />} label=\"POR APENAS\"") < raffleDetails.indexOf("<RaffleTopBuyersPanel ranking={ranking} />"),
+  "Valor da cota deve aparecer antes do ranking."
+);
+assert.ok(
+  raffleDetails.indexOf("<RaffleTopBuyersPanel ranking={ranking} />") < raffleDetails.indexOf("<NumberSelectionPanel"),
+  "Ranking deve aparecer antes da escolha de quantidade."
+);
+assert.ok(
+  raffleDetails.indexOf("<RaffleMetricCard icon={<Ticket />} label=\"POR APENAS\"") < raffleDetails.indexOf("<NumberSelectionPanel"),
+  "Valor da cota deve aparecer antes da escolha de quantidade."
+);
 hasAll(adminConfig, [
   "publicModules",
   "updatePublicModules",
@@ -230,6 +294,17 @@ hasAll(adminConfig, [
   "settings.publicModules?.affiliates !== false",
   "updatePublicModules({ affiliates: e.target.checked })"
 ], "Admin possui controle de afiliados");
+
+hasAll(adminRaffles, [
+  "Mostrar bloco \"POR APENAS\"",
+  "currentRaffle.showHomePrice !== false",
+  "showHomePrice: e.target.checked"
+], "Admin da campanha deve permitir ligar/desligar o bloco de valor da cota.");
+hasAll(adminRaffles, [
+  "Mostrar texto abaixo do banner",
+  "currentRaffle.showHomeText !== false",
+  "showHomeText: e.target.checked"
+], "Admin da campanha deve permitir ligar/desligar o texto abaixo do banner.");
 
 hasAll(server, [
   "publicModules: {",
@@ -270,6 +345,7 @@ hasAll(adminRaffles, [
   "homeTitle",
   "homeSubtitle",
   "homeHighlightText",
+  "showHomeText",
   "Textos editáveis da Home"
 ], "Admin da rifa deve editar tipo de midia e textos especificos da Home.");
 hasAll(adminRaffles, [

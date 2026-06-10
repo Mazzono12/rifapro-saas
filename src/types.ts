@@ -33,6 +33,8 @@ export interface Raffle {
   heroPrimaryButton?: string;
   heroSecondaryText?: string;
   heroShowStats?: boolean;
+  showHomePrice?: boolean;
+  showHomeText?: boolean;
   status: 'active' | 'completed' | 'draft' | 'paused' | 'cancelled';
   drawDate: string;
   countdownEnabled?: boolean;
@@ -90,6 +92,7 @@ export interface LootboxMilestone {
   type: string;
   value: number;
   currentCounter?: number;
+  winnerName?: string;
 }
 
 export interface RewardWheelSegment {
@@ -261,10 +264,10 @@ export interface GamificationConfig {
   raffleId: string;
   status: 'active' | 'inactive';
   modules: Record<GamificationModuleId, boolean>;
-  scratchcard: { prizes: Array<{ id: string; name: string; type: string; value: number; stock: number; probability?: number }>; winProbability: number };
+  scratchcard: { prizes: Array<{ id: string; name: string; type: string; value: number; stock: number; probability?: number; winnerName?: string }>; winProbability: number };
   winningTicket: { prizes: Array<{ id: string; number: number; prize: string; value: number; status: string }> };
   luckyHour: { windows: Array<{ id: string; startsAt: string; endsAt: string; type: 'bonus' | 'discount' | 'extraChance'; value: number; active: boolean }> };
-  mysteryBox: { boxes: Array<{ id: string; label: string; prize: string; type: 'pix' | 'bonus' | 'empty'; value: number; status: string }> };
+  mysteryBox: { boxes: Array<{ id: string; label: string; prize: string; type: 'pix' | 'bonus' | 'empty'; value: number; status: string; winnerName?: string }> };
   doubleTickets: { startsAt: string; endsAt: string; minTickets: number; maxUsesPerCustomer: number; packageQuantities: number[]; label: string };
   doubleChance: { startsAt: string; endsAt: string; minTickets: number; weight: number };
   extremeTickets: { enabled: boolean; highPrize: string; lowPrize: string };

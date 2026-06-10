@@ -161,6 +161,8 @@ function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raff
     homeTitle: safeText(rawRaffle.homeTitle, ""),
     homeSubtitle: safeText(rawRaffle.homeSubtitle, ""),
     homeHighlightText: safeText(rawRaffle.homeHighlightText, ""),
+    showHomePrice: (rawRaffle as any).showHomePrice !== false,
+    showHomeText: (rawRaffle as any).showHomeText !== false,
     drawDate: safeText(rawRaffle.drawDate, new Date().toISOString()),
     countdownEnabled: rawRaffle.countdownEnabled === true,
     countdownEndAt: safeText(rawRaffle.countdownEndAt, ""),
@@ -341,15 +343,23 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
           className="cfx-home-media-block"
         />
       </div>
+      {raffle.showHomeText !== false && (
+        <div className="cfx-home-title-lockup">
+          {raffle.heroEyebrow && <span>{raffle.heroEyebrow}</span>}
+          <h1>{headline}</h1>
+          {description && <p>{description}</p>}
+          {highlight && <strong>{highlight}</strong>}
+        </div>
+      )}
+      {raffle.showHomePrice !== false && (
+        <div className="cfx-home-price-strip" aria-label="Por apenas">
+          <small>POR APENAS</small>
+          <strong>{formatCurrency(raffle.price)}</strong>
+        </div>
+      )}
       <div className="cfx-home-hero-actions">
         <Link to={`/raffle/${raffle.id}`} className="cfx-home-primary">Participar agora <ChevronRight /></Link>
         <Link to="/minhas-cotas" className="cfx-home-secondary"><Ticket /> Meus bilhetes <ChevronRight /></Link>
-      </div>
-      <div className="cfx-home-title-lockup">
-        {raffle.heroEyebrow && <span>{raffle.heroEyebrow}</span>}
-        <h1>{headline}</h1>
-        {description && <p>{description}</p>}
-        {highlight && <strong>{highlight}</strong>}
       </div>
       <div className="cfx-live-card">
         <p>Sorteio ao vivo em</p>
@@ -360,12 +370,12 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
           <CountdownUnit label="Segundos" value={countdown.seconds} />
         </div>
         <div className="cfx-progress-meta">
-          <span>{progress.toFixed(0)}% das cotas vendidas</span>
+          <span>Cotas vendidas</span>
+          <strong>{progress.toFixed(0)}%</strong>
         </div>
         <div className="cfx-home-progress"><span style={{ width: `${progress}%` }} /></div>
       </div>
       <TopBuyers ranking={ranking} />
-      <p className="cfx-home-remaining" aria-label="Cotas restantes">{remaining.toLocaleString("pt-BR")} cotas restantes</p>
       <span className="cfx-home-compat" aria-hidden="true">{ranking.length}</span>
     </section>
   );
@@ -420,6 +430,10 @@ function normalizeRewardStatus(value: unknown): HomeRewardStatus {
   return "available";
 }
 
+function rewardWinnerName(source: any) {
+  return safeText(source?.winnerName || source?.ganhadorNome || source?.nomeGanhador || source?.winner || source?.winner?.name || source?.customerName || source?.buyerName, "");
+}
+
 function buildSuperCotaRewards(instantPrizesPayload: unknown, superCotasPayload: any): HomeRewardItem[] {
   const winners = new Map<number, { name?: string }>();
   asArray(superCotasPayload?.winners).forEach((winner: any) => {
@@ -461,6 +475,7 @@ function buildWheelRewards(raffle: Raffle): HomeRewardItem[] {
         id: String(reward?.id || `wheel-${index}`),
         prize: label,
         value: Number.isFinite(value) ? value : undefined,
+        buyerName: rewardWinnerName(reward) || rewardWinnerName(segment),
         status: normalizeRewardStatus(reward?.status)
       } satisfies HomeRewardItem;
     });
@@ -476,6 +491,7 @@ function buildScratchcardRewards(gamificationPayload: any): HomeRewardItem[] {
         id: String(prize?.id || `scratchcard-${index}`),
         prize: safeText(prize?.name, "Prêmio da raspadinha"),
         value: Number.isFinite(value) ? value : undefined,
+        buyerName: rewardWinnerName(prize),
         status: normalizeRewardStatus(prize?.status || (Number.isFinite(stock) && stock <= 0 ? "drawn" : "available"))
       } satisfies HomeRewardItem;
     })
@@ -492,6 +508,7 @@ function buildMysteryBoxRewards(raffle: Raffle, gamificationPayload: any): HomeR
         id: String(milestone?.id || milestone?.tier || `mystery-${index}`),
         prize: safeText(milestone?.name, "Prêmio da caixinha"),
         value: Number.isFinite(value) ? value : undefined,
+        buyerName: rewardWinnerName(milestone),
         status: normalizeRewardStatus(milestone?.status)
       } satisfies HomeRewardItem;
     });
@@ -508,6 +525,7 @@ function buildMysteryBoxRewards(raffle: Raffle, gamificationPayload: any): HomeR
         id: String(box?.id || `box-${index}`),
         prize,
         value: Number.isFinite(value) ? value : undefined,
+        buyerName: rewardWinnerName(box),
         status: normalizeRewardStatus(box?.status)
       } satisfies HomeRewardItem;
     });
@@ -544,7 +562,7 @@ function HomeInstantRewards({ rewards }: { rewards: HomeInstantRewardsData }) {
       tone: "purple",
       cta: "VER PRÊMIOS DA ROLETA",
       items: rewards.wheel,
-      columns: { primary: "Prêmio", secondary: "Valor", person: "Ganhador" }
+      columns: { primary: "Prêmio", secondary: "", person: "Ganhador" }
     },
     {
       id: "scratchcard" as const,
@@ -553,7 +571,7 @@ function HomeInstantRewards({ rewards }: { rewards: HomeInstantRewardsData }) {
       tone: "green",
       cta: "VER PRÊMIOS DA RASPADINHA",
       items: rewards.scratchcard,
-      columns: { primary: "Prêmio", secondary: "Valor", person: "Ganhador" }
+      columns: { primary: "Prêmio", secondary: "", person: "Ganhador" }
     },
     {
       id: "mysteryBox" as const,
@@ -562,7 +580,7 @@ function HomeInstantRewards({ rewards }: { rewards: HomeInstantRewardsData }) {
       tone: "pink",
       cta: "VER PRÊMIOS DA CAIXINHA",
       items: rewards.mysteryBox,
-      columns: { primary: "Prêmio", secondary: "Valor", person: "Ganhador" }
+      columns: { primary: "Prêmio", secondary: "", person: "Ganhador" }
     }
   ].filter(section => section.items.length > 0);
 
@@ -614,6 +632,7 @@ function InstantRewardSection({
   const claimed = cappedItems.filter(item => item.status !== "available").length;
   const totalValue = cappedItems.reduce((sum, item) => sum + (Number(item.value) > 0 ? Number(item.value) : 0), 0);
   const canShowMore = visible < cappedItems.length && visible < 50;
+  const showValueColumn = Boolean(columns.secondary);
 
   return (
     <article className="cfx-reward-section" data-reward-tone={tone} data-reward-id={id}>
@@ -640,10 +659,12 @@ function InstantRewardSection({
               <small>{columns.primary}</small>
               <strong>{typeof item.number === "number" ? String(item.number).padStart(6, "0") : item.prize}</strong>
             </div>
-            <div>
-              <small>{columns.secondary}</small>
-              <strong>{typeof item.number === "number" ? item.prize : formatCurrency(item.value)}</strong>
-            </div>
+            {showValueColumn && (
+              <div>
+                <small>{columns.secondary}</small>
+                <strong>{typeof item.number === "number" ? item.prize : formatCurrency(item.value)}</strong>
+              </div>
+            )}
             <div>
               <small>{columns.person}</small>
               <strong>{item.buyerName ? (id === "superCotas" ? item.buyerName : maskBuyerName(item.buyerName)) : "—"}</strong>
@@ -731,7 +752,7 @@ function HomeBottomNav() {
   const instagramUrl = typeof settings?.socialLinks?.instagram === "string" ? settings.socialLinks.instagram.trim() : "";
   const items = [
     { label: "Início", to: "/", icon: <HomeIcon /> },
-    { label: "Sorteios", to: "/", icon: <Gift /> },
+    { label: "Sorteios", to: "/sorteios", icon: <Gift /> },
     { label: "Ganhadores", to: "/ganhadores", icon: <Trophy /> },
     ...(whatsappUrl ? [{ label: "WhatsApp", to: whatsappUrl, icon: <MessageCircle />, external: /^https?:\/\//i.test(whatsappUrl), tone: "whatsapp" }] : []),
     ...(instagramUrl ? [{ label: "Instagram", to: instagramUrl, icon: <Instagram />, external: /^https?:\/\//i.test(instagramUrl), tone: "instagram" }] : [])

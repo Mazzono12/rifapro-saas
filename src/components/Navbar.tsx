@@ -22,8 +22,8 @@ export function Navbar() {
   const isExternalUrl = (value: string) => /^https?:\/\//i.test(value);
   const bottomNavItems = [
     { label: "Início", to: "/", icon: Home, active: location.pathname === "/" && !location.hash },
-    { label: "Sorteios", to: "/", icon: Ticket, active: location.pathname.startsWith("/raffle") },
-    { label: "Ganhadores", to: "/#ganhadores", icon: Trophy, active: location.hash === "#ganhadores" },
+    { label: "Sorteios", to: "/sorteios", icon: Ticket, active: location.pathname.startsWith("/raffle") || location.pathname === "/sorteios" },
+    { label: "Ganhadores", to: "/ganhadores", icon: Trophy, active: location.pathname === "/ganhadores" || location.hash === "#ganhadores" },
     ...(whatsappUrl ? [{ label: "WhatsApp", to: whatsappUrl, icon: MessageCircle, active: false, external: isExternalUrl(whatsappUrl), tone: "whatsapp" }] : []),
     ...(instagramUrl ? [{ label: "Instagram", to: instagramUrl, icon: Instagram, active: false, external: isExternalUrl(instagramUrl), tone: "instagram" }] : [])
   ].slice(0, 5);
@@ -176,7 +176,7 @@ export function Navbar() {
             {bottomNavItems.map(item => {
               const Icon = item.icon;
               const socialTone = item.tone === "whatsapp" ? "text-emerald-300" : item.tone === "instagram" ? "text-fuchsia-300" : "";
-              const className = `flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-black transition ${item.active ? "bg-[#22C55E] text-black shadow-[0_10px_30px_rgba(34,197,94,0.35)]" : `text-[#A1A1AA] hover:bg-white/5 hover:text-white ${socialTone}`}`;
+              const className = `flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-black transition ${item.active ? "border border-violet-300/35 bg-violet-500/20 text-violet-100 shadow-[0_10px_30px_rgba(168,85,247,0.28)]" : `text-[#A1A1AA] hover:bg-white/5 hover:text-white ${socialTone}`}`;
               return item.external ? (
                 <a
                   key={item.label}
