@@ -7,6 +7,7 @@ import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import type { Raffle } from "../types";
 import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
 import { cn } from "../lib/utils";
+import type { ResponsiveMediaAspectMode, ResponsiveMediaFit } from "../utils/mediaAspect";
 
 export function Home() {
   const [boundaryKey, setBoundaryKey] = useState(0);
@@ -111,6 +112,26 @@ function normalizeRaffleMediaFit(fit: unknown): Raffle["mediaFit"] {
   const normalized = String(fit || "cover").trim().toLowerCase();
   if (["cover", "contain", "fill"].includes(normalized)) return normalized as Raffle["mediaFit"];
   return "cover";
+}
+
+function isStoryFirstVideoSource(raffle: Pick<Raffle, "mediaType" | "mediaUrl" | "videoUrl">) {
+  const type = String(raffle.mediaType || "").trim().toLowerCase();
+  const url = String(raffle.mediaUrl || raffle.videoUrl || "").trim().toLowerCase();
+  return type === "bunny" || url.includes("player.mediadelivery.net");
+}
+
+function resolveHomeMediaAspect(raffle: Pick<Raffle, "mediaAspect" | "mediaType" | "mediaUrl" | "videoUrl">, isVideo: boolean): ResponsiveMediaAspectMode {
+  const normalized = String(raffle.mediaAspect || "").trim().toLowerCase();
+  if (normalized === "story" || normalized === "vertical") return "story";
+  if (normalized === "portrait") return "portrait";
+  if (normalized === "square") return "square";
+  if (normalized === "wide" || normalized === "horizontal" || normalized === "landscape" || normalized === "cinematic" || normalized === "banner") return "horizontal";
+  if (isVideo && isStoryFirstVideoSource(raffle)) return "story";
+  return isVideo ? "horizontal" : "portrait";
+}
+
+function resolveHomeMediaFit(fit: unknown): ResponsiveMediaFit {
+  return String(fit || "").trim().toLowerCase() === "contain" ? "contain" : "cover";
 }
 
 function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raffle | null {
@@ -268,7 +289,6 @@ function HomeContent() {
       <main className="cfx-home-shell" aria-label="Home CIFHER Prime">
         <Hero raffle={featuredRaffle} ranking={ranking} />
         <HomeInstantRewards rewards={instantRewards} />
-        <TopBuyers ranking={ranking} />
         <HomeTrustRail />
         <HomeBottomNav />
       </main>
@@ -298,10 +318,16 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
   const highlight = safeText(raffle.homeHighlightText, formatHomeDrawText(raffle.drawDate));
   const isVideo = isVideoMediaType(raffle.mediaType);
   const mediaKind = isVideo ? "video" : "image";
+  const homeMediaAspect = resolveHomeMediaAspect(raffle, isVideo);
+  const isStoryMedia = homeMediaAspect === "story" || homeMediaAspect === "vertical";
 
   return (
     <section className="cfx-home-hero">
-      <div className="cfx-home-hero-media" data-home-media-type={mediaKind}>
+      <div
+        className={cn("cfx-home-hero-media", isStoryMedia && "cfx-home-hero-media--story")}
+        data-home-media-type={mediaKind}
+        data-home-media-aspect={homeMediaAspect}
+      >
         <StandardRaffleMediaBlock
           mediaUrl={mediaUrl}
           mediaType={raffle.mediaType}
@@ -310,8 +336,8 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
           fallbackImageUrl={raffle.image}
           priority
           showDescriptionBelow={false}
-          preferredFit="cover"
-          aspectMode={isVideo ? "horizontal" : "portrait"}
+          preferredFit={resolveHomeMediaFit(raffle.mediaFit)}
+          aspectMode={homeMediaAspect}
           className="cfx-home-media-block"
         />
       </div>
@@ -338,6 +364,7 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
         </div>
         <div className="cfx-home-progress"><span style={{ width: `${progress}%` }} /></div>
       </div>
+      <TopBuyers ranking={ranking} />
       <p className="cfx-home-remaining" aria-label="Cotas restantes">{remaining.toLocaleString("pt-BR")} cotas restantes</p>
       <span className="cfx-home-compat" aria-hidden="true">{ranking.length}</span>
     </section>
@@ -407,12 +434,13 @@ function buildSuperCotaRewards(instantPrizesPayload: unknown, superCotasPayload:
       if (!Number.isFinite(number)) return null;
       const status = normalizeRewardStatus(prize?.status);
       const winner = winners.get(number);
+      const manualWinnerName = safeText(prize?.winnerName || prize?.ganhadorNome || prize?.nomeGanhador, "");
       return {
         id: String(prize?.id || `super-cota-${number}-${index}`),
         number,
         prize: value > 0 ? formatCurrency(value) : "Super Cota",
         value: Number.isFinite(value) ? value : undefined,
-        buyerName: winner?.name,
+        buyerName: manualWinnerName || winner?.name,
         status
       } satisfies HomeRewardItem;
     });
@@ -507,7 +535,7 @@ function HomeInstantRewards({ rewards }: { rewards: HomeInstantRewardsData }) {
       tone: "gold",
       description: "Concorra a prêmios especiais com números exclusivos!",
       items: rewards.superCotas,
-      columns: { primary: "Número", secondary: "Prêmio/valor", person: "Comprador" }
+      columns: { primary: "Número", secondary: "Prêmio", person: "Ganhador" }
     },
     {
       id: "wheel" as const,
@@ -610,7 +638,7 @@ function InstantRewardSection({
           <div className="cfx-reward-card" role="listitem" key={item.id}>
             <div>
               <small>{columns.primary}</small>
-              <strong>{typeof item.number === "number" ? `#${String(item.number).padStart(6, "0")}` : item.prize}</strong>
+              <strong>{typeof item.number === "number" ? String(item.number).padStart(6, "0") : item.prize}</strong>
             </div>
             <div>
               <small>{columns.secondary}</small>
@@ -618,7 +646,7 @@ function InstantRewardSection({
             </div>
             <div>
               <small>{columns.person}</small>
-              <strong>{item.buyerName ? maskBuyerName(item.buyerName) : "—"}</strong>
+              <strong>{item.buyerName ? (id === "superCotas" ? item.buyerName : maskBuyerName(item.buyerName)) : "—"}</strong>
             </div>
             <span className={item.status === "available" ? "is-available" : "is-claimed"}>{statusLabel(item.status)}</span>
           </div>

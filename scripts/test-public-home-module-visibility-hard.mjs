@@ -28,6 +28,8 @@ const server = read("server.ts");
 const packageJson = read("package.json");
 const raffleDetails = read("src/pages/RaffleDetails.tsx");
 const adminRaffles = read("src/pages/admin/AdminRaffles.tsx");
+const mediaPicker = read("src/components/admin/MediaPicker.tsx");
+const mediaAspectUtils = read("src/utils/mediaAspect.ts");
 const brandingSettings = read("src/components/branding/BrandingSettingsForm.tsx");
 const logoUploader = read("src/components/branding/LogoUploader.tsx");
 
@@ -52,7 +54,7 @@ hasAll(home, [
   "<Hero raffle={featuredRaffle} ranking={ranking} />",
   "fetch(`/api/raffles/${featuredRaffle.id}/ranking`)",
   "className=\"cfx-home-hero\"",
-  "className=\"cfx-home-hero-media\"",
+  "cfx-home-hero-media--story",
   "className=\"cfx-home-media-block\"",
   "className=\"cfx-countdown-grid\"",
   "className=\"cfx-home-progress\"",
@@ -72,8 +74,19 @@ hasAll(home, [
   "function HomeBottomNav",
   "className=\"cfx-home-bottom-nav\"",
   "isVideoMediaType",
+  "isStoryFirstVideoSource",
+  "resolveHomeMediaAspect",
+  "resolveHomeMediaFit",
+  "normalized === \"story\" || normalized === \"vertical\"",
+  "if (normalized === \"portrait\") return \"portrait\"",
+  "if (normalized === \"square\") return \"square\"",
+  "normalized === \"wide\" || normalized === \"horizontal\" || normalized === \"landscape\" || normalized === \"cinematic\" || normalized === \"banner\"",
+  "url.includes(\"player.mediadelivery.net\")",
+  "if (isVideo && isStoryFirstVideoSource(raffle)) return \"story\"",
   "data-home-media-type={mediaKind}",
-  "aspectMode={isVideo ? \"horizontal\" : \"portrait\"}",
+  "data-home-media-aspect={homeMediaAspect}",
+  "aspectMode={homeMediaAspect}",
+  "preferredFit={resolveHomeMediaFit(raffle.mediaFit)}",
   "safeText(raffle.homeTitle",
   "safeText(raffle.homeSubtitle",
   "safeText(raffle.homeHighlightText",
@@ -88,7 +101,7 @@ hasNone(home, [
   "{sold.toLocaleString(\"pt-BR\")} / {total.toLocaleString(\"pt-BR\")}"
 ], "Frame de midia da Home deve ficar limpo, sem play fake ou controles sobrepostos");
 assert.ok(
-  home.indexOf("className=\"cfx-home-hero-media\"") < home.indexOf("className=\"cfx-home-title-lockup\""),
+  home.indexOf("cfx-home-hero-media") < home.indexOf("className=\"cfx-home-title-lockup\""),
   "Conteudo promocional da Home deve renderizar abaixo da midia principal."
 );
 
@@ -108,11 +121,23 @@ hasAll(css, [
   ".cfx-premium-media-placeholder",
   "data-home-media-type=\"image\"",
   "data-home-media-type=\"video\"",
+  "data-home-media-aspect=\"horizontal\"",
+  "data-home-media-aspect=\"story\"",
+  "data-home-media-aspect=\"vertical\"",
+  "data-home-media-aspect=\"square\"",
+  "data-home-media-aspect=\"portrait\"",
+  ".cfx-home-hero-media.cfx-home-hero-media--story",
   "aspect-ratio: 5 / 6",
   "aspect-ratio: 16 / 9",
+  "aspect-ratio: 9 / 16",
+  "aspect-ratio: 1 / 1",
+  "aspect-ratio: 4 / 5",
+  "width: min(100%, 430px) !important",
+  "border: 2px solid rgba(190, 63, 255, .74) !important",
+  "radial-gradient(circle at 50% 24%, rgba(168, 85, 247, .28), transparent 15rem)",
   "grid-template-columns: repeat(5, minmax(0, 1fr))",
   "white-space: nowrap"
-], "CSS da Home Premium deve validar midia dominante por tipo e identidade cfx");
+], "CSS da Home Premium deve validar midia dominante por tipo/aspecto e identidade cfx");
 
 hasNone(css, [
   ".public-shell:has(.cfx-home-page) .premium-site-header",
@@ -220,15 +245,58 @@ hasAll(server, [
 
 hasAll(adminRaffles, ["Nome da rifa / edital", "currentRaffle.title"], "Admin permite editar nome da rifa/edital");
 hasAll(adminRaffles, [
+  "homeMediaAspectOptions",
+  "getDefaultHomeMediaAspect",
+  "Mídia da Home",
+  "Mídia principal da Home",
   "Tipo da mídia principal",
-  "A Home usa proporção 5:6 automaticamente.",
-  "A Home usa proporção 16:9 automaticamente.",
+  "Escolha abaixo o formato visual da foto ou banner.",
+  "Escolha abaixo o formato visual do player.",
+  "Formato da mídia da Home",
+  "Horizontal / Banner 16:9",
+  "Vertical / Story 9:16",
+  "Quadrado / Feed 1:1",
+  "Retrato 4:5",
+  "Enquadramento da mídia da Home",
   "name=\"home-media-type\"",
+  "currentRaffle.mediaFit",
+  "raffle.mediaAspect",
+  "mediaAspect: mediaAspect as Raffle[\"mediaAspect\"]",
+  "aspectValue={getDefaultHomeMediaAspect(currentRaffle)}",
+  "onAspectChange={(mediaAspect) => setCurrentRaffle({ ...currentRaffle, mediaAspect: mediaAspect as Raffle[\"mediaAspect\"] })}",
+  "fitValue={(currentRaffle.mediaFit || \"cover\") as ResponsiveMediaFit}",
+  "onFitChange={(mediaFit) => setCurrentRaffle({ ...currentRaffle, mediaFit: mediaFit as Raffle[\"mediaFit\"] })}",
+  "aspectOptions={homeMediaAspectOptions}",
   "homeTitle",
   "homeSubtitle",
   "homeHighlightText",
   "Textos editáveis da Home"
 ], "Admin da rifa deve editar tipo de midia e textos especificos da Home.");
+hasAll(adminRaffles, [
+  "Mídia do Checkout",
+  "Mídia principal do Checkout",
+  "currentRaffle.checkoutMediaUrl",
+  "currentRaffle.checkoutMediaType",
+  "currentRaffle.checkoutMediaAspect",
+  "currentRaffle.checkoutMediaFit",
+  "value={currentRaffle.checkoutMediaAspect || \"wide\"}"
+], "Admin da rifa deve manter mídia do checkout separada da mídia da Home.");
+hasAll(mediaPicker, [
+  "aspectValue?: ResponsiveMediaAspectMode",
+  "onAspectChange?: (aspect: ResponsiveMediaAspectMode) => void",
+  "fitValue?: ResponsiveMediaFit",
+  "onFitChange?: (fit: ResponsiveMediaFit) => void",
+  "aspectOptions?: Array<{ value: ResponsiveMediaAspectMode; label: string }>",
+  "const selectedAspectPreference = aspectValue || mediaAspectPreference",
+  "onAspectChange?.(nextAspect)",
+  "value={selectedAspectPreference}",
+  "aspectOptions.map(option =>",
+  "aspectMode={selectedAspectPreference}"
+], "MediaPicker deve permitir que Proporção preferida controle o campo persistido da Home.");
+hasAll(mediaAspectUtils, [
+  "ResponsiveMediaAspectMode = \"auto\" | \"square\" | \"vertical\" | \"horizontal\" | \"wide\" | \"cinematic\" | \"story\" | \"banner\" | \"portrait\"",
+  "orientation === \"banner\" || orientation === \"cinematic\""
+], "Utilitario de media deve aceitar proporcoes persistidas pelo Admin sem quebrar preview.");
 hasNone(adminRaffles, [
   "homeMediaLayoutOptions",
   "Compacto 4:5 — melhor para banners/imagens",

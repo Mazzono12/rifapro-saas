@@ -42,13 +42,28 @@ type MediaPickerProps = {
   value?: string;
   mediaType?: MediaType | string;
   onChange: (mediaUrl: string, mediaType: MediaType) => void;
+  aspectValue?: ResponsiveMediaAspectMode;
+  onAspectChange?: (aspect: ResponsiveMediaAspectMode) => void;
+  fitValue?: ResponsiveMediaFit;
+  onFitChange?: (fit: ResponsiveMediaFit) => void;
+  aspectOptions?: Array<{ value: ResponsiveMediaAspectMode; label: string }>;
   required?: boolean;
   accept?: string;
   allowExternalVideo?: boolean;
   mediaUsage?: MediaUsage;
 };
 
-export function MediaPicker({ label, value = "", mediaType, onChange, required = false, accept = acceptedMedia, allowExternalVideo = true, mediaUsage }: MediaPickerProps) {
+const defaultAspectOptions: Array<{ value: ResponsiveMediaAspectMode; label: string }> = [
+  { value: "auto", label: "Auto" },
+  { value: "square", label: "Quadrado 1:1" },
+  { value: "vertical", label: "Vertical 9:16" },
+  { value: "story", label: "Story/Reels" },
+  { value: "portrait", label: "Retrato 4:5" },
+  { value: "horizontal", label: "Horizontal 16:9" },
+  { value: "banner", label: "Banner largo" },
+];
+
+export function MediaPicker({ label, value = "", mediaType, onChange, aspectValue, onAspectChange, fitValue, onFitChange, aspectOptions = defaultAspectOptions, required = false, accept = acceptedMedia, allowExternalVideo = true, mediaUsage }: MediaPickerProps) {
   const [uploading, setUploading] = useState(false);
   const [lastError, setLastError] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
@@ -59,6 +74,18 @@ export function MediaPicker({ label, value = "", mediaType, onChange, required =
   const [mediaAspectPreference, setMediaAspectPreference] = useState<ResponsiveMediaAspectMode>(profile.aspect);
   const [detectedUploadType, setDetectedUploadType] = useState<MediaType | "">("");
   const currentMediaType = detectedUploadType || mediaType || inferMediaType(value);
+  const selectedFitMode = fitValue || fitMode;
+  const selectedAspectPreference = aspectValue || mediaAspectPreference;
+
+  const updateFitMode = (nextFit: ResponsiveMediaFit) => {
+    setFitMode(nextFit);
+    onFitChange?.(nextFit);
+  };
+
+  const updateAspectPreference = (nextAspect: ResponsiveMediaAspectMode) => {
+    setMediaAspectPreference(nextAspect);
+    onAspectChange?.(nextAspect);
+  };
 
   const uploadFile = async (file?: File) => {
     if (!file) return;
@@ -194,21 +221,17 @@ export function MediaPicker({ label, value = "", mediaType, onChange, required =
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <label className="grid gap-1 text-xs font-semibold text-[var(--admin-muted)]">Comportamento
-              <select value={fitMode} onChange={event => setFitMode(event.target.value as ResponsiveMediaFit)} className="admin-input">
+              <select value={selectedFitMode} onChange={event => updateFitMode(event.target.value as ResponsiveMediaFit)} className="admin-input">
                 <option value="auto">Automático</option>
                 <option value="cover">Preencher/cortar</option>
                 <option value="contain">Mostrar inteiro</option>
               </select>
             </label>
             <label className="grid gap-1 text-xs font-semibold text-[var(--admin-muted)]">Proporção preferida
-              <select value={mediaAspectPreference} onChange={event => setMediaAspectPreference(event.target.value as ResponsiveMediaAspectMode)} className="admin-input">
-                <option value="auto">Auto</option>
-                <option value="square">Quadrado 1:1</option>
-                <option value="vertical">Vertical 9:16</option>
-                <option value="story">Story/Reels</option>
-                <option value="portrait">Retrato 4:5</option>
-                <option value="horizontal">Horizontal 16:9</option>
-                <option value="banner">Banner largo</option>
+              <select value={selectedAspectPreference} onChange={event => updateAspectPreference(event.target.value as ResponsiveMediaAspectMode)} className="admin-input">
+                {aspectOptions.map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </label>
           </div>
@@ -217,8 +240,8 @@ export function MediaPicker({ label, value = "", mediaType, onChange, required =
               src={value}
               type={(mediaType as MediaType) || inferMediaType(value)}
               autoPlay
-              preferredFit={fitMode}
-              aspectMode={mediaAspectPreference}
+              preferredFit={selectedFitMode}
+              aspectMode={selectedAspectPreference}
               className="max-h-[360px]"
               onAspectDetected={setDetectedAspect}
             />

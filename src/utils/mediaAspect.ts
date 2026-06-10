@@ -1,5 +1,5 @@
 export type ResponsiveMediaOrientation = "square" | "vertical" | "story" | "portrait" | "horizontal" | "banner";
-export type ResponsiveMediaAspectMode = "auto" | "square" | "vertical" | "horizontal" | "story" | "banner" | "portrait";
+export type ResponsiveMediaAspectMode = "auto" | "square" | "vertical" | "horizontal" | "wide" | "cinematic" | "story" | "banner" | "portrait";
 export type ResponsiveMediaFit = "cover" | "contain" | "auto";
 
 export type MediaAspectDetection = {
@@ -34,7 +34,7 @@ export function aspectRatioForMode(mode: ResponsiveMediaAspectMode, detected?: M
   if (orientation === "square") return "1 / 1";
   if (orientation === "story" || orientation === "vertical") return "9 / 16";
   if (orientation === "portrait") return "4 / 5";
-  if (orientation === "banner") return "21 / 9";
+  if (orientation === "banner" || orientation === "cinematic") return "21 / 9";
   return "16 / 9";
 }
 

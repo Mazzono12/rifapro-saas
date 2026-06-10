@@ -155,6 +155,7 @@ export interface InstantPrize {
   numeroPremiado: number;
   valorPremio: number;
   status: 'available' | 'claimed';
+  winnerName?: string;
 }
 
 export interface Story {

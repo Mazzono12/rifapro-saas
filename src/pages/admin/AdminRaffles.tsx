@@ -8,8 +8,15 @@ import { LootboxRulesEditor, normalizeLootboxConfig, RewardExperienceSelector } 
 import { defaultVideoConfig, mergeVideoConfig, VideoSettingsEditor } from "../../components/admin/VideoSettingsEditor";
 import { ResponsiveMediaFrame } from "../../components/ResponsiveMediaFrame";
 import { toast } from "sonner";
+import type { ResponsiveMediaAspectMode, ResponsiveMediaFit } from "../../utils/mediaAspect";
 
 const DEFAULT_MEDIADELIVERY_VIDEO_URL = "https://player.mediadelivery.net/play/670514/b27261d2-ffd9-4e39-aa23-d7c400424177";
+const homeMediaAspectOptions: Array<{ value: ResponsiveMediaAspectMode; label: string }> = [
+  { value: "wide", label: "Horizontal / Banner 16:9" },
+  { value: "story", label: "Vertical / Story 9:16" },
+  { value: "square", label: "Quadrado / Feed 1:1" },
+  { value: "portrait", label: "Retrato 4:5" },
+];
 
 function cleanMediaUrl(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -52,6 +59,11 @@ function normalizeRaffleMediaDraft(raffle: Partial<Raffle>) {
   }
 
   return next;
+}
+
+function getDefaultHomeMediaAspect(raffle: Partial<Raffle>): ResponsiveMediaAspectMode {
+  if (raffle.mediaAspect) return raffle.mediaAspect as ResponsiveMediaAspectMode;
+  return ["video", "youtube", "vimeo", "bunny"].includes(String(raffle.mediaType || "").toLowerCase()) ? "wide" : "portrait";
 }
 
 export function AdminRaffles() {
@@ -355,19 +367,28 @@ export function AdminRaffles() {
                     />
                   </div>
                   <div className="md:col-span-2">
+                    <div className="mb-3 rounded-2xl border border-neon-cyan/20 bg-neon-cyan/5 p-4">
+                      <p className="text-xs font-mono uppercase tracking-widest text-neon-cyan">Mídia da Home</p>
+                      <p className="mt-1 text-xs text-slate-400">Controla somente a mídia exibida na Home pública da campanha.</p>
+                    </div>
                     <MediaPicker
-                      label="Mídia da landing page"
+                      label="Mídia principal da Home"
                       mediaUsage="hero"
                       value={currentRaffle.mediaUrl || ""}
                       mediaType={currentRaffle.mediaType}
                       onChange={(mediaUrl, mediaType) => setCurrentRaffle({ ...currentRaffle, mediaUrl, mediaType })}
+                      aspectValue={getDefaultHomeMediaAspect(currentRaffle)}
+                      onAspectChange={(mediaAspect) => setCurrentRaffle({ ...currentRaffle, mediaAspect: mediaAspect as Raffle["mediaAspect"] })}
+                      fitValue={(currentRaffle.mediaFit || "cover") as ResponsiveMediaFit}
+                      onFitChange={(mediaFit) => setCurrentRaffle({ ...currentRaffle, mediaFit: mediaFit as Raffle["mediaFit"] })}
+                      aspectOptions={homeMediaAspectOptions}
                     />
                     <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                       <p className="mb-3 text-xs font-mono uppercase tracking-widest text-slate-400">Tipo da mídia principal</p>
                       <div className="grid gap-3 sm:grid-cols-2">
                         {[
-                          { value: "image", label: "Imagem", help: "A Home usa proporção 5:6 automaticamente." },
-                          { value: "video", label: "Vídeo", help: "A Home usa proporção 16:9 automaticamente." }
+                          { value: "image", label: "Imagem", help: "Escolha abaixo o formato visual da foto ou banner." },
+                          { value: "video", label: "Vídeo", help: "Escolha abaixo o formato visual do player." }
                         ].map(option => {
                           const currentType = String(currentRaffle.mediaType || "image").toLowerCase();
                           const selected = option.value === "video"
@@ -394,11 +415,34 @@ export function AdminRaffles() {
                           );
                         })}
                       </div>
+                      <label className="mt-4 block text-xs font-mono text-slate-400 mb-1">Formato da mídia da Home</label>
+                      <select
+                        className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                        value={getDefaultHomeMediaAspect(currentRaffle)}
+                        onChange={e => setCurrentRaffle({ ...currentRaffle, mediaAspect: e.target.value as Raffle["mediaAspect"] })}
+                      >
+                        {homeMediaAspectOptions.map(option => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                      <label className="mt-4 block text-xs font-mono text-slate-400 mb-1">Enquadramento da mídia da Home</label>
+                      <select
+                        className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                        value={currentRaffle.mediaFit || "cover"}
+                        onChange={e => setCurrentRaffle({ ...currentRaffle, mediaFit: e.target.value as Raffle["mediaFit"] })}
+                      >
+                        <option value="cover">Preencher o card</option>
+                        <option value="contain">Mostrar mídia inteira</option>
+                      </select>
                     </div>
                   </div>
                   <div className="md:col-span-2">
+                    <div className="mb-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                      <p className="text-xs font-mono uppercase tracking-widest text-slate-300">Mídia do Checkout</p>
+                      <p className="mt-1 text-xs text-slate-500">Controla somente a mídia exibida durante a revisão e pagamento.</p>
+                    </div>
                     <MediaPicker
-                      label="Mídia exclusiva do checkout"
+                      label="Mídia principal do Checkout"
                       mediaUsage="card"
                       value={currentRaffle.checkoutMediaUrl || ""}
                       mediaType={currentRaffle.checkoutMediaType}
@@ -412,7 +456,7 @@ export function AdminRaffles() {
                     <label className="block text-xs font-mono text-slate-400 mb-1">Proporção do checkout</label>
                     <select
                       className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
-                      value={currentRaffle.checkoutMediaAspect || currentRaffle.mediaAspect || "wide"}
+                      value={currentRaffle.checkoutMediaAspect || "wide"}
                       onChange={e => setCurrentRaffle({ ...currentRaffle, checkoutMediaAspect: e.target.value as any })}
                     >
                       <option value="auto">Automático / altura real</option>
