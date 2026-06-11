@@ -11613,7 +11613,149 @@ async function startServer() {
   });
 
   app.get("/api/winners", (req, res) => {
-    res.json(winners.filter(item => item.tenant_id === resolveRequestTenantId(req)));
+    const tenantId = resolveRequestTenantId(req);
+    const publicWinners: any[] = [];
+    const seenIds = new Set<string>();
+    const tenantRaffles = raffles.filter(raffle => raffle.tenant_id === tenantId);
+    const raffleById = new Map(tenantRaffles.map(raffle => [raffle.id, raffle]));
+    const safeWinnerName = (value: unknown) => String(value || "").trim();
+    const formatMoney = (value: unknown) => {
+      const amount = Number(value);
+      if (!Number.isFinite(amount) || amount <= 0) return "";
+      return amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    };
+    const pushWinner = (item: any) => {
+      const winnerName = safeWinnerName(item?.winnerName || item?.ganhadorNome || item?.nomeGanhador);
+      if (!winnerName) return;
+      const id = String(item?.id || `${item?.sourceType || "winner"}-${winnerName}-${item?.raffleId || ""}-${item?.prizeDescription || ""}`);
+      if (seenIds.has(id)) return;
+      seenIds.add(id);
+      publicWinners.push({
+        id,
+        raffleId: item?.raffleId || "",
+        raffleName: String(item?.raffleName || "").trim(),
+        winnerName,
+        prizeDescription: String(item?.prizeDescription || "").trim(),
+        mediaUrl: String(item?.mediaUrl || ""),
+        mediaType: item?.mediaType || "image",
+        date: item?.date || "",
+        status: item?.status || "Confirmado",
+        active: item?.active !== false,
+        city: String(item?.city || item?.cidade || "").trim(),
+        state: String(item?.state || item?.estado || "").trim(),
+        category: String(item?.category || item?.categoria || item?.sourceType || "Sorteio").trim(),
+        description: String(item?.description || item?.descricao || "").trim(),
+        prizeValue: Number.isFinite(Number(item?.prizeValue || item?.valorPremio || item?.value)) ? Number(item?.prizeValue || item?.valorPremio || item?.value) : 0,
+        sourceType: item?.sourceType || item?.category || "Sorteio"
+      });
+    };
+
+    winners
+      .filter(item => item.tenant_id === tenantId)
+      .filter(item => (item as any).active !== false)
+      .forEach(item => pushWinner({ ...item, sourceType: (item as any).sourceType || (item as any).category || "Sorteio", status: (item as any).status || "Confirmado" }));
+
+    instantPrizes
+      .filter(prize => prize.tenant_id === tenantId && safeWinnerName((prize as any).winnerName || (prize as any).ganhadorNome || (prize as any).nomeGanhador))
+      .forEach(prize => {
+        const raffle = raffleById.get(prize.raffleId);
+        const prizeValue = formatMoney((prize as any).valorPremio);
+        pushWinner({
+          id: `super-cota-${prize.id}`,
+          raffleId: prize.raffleId,
+          raffleName: raffle?.title || "",
+          winnerName: (prize as any).winnerName || (prize as any).ganhadorNome || (prize as any).nomeGanhador,
+          prizeDescription: [`Super Cota ${String(prize.numeroPremiado)}`, prizeValue].filter(Boolean).join(" • "),
+          prizeValue: (prize as any).valorPremio,
+          mediaUrl: raffle?.mediaUrl || raffle?.image || "",
+          mediaType: raffle?.mediaType || "image",
+          date: (prize as any).claimedAt || (prize as any).updatedAt || raffle?.drawDate || "",
+          sourceType: "Super Cota"
+        });
+      });
+
+    tenantRaffles.forEach(raffle => {
+      const wheelSegments = Array.isArray((raffle as any).lootboxConfig?.wheelSegments) ? (raffle as any).lootboxConfig.wheelSegments : [];
+      wheelSegments.forEach((segment: any, index: number) => {
+        const reward = segment?.reward || {};
+        const prizeValue = formatMoney(reward.value);
+        pushWinner({
+          id: `roleta-${raffle.id}-${index}`,
+          raffleId: raffle.id,
+          raffleName: raffle.title || "",
+          winnerName: reward.winnerName || reward.ganhadorNome || reward.nomeGanhador,
+          prizeDescription: String(reward.name || reward.label || segment.label || prizeValue || "Roleta Premiada").trim(),
+          prizeValue: reward.value,
+          mediaUrl: raffle.mediaUrl || raffle.image || "",
+          mediaType: raffle.mediaType || "image",
+          date: reward.claimedAt || reward.updatedAt || raffle.drawDate || "",
+          sourceType: "Roleta"
+        });
+      });
+
+      const milestones = Array.isArray((raffle as any).lootboxConfig?.milestones) ? (raffle as any).lootboxConfig.milestones : [];
+      milestones.forEach((milestone: any, index: number) => {
+        const prizeValue = formatMoney(milestone.value);
+        pushWinner({
+          id: `caixinha-${raffle.id}-${index}`,
+          raffleId: raffle.id,
+          raffleName: raffle.title || "",
+          winnerName: milestone.winnerName || milestone.ganhadorNome || milestone.nomeGanhador,
+          prizeDescription: String(milestone.name || milestone.prize || prizeValue || "Caixinha Premiada").trim(),
+          prizeValue: milestone.value,
+          mediaUrl: raffle.mediaUrl || raffle.image || "",
+          mediaType: raffle.mediaType || "image",
+          date: milestone.claimedAt || milestone.updatedAt || raffle.drawDate || "",
+          sourceType: "Caixinha"
+        });
+      });
+    });
+
+    gamificationConfigs
+      .filter(config => config.tenant_id === tenantId)
+      .forEach(config => {
+        const raffle = raffleById.get(config.raffleId);
+        const scratchPrizes = Array.isArray((config as any).scratchcard?.prizes) ? (config as any).scratchcard.prizes : [];
+        scratchPrizes.forEach((prize: any, index: number) => {
+          const prizeValue = formatMoney(prize.value);
+          pushWinner({
+            id: `raspadinha-${config.raffleId}-${prize.id || index}`,
+            raffleId: config.raffleId,
+            raffleName: raffle?.title || "",
+            winnerName: prize.winnerName || prize.ganhadorNome || prize.nomeGanhador,
+            prizeDescription: String(prize.name || prize.label || prizeValue || "Raspadinha Premiada").trim(),
+            prizeValue: prize.value,
+            mediaUrl: raffle?.mediaUrl || raffle?.image || "",
+            mediaType: raffle?.mediaType || "image",
+            date: prize.claimedAt || prize.updatedAt || raffle?.drawDate || "",
+            sourceType: "Raspadinha"
+          });
+        });
+
+        const mysteryBoxes = Array.isArray((config as any).mysteryBox?.boxes) ? (config as any).mysteryBox.boxes : [];
+        mysteryBoxes.forEach((box: any, index: number) => {
+          const prizeValue = formatMoney(box.value);
+          pushWinner({
+            id: `caixinha-gamification-${config.raffleId}-${box.id || index}`,
+            raffleId: config.raffleId,
+            raffleName: raffle?.title || "",
+            winnerName: box.winnerName || box.ganhadorNome || box.nomeGanhador,
+            prizeDescription: String(box.prize || box.label || prizeValue || "Caixinha Premiada").trim(),
+            prizeValue: box.value,
+            mediaUrl: raffle?.mediaUrl || raffle?.image || "",
+            mediaType: raffle?.mediaType || "image",
+            date: box.claimedAt || box.updatedAt || raffle?.drawDate || "",
+            sourceType: "Caixinha"
+          });
+        });
+      });
+
+    publicWinners.sort((a, b) => {
+      const dateA = new Date(a.date || "").getTime();
+      const dateB = new Date(b.date || "").getTime();
+      return (Number.isFinite(dateB) ? dateB : 0) - (Number.isFinite(dateA) ? dateA : 0);
+    });
+    res.json(publicWinners);
   });
 
   app.get("/api/transparency", (req, res) => {
@@ -22810,9 +22952,18 @@ async function startServer() {
 
   // Admin: Winners CRUD
   app.post("/api/admin/winners", (req, res) => {
-    const newWinner = { id: createPublicId("W_"), ...normalizeMediaPayload(req.body), tenant_id: resolveRequestTenantId(req) };
+    const newWinner = { id: createPublicId("W_"), ...req.body, ...normalizeMediaPayload(req.body), tenant_id: resolveRequestTenantId(req), active: req.body.active !== false };
     winners.push(newWinner);
     res.json(newWinner);
+  });
+  app.put("/api/admin/winners/:id", (req, res) => {
+    const index = winners.findIndex(w => w.id === req.params.id && adminCanAccessTenant(req, w.tenant_id));
+    if (index === -1) {
+      res.status(404).json({ error: "Winner not found" });
+      return;
+    }
+    winners[index] = { ...winners[index], ...req.body, ...normalizeMediaPayload(req.body), tenant_id: winners[index].tenant_id, active: req.body.active !== false };
+    res.json(winners[index]);
   });
   app.delete("/api/admin/winners/:id", (req, res) => {
     winners = winners.filter(w => w.id !== req.params.id || !adminCanAccessTenant(req, w.tenant_id));

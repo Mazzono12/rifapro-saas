@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { Navbar } from "./components/Navbar";
+import { PublicBottomNav } from "./components/PublicBottomNav";
 import { SupportChat } from "./components/SupportChat";
 import { PremiumAtmosphere } from "./components/PremiumAtmosphere";
 import { ThemeProvider } from "./context/theme/ThemeContext";
@@ -79,6 +80,7 @@ function GlobalVideoGuard() {
 const Home = lazy(() => import("./pages/Home").then(module => ({ default: module.Home })));
 const RaffleDetails = lazy(() => import("./pages/RaffleDetails").then(module => ({ default: module.RaffleDetails })));
 const Fazendinha = lazy(() => import("./pages/Fazendinha").then(module => ({ default: module.Fazendinha })));
+const Winners = lazy(() => import("./pages/Winners").then(module => ({ default: module.Winners })));
 const NumberModePage = lazy(() => import("./pages/NumberModePage").then(module => ({ default: module.NumberModePage })));
 const Affiliates = lazy(() => import("./pages/Affiliates").then(module => ({ default: module.Affiliates })));
 const Login = lazy(() => import("./pages/auth/Login").then(module => ({ default: module.Login })));
@@ -176,6 +178,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 w-full relative z-10">
         <TenantOperationalGate>{children}</TenantOperationalGate>
       </main>
+      {isRaffleRoute && <PublicBottomNav />}
       <SupportChat />
     </div>
   );
@@ -300,7 +303,7 @@ export default function App() {
               <Route path="/transparencia" element={<Transparency />} />
               <Route path="/termos" element={<Transparency />} />
               <Route path="/termos-de-uso" element={<Transparency />} />
-              <Route path="/ganhadores" element={<Navigate to="/#ganhadores" replace />} />
+              <Route path="/ganhadores" element={<Winners />} />
               <Route path="/sorteio/:raffleId/auditoria" element={<DrawAudit />} />
               <Route path="/caixinhas" element={<Navigate to="/" replace />} />
               <Route path="/:mode" element={<NumberModePage />} />

@@ -178,6 +178,14 @@ export interface Winner {
   mediaUrl: string;
   mediaType: 'video' | 'image' | 'youtube' | 'vimeo' | 'bunny';
   date: string;
+  sourceType?: string;
+  status?: string;
+  active?: boolean;
+  city?: string;
+  state?: string;
+  category?: string;
+  description?: string;
+  prizeValue?: number;
 }
 
 export interface Purchase {

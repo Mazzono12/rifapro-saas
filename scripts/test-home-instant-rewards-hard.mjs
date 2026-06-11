@@ -163,17 +163,24 @@ includesAll(css, [
   ".cfx-reward-list",
   ".cfx-reward-card",
   ".cfx-reward-more",
+  "Home instant rewards: premium list layout",
+  "Final home reward palette: neon blue system style with slimmer pills",
   "data-reward-id=\"superCotas\"",
   "data-reward-id=\"mysteryBox\"",
   ".cfx-reward-section[data-reward-id=\"scratchcard\"]",
-  "grid-template-columns: minmax(0, .9fr) minmax(0, 1fr) minmax(0, .9fr) auto",
-  "grid-template-columns: minmax(0, 1fr) minmax(96px, .58fr) !important",
+  "grid-template-columns: minmax(0, 1fr) auto !important",
+  "border-radius: 22px !important",
+  "linear-gradient(100deg, rgba(5, 19, 37, .96), rgba(9, 19, 47, .94) 52%, rgba(7, 36, 58, .9))",
+  "min-height: 42px !important",
+  "background: linear-gradient(135deg, #0284c7, #06b6d4 48%, #2563eb) !important",
+  "content: \"Ganhador: \"",
+  "min-width: 92px !important",
   "grid-row: 1 / 3 !important",
   "repeat(2, minmax(0, 1fr))",
   "overflow: hidden",
   "text-overflow: ellipsis",
   "white-space: nowrap"
-], "CSS deve usar cards mobile premium alinhados ao mockup, sem tabela apertada nem overflow horizontal.");
+], "CSS deve usar lista premium mobile alinhada ao mockup, sem tabela apertada nem overflow horizontal.");
 includesNone(home, [
   "cfx-home-remaining",
   "cotas restantes"

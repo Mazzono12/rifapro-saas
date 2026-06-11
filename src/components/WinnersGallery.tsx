@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy, Calendar } from 'lucide-react';
+import { Calendar, CheckCircle2, Gift, Trophy } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ResponsiveMediaFrame } from './ResponsiveMediaFrame';
 import type { Winner } from '../types';
@@ -8,18 +8,27 @@ function normalizeWinners(payload: unknown): Winner[] {
   if (!Array.isArray(payload)) return [];
   return payload
     .filter((winner): winner is Partial<Winner> => Boolean(winner && typeof winner === "object"))
+    .filter(winner => Boolean(String(winner.winnerName || "").trim()))
     .map(winner => ({
-      id: String(winner.id || crypto.randomUUID()),
-      raffleName: String(winner.raffleName || "Campanha"),
-      winnerName: String(winner.winnerName || "Ganhador"),
-      prizeDescription: String(winner.prizeDescription || "Premio publicado"),
+      id: String(winner.id || `winner-${String(winner.winnerName).trim()}-${String(winner.prizeDescription || "").trim()}`),
+      raffleName: String(winner.raffleName || "").trim(),
+      winnerName: String(winner.winnerName || "").trim(),
+      prizeDescription: String(winner.prizeDescription || "").trim(),
       mediaUrl: String(winner.mediaUrl || ""),
       mediaType: winner.mediaType || "image",
-      date: winner.date || new Date().toISOString()
+      date: winner.date || "",
+      sourceType: String(winner.sourceType || "").trim(),
+      status: String(winner.status || "Confirmado").trim()
     } as Winner));
 }
 
-export function WinnersGallery() {
+function formatWinnerDate(date: string) {
+  const parsed = date ? new Date(date) : null;
+  if (!parsed || Number.isNaN(parsed.getTime())) return "Data a definir";
+  return parsed.toLocaleDateString('pt-BR');
+}
+
+export function WinnersGallery({ showEmpty = false }: { showEmpty?: boolean }) {
   const [winners, setWinners] = useState<Winner[]>([]);
 
   useEffect(() => {
@@ -29,24 +38,32 @@ export function WinnersGallery() {
       .catch(() => setWinners([]));
   }, []);
 
-  if (winners.length === 0) return null;
+  if (winners.length === 0) {
+    if (!showEmpty) return null;
+    return (
+      <section className="cfx-winners-page-gallery">
+        <div className="cfx-winner-empty">
+          <Trophy className="h-10 w-10" />
+          <p>Os ganhadores aparecerão aqui assim que forem confirmados.</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <div className="w-full relative">
+    <section className="cfx-winners-page-gallery w-full relative">
        <motion.div 
          initial={{ opacity: 0, y: 20 }}
          whileInView={{ opacity: 1, y: 0 }}
          viewport={{ once: true }}
          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-         className="text-center mb-16"
+         className="cfx-winners-gallery-heading text-center mb-8"
        >
-         <h2 className="text-3xl lg:text-5xl font-display font-bold text-white mb-4">Galeria de Ganhadores</h2>
-         <p className="text-slate-400 font-mono text-sm uppercase tracking-widest max-w-lg mx-auto">
-           Transparência materializada.
-         </p>
+         <h2>Ganhadores confirmados</h2>
+         <p>Pessoas reais. Prêmios reais. Transparência em cada entrega.</p>
        </motion.div>
 
-       <div className="flex gap-5 overflow-x-auto overflow-y-hidden pb-4 pr-4 snap-x snap-mandatory scroll-smooth md:gap-8">
+       <div className="cfx-winners-grid">
          {winners.map((winner, idx) => (
            <motion.div 
              key={winner.id} 
@@ -54,42 +71,48 @@ export function WinnersGallery() {
              whileInView={{ opacity: 1, y: 0 }}
              viewport={{ once: true, margin: "-100px" }}
              transition={{ duration: 0.8, delay: idx * 0.1, ease: [0.16, 1, 0.3, 1] }}
-             className="glass-card group w-[82vw] min-w-[82vw] max-w-[360px] shrink-0 snap-start sm:w-[360px] sm:min-w-[360px] lg:w-[380px] lg:min-w-[380px]"
+             className="cfx-winner-card group"
            >
-             <div className="aspect-[4/3] w-full relative border-b border-white/[0.05] overflow-hidden">
-                <ResponsiveMediaFrame
-                   src={winner.mediaUrl}
-                   type={winner.mediaType}
-                   alt={winner.winnerName}
-                   className="absolute inset-0 h-full w-full cursor-pointer rounded-none"
-                   mediaClassName="transform duration-1000 ease-out group-hover:scale-110"
-                   preferredFit="auto"
-                   aspectMode="auto"
-                   autoPlay={false}
-                   muted={false}
-                   controls
-                />
+             <div className="cfx-winner-media">
+                {winner.mediaUrl ? (
+                  <ResponsiveMediaFrame
+                     src={winner.mediaUrl}
+                     type={winner.mediaType}
+                     alt={winner.winnerName}
+                     className="absolute inset-0 h-full w-full cursor-pointer rounded-none"
+                     mediaClassName="transform duration-1000 ease-out group-hover:scale-105"
+                     preferredFit="auto"
+                     aspectMode="portrait"
+                     autoPlay={false}
+                     muted={false}
+                     controls
+                  />
+                ) : (
+                  <div className="cfx-winner-media-placeholder">
+                    <Trophy className="h-11 w-11" />
+                  </div>
+                )}
+                <span className="cfx-winner-source">{winner.sourceType || "Sorteio"}</span>
+                <div className="cfx-winner-play">
+                  <Trophy className="h-5 w-5" />
+                </div>
              </div>
-             <div className="p-8 relative">
-                <div className="absolute -top-10 right-8 w-14 h-14 bg-black/80 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center shadow-2xl z-10">
-                   <Trophy className="w-6 h-6 text-yellow-400" />
-                </div>
-                
-                <h3 className="text-2xl font-display font-bold text-white mb-1 pr-16 truncate">{winner.winnerName}</h3>
-                <p className="text-slate-400 font-mono text-xs uppercase tracking-wider mb-6 truncate">{winner.raffleName}</p>
-                
-                <p className="text-slate-300 text-sm mb-8 line-clamp-2 leading-relaxed">
-                  {winner.prizeDescription}
-                </p>
+             <div className="cfx-winner-body">
+                <h3>{winner.winnerName}</h3>
+                {winner.raffleName && <p className="cfx-winner-campaign">{winner.raffleName}</p>}
+                {winner.prizeDescription && (
+                  <p className="cfx-winner-prize"><Gift className="h-4 w-4" /> {winner.prizeDescription}</p>
+                )}
 
-                <div className="flex items-center gap-2 text-slate-500 font-mono text-xs border-t border-white/5 pt-4">
+                <div className="cfx-winner-meta">
                    <Calendar className="w-4 h-4" />
-                   {Number.isNaN(new Date(winner.date).getTime()) ? "Data a definir" : new Date(winner.date).toLocaleDateString('pt-BR')}
+                   {formatWinnerDate(winner.date)}
                 </div>
+                <span className="cfx-winner-status"><CheckCircle2 className="h-4 w-4" /> {winner.status || "Confirmado"}</span>
              </div>
            </motion.div>
          ))}
        </div>
-    </div>
+    </section>
   );
 }

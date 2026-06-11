@@ -68,6 +68,36 @@ function getPixQrImageSrc(purchase: any) {
   return `data:image/png;base64,${qrCode}`;
 }
 
+async function copyTextToClipboard(text: string) {
+  if (!text) return false;
+  try {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fallback abaixo cobre navegadores mobile em HTTP local.
+  }
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const copied = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return copied;
+  } catch {
+    return false;
+  }
+}
+
 function normalizePixPurchase<T extends Record<string, any> | null | undefined>(purchase: T): T {
   if (!purchase) return purchase;
   const pixPayload = getPixPayload(purchase);
@@ -346,7 +376,11 @@ export function RaffleDetails() {
       toast.error("PIX copia e cola indisponivel", { description: "Use o QR Code exibido ou gere um novo PIX se o problema continuar." });
       return;
     }
-    await navigator.clipboard.writeText(pixPayload);
+    const copiedOk = await copyTextToClipboard(pixPayload);
+    if (!copiedOk) {
+      toast.error("Nao foi possivel copiar o PIX", { description: "Toque e segure no codigo copia e cola para selecionar manualmente." });
+      return;
+    }
     setCopied(true);
     toast.success("PIX copia e cola copiado");
     window.setTimeout(() => setCopied(false), 1800);
@@ -557,8 +591,6 @@ function RafflePremiumPage({
         <section className="cfx-detail-main">
           <RafflePremiumHero raffle={raffle} mediaUrl={mediaUrl} isVideo={isVideo} />
           <RaffleTitleBlock raffle={raffle} />
-          {raffle.showHomePrice !== false && <RaffleMetricCard icon={<Ticket />} label="POR APENAS" value={formatCurrency(unitPrice)} tone="gold" />}
-          <RaffleTopBuyersPanel ranking={ranking} />
           <NumberSelectionPanel
             tickets={tickets}
             remaining={remaining}
@@ -569,6 +601,8 @@ function RafflePremiumPage({
             onParticipate={onParticipate}
             isSubmitting={isSubmitting}
           />
+          {raffle.showHomePrice !== false && <RaffleMetricCard icon={<Ticket />} label="POR APENAS" value={formatCurrency(unitPrice)} tone="gold" />}
+          <RaffleTopBuyersPanel ranking={ranking} />
           <SuperCotasPanel prizes={prizes} />
         </section>
       </div>
@@ -1059,10 +1093,6 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
       ? { icon: <Trophy />, title: "Ranking", detail: "Top Compradores", tone: "gold" }
       : null
   ].filter(Boolean) as Array<{ icon: React.ReactNode; title: string; detail: string; tone: string }>;
-  const reservationMinutes = Number((props.raffle as any).reservationMinutes || (props.raffle.pixConfig as any)?.reservationMinutes || 0);
-  const reserveExpiresAt = useMemo(() => new Date(Date.now() + Math.max(1, reservationMinutes || 5) * 60 * 1000).toISOString(), [reservationMinutes]);
-  const reserveCountdown = useCountdown(reserveExpiresAt);
-
   const handleReviewSubmit = (event: React.FormEvent) => {
     if (needsCustomerData && !showRegistration) {
       event.preventDefault();
@@ -1183,15 +1213,6 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
           </div>
         </section>
       )}
-
-      <section className="cfx-review-reserve">
-        <Clock3 />
-        <div>
-          <h3>RESERVA DO PIX</h3>
-          <p>Após gerar o PIX, você terá tempo limitado para pagar.</p>
-        </div>
-        <strong>{String(reserveCountdown.minutes).padStart(2, "0")}:{String(reserveCountdown.seconds).padStart(2, "0")}<small>MINUTOS</small></strong>
-      </section>
 
       <section className="cfx-review-security">
         {[

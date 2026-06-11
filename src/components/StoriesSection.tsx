@@ -17,7 +17,7 @@ function normalizeStories(payload: unknown): Story[] {
       duration: Math.max(1, Number.isFinite(Number(story.duration)) ? Number(story.duration) : 5),
       active: story.active !== false
     } as Story))
-    .filter(story => story.active);
+    .filter(story => story.active && Boolean(story.mediaUrl));
 }
 
 function storiesDebug(event: string, detail: Record<string, unknown>) {
@@ -71,8 +71,10 @@ export function StoriesSection() {
     });
   }, []);
 
+  if (stories.length === 0) return null;
+
   return (
-    <div className="w-full">
+    <div className="cfx-stories-section w-full">
       <div className="no-scrollbar flex gap-4 overflow-x-auto px-4 pb-4 md:justify-center">
         {stories.map((story, idx) => (
           <motion.button 

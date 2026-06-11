@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, Crown, Gift, Goal, Headphones, Home as HomeIcon, Instagram, LockKeyhole, MessageCircle, ShieldCheck, Ticket, Trophy, TrendingUp } from "lucide-react";
+import { ChevronRight, Crown, Gift, Goal, Headphones, LockKeyhole, ShieldCheck, Ticket, Trophy, TrendingUp } from "lucide-react";
 import { useRaffles } from "../hooks/useRaffles";
 import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout } from "../components/premium/PremiumUI";
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import type { Raffle } from "../types";
 import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
+import { StoriesSection } from "../components/StoriesSection";
 import { cn } from "../lib/utils";
 import type { ResponsiveMediaAspectMode, ResponsiveMediaFit } from "../utils/mediaAspect";
 
@@ -289,10 +290,10 @@ function HomeContent() {
   return (
     <PremiumPageLayout className="cfx-home-page">
       <main className="cfx-home-shell" aria-label="Home CIFHER Prime">
+        <StoriesSection />
         <Hero raffle={featuredRaffle} ranking={ranking} />
         <HomeInstantRewards rewards={instantRewards} />
         <HomeTrustRail />
-        <HomeBottomNav />
       </main>
     </PremiumPageLayout>
   );
@@ -737,43 +738,6 @@ function HomeTrustRail() {
         <span key={seal.title} className={seal.tone === "support" ? "is-support" : ""}>{seal.icon}<small>{seal.title}</small></span>
       ))}
     </section>
-  );
-}
-
-function HomeBottomNav() {
-  const [settings, setSettings] = useState<any>(null);
-  useEffect(() => {
-    fetch("/api/settings")
-      .then(res => res.ok ? res.json() : null)
-      .then(payload => setSettings(payload && typeof payload === "object" && !Array.isArray(payload) ? payload : null))
-      .catch(() => setSettings(null));
-  }, []);
-  const whatsappUrl = typeof settings?.socialLinks?.whatsapp === "string" ? settings.socialLinks.whatsapp.trim() : "";
-  const instagramUrl = typeof settings?.socialLinks?.instagram === "string" ? settings.socialLinks.instagram.trim() : "";
-  const items = [
-    { label: "Início", to: "/", icon: <HomeIcon /> },
-    { label: "Sorteios", to: "/sorteios", icon: <Gift /> },
-    { label: "Ganhadores", to: "/ganhadores", icon: <Trophy /> },
-    ...(whatsappUrl ? [{ label: "WhatsApp", to: whatsappUrl, icon: <MessageCircle />, external: /^https?:\/\//i.test(whatsappUrl), tone: "whatsapp" }] : []),
-    ...(instagramUrl ? [{ label: "Instagram", to: instagramUrl, icon: <Instagram />, external: /^https?:\/\//i.test(instagramUrl), tone: "instagram" }] : [])
-  ];
-
-  return (
-    <nav className="cfx-home-bottom-nav" data-count={items.length} aria-label="Navegação principal">
-      {items.map((item, index) => (
-        item.external ? (
-          <a href={item.to} key={item.label} target="_blank" rel="noreferrer" className={cn(index === 0 ? "is-active" : "", item.tone === "whatsapp" ? "is-whatsapp" : "", item.tone === "instagram" ? "is-instagram" : "")}>
-            {item.icon}
-            <span>{item.label}</span>
-          </a>
-        ) : (
-          <Link to={item.to} key={item.label} className={cn(index === 0 ? "is-active" : "", item.tone === "whatsapp" ? "is-whatsapp" : "", item.tone === "instagram" ? "is-instagram" : "")}>
-            {item.icon}
-            <span>{item.label}</span>
-          </Link>
-        )
-      ))}
-    </nav>
   );
 }
 

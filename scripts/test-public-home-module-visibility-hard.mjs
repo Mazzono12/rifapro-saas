@@ -19,6 +19,7 @@ function hasNone(content, tokens, context) {
 
 const home = read("src/pages/Home.tsx");
 const navbar = read("src/components/Navbar.tsx");
+const publicBottomNav = read("src/components/PublicBottomNav.tsx");
 const supportChat = read("src/components/SupportChat.tsx");
 const footer = read("src/components/Footer.tsx");
 const app = read("src/App.tsx");
@@ -75,8 +76,6 @@ hasAll(home, [
   "function HomeTrustRail",
   "className=\"cfx-home-trust-rail\"",
   "Selos de confiança",
-  "function HomeBottomNav",
-  "className=\"cfx-home-bottom-nav\"",
   "isVideoMediaType",
   "isStoryFirstVideoSource",
   "resolveHomeMediaAspect",
@@ -96,11 +95,27 @@ hasAll(home, [
   "safeText(raffle.homeHighlightText",
   "raffle.showHomeText !== false",
   "formatHomeDrawText(raffle.drawDate)",
-  "label: \"WhatsApp\"",
-  "label: \"Instagram\"",
   "rewardWinnerName",
   "buyerName: rewardWinnerName"
 ], "Home Premium deve expor contratos visuais novos da Fase 01");
+
+hasNone(home, [
+  "function HomeBottomNav",
+  "className=\"cfx-home-bottom-nav\""
+], "Home deve usar o rodape global novo em vez do rodape antigo local");
+
+hasAll(publicBottomNav, [
+  "export function PublicBottomNav",
+  "public-mobile-bottom-nav",
+  "label: \"Início\"",
+  "label: \"Sorteios\"",
+  "label: \"Ganhadores\"",
+  "label: \"WhatsApp\"",
+  "label: \"Instagram\"",
+  "to: \"/ganhadores\"",
+  "settings?.socialLinks?.whatsapp",
+  "settings?.socialLinks?.instagram"
+], "Rodape global deve substituir o rodape antigo da Home");
 
 hasNone(home, [
   "className=\"cfx-home-play\"",
@@ -143,7 +158,7 @@ hasAll(css, [
   ".cfx-home-secondary",
   ".cfx-top-buyers",
   ".cfx-home-trust-rail",
-  ".cfx-home-bottom-nav",
+  ".public-mobile-bottom-nav",
   ".cfx-detail-layout--single",
   ".cfx-detail-ranking",
   ".cfx-premium-media-placeholder",
@@ -261,32 +276,48 @@ hasNone(raffleDetails, [
 hasNone(css, [
   ".cfx-auto-number-note"
 ], "CSS nao deve manter bloco visual do aviso removido.");
+hasAll(css, [
+  ".cfx-detail-buybox .cfx-quantity-control input",
+  "font-size: clamp(1.65rem, 7.5vw, 2.35rem)"
+], "Numero selecionado na escolha rapida deve ficar destacado no mobile.");
+hasAll(css, [
+  "PIX payment stage readability",
+  ".cfx-pix-premium .cfx-pix-campaign strong",
+  ".cfx-pix-premium .cfx-pix-summary-card .cfx-info-card p:last-child",
+  "font-size: clamp(1.75rem, 6.7vw, 2.45rem)",
+  ".cfx-pix-premium .cfx-pix-timer-card strong",
+  "font-size: clamp(3.15rem, 12vw, 4.35rem)",
+  ".cfx-pix-premium .cfx-pix-trust-card strong"
+], "Tela PIX deve manter textos e numeros legiveis no mobile.");
 hasAll(raffleDetails, [
   "cfx-detail-layout cfx-detail-layout--single",
   "<RaffleTitleBlock raffle={raffle} />",
+  "<NumberSelectionPanel",
   "raffle.showHomePrice !== false",
   "<RaffleMetricCard icon={<Ticket />} label=\"POR APENAS\"",
   "<RaffleTopBuyersPanel ranking={ranking} />",
-  "<NumberSelectionPanel",
   "[raffle.salesEndAt, raffle.countdownEndAt, raffle.drawDate]",
-  "Ranking em apuração com dados reais da campanha."
-], "Pagina da rifa deve ordenar banner, nome, valor, ranking e quantidade com dados reais.");
+  "Ranking em apuração com dados reais da campanha.",
+  "copyTextToClipboard",
+  "document.execCommand(\"copy\")",
+  "Nao foi possivel copiar o PIX"
+], "Pagina da rifa deve ordenar banner, nome, escolha rapida, valor e ranking com dados reais.");
 assert.ok(
-  raffleDetails.indexOf("<RaffleTitleBlock raffle={raffle} />") < raffleDetails.indexOf("<RaffleMetricCard icon={<Ticket />} label=\"POR APENAS\""),
-  "Nome do sorteio deve aparecer antes do valor da cota na tela da rifa."
+  raffleDetails.indexOf("<RaffleTitleBlock raffle={raffle} />") < raffleDetails.indexOf("<NumberSelectionPanel"),
+  "Escolha rapida deve aparecer logo abaixo do nome do sorteio."
+);
+assert.ok(
+  raffleDetails.indexOf("<NumberSelectionPanel") < raffleDetails.indexOf("<RaffleMetricCard icon={<Ticket />} label=\"POR APENAS\""),
+  "Escolha rapida deve aparecer antes do valor da cota."
 );
 assert.ok(
   raffleDetails.indexOf("<RaffleMetricCard icon={<Ticket />} label=\"POR APENAS\"") < raffleDetails.indexOf("<RaffleTopBuyersPanel ranking={ranking} />"),
   "Valor da cota deve aparecer antes do ranking."
 );
-assert.ok(
-  raffleDetails.indexOf("<RaffleTopBuyersPanel ranking={ranking} />") < raffleDetails.indexOf("<NumberSelectionPanel"),
-  "Ranking deve aparecer antes da escolha de quantidade."
-);
-assert.ok(
-  raffleDetails.indexOf("<RaffleMetricCard icon={<Ticket />} label=\"POR APENAS\"") < raffleDetails.indexOf("<NumberSelectionPanel"),
-  "Valor da cota deve aparecer antes da escolha de quantidade."
-);
+hasNone(raffleDetails, [
+  "RESERVA DO PIX",
+  "reserveCountdown"
+], "Tela de revisao do checkout nao deve renderizar cronometro visual de reserva do PIX.");
 hasAll(adminConfig, [
   "publicModules",
   "updatePublicModules",
