@@ -22510,6 +22510,31 @@ async function startServer() {
       res.status(404).json({ error: "Purchase not found" });
       return;
     }
+    const blockedFinancialFields = ["status", "paymentStatus", "statusPagamento", "paid", "confirmed", "received", "completed", "approved", "amount", "valorPago", "paidAt", "confirmedAt"];
+    const attemptedFinancialFields = blockedFinancialFields.filter(field => Object.prototype.hasOwnProperty.call(req.body || {}, field));
+    if (attemptedFinancialFields.length) {
+      const attemptedStatus = String(req.body?.status || req.body?.paymentStatus || req.body?.statusPagamento || req.body?.paid || req.body?.confirmed || req.body?.received || req.body?.completed || req.body?.approved || "");
+      recordSecurityEvent({
+        tenant_id: purchase.tenant_id,
+        action: "PURCHASE_FINANCIAL_STATUS_UPDATE_BLOCKED",
+        ip: String(req.ip || req.socket.remoteAddress || ""),
+        status: "WARN",
+        severity: "high",
+        actor: getAuthSession(req)?.email,
+        detail: `${purchase.purchaseId}: fields=${attemptedFinancialFields.join(",")}; status=${attemptedStatus || "n/a"}; reason=${String(req.body?.reason || "").slice(0, 180)}`
+      });
+      recordAuditLedger(req, {
+        tenant_id: purchase.tenant_id,
+        action: "PURCHASE_FINANCIAL_STATUS_UPDATE_BLOCKED",
+        resource_type: "purchase",
+        resource_id: purchase.purchaseId,
+        before_data: deepClone(purchase),
+        after_data: { blocked: true, fields: attemptedFinancialFields, attemptedStatus },
+        reason: String(req.body?.reason || "Tentativa bloqueada de alteracao financeira").slice(0, 240)
+      });
+      res.status(403).json({ error: "Status financeiro deve ser alterado apenas pela confirmação manual auditada ou gateway." });
+      return;
+    }
     let reason = "";
     try {
       reason = requireAuditReason(req.body.reason);
@@ -22523,8 +22548,6 @@ async function startServer() {
       res.status(404).json({ error: "Customer not found" });
       return;
     }
-    purchase.status = req.body.status || purchase.status;
-    purchase.amount = req.body.amount !== undefined ? Number(req.body.amount) : purchase.amount;
     if (customer) {
       purchase.customer = customer;
       purchase.contact = customer.phone;

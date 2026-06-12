@@ -114,11 +114,44 @@ try {
 
   const raffle = await createRaffle(headersA, "PIX Safety");
   const pending = await buy("cliente-a.meudominio.com", raffle.id, "10000");
+  const pendingApprove = await buy("cliente-a.meudominio.com", raffle.id, "10001");
 
   const statusPending = await json(`/api/checkout/orders/${pending.purchaseId}/status`, { headers: { "x-forwarded-host": "cliente-a.meudominio.com" } });
   assert.equal(statusPending.response.status, 200);
   assert.equal(statusPending.body.paymentStatus, "pending", "Verificar pagamento nao marca como pago.");
   assert.equal(statusPending.body.paid, false);
+
+  for (const forbiddenStatus of ["paid", "confirmed", "received"]) {
+    const blocked = await json(`/api/admin/purchases/${pending.purchaseId}`, {
+      method: "PUT",
+      headers: headersA,
+      body: JSON.stringify({ status: forbiddenStatus, reason: `Tentativa bloqueada ${forbiddenStatus}` })
+    });
+    assert.equal(blocked.response.status, 403, `PUT generico nao pode aceitar status ${forbiddenStatus}.`);
+    assert.equal(blocked.body.error, "Status financeiro deve ser alterado apenas pela confirmação manual auditada ou gateway.");
+  }
+
+  const blockedAmount = await json(`/api/admin/purchases/${pending.purchaseId}`, {
+    method: "PUT",
+    headers: headersA,
+    body: JSON.stringify({ amount: 0.01, reason: "Tentativa bloqueada de valor" })
+  });
+  assert.equal(blockedAmount.response.status, 403, "PUT generico nao pode alterar valor financeiro.");
+
+  const safeUpdate = await json(`/api/admin/purchases/${pending.purchaseId}`, {
+    method: "PUT",
+    headers: headersA,
+    body: JSON.stringify({ reason: "Atualizacao administrativa sem status financeiro" })
+  });
+  assert.equal(safeUpdate.response.status, 200, "PUT sem status financeiro deve continuar funcionando.");
+  assert.equal(safeUpdate.body.status, "pending", "PUT seguro nao pode alterar status pendente.");
+
+  const wrongTenantPut = await json(`/api/admin/purchases/${pending.purchaseId}`, {
+    method: "PUT",
+    headers: headersB,
+    body: JSON.stringify({ status: "paid", reason: "Tentativa cruzada" })
+  });
+  assert.equal(wrongTenantPut.response.status, 404, "Admin de outro tenant nao altera compra pelo PUT generico.");
 
   const clientManual = await json(`/api/admin/orders/${pending.purchaseId}/manual-confirm-payment`, { method: "POST", headers: { "x-forwarded-host": "cliente-a.meudominio.com" }, body: JSON.stringify({ reason: "fraude" }) });
   assert.equal(clientManual.response.status, 401, "Cliente nao chama rota manual admin.");
@@ -144,6 +177,15 @@ try {
 
   const paidStatus = await json(`/api/checkout/orders/${pending.purchaseId}/status`, { headers: { "x-forwarded-host": "cliente-a.meudominio.com" } });
   assert.equal(paidStatus.body.paymentStatus, "paid", "Pagamento pago mostra estado correto.");
+
+  const approve = await json(`/api/admin/purchases/${pendingApprove.purchaseId}/approve`, {
+    method: "POST",
+    headers: headersA,
+    body: JSON.stringify({ reason: "Comprovante conferido pela rota approve" })
+  });
+  assert.equal(approve.response.status, 200, "Rota approve auditada continua confirmando pagamento.");
+  assert.equal(approve.body.status, "paid", "Approve continua usando confirmacao segura.");
+  assert.equal(approve.body.numeros.length, 2, "Approve continua liberando cotas corretamente.");
 
   console.log("PASS: botoes e endpoints de confirmacao PIX seguros, auditados e idempotentes.");
 } catch (error) {

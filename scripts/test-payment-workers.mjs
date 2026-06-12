@@ -6,14 +6,18 @@ const baseUrl = `http://127.0.0.1:${port}`;
 const env = {
   ...process.env,
   PORT: String(port),
-  NODE_ENV: "production",
+  NODE_ENV: "test",
   SUPABASE_URL: "",
   VITE_SUPABASE_URL: "",
   SUPABASE_SERVICE_ROLE_KEY: "",
   SUPABASE_SERVICE_KEY: "",
   SUPERADMIN_EMAIL: "superadmin.payment-workers@test.local",
   SUPERADMIN_PASSWORD: "SenhaSuperadmin123!",
-  JWT_SECRET: "test-payment-workers-jwt-secret-long-value",
+  JWT_SECRET: "A9qL7vR2mP8xZ4nT6bY3cD5fG1hJ0kW2",
+  SESSION_SECRET: "Z8xC6vB4nM2qW9eR7tY5uI3oP1aS0dF6",
+  STORAGE_DRIVER: "memory",
+  PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
+  ADMIN_BASE_URL: `http://127.0.0.1:${port}/admin`,
   GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-payment-workers-gateway-credentials-key"
 };
 
@@ -22,22 +26,25 @@ const server = spawn(process.execPath, ["dist/server.js"], {
   env,
   stdio: ["ignore", "pipe", "pipe"]
 });
+let serverOutput = "";
+server.stdout.on("data", chunk => { serverOutput += chunk.toString(); });
+server.stderr.on("data", chunk => { serverOutput += chunk.toString(); });
 
 async function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function waitForServer() {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
     try {
       const response = await fetch(`${baseUrl}/api/auth/session`);
-      if (response.status >= 400) return;
+      if (response.status > 0) return;
     } catch {
       // Server is still starting.
     }
     await wait(100);
   }
-  throw new Error("Servidor de teste nao iniciou a tempo.");
+  throw new Error(`Servidor de teste nao iniciou a tempo.\n${serverOutput}`);
 }
 
 async function request(path, options = {}) {
