@@ -104,6 +104,10 @@ function safeRecord(value: unknown): Record<string, any> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {};
 }
 
+function safeList<T = unknown>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
 function normalizeProviderId(value: unknown) {
   const normalized = safeText(value, "mercadopago").trim().toLowerCase().replace(/[\s_-]+/g, "");
   return gatewayIds.includes(normalized) ? normalized : "mercadopago";
@@ -278,9 +282,7 @@ function hasGatewaySecret(value: unknown) {
 
 function validateAsaasGateway(config: any) {
   const missing = [
-    !hasGatewaySecret(config.asaas?.apiKey) && "API Key",
-    !hasGatewaySecret(config.asaas?.userAgent) && "User-Agent",
-    !hasGatewaySecret(config.asaas?.webhookSecret) && "Webhook Token"
+    !hasGatewaySecret(config.asaas?.apiKey) && "API Key"
   ].filter(Boolean);
   if (missing.length) {
     throw new Error(`Asaas incompleto: informe ${missing.join(", ")} antes de salvar.`);
@@ -411,12 +413,24 @@ export function AdminPaymentGateways() {
 
   const updateGateway = (gateway: string, field: string, value: string) => {
     const normalized = normalizeGateways(gateways);
+    const shouldActivateAsaas = gateway === "asaas" && String(value || "").trim().length > 0;
+    const nextGateway = {
+      ...normalized[gateway],
+      [field]: value,
+      ...(gateway === "asaas" ? { webhookUrl: "/api/webhooks/asaas" } : {})
+    };
     setGateways({
       ...normalized,
-      [gateway]: {
-        ...normalized[gateway],
-        [field]: value
-      }
+      ...(shouldActivateAsaas ? { active: "asaas" } : {}),
+      [gateway]: nextGateway,
+      ...(shouldActivateAsaas ? {
+        pix: {
+          ...normalized.pix,
+          enabled: true,
+          sandbox: field === "environment" ? value !== "production" : nextGateway.environment !== "production",
+          webhookUrl: "/api/webhooks/asaas"
+        }
+      } : {})
     });
     setHasPendingChanges(true);
   };
@@ -705,7 +719,7 @@ export function AdminPaymentGateways() {
                         <GatewayInput label="Chave privada" type="password" value={gateways.asaas?.apiKey || ''} onChange={value => updateGateway('asaas', 'apiKey', value)} />
                         <GatewayInput label="Nome da aplicação / User-Agent" value={gateways.asaas?.userAgent || ''} onChange={value => updateGateway('asaas', 'userAgent', value)} />
                         <GatewayInput label="Chave de segurança" type="password" value={gateways.asaas?.webhookSecret || ''} onChange={value => updateGateway('asaas', 'webhookSecret', value)} />
-                        <GatewayInput label="Canal de notificação" type="password" value={gateways.asaas?.webhookUrl || '/api/webhooks/asaas'} onChange={value => updateGateway('asaas', 'webhookUrl', value)} />
+                        <GatewayInput label="Canal de notificação" value="/api/webhooks/asaas" onChange={() => updateGateway('asaas', 'webhookUrl', '/api/webhooks/asaas')} help="Webhook oficial do Asaas neste sistema. A API Key deve ficar somente em Chave privada." />
                         <GatewayInput label="Prazo de expiração do pedido (min)" value={gateways.asaas?.orderExpirationMinutes || '15'} onChange={value => updateGateway('asaas', 'orderExpirationMinutes', value)} />
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Liberar cotas em</label>
@@ -898,6 +912,7 @@ export function AdminPaymentGateways() {
 
 function PaymentQueuesDashboard({ dashboard, processing, onRefresh, onProcess }: { dashboard: any; processing: boolean; onRefresh: () => void; onProcess: () => void }) {
   const counts = dashboard?.counts || {};
+  const gatewayHealthLogs = safeList<any>(dashboard?.logs?.gatewayHealth);
   const cards = [
     ["Confirmações", counts.webhook],
     ["Baixa", counts.settlement],
@@ -932,14 +947,14 @@ function PaymentQueuesDashboard({ dashboard, processing, onRefresh, onProcess }:
           </div>
         ))}
       </div>
-      {!!dashboard?.logs?.gatewayHealth?.length && (
+      {!!gatewayHealthLogs.length && (
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-left text-xs text-slate-300">
             <thead className="text-[10px] uppercase tracking-widest text-slate-500">
               <tr><th className="py-2 pr-4">Gateway</th><th className="py-2 pr-4">Situação</th><th className="py-2 pr-4">Última atualização</th><th className="py-2">Mensagem</th></tr>
             </thead>
             <tbody>
-              {dashboard.logs.gatewayHealth.map((item: any) => (
+              {gatewayHealthLogs.map((item: any) => (
                 <tr key={`${item.provider}-${item.lastEventAt}`} className="border-t border-white/5">
                   <td className="py-2 pr-4">{friendlyGatewayName(item.provider)}</td>
                   <td className="py-2 pr-4">{friendlyGatewayStatus(item.status)}</td>
@@ -1011,6 +1026,7 @@ function GenericGatewayCard({
 }
 
 function GatewayTest({ gateway, result, testing, onTest }: { gateway: string; result?: any; testing: boolean; onTest: (gateway: string) => void }) {
+  const issues = safeList<string>(result?.issues).filter(Boolean);
   return (
     <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3">
       <div className="flex items-center justify-between gap-3">
@@ -1023,7 +1039,7 @@ function GatewayTest({ gateway, result, testing, onTest }: { gateway: string; re
         <div className="mt-3 space-y-2 text-xs">
           <p className={result.ok ? "text-emerald-300" : "text-amber-300"}>{result.ok ? "Configuração coerente" : "Ajustes necessários"}</p>
           <p className="text-slate-500">Canal de notificação validado pelo sistema.</p>
-          {!!result.issues?.length && <p className="text-amber-200">{result.issues.join(" • ")}</p>}
+          {!!issues.length && <p className="text-amber-200">{issues.join(" • ")}</p>}
         </div>
       )}
     </div>
