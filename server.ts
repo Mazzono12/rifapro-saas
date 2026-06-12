@@ -20351,6 +20351,58 @@ async function startServer() {
       res.status(200).json({ success: false, ignored: true, reason: "payment_not_found" });
       return;
     }
+    let verifiedPayload = payload;
+    let verifiedStatus = rawStatus;
+    if (parsed.shouldRelease && payment) {
+      const asaas = getAsaasProvider(tenantId);
+      const remotePaymentId = String(payment.provider_payment_id || payment.asaas_payment_id || asaasPaymentId || parsed.paymentId || "");
+      if (!asaas || !remotePaymentId) {
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment.order_id || purchaseIdToConfirm || undefined, status: "failed", message: "Falha ao validar pagamento Asaas: configuracao ou payment id ausente", statusCode: 503, eventStatus: rawStatus });
+        const event = webhookEvents.find(item => item.id === eventKey);
+        if (event) event.error_message = "Validacao remota Asaas indisponivel";
+        res.status(503).json({ error: "Falha ao validar pagamento Asaas", eventId: eventKey });
+        return;
+      }
+      try {
+        const remote = await asaas.provider.getPayment(remotePaymentId);
+        const remoteStatus = String(remote.status || "").toUpperCase();
+        if (!isPaidAsaasEvent(tenantId, remoteStatus)) {
+          recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment.order_id || purchaseIdToConfirm || undefined, status: "ignored", message: "Status remoto Asaas nao confirma pagamento; baixa bloqueada", statusCode: 202, eventStatus: remoteStatus || rawStatus });
+          const event = webhookEvents.find(item => item.id === eventKey);
+          if (event) {
+            event.processed = true;
+            event.processed_at = new Date().toISOString();
+            event.error_message = `Status remoto Asaas nao pago: ${remoteStatus || "sem_status"}`;
+          }
+          res.status(202).json({ success: true, ignored: true, reason: "remote_status_not_paid", status: remoteStatus });
+          return;
+        }
+        verifiedStatus = remoteStatus || rawStatus;
+        verifiedPayload = {
+          ...payload,
+          payment: {
+            ...paymentPayload,
+            ...remote,
+            id: remotePaymentId,
+            externalReference: String(remote.externalReference || paymentPayload.externalReference || payment.order_id || purchaseIdToConfirm || "")
+          },
+          asaasRemoteVerified: true
+        };
+        const event = webhookEvents.find(item => item.id === eventKey);
+        if (event) {
+          event.payload = verifiedPayload;
+          event.status = verifiedStatus;
+        }
+      } catch (error) {
+        const providerError = error instanceof AsaasProviderError ? error : null;
+        const message = providerError?.message || (error instanceof Error ? error.message : "Falha ao consultar pagamento Asaas");
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment.order_id || purchaseIdToConfirm || undefined, status: "failed", message: `Falha ao consultar pagamento Asaas antes da baixa: ${message}`, statusCode: providerError?.status || 503, eventStatus: rawStatus });
+        const event = webhookEvents.find(item => item.id === eventKey);
+        if (event) event.error_message = "Falha ao consultar pagamento Asaas";
+        res.status(503).json({ error: "Falha ao validar pagamento Asaas", eventId: eventKey });
+        return;
+      }
+    }
     const terminalStatus = ["PAYMENT_OVERDUE", "PAYMENT_DELETED", "PAYMENT_REFUNDED", "OVERDUE", "DELETED", "REFUNDED"];
     if (terminalStatus.some(status => String(rawStatus || "").toUpperCase().includes(status)) && payment?.status !== "paid") {
       updatePaymentRecordStatus(tenantId, gateway, payment?.order_id || asaasPaymentId, String(rawStatus).toLowerCase(), { webhook: payload });
@@ -20363,7 +20415,7 @@ async function startServer() {
       res.json({ success: true, status: rawStatus });
       return;
     }
-    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || undefined, eventStatus: rawStatus, payload });
+    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || undefined, eventStatus: verifiedStatus, payload: verifiedPayload });
     await processPaymentJob(queueJob);
     const event = webhookEvents.find(item => item.id === queueJob.idempotencyKey);
     if (event) {
