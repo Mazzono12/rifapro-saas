@@ -84,7 +84,7 @@ includesAll(home, [
   "StandardRaffleMediaBlock",
   "className=\"cfx-home-media-block\"",
   "showDescriptionBelow={false}",
-  "preferredFit={raffle.mediaFit === \"contain\" ? \"contain\" : raffle.mediaFit === \"cover\" ? \"cover\" : \"auto\"}"
+  "preferredFit={resolveHomeMediaFit(raffle.mediaFit)}"
 ], "Home usa blocos padronizados");
 excludesAll(home, ["absolute inset-x-0 bottom-0 h-44", "absolute right-4 top-4"], "Home sem mascara/badge dentro da midia dos cards");
 includesAll(details, ["StandardRaffleMediaBlock", "CheckoutCampaignMedia"], "RaffleDetails usa midia limpa");

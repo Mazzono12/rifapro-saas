@@ -1012,7 +1012,7 @@
   background: rgba(0, 0, 0, .34);
   color: #fff;
   font-size: 11px;
-  word-break: break-all;
+  word-break: normal;
 }
 
 .cfx-success-card {
@@ -17092,5 +17092,432 @@ html[data-admin-theme="light"] .admin-shell {
     min-height: 26px !important;
     padding-inline: 8px !important;
     font-size: .68rem !important;
+  }
+}
+.cfx-stories-section {
+  margin: clamp(0.9rem, 2.6vw, 1.35rem) 0 clamp(0.35rem, 1.6vw, 0.75rem);
+}
+
+.cfx-stories-strip {
+  display: flex;
+  gap: clamp(0.75rem, 2.4vw, 1.1rem);
+  overflow-x: auto;
+  padding: 0.2rem 0.95rem 0.65rem;
+  scroll-snap-type: x proximity;
+}
+
+.cfx-story-thumb {
+  display: flex;
+  width: 5.1rem;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.52rem;
+  color: var(--theme-text);
+  scroll-snap-align: start;
+}
+
+.cfx-story-avatar-ring {
+  position: relative;
+  width: clamp(4.25rem, 18vw, 5rem);
+  height: clamp(4.25rem, 18vw, 5rem);
+  border-radius: 999px;
+  padding: 3px;
+  background: conic-gradient(from 210deg, #22d3ee, #8b5cf6, #f0abfc, #22d3ee);
+  box-shadow: 0 0 22px rgba(139, 92, 246, 0.38), 0 12px 30px rgba(0, 0, 0, 0.38);
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+.cfx-story-thumb:hover .cfx-story-avatar-ring {
+  transform: translateY(-2px) scale(1.04);
+  filter: saturate(1.12);
+}
+
+.cfx-story-avatar-ring::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: inherit;
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  opacity: 0.8;
+}
+
+.cfx-story-avatar-shell {
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  background: #03040b;
+  padding: 3px;
+}
+
+.cfx-story-avatar-media {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #000;
+}
+
+.cfx-story-title {
+  display: block;
+  max-width: 5.1rem;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: rgba(244, 247, 255, 0.82);
+}
+
+.cfx-story-viewer-frame {
+  position: relative;
+  display: flex;
+  height: 100dvh;
+  width: 100%;
+  touch-action: none;
+  user-select: none;
+  flex-direction: column;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 0 80px rgba(139, 92, 246, 0.18);
+}
+
+.cfx-story-nav-button {
+  position: absolute;
+  top: 50%;
+  z-index: 50;
+  display: none;
+  height: 2.75rem;
+  width: 2.75rem;
+  transform: translateY(-50%);
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(6, 7, 15, 0.55);
+  color: #fff;
+  backdrop-filter: blur(14px);
+}
+
+.cfx-story-nav-button svg {
+  height: 1.3rem;
+  width: 1.3rem;
+}
+
+.cfx-story-nav-button--prev {
+  left: 0.85rem;
+}
+
+.cfx-story-nav-button--next {
+  right: 0.85rem;
+}
+
+.cfx-stories-floating {
+  position: fixed;
+  z-index: 80;
+  top: 50%;
+  max-width: min(88vw, 22rem);
+  transform: translateY(-50%);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 1.4rem;
+  background: rgba(4, 6, 14, 0.76);
+  box-shadow: 0 0 34px rgba(34, 211, 238, 0.12), 0 18px 50px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(18px);
+}
+
+.cfx-stories-floating--left {
+  left: max(0.75rem, env(safe-area-inset-left));
+}
+
+.cfx-stories-floating--right {
+  right: max(0.75rem, env(safe-area-inset-right));
+}
+
+.cfx-stories-floating .cfx-stories-section {
+  margin: 0;
+}
+
+.cfx-stories-floating .cfx-stories-strip {
+  max-width: 18rem;
+  padding: 0.85rem;
+}
+
+/* Mobile premium audit safeguards */
+html,
+body,
+#root {
+  max-width: 100%;
+}
+
+body {
+  overflow-x: clip;
+}
+
+.premium-page-layout,
+.public-shell,
+.cfx-home-page,
+.cfx-public-winners-page,
+.affiliate-premium,
+.admin-shell,
+.checkout-screen,
+.checkout-modal-overlay,
+.checkout-receipt-overlay {
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .public-shell,
+  .cfx-home-page,
+  .cfx-public-winners-page,
+  .affiliate-premium,
+  .checkout-screen {
+    overflow-x: clip;
+  }
+
+  .cfx-home-shell,
+  .cfx-public-winners-shell,
+  .affiliate-premium .mx-auto,
+  .checkout-page-container,
+  .checkout-modal-shell,
+  .checkout-receipt-shell {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .cfx-home-primary,
+  .cfx-home-secondary,
+  .cfx-reward-more,
+  .cfx-pix-premium .cfx-copy-pix-button,
+  .cfx-pix-premium .cfx-pix-actions button,
+  .checkout-actions button,
+  .checkout-action-button,
+  .checkout-primary-action-button,
+  .checkout-primary-button,
+  .checkout-screen .premium-button,
+  .cfx-detail-buybox .cfx-checkout-row button,
+  .admin-shell button:not(.admin-icon-button),
+  .admin-shell .admin-button,
+  .admin-shell .admin-button-secondary,
+  .affiliate-premium button,
+  .public-mobile-bottom-nav a {
+    min-height: 44px;
+  }
+
+  .public-mobile-bottom-nav a {
+    min-width: 0;
+    padding-inline: 0.35rem;
+    font-size: 0.72rem;
+    line-height: 1.05;
+  }
+
+  .public-mobile-bottom-nav svg,
+  .cfx-home-bottom-nav svg {
+    width: 1.45rem !important;
+    height: 1.45rem !important;
+  }
+
+  .cfx-home-title-lockup h1,
+  .cfx-winners-hero h1,
+  .cfx-detail-hero h1 {
+    overflow-wrap: anywhere;
+    line-height: 0.98;
+  }
+
+  .cfx-home-title-lockup p,
+  .cfx-home-title-lockup strong,
+  .cfx-winners-hero p,
+  .cfx-winners-proof span,
+  .checkout-screen p,
+  .checkout-screen span,
+  .checkout-screen label,
+  .affiliate-premium p,
+  .affiliate-premium span,
+  .admin-shell p,
+  .admin-shell span,
+  .admin-shell label {
+    line-height: 1.35;
+  }
+
+  .cfx-countdown-grid,
+  .cfx-reward-summary,
+  .cfx-pix-buyer-grid,
+  .cfx-pix-summary-columns,
+  .checkout-summary-card > div,
+  .affiliate-premium [class*="grid-cols-"],
+  .admin-shell [class*="grid-cols-"] {
+    min-width: 0;
+  }
+
+  .cfx-countdown-grid > *,
+  .cfx-reward-summary span,
+  .cfx-pix-premium .cfx-info-card,
+  .checkout-info-card {
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .cfx-reward-section {
+    padding-inline: clamp(0.85rem, 4vw, 1.15rem);
+  }
+
+  .cfx-reward-header {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .cfx-reward-header h2,
+  .cfx-reward-header p {
+    overflow-wrap: anywhere;
+  }
+
+  .cfx-reward-total-badge {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    min-height: 54px;
+  }
+
+  .cfx-instant-rewards .cfx-reward-card,
+  .cfx-instant-rewards .cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card,
+  .cfx-instant-rewards .cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card,
+  .cfx-instant-rewards .cfx-reward-section[data-reward-id="scratchcard"] .cfx-reward-card,
+  .cfx-instant-rewards .cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card {
+    width: 100%;
+    min-height: 76px !important;
+    gap: 0.65rem;
+    padding: 0.85rem 0.95rem !important;
+    overflow: hidden;
+  }
+
+  .cfx-instant-rewards .cfx-reward-card div,
+  .cfx-instant-rewards .cfx-reward-card div:first-child,
+  .cfx-instant-rewards .cfx-reward-card div:nth-child(2),
+  .cfx-instant-rewards .cfx-reward-card div:nth-child(3) {
+    min-width: 0;
+  }
+
+  .cfx-instant-rewards .cfx-reward-card strong,
+  .cfx-instant-rewards .cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card div:first-child strong,
+  .cfx-instant-rewards .cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card div:first-child strong,
+  .cfx-instant-rewards .cfx-reward-section[data-reward-id="scratchcard"] .cfx-reward-card div:first-child strong,
+  .cfx-instant-rewards .cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card div:first-child strong {
+    font-size: clamp(1rem, 4.9vw, 1.35rem) !important;
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+  }
+
+  .cfx-instant-rewards .cfx-reward-card small {
+    font-size: 0.76rem !important;
+    line-height: 1.15;
+  }
+
+  .cfx-instant-rewards .cfx-reward-card span,
+  .cfx-instant-rewards .cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card span,
+  .cfx-instant-rewards .cfx-reward-section[data-reward-id="wheel"] .cfx-reward-card span,
+  .cfx-instant-rewards .cfx-reward-section[data-reward-id="scratchcard"] .cfx-reward-card span,
+  .cfx-instant-rewards .cfx-reward-section[data-reward-id="mysteryBox"] .cfx-reward-card span {
+    min-height: 34px !important;
+    max-width: 100%;
+    white-space: nowrap;
+    font-size: 0.78rem !important;
+  }
+
+  .cfx-winners-filters {
+    padding-inline: 0.25rem;
+    scroll-padding-inline: 0.75rem;
+  }
+
+  .cfx-winners-filters button {
+    min-height: 44px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: 0.82rem;
+  }
+
+  .cfx-winners-card-grid,
+  .cfx-winners-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .cfx-winner-showcase-card {
+    min-height: 0;
+  }
+
+  .cfx-winner-showcase-info h2,
+  .cfx-winner-showcase-info strong,
+  .cfx-winner-showcase-info span {
+    overflow-wrap: anywhere;
+  }
+
+  .cfx-pix-premium .cfx-pix-code code {
+    font-size: 0.82rem;
+    line-height: 1.45;
+    word-break: normal;
+  }
+
+  .cfx-pix-premium .cfx-copy-pix-button,
+  .cfx-pix-premium .cfx-pix-actions button {
+    font-size: clamp(1rem, 4.4vw, 1.22rem);
+  }
+
+  .cfx-pix-premium .cfx-pix-timer-card strong,
+  .cfx-pix-expiry strong {
+    font-size: clamp(2.2rem, 12vw, 3.25rem) !important;
+  }
+
+  .checkout-modal-shell,
+  .checkout-receipt-shell {
+    border-radius: 1.35rem;
+  }
+
+  .admin-shell {
+    font-size: 15px;
+  }
+
+  .admin-shell table {
+    min-width: 680px;
+  }
+
+  .admin-shell .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-shell input,
+  .admin-shell select,
+  .admin-shell textarea,
+  .admin-shell .admin-input {
+    font-size: 16px !important;
+  }
+
+  .affiliate-premium .admin-card,
+  .affiliate-premium .glass-card,
+  .affiliate-premium section {
+    overflow: hidden;
+  }
+
+  .affiliate-premium h1,
+  .affiliate-premium h2,
+  .affiliate-premium h3 {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (min-width: 768px) {
+  .cfx-stories-strip {
+    justify-content: center;
+    padding-inline: 1.5rem;
+  }
+
+  .cfx-story-viewer-frame {
+    height: 86vh;
+    max-width: 430px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 28px;
+  }
+
+  .cfx-story-nav-button {
+    display: grid;
   }
 }

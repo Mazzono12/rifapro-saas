@@ -51,7 +51,7 @@ for (const forbidden of [
 }
 assert(css.includes("overflow-wrap: normal !important"), "checkout/mobile deve neutralizar quebra agressiva onde importa");
 
-includesAll(home, ["PremiumPageLayout", "safeProgress", "FazendinhaSection", "ModalidadesSection"], "Home mobile");
+includesAll(home, ["PremiumPageLayout", "safeProgress", "StoriesSection", "TopBuyers"], "Home mobile");
 includesAll(raffle, ["checkout-modal-overlay", "CheckoutCampaignMedia", "PrePaymentReceiptModal", "FloatingActions"], "RaffleDetails mobile checkout");
 includesAll(numberMode, ["CheckoutCampaignMedia", "PrePaymentReceiptModal", "FloatingCTA", "ranking.length === 0"], "NumberModePage mobile");
 includesAll(fazendinha, ["PremiumCheckoutModal", "PrePaymentReceiptModal", "FloatingCTA", "config.mediaUrl", "hideMedia"], "Fazendinha page mobile");
