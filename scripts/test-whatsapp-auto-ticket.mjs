@@ -7,6 +7,7 @@ const env = {
   ...process.env,
   PORT: String(port),
   NODE_ENV: "production",
+  RIFAPRO_TEST_MODE: "1",
   SUPABASE_URL: "",
   VITE_SUPABASE_URL: "",
   SUPABASE_SERVICE_ROLE_KEY: "",

@@ -69,12 +69,18 @@ includesAll(server, [
   "whatsappQueueDeadLetter",
   "canUseSupabaseWhatsAppQueue",
   "canFallbackToMemoryWhatsAppQueue",
+  "isProductionRuntime",
   "recordWhatsAppQueueFallback",
   "listWhatsAppQueueJobs",
   "listWhatsAppQueueDeadLetter",
   "getWhatsAppQueueStats",
+  "enqueueWhatsAppSqlQueueJob",
+  ".from(\"whatsapp_queue_jobs\")",
+  ".upsert({",
+  "onConflict: \"tenant_id,job_type,entity_id,event_type\"",
   "claimWhatsAppQueueJobsFromSupabase",
   "finishWhatsAppQueueJobInSupabase",
+  "buildWhatsAppMessageFromSqlJob",
   "claimWhatsAppQueueJobs",
   "claimToken = randomUUID()",
   "claim_token = claimToken",
@@ -88,6 +94,12 @@ includesAll(server, [
   "whatsappQueueBackoffMinutes = [1, 5, 15, 60]",
   "whatsappQueueMaxAttempts = 5"
 ], "backend infraestrutura multi instancia");
+
+const fallbackBlock = blockBetween(server, "function canFallbackToMemoryWhatsAppQueue", "function recordWhatsAppQueueFallback");
+includesAll(fallbackBlock, [
+  "process.env.RIFAPRO_TEST_MODE",
+  "!isProductionRuntime"
+], "fallback memoria bloqueado em producao real");
 
 includesAll(server, [
   ".rpc(\"claim_whatsapp_queue_jobs\"",
@@ -162,11 +174,30 @@ includesAll(pixBlock, [
 
 const confirmationBlock = blockBetween(server, "async function processWhatsappPurchaseConfirmationQueue", "function handlePurchaseConfirmedWhatsAppCloudEvent");
 includesAll(confirmationBlock, [
+  "processWhatsappPurchaseConfirmationQueueWithSupabase",
+  "claimWhatsAppQueueJobsFromSupabase(tenantId, Math.max(1, Math.min(100, limit)), [\"whatsapp_cloud_purchase_confirmation\"])",
+  "finishWhatsAppQueueJobInSupabase(job.id, claimToken, \"sent\"",
+  "finishWhatsAppQueueJobInSupabase(job.id, claimToken, \"failed\"",
   "claimWhatsAppQueueJobs(tenantId, Math.max(1, Math.min(100, limit)), [\"whatsapp_cloud_purchase_confirmation\"])",
   "finalizeWhatsAppQueueJob(message, claimToken, \"sent\"",
   "scheduleWhatsAppQueueRetry(message, claimToken",
   "finalizeWhatsAppQueueJob(message, claimToken, \"skipped\""
 ], "confirmacao usa claim token");
+
+const postPaymentTicketBlock = blockBetween(server, "function enqueueWhatsAppTicketConfirmation", "async function sendQueuedWhatsAppMessage");
+includesAll(postPaymentTicketBlock, [
+  "`whatsapp-post-payment:${purchase.tenant_id}:${purchase.purchaseId}:ticket_confirmation`",
+  "enqueueWhatsAppSqlQueueJob(message)",
+  "processWhatsAppCenterQueue(purchase.tenant_id, 10)",
+  "canFallbackToMemoryWhatsAppQueue()"
+], "ticket pos-pagamento usa SQL e idempotencia por tenant/compra/tipo");
+
+const purchaseConfirmationEnqueueBlock = blockBetween(server, "function enqueueWhatsAppPurchaseConfirmationMessageFromOrder", "async function processWhatsappPurchaseConfirmationQueue");
+includesAll(purchaseConfirmationEnqueueBlock, [
+  "enqueueWhatsAppSqlQueueJob(message)",
+  "validation.candidate.idempotencyKey",
+  "purchase_confirmation_failed"
+], "confirmacao cloud pos-pagamento persiste fila SQL");
 
 includesAll(ui, [
   "queueQueued",

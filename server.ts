@@ -15771,7 +15771,7 @@ async function startServer() {
   }
 
   function canFallbackToMemoryWhatsAppQueue() {
-    return Boolean(process.env.RIFAPRO_TEST_MODE || !isNodeProduction || !supabaseAdmin);
+    return Boolean(process.env.RIFAPRO_TEST_MODE || !isProductionRuntime);
   }
 
   function recordWhatsAppQueueFallback(reason: string) {
@@ -15912,6 +15912,103 @@ async function startServer() {
 
   function getWhatsAppQueueEntityId(message: WhatsAppMessageQueueRecord) {
     return String(message.payload?.entityId || message.payload?.campaignId || message.payload?.purchaseId || message.order_id || message.customer_id || message.phone || message.id);
+  }
+
+  function buildWhatsAppSqlQueuePayload(message: WhatsAppMessageQueueRecord) {
+    return {
+      ...(message.payload || {}),
+      queueMessageId: message.id,
+      sourceMessageId: message.id,
+      entityId: getWhatsAppQueueEntityId(message),
+      eventType: message.event_type || message.message_type,
+      idempotencyKey: message.idempotency_key,
+      orderId: message.order_id || "",
+      purchaseId: message.order_id || String(message.payload?.purchaseId || ""),
+      customerId: message.customer_id || "",
+      phone: message.phone,
+      messageBody: message.message_body,
+      provider: message.provider,
+      messageType: message.message_type,
+      templateName: message.template_name || "",
+      language: message.language || "",
+      sendingNumberId: message.sendingNumberId || "",
+      phoneNumberId: message.phoneNumberId || "",
+      phoneNumber: message.phoneNumber || ""
+    };
+  }
+
+  function buildWhatsAppMessageFromSqlJob(tenantId: string, job: WhatsAppQueueSqlJobRow): WhatsAppMessageQueueRecord | null {
+    const payload = job.payload || {};
+    const phone = normalizeBrazilianPhone(String(payload.phone || ""));
+    if (!phone) return null;
+    const now = new Date().toISOString();
+    return {
+      id: String(payload.queueMessageId || payload.sourceMessageId || payload.messageId || createPublicId("WAPP_")),
+      tenant_id: tenantId,
+      order_id: String(payload.orderId || payload.purchaseId || ""),
+      customer_id: String(payload.customerId || ""),
+      phone,
+      message_type: String(payload.messageType || job.job_type || "ticket_confirmation"),
+      message_body: String(payload.messageBody || ""),
+      provider: String(payload.provider || "mock"),
+      status: "claimed",
+      attempts: Number(job.attempts || 0),
+      max_attempts: Number(job.max_attempts || whatsappQueueMaxAttempts),
+      claim_token: "",
+      claimed_at: "",
+      scheduled_at: String(job.scheduled_at || now),
+      last_error: "",
+      reason: "",
+      sent_at: "",
+      processed_at: "",
+      meta_message_id: "",
+      sendingNumberId: String(payload.sendingNumberId || ""),
+      phoneNumberId: String(payload.phoneNumberId || ""),
+      phoneNumber: String(payload.phoneNumber || ""),
+      template_name: String(payload.templateName || ""),
+      language: String(payload.language || ""),
+      event_type: String(payload.eventType || job.job_type || ""),
+      payload: payload as Record<string, unknown>,
+      created_at: String(job.created_at || now),
+      updated_at: now,
+      idempotency_key: String(payload.idempotencyKey || buildWhatsAppQueueIdempotencyKey({ tenantId, jobType: job.job_type, entityId: String(payload.entityId || payload.purchaseId || job.id), eventType: String(payload.eventType || job.job_type) }))
+    };
+  }
+
+  async function enqueueWhatsAppSqlQueueJob(message: WhatsAppMessageQueueRecord) {
+    if (!canUseSupabaseWhatsAppQueue()) {
+      const reason = "Fila SQL WhatsApp indisponivel para mensagem pos-pagamento";
+      if (isProductionRuntime) {
+        message.status = "failed";
+        message.last_error = reason;
+        message.reason = reason;
+        message.updated_at = new Date().toISOString();
+        recordWhatsAppCloudLog(message.tenant_id, {
+          action: "purchase_confirmation_failed",
+          status: "error",
+          message: reason,
+          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", messageType: message.message_type, to: maskPhone(message.phone) }
+        });
+      }
+      return null;
+    }
+    const payload = buildWhatsAppSqlQueuePayload(message);
+    const { data, error } = await supabaseAdmin!
+      .from("whatsapp_queue_jobs")
+      .upsert({
+        id: createPublicId("WQJ_"),
+        tenant_id: message.tenant_id,
+        job_type: message.message_type,
+        payload,
+        status: message.status === "failed" ? "failed" : "queued",
+        attempts: Math.max(0, Number(message.attempts || 0)),
+        max_attempts: Math.max(whatsappQueueMaxAttempts, Number(message.max_attempts || whatsappQueueMaxAttempts)),
+        scheduled_at: message.scheduled_at || message.created_at || new Date().toISOString()
+      }, { onConflict: "tenant_id,job_type,entity_id,event_type", ignoreDuplicates: true })
+      .select("*")
+      .maybeSingle();
+    if (error) throw error;
+    return data as WhatsAppQueueSqlJobRow | null;
   }
 
   function normalizeWhatsAppQueueJob(message: WhatsAppMessageQueueRecord) {
@@ -16901,6 +16998,19 @@ async function startServer() {
     }
     whatsappMessageQueue.unshift(message);
     whatsappMessageQueue = whatsappMessageQueue.slice(0, 2000);
+    void enqueueWhatsAppSqlQueueJob(message).catch(error => {
+      const safeError = maskSecretText(error instanceof Error ? error.message : "Falha ao persistir fila WhatsApp");
+      message.status = "failed";
+      message.last_error = safeError;
+      message.reason = safeError;
+      message.updated_at = new Date().toISOString();
+      recordWhatsAppCloudLog(tenantId, {
+        action: "purchase_confirmation_failed",
+        status: "error",
+        message: safeError,
+        metadata: { orderId: orderCandidate.orderId, purchaseId: orderCandidate.orderId, orderType: orderCandidate.orderType, campaignName: orderCandidate.campaignName, eventType: message.event_type, to: maskPhone(message.phone), templateName: message.template_name }
+      });
+    });
     recordWhatsAppCloudLog(tenantId, {
       action: "purchase_confirmation_enqueued",
       status: "success",
@@ -16914,6 +17024,14 @@ async function startServer() {
   async function processWhatsappPurchaseConfirmationQueue(tenantId: string, limit = 20) {
     const settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId);
     const templates = getSavedWhatsAppCloudTemplates(tenantId);
+    if (canUseSupabaseWhatsAppQueue()) {
+      try {
+        return await processWhatsappPurchaseConfirmationQueueWithSupabase(tenantId, limit, settingsRecord, templates);
+      } catch (error) {
+        if (!canFallbackToMemoryWhatsAppQueue()) throw error;
+        recordWhatsAppQueueFallback(error instanceof Error ? error.message : "falha ao processar confirmacao WhatsApp Supabase");
+      }
+    }
     const { claimToken, jobs: ready } = claimWhatsAppQueueJobs(tenantId, Math.max(1, Math.min(100, limit)), ["whatsapp_cloud_purchase_confirmation"]);
     let sent = 0;
     let failed = 0;
@@ -16987,6 +17105,102 @@ async function startServer() {
     }
     schedulePersistentStateSave("whatsapp-purchase-confirmation-run");
     return { processed: ready.length, sent, failed, skipped };
+  }
+
+  async function processWhatsappPurchaseConfirmationQueueWithSupabase(
+    tenantId: string,
+    limit = 20,
+    settingsRecord = getWhatsAppPurchaseConfirmationSettings(tenantId),
+    templates = getSavedWhatsAppCloudTemplates(tenantId)
+  ) {
+    const { claimToken, jobs: ready } = await claimWhatsAppQueueJobsFromSupabase(tenantId, Math.max(1, Math.min(100, limit)), ["whatsapp_cloud_purchase_confirmation"]);
+    let sent = 0;
+    let failed = 0;
+    let skipped = 0;
+    for (const job of ready) {
+      const payload = job.payload || {};
+      const sourceMessageId = String(payload.queueMessageId || payload.sourceMessageId || payload.messageId || job.id);
+      let message = whatsappMessageQueue.find(item => item.tenant_id === tenantId && item.id === sourceMessageId);
+      if (!message) {
+        message = buildWhatsAppMessageFromSqlJob(tenantId, job) || undefined;
+        if (message) whatsappMessageQueue.unshift(message);
+      }
+      if (!message) {
+        await finishWhatsAppQueueJobInSupabase(job.id, claimToken, "failed", "Job SQL sem payload WhatsApp suficiente para confirmacao");
+        failed += 1;
+        continue;
+      }
+      const orderType = (message.payload?.orderType === "fazendinha" || message.payload?.orderType === "number_mode" || message.payload?.orderType === "raffle")
+        ? message.payload.orderType as WhatsAppOrderType
+        : undefined;
+      const purchase = findWhatsAppOrderSource(tenantId, String(message.order_id || ""), orderType);
+      const revalidation = purchase ? validateWhatsAppPurchaseConfirmationCandidateFromOrder(tenantId, purchase, settingsRecord) : null;
+      const allowedQueuedReasons = new Set(["Mensagem ja registrada para esta compra", "Limite diario atingido"]);
+      if (!purchase || (revalidation && !revalidation.eligible && !allowedQueuedReasons.has(revalidation.reason))) {
+        message.status = "skipped";
+        await finishWhatsAppQueueJobInSupabase(job.id, claimToken, "failed", revalidation?.reason || "Compra nao encontrada");
+        skipped += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "purchase_confirmation_skipped", status: "skipped", message: message.reason, metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status } });
+        continue;
+      }
+      if (countWhatsAppPurchaseConfirmationsToday(tenantId) > settingsRecord.daily_tenant_limit) {
+        message.status = "skipped";
+        await finishWhatsAppQueueJobInSupabase(job.id, claimToken, "failed", "Limite diario atingido");
+        skipped += 1;
+        recordWhatsAppCloudLog(tenantId, { action: "purchase_confirmation_skipped", status: "skipped", message: message.reason, metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status } });
+        continue;
+      }
+      try {
+        message.attempts += 1;
+        message.status = "processing";
+        message.updated_at = new Date().toISOString();
+        recordWhatsAppCloudLog(tenantId, {
+          action: "purchase_confirmation_send_requested",
+          status: "success",
+          message: "Envio de confirmacao de compra solicitado",
+          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status, to: maskPhone(message.phone), templateName: message.template_name }
+        });
+        const selectedNumber = getSelectedWhatsAppNumberForQueueJob(message, "purchase_confirmation");
+        const provider = createMetaWhatsAppCloudProvider(tenantId, selectedNumber);
+        const result = await provider.sendTemplateTest({
+          to: message.phone,
+          templateName: String(message.template_name || ""),
+          language: String(message.language || "pt_BR"),
+          components: Array.isArray(message.payload?.components) ? message.payload.components : [],
+          availableTemplates: templates
+        });
+        const processedAt = new Date().toISOString();
+        message.status = "sent";
+        message.sent_at = processedAt;
+        message.processed_at = processedAt;
+        message.meta_message_id = result.data?.messages?.[0]?.id || "";
+        await finishWhatsAppQueueJobInSupabase(job.id, claimToken, "sent");
+        markWhatsAppNumberSendSuccess(selectedNumber);
+        sent += 1;
+        recordWhatsAppCloudLog(tenantId, {
+          action: "purchase_confirmation_sent",
+          status: "success",
+          message: "Confirmacao de compra enviada",
+          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status, to: maskPhone(message.phone), templateName: message.template_name, metaMessageId: message.meta_message_id || "", sendingNumberId: selectedNumber.numberId, phoneNumberId: selectedNumber.phoneNumberId, phoneNumber: selectedNumber.phoneNumber }
+        });
+      } catch (error) {
+        const processedAt = new Date().toISOString();
+        message.last_error = maskSecretText(error instanceof Error ? error.message : "Falha ao enviar confirmacao de compra");
+        message.reason = message.last_error;
+        message.status = message.attempts >= message.max_attempts ? "failed" : "queued";
+        message.processed_at = processedAt;
+        await finishWhatsAppQueueJobInSupabase(job.id, claimToken, "failed", message.last_error);
+        failed += 1;
+        recordWhatsAppCloudLog(tenantId, {
+          action: "purchase_confirmation_failed",
+          status: "error",
+          message: message.last_error,
+          metadata: { orderId: message.order_id || "", purchaseId: message.order_id || "", orderType: message.payload?.orderType || "", campaignName: message.payload?.campaignName || message.payload?.campaign || "", eventType: "purchase_confirmed", status: message.status, to: maskPhone(message.phone), templateName: message.template_name }
+        });
+      }
+    }
+    schedulePersistentStateSave("whatsapp-purchase-confirmation-run-sql");
+    return { processed: ready.length, sent, failed, skipped, backend: "supabase", fallback: false };
   }
 
   function handlePurchaseConfirmedWhatsAppCloudEvent(purchase: WhatsAppOrderSource, source = "purchase_confirmed") {
@@ -18090,7 +18304,7 @@ async function startServer() {
     const config = getWhatsAppConfig(purchase.tenant_id);
     if (!config?.enabled) return null;
 
-    const idempotencyKey = buildTicketConfirmationIdempotencyKey(purchase.purchaseId);
+    const idempotencyKey = `whatsapp-post-payment:${purchase.tenant_id}:${purchase.purchaseId}:ticket_confirmation`;
     const duplicate = whatsappMessageQueue.find(message => message.idempotency_key === idempotencyKey);
     if (duplicate) return duplicate;
 
@@ -18129,7 +18343,27 @@ async function startServer() {
       detail: `${purchase.purchaseId}:${maskPhone(phone)}`
     });
     if (message.status === "pending") {
-      setTimeout(() => { void processWhatsAppQueue(10); }, 0);
+      void enqueueWhatsAppSqlQueueJob(message)
+        .then(() => {
+          if (canUseSupabaseWhatsAppQueue()) {
+            void processWhatsAppCenterQueue(purchase.tenant_id, 10);
+          } else if (canFallbackToMemoryWhatsAppQueue()) {
+            void processWhatsAppQueue(10);
+          }
+        })
+        .catch(error => {
+          const safeError = maskSecretText(error instanceof Error ? error.message : "Falha ao persistir fila WhatsApp");
+          message.status = "failed";
+          message.last_error = safeError;
+          message.reason = safeError;
+          message.updated_at = new Date().toISOString();
+          recordWhatsAppCloudLog(purchase.tenant_id, {
+            action: "purchase_confirmation_failed",
+            status: "error",
+            message: safeError,
+            metadata: { orderId: purchase.purchaseId, purchaseId: purchase.purchaseId, messageType: "ticket_confirmation", to: maskPhone(phone) }
+          });
+        });
     }
     return message;
   }
@@ -18281,9 +18515,13 @@ async function startServer() {
     for (const job of jobs) {
       const payload = job.payload || {};
       const sourceMessageId = String(payload.queueMessageId || payload.sourceMessageId || payload.messageId || job.id);
-      const message = whatsappMessageQueue.find(item => item.tenant_id === tenantId && item.id === sourceMessageId);
+      let message = whatsappMessageQueue.find(item => item.tenant_id === tenantId && item.id === sourceMessageId);
       if (!message) {
-        await finishWhatsAppQueueJobInSupabase(job.id, claimToken, "failed", "Job SQL sem mensagem local correspondente para envio legado");
+        message = buildWhatsAppMessageFromSqlJob(tenantId, job) || undefined;
+        if (message) whatsappMessageQueue.unshift(message);
+      }
+      if (!message) {
+        await finishWhatsAppQueueJobInSupabase(job.id, claimToken, "failed", "Job SQL sem payload WhatsApp suficiente para envio");
         failed += 1;
         continue;
       }
