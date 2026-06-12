@@ -209,7 +209,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
                 Aplicar link
               </button>
             </div>
-            <small className="block text-xs text-[var(--admin-muted)]">Aceita imagem ou vídeo direto .mp4/.webm/.mov. Para YouTube/Vimeo, use um arquivo enviado ou link direto de CDN/storage.</small>
+            <small className="block text-xs text-[var(--admin-muted)]">Aceita imagem, vídeo direto .mp4/.webm/.mov ou Bunny/MediaDelivery em player.mediadelivery.net/play. Para YouTube/Vimeo, use um arquivo enviado ou link direto de CDN/storage.</small>
           </label>
         </div>
         }

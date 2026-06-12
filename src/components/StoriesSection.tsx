@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Volume2, VolumeX } from 'lucide-react';
 import { ResponsiveMediaFrame } from './ResponsiveMediaFrame';
 import type { Story } from '../types';
 import { inferMediaType } from '../utils/media';
@@ -15,7 +15,9 @@ function normalizeStories(payload: unknown): Story[] {
       mediaUrl: String(story.mediaUrl || ""),
       mediaType: story.mediaType || "image",
       duration: Math.max(1, Number.isFinite(Number(story.duration)) ? Number(story.duration) : 5),
-      active: story.active !== false
+      active: story.active !== false,
+      link: typeof story.link === "string" ? story.link.trim() : "",
+      order: Number.isFinite(Number(story.order)) ? Number(story.order) : 0
     } as Story))
     .filter(story => story.active && Boolean(story.mediaUrl));
 }
@@ -74,8 +76,8 @@ export function StoriesSection() {
   if (stories.length === 0) return null;
 
   return (
-    <div className="cfx-stories-section w-full">
-      <div className="no-scrollbar flex gap-4 overflow-x-auto px-4 pb-4 md:justify-center">
+    <div className="cfx-stories-section w-full" aria-label="Stories CIFHER">
+      <div className="cfx-stories-strip no-scrollbar">
         {stories.map((story, idx) => (
           <motion.button 
             key={story.id} 
@@ -83,16 +85,16 @@ export function StoriesSection() {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: idx * 0.05, ease: [0.16, 1, 0.3, 1] }}
-            className="group flex w-[78px] flex-shrink-0 flex-col items-center gap-2 text-[var(--theme-text)]"
+            className="cfx-story-thumb group"
           >
-            <div className="relative h-[72px] w-[72px] rounded-full bg-[conic-gradient(from_210deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5,#feda75)] p-[3px] shadow-[0_10px_28px_rgba(0,0,0,0.28)] transition-transform duration-300 group-hover:scale-105">
-              <div className="h-full w-full rounded-full bg-[var(--theme-bg)] p-[3px]">
-                <div className="h-full w-full overflow-hidden rounded-full bg-black" data-rifapro-story-thumb={story.id}>
+            <div className="cfx-story-avatar-ring">
+              <div className="cfx-story-avatar-shell">
+                <div className="cfx-story-avatar-media" data-rifapro-story-thumb={story.id}>
                   <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} autoPlay={false} controls={false} interactive={false} preferredFit="cover" aspectMode="square" className="h-full w-full rounded-full" mediaClassName="pointer-events-none" />
                 </div>
               </div>
             </div>
-            <span className="max-w-[78px] truncate text-center text-[11px] font-semibold leading-tight text-[var(--theme-muted)] transition-colors group-hover:text-[var(--theme-text)]">{story.title}</span>
+            <span className="cfx-story-title">{story.title}</span>
           </motion.button>
         ))}
       </div>
@@ -291,7 +293,7 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
       className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 p-0 md:p-8 md:backdrop-blur-2xl"
     >
         <div
-          className="relative flex h-[100dvh] w-full touch-none select-none flex-col overflow-hidden bg-black shadow-[0_0_80px_rgba(255,255,255,0.05)] md:h-[86vh] md:max-w-[430px] md:rounded-[28px] md:border md:border-white/[0.08]"
+          className="cfx-story-viewer-frame"
           data-rifapro-story-viewer={story.id}
           data-rifapro-story-component="StoryViewer"
           data-rifapro-story-media-type={story.mediaType}
@@ -359,13 +361,26 @@ function StoryViewer({ story, stories, activeIndex, onClose, onNext, onPrev }: {
                  <ResponsiveMediaFrame src={story.mediaUrl} type={story.mediaType} alt={story.title} className="absolute inset-0 h-full w-full rounded-none" mediaClassName="pointer-events-none" preferredFit="auto" aspectMode="story" autoPlay muted controls={false} interactive={false} loop={false} />
                )}
                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/60" />
-               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-5 pb-8">
+               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[60] p-5 pb-8">
                  <p className="text-base font-bold leading-snug text-white drop-shadow md:text-lg">{story.title}</p>
+                 {story.link && (
+                   <a
+                     href={story.link}
+                     target="_blank"
+                     rel="noreferrer"
+                     className="pointer-events-auto relative z-[70] mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/50 bg-cyan-400/15 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.24)]"
+                     onClick={event => event.stopPropagation()}
+                   >
+                     Saiba Mais <ExternalLink className="h-3.5 w-3.5" />
+                   </a>
+                 )}
                </div>
             </div>
 
             <button type="button" className="absolute inset-y-0 left-0 z-40 w-1/2 cursor-w-resize bg-transparent" aria-label="Story anterior" onClick={event => handleSideTap(event, onPrev)} />
             <button type="button" className="absolute inset-y-0 right-0 z-40 w-1/2 cursor-e-resize bg-transparent" aria-label="Proximo story" onClick={event => handleSideTap(event, onNext)} />
+            <button type="button" className="cfx-story-nav-button cfx-story-nav-button--prev" aria-label="Story anterior" onClick={event => handleSideTap(event, onPrev)}><ChevronLeft /></button>
+            <button type="button" className="cfx-story-nav-button cfx-story-nav-button--next" aria-label="Proximo story" onClick={event => handleSideTap(event, onNext)}><ChevronRight /></button>
         </div>
     </motion.div>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Edit2, Trash2, X, Check, PlaySquare } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Check, PlaySquare, Link as LinkIcon, ToggleLeft, ToggleRight } from "lucide-react";
 import { ResponsiveMediaFrame } from "../../components/ResponsiveMediaFrame";
 import { inferMediaType } from "../../utils/media";
 import type { Story } from "../../types";
@@ -11,7 +11,7 @@ export function AdminStories() {
   const [currentStory, setCurrentStory] = useState<Partial<Story>>({});
 
   const loadStories = () => {
-    fetch("/api/stories")
+    fetch("/api/admin/stories")
       .then(res => res.json())
       .then(setStories);
   };
@@ -31,8 +31,9 @@ export function AdminStories() {
       body: JSON.stringify({
         ...currentStory,
         mediaType: currentStory.mediaUrl ? inferMediaType(currentStory.mediaUrl) : currentStory.mediaType,
-        active: true,
+        active: currentStory.active !== false,
         duration: currentStory.duration || 5,
+        order: Number(currentStory.order || 0),
       })
     });
     
@@ -71,6 +72,19 @@ export function AdminStories() {
                     <input required type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-neon-purple/50" 
                            value={currentStory.title || ''} onChange={e => setCurrentStory({...currentStory, title: e.target.value})} />
                   </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Ordem</label>
+                    <input type="number" min="0" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-neon-purple/50"
+                           value={currentStory.order ?? 0} onChange={e => setCurrentStory({...currentStory, order: Number(e.target.value || 0)})} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Link opcional</label>
+                    <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-cyber-900 px-3 focus-within:border-neon-purple/50">
+                      <LinkIcon className="h-4 w-4 text-neon-cyan" />
+                      <input type="url" placeholder="https://..." className="w-full bg-transparent py-3 text-white outline-none"
+                             value={currentStory.link || ''} onChange={e => setCurrentStory({...currentStory, link: e.target.value})} />
+                    </div>
+                  </div>
                   <div className="md:col-span-2">
                     <MediaPicker
                       label="Mídia do story"
@@ -81,6 +95,17 @@ export function AdminStories() {
                       onChange={(mediaUrl, mediaType) => setCurrentStory({ ...currentStory, mediaUrl, mediaType })}
                     />
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStory({...currentStory, active: currentStory.active === false})}
+                    className="md:col-span-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-white transition-colors hover:border-neon-purple/40"
+                  >
+                    <span>
+                      <strong className="block text-sm">Ativo/Inativo</strong>
+                      <small className="text-slate-400">Quando ativo, aparece na Home pública.</small>
+                    </span>
+                    {currentStory.active === false ? <ToggleLeft className="h-7 w-7 text-slate-500" /> : <ToggleRight className="h-7 w-7 text-neon-cyan" />}
+                  </button>
                </div>
                <div className="flex justify-end pt-4">
                  <button type="submit" className="bg-neon-purple text-white px-6 py-3 rounded-lg font-bold font-mono tracking-wider flex items-center gap-2 hover:bg-white hover:text-black transition-colors">
@@ -91,13 +116,17 @@ export function AdminStories() {
          </div>
        ) : (
          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {stories.map(s => (
+            {[...stories].sort((a, b) => Number(a.order || 0) - Number(b.order || 0)).map(s => (
                <div key={s.id} className="glass-card rounded-xl border border-white/5 overflow-hidden group">
                   <div className="aspect-[9/16] relative bg-cyber-900">
                      <ResponsiveMediaFrame src={s.mediaUrl} type={s.mediaType} alt={s.title} preferredFit="auto" aspectMode="story" className="h-full w-full rounded-none" autoPlay />
                   </div>
                   <div className="p-3">
                      <p className="mb-2 truncate text-xs font-bold text-white">{s.title}</p>
+                     <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-widest text-slate-400">
+                       <span>Ordem {s.order ?? 0}</span>
+                       <span className={s.active === false ? "text-slate-500" : "text-emerald-300"}>{s.active === false ? "Inativo" : "Ativo"}</span>
+                     </div>
                      <div className="flex gap-2">
                         <button onClick={() => { setCurrentStory(s); setIsEditing(true); }} className="flex-1 bg-white/10 hover:bg-neon-purple/20 text-white rounded py-1 text-xs transition-colors flex justify-center"><Edit2 className="w-3 h-3" /></button>
                         <button onClick={async () => { await fetch(`/api/admin/stories/${s.id}`, {method: 'DELETE'}); loadStories(); }} className="p-1 bg-white/10 hover:bg-red-500/20 text-white rounded text-xs transition-colors"><Trash2 className="w-3 h-3" /></button>

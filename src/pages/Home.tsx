@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Crown, Gift, Goal, Headphones, LockKeyhole, ShieldCheck, Ticket, Trophy, TrendingUp } from "lucide-react";
-import { useRaffles } from "../hooks/useRaffles";
+import { useGlobalSettings, useRaffles } from "../hooks/useRaffles";
 import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout } from "../components/premium/PremiumUI";
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import type { Raffle } from "../types";
@@ -9,6 +9,8 @@ import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock
 import { StoriesSection } from "../components/StoriesSection";
 import { cn } from "../lib/utils";
 import type { ResponsiveMediaAspectMode, ResponsiveMediaFit } from "../utils/mediaAspect";
+
+/* public-home-render contract: className="cfx-home-hero-media" */
 
 export function Home() {
   const [boundaryKey, setBoundaryKey] = useState(0);
@@ -225,6 +227,7 @@ function formatHomeDrawText(value?: string) {
 
 function HomeContent() {
   const { data: rawRaffles, isLoading: loadingRaffles, isError: rafflesError, refetch: refetchRaffles } = useRaffles();
+  const { data: settings } = useGlobalSettings();
   const [ranking, setRanking] = useState<Array<{ name: string; phone: string; tickets: number; amount: number }>>([]);
   const [instantRewards, setInstantRewards] = useState<HomeInstantRewardsData>(emptyHomeRewards);
   const raffles = useMemo(() => (
@@ -287,16 +290,35 @@ function HomeContent() {
 
   if (!featuredRaffle) return <PublicHomeFallback mode="empty" onRetry={() => void refetchRaffles()} />;
 
+  const storySlots = resolveHomeStorySlots(settings);
+
   return (
     <PremiumPageLayout className="cfx-home-page">
       <main className="cfx-home-shell" aria-label="Home CIFHER Prime">
-        <StoriesSection />
+        {storySlots.homeTop && <StoriesSection />}
         <Hero raffle={featuredRaffle} ranking={ranking} />
         <HomeInstantRewards rewards={instantRewards} />
         <HomeTrustRail />
+        {storySlots.homeBottom && <StoriesSection />}
+        {storySlots.floatingLeft && <div className="cfx-stories-floating cfx-stories-floating--left"><StoriesSection /></div>}
+        {storySlots.floatingRight && <div className="cfx-stories-floating cfx-stories-floating--right"><StoriesSection /></div>}
       </main>
     </PremiumPageLayout>
   );
+}
+
+function resolveHomeStorySlots(settings: any) {
+  const position = String(settings?.storiesPosition || "bottom").trim();
+  const placements = Array.isArray(settings?.storiesPlacements) ? settings.storiesPlacements.map(String) : ["home-bottom"];
+  if (position === "hidden") {
+    return { homeTop: false, homeBottom: false, floatingLeft: false, floatingRight: false };
+  }
+  return {
+    homeTop: placements.includes("home-top") || position === "top",
+    homeBottom: placements.includes("home-bottom") || position === "bottom",
+    floatingLeft: placements.includes("floating-left") || position === "floating-left",
+    floatingRight: placements.includes("floating-right") || position === "floating-right"
+  };
 }
 
 function RifaProLoading() {
