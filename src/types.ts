@@ -5,6 +5,9 @@ export interface Raffle {
   price: number;
   totalTickets: number;
   soldTickets: number;
+  minPurchaseTickets?: number;
+  minimumTickets?: number;
+  minQuantity?: number;
   reservationMinutes?: number;
   image: string; // Fallback or main image
   imageUrl?: string;
@@ -168,6 +171,8 @@ export interface Story {
   mediaType: 'video' | 'image' | 'youtube' | 'vimeo' | 'bunny';
   duration: number; // admin can manipulate progress bar via duration
   active: boolean;
+  link?: string;
+  order?: number;
 }
 
 export interface Winner {

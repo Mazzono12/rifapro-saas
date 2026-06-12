@@ -10,6 +10,8 @@ import { ResponsiveMediaFrame } from "../../components/ResponsiveMediaFrame";
 import { toast } from "sonner";
 import type { ResponsiveMediaAspectMode, ResponsiveMediaFit } from "../../utils/mediaAspect";
 
+/* ui-contrast contract: Rifas */
+
 const DEFAULT_MEDIADELIVERY_VIDEO_URL = "https://player.mediadelivery.net/play/670514/b27261d2-ffd9-4e39-aa23-d7c400424177";
 const homeMediaAspectOptions: Array<{ value: ResponsiveMediaAspectMode; label: string }> = [
   { value: "wide", label: "Horizontal / Banner 16:9" },
@@ -145,6 +147,10 @@ export function AdminRaffles() {
     });
   };
 
+  const activePixConfig = { ...defaultPixConfig, ...(currentRaffle.pixConfig || {}) };
+  const isAsaasPix = activePixConfig.gateway === "asaas";
+  const isAsaasProductionKey = (value: string) => value.toLowerCase().includes("aact_prod");
+
   const updateVideoConfig = (patch: Record<string, any>) => {
     setCurrentRaffle({
       ...currentRaffle,
@@ -217,7 +223,7 @@ export function AdminRaffles() {
             <p className="mt-2 text-sm text-slate-400">Crie, publique e acompanhe suas campanhas comerciais.</p>
          </div>
          <button 
-           onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
+           onClick={() => { setCurrentRaffle({ status: 'active', minPurchaseTickets: 1, mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
            className="bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/50 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
          >
            <Plus className="w-4 h-4" /> Nova campanha
@@ -346,6 +352,12 @@ export function AdminRaffles() {
                     <label className="block text-xs font-mono text-slate-400 mb-1">Total de Bilhetes</label>
                     <input required type="number" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
                            value={currentRaffle.totalTickets || ''} onChange={e => setCurrentRaffle({...currentRaffle, totalTickets: parseInt(e.target.value)})} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono text-slate-400 mb-1">Quantidade mínima de cotas por compra</label>
+                    <input type="number" min="1" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                           value={currentRaffle.minPurchaseTickets || ''} onChange={e => setCurrentRaffle({...currentRaffle, minPurchaseTickets: e.target.value ? Math.max(1, parseInt(e.target.value) || 1) : undefined})} />
+                    <p className="mt-1 text-[11px] text-slate-500">Opcional. Se vazio, o checkout usa o padrão atual.</p>
                   </div>
                   <div>
                     <label className="block text-xs font-mono text-slate-400 mb-1">Cotas vendidas / reservadas</label>
@@ -659,16 +671,19 @@ export function AdminRaffles() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                      <input type="checkbox" checked={(currentRaffle.pixConfig || defaultPixConfig).inheritGlobal} onChange={e => updatePixConfig({ inheritGlobal: e.target.checked })} />
+                      <input type="checkbox" checked={activePixConfig.inheritGlobal} onChange={e => updatePixConfig({ inheritGlobal: e.target.checked })} />
                       <span className="text-sm text-white">Usar configuração global de PIX</span>
                     </label>
                     <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                      <input type="checkbox" checked={(currentRaffle.pixConfig || defaultPixConfig).enabled} onChange={e => updatePixConfig({ enabled: e.target.checked })} />
+                      <input type="checkbox" checked={activePixConfig.enabled} onChange={e => updatePixConfig({ enabled: e.target.checked })} />
                       <span className="text-sm text-white">Habilitar PIX neste sorteio</span>
                     </label>
                     <label>
                       <span className="block text-xs font-mono text-slate-400 mb-1">Canal de recebimento específico</span>
-                      <select className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" value={(currentRaffle.pixConfig || defaultPixConfig).gateway} onChange={e => updatePixConfig({ gateway: e.target.value as PixGatewayId })}>
+                      <select className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" value={activePixConfig.gateway} onChange={e => {
+                        const gateway = e.target.value as PixGatewayId;
+                        updatePixConfig({ gateway, ...(gateway === "asaas" ? { sandbox: false } : {}) });
+                      }}>
                         <option value="mercadopago">Mercado Pago</option>
                         <option value="pagbank">PagBank</option>
                         <option value="asaas">Asaas</option>
@@ -680,18 +695,21 @@ export function AdminRaffles() {
                     <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:col-span-2">
                       <summary className="cursor-pointer text-sm font-semibold text-slate-200">Configurações Avançadas</summary>
                       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                          <input type="checkbox" checked={(currentRaffle.pixConfig || defaultPixConfig).sandbox} onChange={e => updatePixConfig({ sandbox: e.target.checked })} />
-                          <span className="text-sm text-white">Validação interna</span>
+                        <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                          <input className="mt-1" type="checkbox" checked={activePixConfig.sandbox} onChange={e => updatePixConfig({ sandbox: e.target.checked })} />
+                          <span>
+                            <span className="block text-sm text-white">{isAsaasPix ? "Usar sandbox Asaas (testes)" : "Validação interna"}</span>
+                            {isAsaasPix && <span className="mt-1 block text-xs text-amber-200/80">Para API Key de produção do Asaas, deixe esta opção desmarcada.</span>}
+                          </span>
                         </label>
-                        <PixField label="Chave PIX" value={(currentRaffle.pixConfig || defaultPixConfig).pixKey || (currentRaffle.pixConfig || defaultPixConfig).apiKey || ""} onChange={value => updatePixConfig({ pixKey: value, apiKey: value })} />
-                        <PixField label="Token de acesso" value={(currentRaffle.pixConfig || defaultPixConfig).accessToken || ""} onChange={value => updatePixConfig({ accessToken: value })} />
-                        <PixField label="Chave pública" value={(currentRaffle.pixConfig || defaultPixConfig).publicKey || ""} onChange={value => updatePixConfig({ publicKey: value })} />
-                        <PixField label="Identificador técnico" value={(currentRaffle.pixConfig || defaultPixConfig).clientId || ""} onChange={value => updatePixConfig({ clientId: value })} />
-                        <PixField label="Chave técnica protegida" value={(currentRaffle.pixConfig || defaultPixConfig).clientSecret || ""} onChange={value => updatePixConfig({ clientSecret: value })} />
-                        <PixField label="URL do canal seguro" value={(currentRaffle.pixConfig || defaultPixConfig).webhookUrl || ""} onChange={value => updatePixConfig({ webhookUrl: value })} />
-                        <PixField label="Chave do canal seguro" value={(currentRaffle.pixConfig || defaultPixConfig).webhookSecret || ""} onChange={value => updatePixConfig({ webhookSecret: value })} />
-                        <PixField label="Atualizações do canal seguro" value={(currentRaffle.pixConfig || defaultPixConfig).webhookEvents || ""} onChange={value => updatePixConfig({ webhookEvents: value })} />
+                        <PixField label={isAsaasPix ? "Chave privada Asaas (API Key)" : "Chave PIX"} value={isAsaasPix ? (activePixConfig.apiKey || activePixConfig.pixKey || "") : (activePixConfig.pixKey || activePixConfig.apiKey || "")} onChange={value => isAsaasPix ? updatePixConfig({ apiKey: value, sandbox: isAsaasProductionKey(value) ? false : activePixConfig.sandbox }) : updatePixConfig({ pixKey: value, apiKey: value })} />
+                        <PixField label="Token de acesso" value={activePixConfig.accessToken || ""} onChange={value => updatePixConfig({ accessToken: value })} />
+                        <PixField label="Chave pública" value={activePixConfig.publicKey || ""} onChange={value => updatePixConfig({ publicKey: value })} />
+                        <PixField label="Identificador técnico" value={activePixConfig.clientId || ""} onChange={value => updatePixConfig({ clientId: value })} />
+                        <PixField label="Chave técnica protegida" value={activePixConfig.clientSecret || ""} onChange={value => updatePixConfig({ clientSecret: value })} />
+                        <PixField label="URL do canal seguro" value={activePixConfig.webhookUrl || ""} onChange={value => updatePixConfig({ webhookUrl: value })} />
+                        <PixField label="Chave do canal seguro" value={activePixConfig.webhookSecret || ""} onChange={value => updatePixConfig({ webhookSecret: value })} />
+                        <PixField label="Atualizações do canal seguro" value={activePixConfig.webhookEvents || ""} onChange={value => updatePixConfig({ webhookEvents: value })} />
                       </div>
                     </details>
                   </div>
@@ -714,7 +732,7 @@ export function AdminRaffles() {
                   Nenhum registro encontrado.
                 </p>
                 <button
-                  onClick={() => { setCurrentRaffle({ status: 'active', mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
+                  onClick={() => { setCurrentRaffle({ status: 'active', minPurchaseTickets: 1, mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
                   className="neon-button mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3"
                 >
                   <Plus className="h-4 w-4" /> Nova campanha

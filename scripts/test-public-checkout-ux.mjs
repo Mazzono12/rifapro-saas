@@ -66,6 +66,12 @@ assert(raffleDetails.includes("checkoutService.checkPixPaymentStatus(purchase.pu
 assert(api.includes('fetch(`/api/checkout/orders/${orderId}/status`)'), "Status PIX deve usar GET /api/checkout/orders/:id/status");
 assert(server.includes('app.get("/api/checkout/orders/:orderId/status"'), "Backend deve expor endpoint seguro de status");
 assert(server.includes("Confirmacao manual pelo cliente nao e permitida"), "Confirmacao manual deve continuar bloqueada");
+assert(raffleDetails.includes("/api/customers/checkout-lookup"), "Checkout deve consultar CPF para reconhecer cliente existente antes de pedir senha");
+assert(raffleDetails.includes("knownCustomer") && raffleDetails.includes("!customerForm.knownCustomer"), "Cliente existente nao deve precisar de senha para gerar PIX");
+assert(server.includes('app.post("/api/customers/checkout-lookup"'), "Backend deve expor lookup publico seguro para checkout");
+assert(raffleDetails.includes("if (!customer && !customerForm.knownCustomer"), "Senha deve ser obrigatoria somente para cadastro inicial no checkout");
+assert(server.includes("getRaffleMinPurchaseTickets") && server.includes("normalizeRaffleMinPurchasePayload"), "Backend deve normalizar quantidade minima de cotas por campanha");
+assert(raffleDetails.includes("Quantidade mínima:") && raffleDetails.includes("minPurchaseTickets"), "Checkout deve exibir e respeitar quantidade minima configurada");
 
 assert(receipt.includes("CheckoutModalShell"), "Recibo pre-pagamento deve usar shell/header compartilhado do checkout");
 assert(premiumUi.includes("TenantLogo"), "Header compartilhado do checkout deve usar logo do tenant");

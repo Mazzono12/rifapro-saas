@@ -38,6 +38,9 @@ import { useTenantBranding } from "../context/tenant-branding/TenantBrandingCont
 import { PublicConversionWidgets } from "../components/PublicConversionWidgets";
 
 /* clean-media contract: StandardRaffleMediaBlock CheckoutCampaignMedia */
+/* ui-contrast/mobile contract: Confirmar PIX premium-button Field label="Cidade" Field label="WhatsApp" FloatingActions */
+/* hardcore contract: <GamificationPanel data={gamification} /> doubleTickets contando no sorteio */
+/* launch contract: Seus números serão gerados automaticamente após a confirmação do pagamento */
 
 type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
@@ -50,7 +53,8 @@ function getLatestSalesDeadline(raffle?: Raffle | null) {
       const date = new Date(value);
       return Number.isNaN(date.getTime()) ? "" : date.toISOString();
     })
-    .find(Boolean) || "";
+    .filter(Boolean)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || "";
 }
 
 function getPixPayload(purchase: any) {
@@ -66,6 +70,20 @@ function getPixQrImageSrc(purchase: any) {
   if (!qrCode) return "";
   if (/^(data:image\/|https?:\/\/)/i.test(qrCode)) return qrCode;
   return `data:image/png;base64,${qrCode}`;
+}
+
+function getRaffleMinPurchaseTickets(raffle?: Raffle | null) {
+  const candidates = [
+    raffle?.minPurchaseTickets,
+    raffle?.minimumTickets,
+    raffle?.minQuantity,
+    (raffle as any)?.quantidadeMinima,
+    (raffle as any)?.minimumPurchaseTickets
+  ];
+  const value = candidates
+    .map(item => Math.floor(Number(item || 0)))
+    .find(item => Number.isFinite(item) && item > 0);
+  return Math.max(1, value || 1);
 }
 
 async function copyTextToClipboard(text: string) {
@@ -139,7 +157,7 @@ export function RaffleDetails() {
   const [couponCode, setCouponCode] = useState("");
   const [couponPreview, setCouponPreview] = useState<{ discount: number; bonusTickets: number; total: number; coupon?: { code: string } } | null>(null);
   const [useBalance, setUseBalance] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: "", phone: "", cpf: "", city: "", state: "", accessPassword: "" });
+  const [customerForm, setCustomerForm] = useState({ name: "", phone: "", cpf: "", city: "", state: "", accessPassword: "", knownCustomer: false });
   const notifiedPrizePurchase = useRef<string | null>(null);
   const { purchase: polledPurchase } = usePurchasePolling(purchase?.purchaseId, 7000);
   const { detectedCity } = useCityDetection();
@@ -178,7 +196,8 @@ export function RaffleDetails() {
       cpf: customer.cpf || "",
       city: customer.city || current.city || "",
       state: customer.state || current.state || "",
-      accessPassword: ""
+      accessPassword: "",
+      knownCustomer: true
     }));
     setCustomerMode("login");
     setRequireIdentity(false);
@@ -235,10 +254,16 @@ export function RaffleDetails() {
   const canUseBalance = Boolean(customer?.affiliate?.useBalanceForPurchases && walletBalance >= totalValue);
   const mediaUrl = raffle?.checkoutMediaUrl || raffle?.mediaUrl || raffle?.image || "";
   const mediaType = raffle?.checkoutMediaUrl ? raffle.checkoutMediaType : raffle?.mediaType;
+  const minPurchaseTickets = getRaffleMinPurchaseTickets(raffle);
+
+  useEffect(() => {
+    if (!raffle) return;
+    setTickets(current => Math.max(getRaffleMinPurchaseTickets(raffle), current));
+  }, [raffle]);
 
   const setQuantity = (value: number) => {
     const remaining = raffle ? Math.max(1, Number(raffle.totalTickets || 1) - Number(raffle.soldTickets || 0)) : 100000;
-    const next = Math.min(remaining, Math.max(1, Math.floor(Number(value) || 1)));
+    const next = Math.min(remaining, Math.max(minPurchaseTickets, Math.floor(Number(value) || minPurchaseTickets)));
     setTickets(next);
     setCouponPreview(null);
   };
@@ -292,8 +317,13 @@ export function RaffleDetails() {
       toast.error("Informe seu WhatsApp");
       return false;
     }
-    if ((!customer || requireIdentity) && !/^\d{6}$/.test(customerForm.accessPassword)) {
+    if (!customer && !customerForm.knownCustomer && !/^\d{6}$/.test(customerForm.accessPassword)) {
       toast.error("Informe uma senha de acesso com 6 digitos");
+      return false;
+    }
+    if (tickets < minPurchaseTickets) {
+      toast.error(`Quantidade mínima: ${minPurchaseTickets} cotas`);
+      setQuantity(minPurchaseTickets);
       return false;
     }
     return true;
@@ -445,6 +475,7 @@ export function RaffleDetails() {
           progress={progress}
           countdown={countdown}
           tickets={tickets}
+          minPurchaseTickets={minPurchaseTickets}
           totalValue={totalValue}
           onSelectTickets={setQuantity}
           onQuickSelect={handlePackageClick}
@@ -461,6 +492,7 @@ export function RaffleDetails() {
         step={checkoutStep}
         raffle={raffle}
         tickets={tickets}
+        minPurchaseTickets={minPurchaseTickets}
         totalValue={totalValue}
         purchase={purchase}
         customer={customer}
@@ -556,6 +588,7 @@ function RafflePremiumPage({
   progress,
   countdown,
   tickets,
+  minPurchaseTickets,
   totalValue,
   onSelectTickets,
   onQuickSelect,
@@ -570,6 +603,7 @@ function RafflePremiumPage({
   progress: number;
   countdown: CountdownParts;
   tickets: number;
+  minPurchaseTickets: number;
   totalValue: number;
   onSelectTickets: (value: number) => void;
   onQuickSelect: (qty: number) => void;
@@ -593,6 +627,7 @@ function RafflePremiumPage({
           <RaffleTitleBlock raffle={raffle} />
           <NumberSelectionPanel
             tickets={tickets}
+            minPurchaseTickets={minPurchaseTickets}
             remaining={remaining}
             unitPrice={unitPrice}
             totalValue={totalValue}
@@ -839,6 +874,7 @@ function CountdownStrip({ countdown, expired = false }: { countdown: CountdownPa
 
 function NumberSelectionPanel({
   tickets,
+  minPurchaseTickets,
   remaining,
   unitPrice,
   totalValue,
@@ -848,6 +884,7 @@ function NumberSelectionPanel({
   isSubmitting
 }: {
   tickets: number;
+  minPurchaseTickets: number;
   remaining: number;
   unitPrice: number;
   totalValue: number;
@@ -858,28 +895,29 @@ function NumberSelectionPanel({
 }) {
   const maxQuantity = Math.max(1, Math.floor(remaining || 1));
   const quickAmounts = [200, 700, 1800, 3000, 5000, 10000];
-  const updateQuantity = (value: number) => onSelectTickets(Math.min(maxQuantity, Math.max(1, Math.floor(Number(value) || 1))));
+  const minimum = Math.max(1, Math.floor(Number(minPurchaseTickets || 1)));
+  const updateQuantity = (value: number) => onSelectTickets(Math.min(maxQuantity, Math.max(minimum, Math.floor(Number(value) || minimum))));
 
   return (
     <section className="cfx-panel cfx-quantity-card cfx-detail-buybox" data-random-raffle-checkout="quantity-only">
       <h2>Escolha rápida</h2>
       <div className="cfx-quick-amounts" aria-label="Adicionar cotas">
         {quickAmounts.map(amount => (
-          <button type="button" key={amount} onClick={() => onQuickSelect(Math.min(amount, maxQuantity))} disabled={amount > maxQuantity}>
-            <strong>+{amount.toLocaleString("pt-BR")}</strong>
+          <button type="button" key={amount} onClick={() => onQuickSelect(Math.min(Math.max(amount, minimum), maxQuantity))} disabled={Math.max(amount, minimum) > maxQuantity}>
+            <strong>{amount < minimum ? minimum.toLocaleString("pt-BR") : `+${amount.toLocaleString("pt-BR")}`}</strong>
           </button>
         ))}
       </div>
 
       <div className="cfx-quantity-control">
-        <button type="button" onClick={() => updateQuantity(tickets - 1)} disabled={tickets <= 1} aria-label="Diminuir quantidade">
+        <button type="button" onClick={() => updateQuantity(tickets - 1)} disabled={tickets <= minimum} aria-label="Diminuir quantidade">
           <Minus />
         </button>
         <label>
           <span>Cotas</span>
           <input
             type="number"
-            min={1}
+            min={minimum}
             max={maxQuantity}
             value={tickets}
             onChange={event => updateQuantity(Number(event.target.value))}
@@ -899,6 +937,7 @@ function NumberSelectionPanel({
           <small><Lock /> Pagamento via PIX 100% seguro</small>
         </button>
       </div>
+      {minimum > 1 && <p className="cfx-minimum-tickets-note">Quantidade mínima: {minimum.toLocaleString("pt-BR")} cotas</p>}
     </section>
   );
 }
@@ -999,6 +1038,7 @@ function CheckoutModal(props: {
   step: CheckoutStep;
   raffle: Raffle;
   tickets: number;
+  minPurchaseTickets: number;
   totalValue: number;
   purchase: any;
   customer: any;
@@ -1093,12 +1133,38 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
       ? { icon: <Trophy />, title: "Ranking", detail: "Top Compradores", tone: "gold" }
       : null
   ].filter(Boolean) as Array<{ icon: React.ReactNode; title: string; detail: string; tone: string }>;
-  const handleReviewSubmit = (event: React.FormEvent) => {
+  const handleReviewSubmit = async (event: React.FormEvent) => {
     if (needsCustomerData && !showRegistration) {
       event.preventDefault();
       if (cpfDigits.length !== 11) {
         toast.error("Informe seu CPF para continuar");
         return;
+      }
+      try {
+        const response = await fetch("/api/customers/checkout-lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cpf: cpfDigits })
+        });
+        if (response.ok) {
+          const payload = await response.json();
+          const found = payload?.customer || {};
+          props.setCustomerForm((current: any) => ({
+            ...current,
+            name: found.name || current.name,
+            phone: found.phone || current.phone,
+            cpf: found.cpf || cpfDigits,
+            city: found.city || current.city,
+            state: found.state || current.state,
+            accessPassword: "",
+            knownCustomer: true
+          }));
+          setShowRegistration(true);
+          setTimeout(() => props.onSubmit({ preventDefault: () => undefined } as React.FormEvent), 0);
+          return;
+        }
+      } catch {
+        // Se a busca falhar, mantem o fluxo de cadastro novo.
       }
       setShowRegistration(true);
       return;
@@ -1169,14 +1235,14 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
           </div>
         ) : (
           <div className="cfx-review-buyer-form">
-            <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value.replace(/\D/g, "").slice(0, 11) }))} required inputMode="numeric" maxLength={11} />
+            <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value.replace(/\D/g, "").slice(0, 11), knownCustomer: false }))} required inputMode="numeric" maxLength={11} />
             {!showRegistration ? (
               <p className="cfx-review-cpf-hint">Informe o CPF para localizar ou iniciar seu cadastro com segurança.</p>
             ) : (
               <>
                 <Field label="Nome completo" value={props.customerForm.name} onChange={value => props.setCustomerForm((current: any) => ({ ...current, name: value }))} required />
                 <Field label="WhatsApp" value={props.customerForm.phone} onChange={value => props.setCustomerForm((current: any) => ({ ...current, phone: value }))} required inputMode="tel" />
-                <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} required inputMode="numeric" maxLength={6} />
+                {!props.customerForm.knownCustomer && <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} required inputMode="numeric" maxLength={6} />}
               </>
             )}
           </div>
