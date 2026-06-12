@@ -88,19 +88,42 @@ export function getSupportSessionId() {
   return localStorage.getItem(supportSessionStorageKey) || "";
 }
 
+function requestPath(input: RequestInfo | URL) {
+  const raw = typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
+  try {
+    return new URL(raw, typeof window !== "undefined" ? window.location.origin : "http://localhost").pathname;
+  } catch {
+    return raw.split("?")[0] || "";
+  }
+}
+
+function shouldEmitAuthError(url: string) {
+  const path = requestPath(url);
+  const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+  return (
+    path.startsWith("/api/admin/") ||
+    path.startsWith("/api/superadmin/") ||
+    path.startsWith("/api/auth/me") ||
+    currentPath.startsWith("/admin") ||
+    currentPath.startsWith("/superadmin") ||
+    currentPath.startsWith("/dashboard") ||
+    currentPath.startsWith("/painel")
+  );
+}
+
 export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
   const token = getAuthAccessToken();
-  const url = typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
+  const url = requestPath(input);
   const isAuthEndpoint = url.startsWith("/api/auth/");
   if (token && url.startsWith("/api/") && !isAuthEndpoint) headers.set("Authorization", `Bearer ${token}`);
   const supportSessionId = getSupportSessionId();
   if (supportSessionId && url.startsWith("/api/admin/")) headers.set("X-Support-Session-Id", supportSessionId);
   const response = await fetch(input, { ...init, headers });
-  if (!isAuthEndpoint && response.status === 401) {
+  if (!isAuthEndpoint && response.status === 401 && shouldEmitAuthError(url)) {
     window.dispatchEvent(new CustomEvent("rifapro:auth-error", { detail: { type: "expired" } }));
   }
-  if (!isAuthEndpoint && response.status === 403) {
+  if (!isAuthEndpoint && response.status === 403 && shouldEmitAuthError(url)) {
     window.dispatchEvent(new CustomEvent("rifapro:auth-error", { detail: { type: "forbidden" } }));
   }
   return response;
@@ -115,14 +138,14 @@ export function installAuthFetchMiddleware() {
   window.fetch = (input, init = {}) => {
     const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
     const token = getAuthAccessToken();
-    const url = typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
+    const url = requestPath(input);
     const isAuthEndpoint = url.startsWith("/api/auth/");
     if (token && url.startsWith("/api/") && !isAuthEndpoint) headers.set("Authorization", `Bearer ${token}`);
     const supportSessionId = getSupportSessionId();
     if (supportSessionId && url.startsWith("/api/admin/")) headers.set("X-Support-Session-Id", supportSessionId);
     return nativeFetch(input, { ...init, headers }).then(response => {
-      if (!isAuthEndpoint && response.status === 401) window.dispatchEvent(new CustomEvent("rifapro:auth-error", { detail: { type: "expired" } }));
-      if (!isAuthEndpoint && response.status === 403) window.dispatchEvent(new CustomEvent("rifapro:auth-error", { detail: { type: "forbidden" } }));
+      if (!isAuthEndpoint && response.status === 401 && shouldEmitAuthError(url)) window.dispatchEvent(new CustomEvent("rifapro:auth-error", { detail: { type: "expired" } }));
+      if (!isAuthEndpoint && response.status === 403 && shouldEmitAuthError(url)) window.dispatchEvent(new CustomEvent("rifapro:auth-error", { detail: { type: "forbidden" } }));
       return response;
     });
   };

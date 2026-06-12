@@ -44,6 +44,7 @@ import { PublicConversionWidgets } from "../components/PublicConversionWidgets";
 
 type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
+type CheckoutCustomerForm = { name: string; phone: string; cpf: string; city: string; state: string; accessPassword: string; knownCustomer: boolean };
 
 function getLatestSalesDeadline(raffle?: Raffle | null) {
   if (!raffle) return "";
@@ -157,7 +158,7 @@ export function RaffleDetails() {
   const [couponCode, setCouponCode] = useState("");
   const [couponPreview, setCouponPreview] = useState<{ discount: number; bonusTickets: number; total: number; coupon?: { code: string } } | null>(null);
   const [useBalance, setUseBalance] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: "", phone: "", cpf: "", city: "", state: "", accessPassword: "", knownCustomer: false });
+  const [customerForm, setCustomerForm] = useState<CheckoutCustomerForm>({ name: "", phone: "", cpf: "", city: "", state: "", accessPassword: "", knownCustomer: false });
   const notifiedPrizePurchase = useRef<string | null>(null);
   const { purchase: polledPurchase } = usePurchasePolling(purchase?.purchaseId, 7000);
   const { detectedCity } = useCityDetection();
@@ -293,31 +294,33 @@ export function RaffleDetails() {
     toast.success("Cupom aplicado");
   };
 
-  const buildCheckoutCustomer = async () => {
+  const buildCheckoutCustomer = async (resolvedCustomer?: Partial<CheckoutCustomerForm>) => {
     const geoLocation = await captureGeoLocation();
     GeoPrefillService.saveManual(customerForm.city, customerForm.state);
+    const form = resolvedCustomer ? { ...customerForm, ...resolvedCustomer, knownCustomer: true } : customerForm;
     return customer
       ? {
-          ...customerForm,
+          ...form,
           name: customer.name,
           phone: customer.phone,
           cpf: customer.cpf,
-          city: customer.city || customerForm.city,
-          state: customer.state || customerForm.state,
+          city: customer.city || form.city,
+          state: customer.state || form.state,
           browserId: customer.browserId,
           geoLocation
         }
-      : { ...customerForm, geoLocation };
+      : { ...form, geoLocation };
   };
 
-  const validateCheckoutForm = () => {
+  const validateCheckoutForm = (resolvedCustomer?: Partial<CheckoutCustomerForm>) => {
     if (!raffle) return;
-    const phone = (customer?.phone || customerForm.phone || "").replace(/\D/g, "");
+    const form = resolvedCustomer ? { ...customerForm, ...resolvedCustomer, knownCustomer: true } : customerForm;
+    const phone = (customer?.phone || form.phone || "").replace(/\D/g, "");
     if (!phone) {
       toast.error("Informe seu WhatsApp");
       return false;
     }
-    if (!customer && !customerForm.knownCustomer && !/^\d{6}$/.test(customerForm.accessPassword)) {
+    if (!customer && !form.knownCustomer && !/^\d{6}$/.test(form.accessPassword)) {
       toast.error("Informe uma senha de acesso com 6 digitos");
       return false;
     }
@@ -356,13 +359,13 @@ export function RaffleDetails() {
     }
   };
 
-  const executeBuy = async () => {
-    if (!raffle || !validateCheckoutForm()) return;
+  const executeBuy = async (resolvedCustomer?: Partial<CheckoutCustomerForm>) => {
+    if (!raffle || !validateCheckoutForm(resolvedCustomer)) return;
     startMetric("pix_generation");
     setIsSubmitting(true);
     try {
-      const checkoutCustomer = await buildCheckoutCustomer();
-      const phone = (customer?.phone || customerForm.phone || "").replace(/\D/g, "");
+      const checkoutCustomer = await buildCheckoutCustomer(resolvedCustomer);
+      const phone = (customer?.phone || checkoutCustomer.phone || "").replace(/\D/g, "");
       const res = await fetch(`/api/raffles/${id}/buy`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -520,9 +523,9 @@ export function RaffleDetails() {
         copied={copied}
         confirmingPix={confirmingPix}
         onClose={() => setCheckoutOpen(false)}
-        onSubmit={event => {
+        onSubmit={(event, resolvedCustomer) => {
           event.preventDefault();
-          executeBuy();
+          executeBuy(resolvedCustomer);
         }}
         onCopyPix={copyPix}
         onConfirmPix={confirmPixStatus}
@@ -1066,7 +1069,7 @@ function CheckoutModal(props: {
   copied: boolean;
   confirmingPix: boolean;
   onClose: () => void;
-  onSubmit: (event: React.FormEvent) => void;
+  onSubmit: (event: React.FormEvent, resolvedCustomer?: Partial<CheckoutCustomerForm>) => void;
   onCopyPix: () => void;
   onConfirmPix: () => void;
   onBackToReview: () => void;
@@ -1149,18 +1152,20 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         if (response.ok) {
           const payload = await response.json();
           const found = payload?.customer || {};
-          props.setCustomerForm((current: any) => ({
-            ...current,
-            name: found.name || current.name,
-            phone: found.phone || current.phone,
+          const resolvedCustomer = {
+            name: found.name || props.customerForm.name,
+            phone: found.phone || props.customerForm.phone,
             cpf: found.cpf || cpfDigits,
-            city: found.city || current.city,
-            state: found.state || current.state,
+            city: found.city || props.customerForm.city,
+            state: found.state || props.customerForm.state,
             accessPassword: "",
             knownCustomer: true
+          };
+          props.setCustomerForm((current: any) => ({
+            ...current,
+            ...resolvedCustomer
           }));
-          setShowRegistration(true);
-          setTimeout(() => props.onSubmit({ preventDefault: () => undefined } as React.FormEvent), 0);
+          props.onSubmit(event, resolvedCustomer);
           return;
         }
       } catch {

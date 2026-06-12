@@ -67,9 +67,15 @@ assert(api.includes('fetch(`/api/checkout/orders/${orderId}/status`)'), "Status 
 assert(server.includes('app.get("/api/checkout/orders/:orderId/status"'), "Backend deve expor endpoint seguro de status");
 assert(server.includes("Confirmacao manual pelo cliente nao e permitida"), "Confirmacao manual deve continuar bloqueada");
 assert(raffleDetails.includes("/api/customers/checkout-lookup"), "Checkout deve consultar CPF para reconhecer cliente existente antes de pedir senha");
-assert(raffleDetails.includes("knownCustomer") && raffleDetails.includes("!customerForm.knownCustomer"), "Cliente existente nao deve precisar de senha para gerar PIX");
+assert(raffleDetails.includes("knownCustomer") && (raffleDetails.includes("!customerForm.knownCustomer") || raffleDetails.includes("!form.knownCustomer")), "Cliente existente nao deve precisar de senha para gerar PIX");
 assert(server.includes('app.post("/api/customers/checkout-lookup"'), "Backend deve expor lookup publico seguro para checkout");
-assert(raffleDetails.includes("if (!customer && !customerForm.knownCustomer"), "Senha deve ser obrigatoria somente para cadastro inicial no checkout");
+assert(raffleDetails.includes("if (!customer && !form.knownCustomer") || raffleDetails.includes("if (!customer && !customerForm.knownCustomer"), "Senha deve ser obrigatoria somente para cadastro inicial no checkout");
+const accessPasswordContract = sliceBetween(server, "function normalizeAccessPassword", "function stripSensitiveCustomerFields");
+assert(accessPasswordContract.includes('replace(/\\D/g, "")'), "Senha de acesso deve considerar apenas os digitos informados");
+assert(accessPasswordContract.includes('value.length === 6 ? value : ""'), "Qualquer senha numerica com exatamente 6 digitos deve ser aceita");
+for (const blockedPattern of ["123456", "000000", "111111", "sequencial", "fraca", "weak"]) {
+  assert(!accessPasswordContract.includes(blockedPattern), `Senha de 6 digitos nao deve ter bloqueio por padrao fraco: ${blockedPattern}`);
+}
 assert(server.includes("getRaffleMinPurchaseTickets") && server.includes("normalizeRaffleMinPurchasePayload"), "Backend deve normalizar quantidade minima de cotas por campanha");
 assert(raffleDetails.includes("Quantidade mínima:") && raffleDetails.includes("minPurchaseTickets"), "Checkout deve exibir e respeitar quantidade minima configurada");
 
