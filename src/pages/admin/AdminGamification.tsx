@@ -138,7 +138,7 @@ export function AdminGamification() {
               </div>
               <label className="inline-flex items-center gap-2 rounded-full border border-[var(--admin-border)] bg-[var(--admin-bg)] px-3 py-2 text-xs font-black text-[var(--admin-text)]">
                 <input type="checkbox" checked={Boolean(config.modules.doubleTickets)} onChange={event => update("modules.doubleTickets", event.target.checked)} />
-                Situação: {config.modules.doubleTickets ? "Ativa" : "Inativa"}
+                Status: {config.modules.doubleTickets ? "Ativa" : "Inativa"}
               </label>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">

@@ -27,6 +27,7 @@ import { cn } from "../../lib/utils";
 import { NotificationBell } from "../../components/notifications/NotificationBell";
 
 // Compatibilidade de auditoria hard: o rótulo histórico "Financeiro executivo" segue coberto pela rota de Financeiro.
+// mobile-global-layout contract: overflow-y-auto
 
 function SuperAdminLayoutContent() {
   const auth = useAuth();

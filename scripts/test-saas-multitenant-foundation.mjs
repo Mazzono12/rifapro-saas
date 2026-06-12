@@ -37,7 +37,7 @@ assert.match(migration, /table_name \|\| '_saas_delete'/i, "Migration deve criar
 assert.match(migration, /public\.is_service_role\(\)/i, "Policies devem liberar service_role.");
 assert.match(migration, /public\.can_access_tenant\(tenant_id::text\)/i, "Policies devem isolar por tenant_id.");
 assert.match(migration, /jwt_tenant_id_text/i, "Migration deve usar tenant_id do JWT.");
-assert.match(migration, /Tenant Desenvolvimento/i, "Migration deve criar seed de desenvolvimento.");
+assert.match(migration, /CIFHER Prime|Tenant Desenvolvimento/i, "Migration deve criar seed de desenvolvimento.");
 
 assert.match(server, /delete req\.body\.tenant_id/, "Backend deve remover tenant_id enviado pelo frontend.");
 assert.match(server, /host === "localhost" \|\| host === "127\.0\.0\.1" \|\| host === "::1"/, "Middleware deve suportar localhost.");

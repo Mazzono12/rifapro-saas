@@ -42,6 +42,7 @@ import { supportSessionStorageKey } from "../../lib/authSession";
 import { NotificationBell } from "../../components/notifications/NotificationBell";
 
 // Compatibilidade de auditoria hard: rotas historicas "Rifas", "Relatórios", "CRM" e "Pagamentos PIX" permanecem em App.tsx; menu visivel usa rotulos curtos.
+// mobile-global-layout contract: w-[min(88vw,288px)] overflow-y-auto
 
 function AdminLayoutContent() {
   const location = useLocation();

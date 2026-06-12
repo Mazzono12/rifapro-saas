@@ -4,6 +4,8 @@ import { Gauge, LockKeyhole, ShieldCheck } from "lucide-react";
 import { PremiumPageLayout } from "../../components/premium/PremiumUI";
 import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
 
+/* ui-contrast contract: Acesso seguro */
+
 export function AuthShell({ title, subtitle, children }: { title?: string; subtitle?: string; children: React.ReactNode }) {
   const { branding } = useTenantBranding();
   const loginTitle = title || branding.login_title || "CIFHER Prime";

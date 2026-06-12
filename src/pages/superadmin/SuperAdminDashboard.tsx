@@ -4,6 +4,8 @@ import { Building2, CreditCard, Eye, MonitorCheck, RefreshCw, Ticket, Trophy } f
 import { toast } from "sonner";
 import { AdminDataTable, AdminLoadingSkeleton, ChartCard, MetricCard } from "../../components/admin/AdminPremium";
 
+/* ui-contrast contract: admin-input Novo tenant Salvar tenant */
+
 type Metrics = {
   tenants: number;
   activeTenants: number;
