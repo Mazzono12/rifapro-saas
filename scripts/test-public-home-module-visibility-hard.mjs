@@ -260,7 +260,7 @@ hasAll(supportChat, [
 
 hasAll(raffleDetails, [
   "const quickAmounts = [200, 700, 1800, 3000, 5000, 10000]",
-  "<strong>+{amount.toLocaleString(\"pt-BR\")}</strong>",
+  "amount < minimum ? minimum.toLocaleString(\"pt-BR\") : `+${amount.toLocaleString(\"pt-BR\")}`",
   "Aguardando pagamento",
   "Copiar código PIX",
   "MEUS BILHETES",
@@ -346,8 +346,18 @@ hasAll(server, [
   "tenantSettings[tenantId] = updatedSettings",
   "isPrivateDevHost",
   "private_dev_host_fallback",
-  "resolveLocalDevTenant"
+  "resolveLocalDevTenant(req)",
+  "if (isProductionRuntime) return null",
+  "x-tenant-slug",
+  "x-tenant-id",
+  "req.query?.tenant",
+  "process.env.DEFAULT_TENANT_ID",
+  "local_dev_no_active_tenant"
 ], "Configuracao publica e multitenant");
+hasNone(server, [
+  "tenantWithActiveRaffle",
+  "raffles.some(raffle => raffle.tenant_id === tenant.id && raffle.status === \"active\")"
+], "Fallback local nao pode escolher tenant automaticamente por campanha ativa.");
 
 hasAll(adminRaffles, ["Nome da rifa / edital", "currentRaffle.title"], "Admin permite editar nome da rifa/edital");
 hasAll(adminRaffles, [

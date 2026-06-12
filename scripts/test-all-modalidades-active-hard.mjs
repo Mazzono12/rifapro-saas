@@ -102,21 +102,20 @@ async function setupScenario(headers) {
     method: "PUT",
     headers,
     body: JSON.stringify({
-      active: "mercadopago",
+      active: "sandbox",
       pix: {
         enabled: true,
-        gateway: "mercadopago",
+        gateway: "sandbox",
         sandbox: true,
         apiKey: "sandbox-pix-key",
         webhookSecret,
-        webhookUrl: "/api/webhooks/payment/mercadopago"
+        webhookUrl: "/api/webhooks/payment/sandbox"
       },
-      mercadopago: {
+      sandbox: {
         environment: "sandbox",
-        accessToken: "",
-        publicKey: "",
+        apiKey: "sandbox-only",
         webhookSecret,
-        webhookUrl: "/api/webhooks/payment/mercadopago",
+        webhookUrl: "/api/webhooks/payment/sandbox",
         releaseStatus: "approved"
       }
     })
@@ -206,7 +205,7 @@ async function buyFarm(groupIds, suffix, extra = {}) {
 }
 
 async function webhook(orderId) {
-  return json("/api/webhooks/payment/mercadopago", {
+  return json("/api/webhooks/payment/sandbox", {
     method: "POST",
     headers: {
       "x-forwarded-host": host,

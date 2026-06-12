@@ -17,7 +17,7 @@ async function findAvailablePort() {
 
 const port = await findAvailablePort();
 const baseUrl = `http://127.0.0.1:${port}`;
-const env = { ...process.env, PORT: String(port), NODE_ENV: "production", RIFAPRO_TEST_MODE: "true", SUPABASE_URL: "", VITE_SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", SUPABASE_SERVICE_KEY: "", SUPERADMIN_EMAIL: "superadmin.domains@test.local", SUPERADMIN_PASSWORD: "SenhaSuper123!", JWT_SECRET: "test-tenant-domains-secret-long-value", GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-tenant-domains-gateway-key" };
+const env = { ...process.env, PORT: String(port), NODE_ENV: "production", RIFAPRO_TEST_MODE: "true", DEFAULT_TENANT_ID: "", SUPABASE_URL: "", VITE_SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", SUPABASE_SERVICE_KEY: "", SUPERADMIN_EMAIL: "superadmin.domains@test.local", SUPERADMIN_PASSWORD: "SenhaSuper123!", JWT_SECRET: "test-tenant-domains-secret-long-value", GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-tenant-domains-gateway-key" };
 const server = spawn(process.execPath, ["dist/server.js"], { cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"] });
 let serverOutput = "";
 server.stdout.on("data", chunk => { serverOutput += chunk.toString(); });
@@ -42,6 +42,12 @@ try {
   assert.equal(duplicate.response.status, 400, "dominio unico nao pode duplicar entre tenants");
   const verify = await json(`/api/admin/domains/${created.body.id}/verify`, { method: "POST", headers: headersA });
   assert.equal(verify.response.status, 200);
+  const localWithoutTenant = await json("/api/raffles");
+  assert.equal(localWithoutTenant.response.status, 404, "localhost sem tenant explicito nao pode escolher tenant por campanha ativa");
+  const localWithQueryTenant = await json("/api/raffles?tenant=cliente-a");
+  assert.equal(localWithQueryTenant.response.status, 200, "localhost em test/dev resolve tenant explicito por query");
+  const localWithHeaderTenant = await json("/api/raffles", { headers: { "x-tenant-slug": "cliente-a" } });
+  assert.equal(localWithHeaderTenant.response.status, 200, "localhost em test/dev resolve tenant explicito por header");
   const publicCustom = await json("/api/raffles", { headers: { "x-forwarded-host": "sorteios-a.test" } });
   assert.equal(publicCustom.response.status, 200, "custom domain resolve tenant verificado");
   const publicSub = await json("/api/raffles", { headers: { "x-forwarded-host": "cliente-a.meudominio.com" } });

@@ -21,6 +21,7 @@ const home = read("src/pages/Home.tsx");
 const css = read("src/index.css");
 const packageJson = read("package.json");
 const server = read("server.ts");
+const hooks = read("src/hooks/useRaffles.ts");
 const adminLayout = read("src/pages/admin/AdminLayout.tsx");
 const adminInstantPrizes = read("src/pages/admin/AdminInstantPrizes.tsx");
 const adminGamification = read("src/pages/admin/AdminGamification.tsx");
@@ -192,14 +193,29 @@ includesNone(css, [
 assert.match(packageJson, /"test:home-instant-rewards-hard"/, "package.json deve registrar test:home-instant-rewards-hard.");
 
 includesAll(server, [
-  "app.get(\"/api/public/raffles/:raffleId/super-cotas\"",
-  "const raffle = raffles.find(item => item.id === raffleId)",
-  "const tenantId = raffle?.tenant_id || resolveRequestTenantId(req)",
+  "app.get(\"/api/public/raffles/:raffleId/super-cotas\", async (req, res)",
+  "const resolution = await resolveDomainTenantInfo(req)",
+  "const tenant = getRequestTenant(req) || resolution.tenant",
+  "res.status(404).json({ error: \"Tenant nao encontrado para este dominio\" })",
+  "const tenantId = tenant.id",
+  "const raffle = raffles.find(item => item.id === raffleId && item.tenant_id === tenantId)",
+  "res.status(404).json({ error: \"Rifa nao encontrada para este tenant\" })",
   "const getPrizeWinnerName = (prize: any)",
   "winnerName: getPrizeWinnerName(p)",
   "winnerName: getPrizeWinnerName(prize)",
   ".filter(prize => prize.status === \"claimed\")"
-], "Endpoint publico de Super Cotas deve resolver tenant pela rifa e retornar winnerName.");
+], "Endpoint publico de Super Cotas deve resolver tenant pela request antes da rifa e retornar winnerName.");
+includesNone(server, [
+  "const raffle = raffles.find(item => item.id === raffleId);\n    const tenantId = raffle?.tenant_id || resolveRequestTenantId(req)"
+], "Endpoint publico de Super Cotas nao pode usar tenant_id de rifa encontrada globalmente.");
+
+includesAll(hooks, [
+  "function tenantCacheKey()",
+  "window.location.host",
+  "queryKey: ['raffles', tenantCacheKey()]",
+  "queryKey: ['raffle', tenantCacheKey(), id]",
+  "queryKey: ['settings', tenantCacheKey()]"
+], "Cache React Query de rifas e settings deve ser isolado por host/tenant.");
 
 includesAll(adminLayout, [
   "{ name: \"Super Cotas\", path: \"/admin/cotas\", icon: Star, group: \"Operação\" }"

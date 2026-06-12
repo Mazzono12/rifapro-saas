@@ -4074,16 +4074,28 @@ async function startServer() {
     return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
   }
 
-  function resolveLocalDevTenant() {
-    const tenantWithActiveRaffle = tenants.find(tenant =>
-      isActiveTenantRecord(tenant) &&
-      raffles.some(raffle => raffle.tenant_id === tenant.id && raffle.status === "active")
-    );
-    return tenantWithActiveRaffle ||
-      tenants.find(item => item.id === legacyTenantId && isActiveTenantRecord(item)) ||
-      tenants.find(item => item.slug === "dev" && isActiveTenantRecord(item)) ||
-      tenants.find(item => isActiveTenantRecord(item)) ||
-      null;
+  function resolveLocalDevTenant(req: express.Request) {
+    if (isProductionRuntime) return null;
+    const explicitTenant = firstHeaderValue(req.headers["x-tenant-id"] || req.headers["x-tenant-slug"] || req.query?.tenant || "");
+    if (explicitTenant) {
+      const normalized = explicitTenant.trim().toLowerCase();
+      const tenant = tenants.find(item =>
+        isActiveTenantRecord(item) &&
+        (item.id.toLowerCase() === normalized || item.slug.toLowerCase() === normalized)
+      ) || null;
+      if (tenant) console.info(`[tenant-resolve] Tenant local resolvido por debug header/query/default: ${tenant.slug}`);
+      return tenant;
+    }
+    if (process.env.DEFAULT_TENANT_ID) {
+      const normalizedDefault = String(process.env.DEFAULT_TENANT_ID).trim().toLowerCase();
+      const tenant = tenants.find(item =>
+        isActiveTenantRecord(item) &&
+        (item.id.toLowerCase() === normalizedDefault || item.slug.toLowerCase() === normalizedDefault)
+      ) || null;
+      if (tenant) console.info(`[tenant-resolve] Tenant local resolvido por debug header/query/default: ${tenant.slug}`);
+      return tenant;
+    }
+    return null;
   }
 
   function isActiveTenantRecord(tenant: Partial<TenantRecord> & { ativo?: boolean } | null | undefined) {
@@ -4247,7 +4259,7 @@ async function startServer() {
     const hostRecebido = getRawRequestHost(req);
     const host = normalizeDomainName(hostRecebido);
     if (isLocalhost(host) || (!isProductionRuntime && isPrivateDevHost(host))) {
-      const tenant = resolveLocalDevTenant();
+      const tenant = resolveLocalDevTenant(req);
       const reason = isLocalhost(host) ? "localhost_fallback" : "private_dev_host_fallback";
       return { hostRecebido, hostNormalizado: host, tenant, fonte: tenant ? "tenants.dominio" : "none", reason: tenant ? reason : "local_dev_no_active_tenant" };
     }
@@ -12289,11 +12301,21 @@ async function startServer() {
     );
   });
 
-  app.get("/api/public/raffles/:raffleId/super-cotas", (req, res) => {
+  app.get("/api/public/raffles/:raffleId/super-cotas", async (req, res) => {
     const getPrizeWinnerName = (prize: any) => String(prize?.winnerName || prize?.ganhadorNome || prize?.nomeGanhador || "");
     const raffleId = req.params.raffleId;
-    const raffle = raffles.find(item => item.id === raffleId);
-    const tenantId = raffle?.tenant_id || resolveRequestTenantId(req);
+    const resolution = await resolveDomainTenantInfo(req);
+    const tenant = getRequestTenant(req) || resolution.tenant;
+    if (!tenant) {
+      res.status(404).json({ error: "Tenant nao encontrado para este dominio" });
+      return;
+    }
+    const tenantId = tenant.id;
+    const raffle = raffles.find(item => item.id === raffleId && item.tenant_id === tenantId);
+    if (!raffle) {
+      res.status(404).json({ error: "Rifa nao encontrada para este tenant" });
+      return;
+    }
     const prizes = instantPrizes.filter(prize => prize.tenant_id === tenantId && prize.raffleId === raffleId);
     const winners = prizes
       .filter(prize => prize.status === "claimed")

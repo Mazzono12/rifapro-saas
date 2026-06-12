@@ -2,9 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import { raffleService, globalSettingsService, fazendinhaService, modalidadesService } from '../services/api';
 import type { NumberModeId } from '../types';
 
+function tenantCacheKey() {
+  return typeof window === 'undefined' ? 'server' : window.location.host;
+}
+
 export function useRaffles() {
   return useQuery({
-    queryKey: ['raffles'],
+    queryKey: ['raffles', tenantCacheKey()],
     queryFn: () => raffleService.getRaffles(),
     staleTime: 1000 * 60 * 5, // 5 minutos de cache super rápido!
   });
@@ -12,7 +16,7 @@ export function useRaffles() {
 
 export function useRaffle(id: string) {
   return useQuery({
-    queryKey: ['raffle', id],
+    queryKey: ['raffle', tenantCacheKey(), id],
     queryFn: () => raffleService.getRaffleById(id),
     enabled: !!id,
     staleTime: 1000 * 60 * 5,
@@ -21,7 +25,7 @@ export function useRaffle(id: string) {
 
 export function useGlobalSettings() {
   return useQuery({
-    queryKey: ['settings'],
+    queryKey: ['settings', tenantCacheKey()],
     queryFn: () => globalSettingsService.getSettings(),
     staleTime: 1000 * 60 * 5, 
   });

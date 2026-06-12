@@ -32,7 +32,7 @@ async function wait(ms) {
 }
 
 async function waitForServer() {
-  for (let attempt = 0; attempt < 80; attempt += 1) {
+  for (let attempt = 0; attempt < 180; attempt += 1) {
     try {
       const response = await fetch(`${baseUrl}/api/auth/session`);
       if (response.status >= 200) return;
@@ -69,6 +69,20 @@ async function login(email, password) {
 
 try {
   await waitForServer();
+  const superToken = await login(env.SUPERADMIN_EMAIL, env.SUPERADMIN_PASSWORD);
+  const gatewaySetup = await json("/api/admin/gateways", {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${superToken}`,
+      "x-forwarded-host": "cliente-a.meudominio.com"
+    },
+    body: JSON.stringify({
+      active: "mock",
+      pix: { enabled: true, sandbox: true },
+      mock: { apiKey: "mock-only" }
+    })
+  });
+  assert.equal(gatewaySetup.response.status, 200, `Gateway mock deve ser configurado apenas no teste: ${JSON.stringify(gatewaySetup.body)}`);
 
   const before = await json("/api/fazendinha");
   assert.equal(before.response.status, 200, "Fazendinha publica deve carregar.");
@@ -107,7 +121,6 @@ try {
   assert.equal(savedPurchase?.statusPagamento, "reserved", "Compra salva deve continuar reserved.");
   assert.equal(savedPurchase?.paymentStatus, "pending", "Compra salva deve continuar pending.");
 
-  const superToken = await login(env.SUPERADMIN_EMAIL, env.SUPERADMIN_PASSWORD);
   const commissions = await json("/api/superadmin/commissions", {
     headers: {
       Authorization: `Bearer ${superToken}`,
