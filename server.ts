@@ -1501,7 +1501,7 @@ async function startServer() {
   };
   type AffiliateCampaignType = "raffle" | "fazendinha" | "number_mode";
   type AffiliateCampaignRef = { type: AffiliateCampaignType; id: string };
-  type AffiliateLedger = { amount: number; type: string; date: string; note?: string; campaignType?: AffiliateCampaignType; campaignId?: string; commissionRate?: number; commissionLevel?: AffiliateLevelId; commissionSnapshot?: Record<string, unknown> };
+  type AffiliateLedger = { amount: number; type: string; date: string; note?: string; campaignType?: AffiliateCampaignType; campaignId?: string; commissionRate?: number; commissionLevel?: AffiliateLevelId; commissionSnapshot?: Record<string, unknown>; balanceBefore?: number; balanceAfter?: number; purchaseId?: string; withdrawalId?: string; adminId?: string; reversed?: boolean; reversalOf?: string };
   type AffiliateRewardGoalType = "sales_count" | "customers_count" | "revenue_amount" | "commission_amount";
   type AffiliateRewardType = "scratchcard" | "wheel_spin" | "super_quota" | "bonus_number" | "future_reward";
   type AffiliatePerformanceRewardRule = {
@@ -9850,7 +9850,10 @@ async function startServer() {
   }
 
   function debitAffiliateWallet(affiliate: AffiliateRecord, amount: number) {
-    let remaining = amount;
+    const debitAmount = Number(amount || 0);
+    const available = Number(affiliate.prizeBalance || 0) + Number(affiliate.commissionBalance || 0);
+    if (!Number.isFinite(debitAmount) || debitAmount <= 0 || available + 0.00001 < debitAmount) return false;
+    let remaining = debitAmount;
     const prizeDebit = Math.min(affiliate.prizeBalance || 0, remaining);
     affiliate.prizeBalance -= prizeDebit;
     remaining -= prizeDebit;
@@ -9859,6 +9862,65 @@ async function startServer() {
     remaining -= commissionDebit;
     affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
     return remaining <= 0;
+  }
+
+  function affiliateTotalBalance(affiliate: AffiliateRecord) {
+    return Number(((affiliate.commissionBalance || 0) + (affiliate.prizeBalance || 0)).toFixed(2));
+  }
+
+  function appendAffiliateWalletLedger(input: {
+    tenantId: string;
+    affiliate: AffiliateRecord;
+    amount: number;
+    sourceType: WalletLedgerRecord["source_type"];
+    sourceId?: string;
+    reason: string;
+    actorUserId?: string;
+  }) {
+    const record: WalletLedgerRecord = {
+      id: createPublicId("WAL_"),
+      tenant_id: input.tenantId,
+      affiliate_ref: input.affiliate.refCode,
+      source_type: input.sourceType,
+      source_id: input.sourceId,
+      amount: Number(input.amount || 0),
+      reason: input.reason,
+      actor_user_id: input.actorUserId || "system",
+      created_at: new Date().toISOString()
+    };
+    walletLedger.unshift(record);
+    walletLedger = walletLedger.slice(0, 5000);
+    return record;
+  }
+
+  function appendAffiliateFinancialHistory(input: {
+    affiliate: AffiliateRecord;
+    amount: number;
+    type: string;
+    reason: string;
+    before: number;
+    after: number;
+    purchaseId?: string;
+    withdrawalId?: string;
+    adminId?: string;
+    reversalOf?: string;
+  }) {
+    input.affiliate.history.push({
+      amount: Number(input.amount || 0),
+      type: input.type,
+      date: new Date().toISOString(),
+      note: input.reason,
+      balanceBefore: Number(input.before.toFixed(2)),
+      balanceAfter: Number(input.after.toFixed(2)),
+      purchaseId: input.purchaseId,
+      withdrawalId: input.withdrawalId,
+      adminId: input.adminId,
+      reversalOf: input.reversalOf
+    });
+  }
+
+  function requireAffiliateAdjustmentReason(value: unknown) {
+    return requireAuditReason(String(value || "").trim());
   }
 
   function findOrCreateCustomer(payload: any, refCode?: string, browserIdFromCookie = "", tenantId = legacyTenantId) {
@@ -18539,6 +18601,58 @@ async function startServer() {
     return affiliate;
   }
 
+  function isAffiliateCommissionReversalStatus(status: unknown) {
+    const normalized = String(status || "").toLowerCase();
+    return ["refunded", "refund", "charged_back", "chargeback", "estornado", "estornada"].includes(normalized);
+  }
+
+  function reverseAffiliateCommissionForPurchase(tenantId: string, purchaseId: string, status: unknown, reason = "estorno_gateway") {
+    if (!purchaseId || !isAffiliateCommissionReversalStatus(status)) return null;
+    const source = `conversion:${purchaseId}`;
+    for (const affiliate of Object.values(affiliates)) {
+      if (affiliate.tenant_id !== tenantId) continue;
+      const original = affiliate.history.find(entry =>
+        (entry.type === source || entry.type === `pending:${source}`) &&
+        Number(entry.amount || 0) > 0
+      );
+      if (!original) continue;
+      if (original.reversed || affiliate.history.some(entry => entry.type === `reversed:${source}`)) return affiliate;
+
+      const amount = Number(original.amount || 0);
+      const before = affiliateTotalBalance(affiliate);
+      if (original.type.startsWith("pending:")) {
+        original.reversed = true;
+        original.type = `reversed:${original.type}`;
+      } else {
+        affiliate.commissionBalance = Number((Number(affiliate.commissionBalance || 0) - amount).toFixed(2));
+        affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
+        original.reversed = true;
+      }
+      const after = affiliateTotalBalance(affiliate);
+      appendAffiliateFinancialHistory({
+        affiliate,
+        amount: -amount,
+        type: `reversed:${source}`,
+        reason,
+        before,
+        after,
+        purchaseId,
+        reversalOf: original.type
+      });
+      appendAffiliateWalletLedger({
+        tenantId,
+        affiliate,
+        amount: -amount,
+        sourceType: "refund",
+        sourceId: purchaseId,
+        reason
+      });
+      recordSecurityEvent({ tenant_id: tenantId, action: "AFFILIATE_COMMISSION_REVERSED", ip: "system", status: "INFO", severity: "medium", actor: "system", detail: `${affiliate.refCode}:${purchaseId}:${status}` });
+      return affiliate;
+    }
+    return null;
+  }
+
   function affiliateCommissionSourceId(entry: AffiliateLedger) {
     return String(entry.type || "").replace(/^pending:/, "").replace(/^conversion:/, "");
   }
@@ -19960,6 +20074,9 @@ async function startServer() {
     }
 
     if (!isPaidEvent) {
+      if (purchaseId && isAffiliateCommissionReversalStatus(rawStatus)) {
+        reverseAffiliateCommissionForPurchase(job.tenant_id, purchaseId, rawStatus, `Webhook ${job.gateway} informou ${rawStatus}`);
+      }
       markPaymentJob(job, "cancelled", "Evento nao confirma pagamento");
       recordPaymentWebhookLog({
         tenant_id: job.tenant_id,
@@ -24714,8 +24831,8 @@ async function startServer() {
     if (!affiliate) return res.status(404).json({ error: "Afiliado nao encontrado" });
     if (!isAffiliateOwnerRequest(req, affiliate)) return res.status(403).json({ error: "Acesso negado para este afiliado" });
     const level = affiliateLevelPublicView(getAffiliateLevelState(affiliate));
-    const history = affiliateLevelHistory.filter(item => item.tenant_id === tenantId && item.affiliate_id === affiliate.refCode).slice(0, 20);
-    res.json({ level, history });
+    const levelHistory = affiliateLevelHistory.filter(item => item.tenant_id === tenantId && item.affiliate_id === affiliate.refCode).slice(0, 20);
+    res.json({ level, levelHistory });
   });
 
   app.get("/api/affiliates/:refCode/dashboard", (req, res) => {
@@ -24866,17 +24983,36 @@ async function startServer() {
       return;
     }
     const status = req.body.status === "rejected" ? "rejected" : "paid";
+    const previousStatus = withdrawal.status;
+    if (previousStatus !== "pending") {
+      recordSecurityEvent({ tenant_id: withdrawal.tenant_id, action: "WITHDRAWAL_STATUS_CHANGE_BLOCKED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "BLOCKED", severity: "high", actor: getAuthSession(req)?.email, detail: `${withdrawal.id}:${previousStatus}->${status}` });
+      res.status(409).json({ error: "Saque ja finalizado. Apenas saques pendentes podem mudar para pago ou rejeitado." });
+      return;
+    }
     const affiliate = affiliates[tenantCustomerKey(withdrawal.tenant_id, withdrawal.refCode)];
     const customer = withdrawal.customerId ? Object.values(customersByPhone).find(item => item.id === withdrawal.customerId) : undefined;
+    const before = affiliate ? affiliateTotalBalance(affiliate) : 0;
+    const adminId = getAuthSession(req)?.sub || getAuthSession(req)?.email || "admin";
     withdrawal.status = status;
     withdrawal.adminNote = String(req.body.note || "");
     withdrawal.paidAt = new Date().toISOString();
 
     if (status === "paid" && affiliate) {
-      debitAffiliateWallet(affiliate, withdrawal.amount);
-      affiliate.history.push({ amount: -withdrawal.amount, type: "withdrawal_paid", date: withdrawal.paidAt });
+      if (!debitAffiliateWallet(affiliate, withdrawal.amount)) {
+        withdrawal.status = previousStatus;
+        withdrawal.paidAt = undefined;
+        res.status(409).json({ error: "Saldo insuficiente para concluir este saque." });
+        return;
+      }
+      const after = affiliateTotalBalance(affiliate);
+      appendAffiliateFinancialHistory({ affiliate, amount: -withdrawal.amount, type: "withdrawal_paid", reason: withdrawal.adminNote || "Saque aprovado", before, after, withdrawalId: withdrawal.id, adminId });
+      appendAffiliateWalletLedger({ tenantId: withdrawal.tenant_id, affiliate, amount: -withdrawal.amount, sourceType: "withdrawal_approved", sourceId: withdrawal.id, reason: withdrawal.adminNote || "Saque aprovado", actorUserId: adminId });
       notifyCustomer(customer, "Pagamento efetuado com sucesso", `Seu saque PIX de R$ ${withdrawal.amount.toFixed(2)} foi marcado como pago pelo administrador.`, "Ver painel de afiliado", "/afiliados");
     } else if (status === "rejected") {
+      if (affiliate) {
+        appendAffiliateFinancialHistory({ affiliate, amount: 0, type: "withdrawal_rejected", reason: withdrawal.adminNote || "Saque rejeitado", before, after: before, withdrawalId: withdrawal.id, adminId });
+        appendAffiliateWalletLedger({ tenantId: withdrawal.tenant_id, affiliate, amount: 0, sourceType: "withdrawal_rejected", sourceId: withdrawal.id, reason: withdrawal.adminNote || "Saque rejeitado", actorUserId: adminId });
+      }
       notifyCustomer(customer, "Solicitacao de saque recusada", withdrawal.adminNote || "Sua solicitacao de saque foi recusada pelo administrador.", "Ver painel de afiliado", "/afiliados");
     }
     recordSecurityEvent({ tenant_id: withdrawal.tenant_id, action: "WITHDRAWAL_STATUS_CHANGED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "medium", actor: getAuthSession(req)?.email, detail: `${withdrawal.id}:${status}` });
@@ -25002,42 +25138,48 @@ async function startServer() {
       res.status(404).json({ error: "Affiliate not found" });
       return;
     }
-    const amount = Math.max(0, Number(req.body.amount || 0));
+    const amount = Number(req.body.amount || 0);
     const action = String(req.body.action || "");
-    const note = req.body.note || "Ajuste administrativo";
+    let note = "";
+    try {
+      note = requireAffiliateAdjustmentReason(req.body.reason || req.body.note);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Motivo obrigatorio para ajuste financeiro" });
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      res.status(400).json({ error: "Valor do ajuste deve ser maior que zero" });
+      return;
+    }
     const now = new Date().toISOString();
+    const adminId = getAuthSession(req)?.sub || getAuthSession(req)?.email || "admin";
+    const before = affiliateTotalBalance(affiliate);
 
-    if (action === "add_commission") {
+    if (action === "credit_commission") {
       affiliate.commissionBalance += amount;
-      affiliate.history.push({ amount, type: "admin_add_commission", date: now });
-    } else if (action === "add_prize") {
+      affiliate.history.push({ amount, type: "admin_add_commission", date: now, note, balanceBefore: before, balanceAfter: affiliateTotalBalance(affiliate), adminId });
+      appendAffiliateWalletLedger({ tenantId: affiliate.tenant_id, affiliate, amount, sourceType: "manual_credit", sourceId: createPublicId("AAF_"), reason: note, actorUserId: adminId });
+    } else if (action === "credit_prize") {
       affiliate.prizeBalance += amount;
-      affiliate.history.push({ amount, type: "admin_add_prize", date: now });
-    } else if (action === "pay_commission") {
-      const paid = Math.min(affiliate.commissionBalance, amount);
-      affiliate.commissionBalance -= paid;
-      affiliate.history.push({ amount: -paid, type: "commission_withdraw_paid", date: now });
-    } else if (action === "pay_prize") {
-      const paid = Math.min(affiliate.prizeBalance, amount);
-      affiliate.prizeBalance -= paid;
-      affiliate.history.push({ amount: -paid, type: "prize_withdraw_paid", date: now });
-    } else if (action === "zero_commission") {
-      affiliate.history.push({ amount: -affiliate.commissionBalance, type: "admin_zero_commission", date: now });
-      affiliate.commissionBalance = 0;
-    } else if (action === "zero_prize") {
-      affiliate.history.push({ amount: -affiliate.prizeBalance, type: "admin_zero_prize", date: now });
-      affiliate.prizeBalance = 0;
-    } else if (action === "zero_all") {
-      affiliate.history.push({ amount: -(affiliate.commissionBalance + affiliate.prizeBalance), type: "admin_zero_all", date: now });
-      affiliate.commissionBalance = 0;
-      affiliate.prizeBalance = 0;
+      affiliate.history.push({ amount, type: "admin_add_prize", date: now, note, balanceBefore: before, balanceAfter: affiliateTotalBalance(affiliate), adminId });
+      appendAffiliateWalletLedger({ tenantId: affiliate.tenant_id, affiliate, amount, sourceType: "manual_credit", sourceId: createPublicId("AAF_"), reason: note, actorUserId: adminId });
+    } else if (action === "debit_commission") {
+      if (amount > Number(affiliate.commissionBalance || 0)) return res.status(409).json({ error: "Ajuste deixaria saldo de comissao negativo" });
+      affiliate.commissionBalance -= amount;
+      affiliate.history.push({ amount: -amount, type: "admin_debit_commission", date: now, note, balanceBefore: before, balanceAfter: affiliateTotalBalance(affiliate), adminId });
+      appendAffiliateWalletLedger({ tenantId: affiliate.tenant_id, affiliate, amount: -amount, sourceType: "manual_debit", sourceId: createPublicId("AAF_"), reason: note, actorUserId: adminId });
+    } else if (action === "debit_prize") {
+      if (amount > Number(affiliate.prizeBalance || 0)) return res.status(409).json({ error: "Ajuste deixaria saldo de premio negativo" });
+      affiliate.prizeBalance -= amount;
+      affiliate.history.push({ amount: -amount, type: "admin_debit_prize", date: now, note, balanceBefore: before, balanceAfter: affiliateTotalBalance(affiliate), adminId });
+      appendAffiliateWalletLedger({ tenantId: affiliate.tenant_id, affiliate, amount: -amount, sourceType: "manual_debit", sourceId: createPublicId("AAF_"), reason: note, actorUserId: adminId });
     } else {
       res.status(400).json({ error: "Ação de carteira inválida" });
       return;
     }
 
     affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
-    affiliate.history.push({ amount: 0, type: `admin_note:${note}`, date: now });
+    recordSecurityEvent({ tenant_id: affiliate.tenant_id, action: "AFFILIATE_WALLET_MANUAL_ADJUSTMENT", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "medium", actor: getAuthSession(req)?.email, detail: `${affiliate.refCode}:${action}:${amount}` });
     res.json({ ...affiliate, rules: settings.affiliateProgram });
   });
 
@@ -25045,6 +25187,16 @@ async function startServer() {
     const affiliate = affiliates[tenantCustomerKey(resolveRequestTenantId(req), req.params.refCode)];
     if (!affiliate) {
       res.status(404).json({ error: "Affiliate not found" });
+      return;
+    }
+    const financialFields = ["commissionBalance", "prizeBalance", "commission", "totalBalance", "availableBalance", "paidBalance"];
+    const blockedField = financialFields.find(field =>
+      Object.prototype.hasOwnProperty.call(req.body.affiliate || {}, field) ||
+      Object.prototype.hasOwnProperty.call(req.body || {}, field)
+    );
+    if (blockedField) {
+      recordSecurityEvent({ tenant_id: affiliate.tenant_id, action: "AFFILIATE_DIRECT_BALANCE_UPDATE_BLOCKED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "BLOCKED", severity: "high", actor: getAuthSession(req)?.email, detail: `${affiliate.refCode}:${blockedField}` });
+      res.status(403).json({ error: "Saldo financeiro deve ser alterado apenas pela rota auditada de carteira." });
       return;
     }
     const customer = Object.values(customersByPhone).find(item => item.id === affiliate.customerId);
@@ -25082,8 +25234,6 @@ async function startServer() {
     if (!affiliate.useCustomCommission) {
       affiliate.customCommissionRate = undefined;
     }
-    affiliate.commissionBalance = req.body.affiliate?.commissionBalance !== undefined ? Number(req.body.affiliate.commissionBalance) : affiliate.commissionBalance;
-    affiliate.prizeBalance = req.body.affiliate?.prizeBalance !== undefined ? Number(req.body.affiliate.prizeBalance) : affiliate.prizeBalance;
     affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
     affiliate.history.push({ amount: 0, type: "admin_affiliate_full_update", date: new Date().toISOString() });
     res.json({ customer, affiliate: { ...affiliate, rules: settings.affiliateProgram } });

@@ -239,7 +239,10 @@ includesAll(commissionBlock, [
   "`ineligible:${input.source}`",
   "affiliate.history.some",
   "affiliate.commissionBalance += comm",
-  "evaluateAffiliateRewards({ tenantId: input.tenantId, affiliate, source: input.source })"
+  "evaluateAffiliateRewards({ tenantId: input.tenantId, affiliate, source: input.source })",
+  "reverseAffiliateCommissionForPurchase",
+  "`reversed:${source}`",
+  "original.reversed"
 ], "comissao personalizada/idempotente");
 assert(!commissionBlock.includes("tenantScopedSettings.affiliateProgram.commissionRate"), "comissao deve passar pelo fallback personalizado/padrao");
 
@@ -334,8 +337,45 @@ const adminAffiliateFullBlock = server.slice(server.indexOf('app.put("/api/admin
 includesAll(adminAffiliateFullBlock, [
   "normalizeAffiliateCommissionRate(req.body.affiliate.customCommissionRate)",
   "affiliate.useCustomCommission",
+  "financialFields",
+  "AFFILIATE_DIRECT_BALANCE_UPDATE_BLOCKED",
+  "Saldo financeiro deve ser alterado apenas pela rota auditada de carteira.",
   "admin_affiliate_full_update"
 ], "admin altera comissao individual");
+for (const field of ["commissionBalance", "prizeBalance", "commission", "totalBalance", "availableBalance", "paidBalance"]) {
+  assert(adminAffiliateFullBlock.includes(`"${field}"`), `PUT full deve bloquear ${field}`);
+}
+
+const adminAffiliateWalletBlock = server.slice(server.indexOf('app.post("/api/admin/affiliates/:refCode/wallet"'), server.indexOf('app.put("/api/admin/affiliates/:refCode/full"'));
+includesAll(adminAffiliateWalletBlock, [
+  "requireAffiliateAdjustmentReason",
+  "Valor do ajuste deve ser maior que zero",
+  "credit_commission",
+  "debit_commission",
+  "credit_prize",
+  "debit_prize",
+  "Ajuste deixaria saldo de comissao negativo",
+  "Ajuste deixaria saldo de premio negativo",
+  "appendAffiliateWalletLedger",
+  "balanceBefore",
+  "balanceAfter",
+  "AFFILIATE_WALLET_MANUAL_ADJUSTMENT"
+], "ajuste manual de saldo auditado");
+for (const legacyAction of ["pay_commission", "pay_prize", "zero_commission", "zero_prize", "zero_all"]) {
+  assert(!adminAffiliateWalletBlock.includes(legacyAction), `rota auditada nao deve aceitar acao legada ${legacyAction}`);
+}
+
+const withdrawalStatusBlock = server.slice(server.indexOf('app.post("/api/admin/affiliates/withdrawals/:id/status"'), server.indexOf('app.get("/api/admin/support/tickets"'));
+includesAll(withdrawalStatusBlock, [
+  "previousStatus !== \"pending\"",
+  "WITHDRAWAL_STATUS_CHANGE_BLOCKED",
+  "Saque ja finalizado",
+  "debitAffiliateWallet(affiliate, withdrawal.amount)",
+  "Saldo insuficiente para concluir este saque.",
+  "appendAffiliateFinancialHistory",
+  "withdrawal_approved",
+  "withdrawal_rejected"
+], "saque tem transicao unica e auditoria");
 
 const publicAffiliateUpdateBlock = server.slice(server.indexOf('app.put("/api/affiliates/:refCode"'), server.indexOf('app.post("/api/affiliates/:refCode/withdrawals"'));
 assert(!publicAffiliateUpdateBlock.includes("customCommissionRate"), "afiliado comum nao altera comissao personalizada");
