@@ -7,6 +7,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = file => readFileSync(join(root, file), "utf8");
 
 const server = read("server.ts");
+const adminGateways = read("src/pages/admin/AdminPaymentGateways.tsx");
 const provider = read("src/server/payments/AsaasProvider.ts");
 const report = read("docs/asaas-production-audit.md");
 
@@ -33,11 +34,23 @@ for (const snippet of [
 ]) has(provider, snippet, "AsaasProvider deve estar pronto para producao");
 
 for (const snippet of [
+  "type ResolvedRafflePixConfig = ReturnType<typeof getRafflePixConfig>",
+  "getResolvedPaymentGatewayConfig(tenantId, \"asaas\", pixConfig)",
+  "enabled: local.inheritGlobal ? Boolean(defaultGatewayConfig.enabled) : Boolean(local.enabled)",
+  "shouldUseInternalPixPayload",
+  "Configuração Asaas incompleta. Informe a chave API.",
+  "Não foi possível gerar PIX pelo Asaas.",
+  "const officialGatewayConfig = getPaymentGatewayConfigs(tenantId)",
+  "officialGatewayConfig?.credentials?.apiKey",
+  "Nenhuma API Key Asaas configurada. Salve a Chave Privada antes de testar.",
+  "pixConfig",
+  "pixPayload: shouldUseInternalPixPayload(pixConfig) ? buildPixPayload",
   "value: Number(input.amount.toFixed(2))",
   "dueDate",
   "buildAsaasExternalReference(input.tenantId, orderId)",
   "externalReference: asaasExternalReference",
-  "pixQrCodeBase64: qrCode.encodedImage || \"\"",
+  "const pixQrCodeBase64 = String(qrCode.encodedImage || \"\")",
+  "pixQrCodeBase64,",
   "pix_copy_paste: pixPayload",
   "expiration_date: pixExpiresAt",
   "app.post(\"/api/admin/payments/asaas/reconcile\"",
@@ -50,6 +63,9 @@ for (const snippet of [
   "PAYMENT_DELETED",
   "PAYMENT_REFUNDED"
 ]) has(server, snippet, "Fluxo Asaas servidor deve estar pronto para producao");
+
+has(adminGateways, "!hasGatewaySecret(config.asaas?.apiKey) && \"API Key\"", "Admin Asaas deve exigir API Key");
+assert.ok(!adminGateways.includes("!hasGatewaySecret(config.asaas?.webhookSecret) && \"Webhook Token\""), "Admin Asaas nao deve bloquear acesso/salvamento por token de webhook vazio.");
 
 assert.ok(!provider.includes("console.log(this.apiKey)") && !server.includes("console.log(asaasConfig"), "Asaas nao deve logar API Key/config sensivel.");
 

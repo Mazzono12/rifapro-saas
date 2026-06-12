@@ -65,7 +65,21 @@ async function createRaffle(headers, title) {
   const { response, body } = await json("/api/admin/raffles", {
     method: "POST",
     headers,
-    body: JSON.stringify({ title, description: title, price: 2, totalTickets: 100, drawDate: "2026-12-31T20:00:00Z", image: "", status: "active" })
+    body: JSON.stringify({
+      title,
+      description: title,
+      price: 2,
+      totalTickets: 100,
+      drawDate: "2026-12-31T20:00:00Z",
+      image: "",
+      status: "active",
+      pixConfig: {
+        inheritGlobal: false,
+        enabled: true,
+        gateway: "mock",
+        sandbox: true
+      }
+    })
   });
   assert.equal(response.status, 200);
   return body;

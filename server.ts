@@ -9965,11 +9965,11 @@ async function startServer() {
     const normalizedCredentials = (defaultGatewayConfig.credentials || {}) as Record<string, string>;
     return {
       ...local,
-      enabled: local.inheritGlobal ? Boolean(tenantPixGateways.pix?.enabled) : Boolean(local.enabled),
-      sandbox: local.inheritGlobal ? defaultGatewayConfig.environment !== "production" : Boolean(local.sandbox),
+      enabled: local.inheritGlobal ? Boolean(defaultGatewayConfig.enabled) : Boolean(local.enabled),
+      sandbox: local.inheritGlobal ? (defaultGatewayConfig.environment !== "production" || Boolean(tenantPixGateways.pix?.sandbox)) : Boolean(local.sandbox),
       gateway,
       pixKey: local.inheritGlobal ? (defaultGatewayConfig.pix_key || tenantPixGateways.pix?.pixKey || gatewayConfig.pixKey || "") : (local.pixKey || ""),
-      apiKey: local.inheritGlobal ? (tenantPixGateways.pix?.apiKey || normalizedCredentials.apiKey || gatewayConfig.apiKey || gatewayConfig.accessToken || gatewayConfig.token || "") : (local.apiKey || ""),
+      apiKey: local.inheritGlobal ? (normalizedCredentials.apiKey || tenantPixGateways.pix?.apiKey || gatewayConfig.apiKey || gatewayConfig.accessToken || gatewayConfig.token || "") : (local.apiKey || ""),
       accessToken: local.inheritGlobal ? (normalizedCredentials.accessToken || gatewayConfig.accessToken || gatewayConfig.token || "") : (local.accessToken || ""),
       publicKey: local.inheritGlobal ? (normalizedCredentials.publicKey || gatewayConfig.publicKey || "") : (local.publicKey || ""),
       clientId: local.inheritGlobal ? (normalizedCredentials.clientId || gatewayConfig.clientId || "") : (local.clientId || ""),
@@ -9992,7 +9992,53 @@ async function startServer() {
     if (!pixConfig) return false;
     const gateway = normalizePaymentProvider(pixConfig.gateway);
     if (isInternalPixGateway(gateway)) return true;
-    return !pixConfig.inheritGlobal && gateway !== "asaas" && Boolean(pixConfig.sandbox);
+    return gateway !== "asaas" && Boolean(pixConfig.sandbox);
+  }
+
+  function buildGatewayConfigFromRafflePixConfig(tenantId: string, pixConfig?: ResolvedRafflePixConfig): PaymentGatewayConfigRecord | null {
+    if (!pixConfig || pixConfig.inheritGlobal) return null;
+    const provider = normalizePaymentProvider(pixConfig.gateway);
+    if (isInternalPixGateway(provider)) return null;
+    const credentials: Record<string, unknown> = {
+      apiKey: pixConfig.apiKey || pixConfig.pixKey || "",
+      accessToken: pixConfig.accessToken || pixConfig.apiKey || pixConfig.pixKey || "",
+      publicKey: pixConfig.publicKey || "",
+      clientId: pixConfig.clientId || "",
+      clientSecret: pixConfig.clientSecret || pixConfig.apiKey || "",
+      token: pixConfig.accessToken || pixConfig.apiKey || pixConfig.pixKey || "",
+      webhookToken: pixConfig.webhookSecret || ""
+    };
+    const now = new Date().toISOString();
+    return {
+      id: `${tenantId}-${provider}-raffle`,
+      tenant_id: tenantId,
+      provider,
+      display_name: provider,
+      enabled: pixConfig.enabled !== false,
+      environment: pixConfig.sandbox ? "sandbox" : "production",
+      credentials,
+      webhook_secret: pixConfig.webhookSecret || "",
+      pix_key: pixConfig.pixKey || pixConfig.apiKey || "",
+      priority: 0,
+      is_default: true,
+      config_json: {
+        userAgent: "CIFHER Plataforma",
+        releaseMode: "PAYMENT_RECEIVED",
+        paymentMode: "pix_direct",
+        orderExpirationMinutes: 15,
+        expirationMinutes: 15,
+        expirationTime: 1800
+      },
+      created_at: now,
+      updated_at: now
+    };
+  }
+
+  function getResolvedPaymentGatewayConfig(tenantId: string, provider: PixGatewayId | string, pixConfig?: ResolvedRafflePixConfig) {
+    const normalizedProvider = normalizePaymentProvider(provider);
+    const localConfig = buildGatewayConfigFromRafflePixConfig(tenantId, pixConfig);
+    if (localConfig && normalizePaymentProvider(localConfig.provider) === normalizedProvider) return localConfig;
+    return getDefaultPaymentGatewayConfig(tenantId);
   }
 
   function emvField(id: string, value: string) {
@@ -10058,22 +10104,7 @@ async function startServer() {
   }
 
   function getAsaasGatewayConfig(tenantId: string, pixConfig?: ResolvedRafflePixConfig) {
-    if (pixConfig && normalizePaymentProvider(pixConfig.gateway) === "asaas" && !pixConfig.inheritGlobal) {
-      const apiKey = String(pixConfig.apiKey || pixConfig.accessToken || pixConfig.pixKey || "");
-      if (!apiKey || isMaskedGatewaySecret(apiKey)) return null;
-      const environment = resolveAsaasEnvironment(apiKey, pixConfig.sandbox ? "sandbox" as const : "production" as const);
-      assertAsaasApiKeyMatchesEnvironment(apiKey, environment);
-      return {
-        environment,
-        apiKey,
-        webhookToken: String(pixConfig.webhookSecret || ""),
-        userAgent: "CIFHER Plataforma",
-        releaseMode: "PAYMENT_RECEIVED" as const,
-        paymentMode: "pix_direct",
-        orderExpirationMinutes: 15
-      };
-    }
-    const config = getDefaultPaymentGatewayConfig(tenantId);
+    const config = getResolvedPaymentGatewayConfig(tenantId, "asaas", pixConfig);
     const provider = normalizePaymentProvider(config.provider);
     if (provider !== "asaas" || !config.enabled) return null;
     const credentials = config.credentials || {};
@@ -10098,8 +10129,8 @@ async function startServer() {
     return config ? { config, provider: new AsaasProvider(config) } : null;
   }
 
-  function getMercadoPagoGatewayConfig(tenantId: string) {
-    const config = getDefaultPaymentGatewayConfig(tenantId);
+  function getMercadoPagoGatewayConfig(tenantId: string, pixConfig?: ResolvedRafflePixConfig) {
+    const config = getResolvedPaymentGatewayConfig(tenantId, "mercadopago", pixConfig);
     const provider = normalizePaymentProvider(config.provider);
     if (provider !== "mercadopago" || !config.enabled) return null;
     const credentials = config.credentials || {};
@@ -10116,13 +10147,13 @@ async function startServer() {
     };
   }
 
-  function getMercadoPagoProvider(tenantId: string) {
-    const config = getMercadoPagoGatewayConfig(tenantId);
+  function getMercadoPagoProvider(tenantId: string, pixConfig?: ResolvedRafflePixConfig) {
+    const config = getMercadoPagoGatewayConfig(tenantId, pixConfig);
     return config ? { config, provider: new MercadoPagoProvider(config) } : null;
   }
 
-  function getPay2mGatewayConfig(tenantId: string) {
-    const config = getDefaultPaymentGatewayConfig(tenantId);
+  function getPay2mGatewayConfig(tenantId: string, pixConfig?: ResolvedRafflePixConfig) {
+    const config = getResolvedPaymentGatewayConfig(tenantId, "pay2m", pixConfig);
     const provider = normalizePaymentProvider(config.provider);
     if (provider !== "pay2m" || !config.enabled) return null;
     const credentials = config.credentials || {};
@@ -10142,13 +10173,13 @@ async function startServer() {
     };
   }
 
-  function getPay2mProvider(tenantId: string) {
-    const config = getPay2mGatewayConfig(tenantId);
+  function getPay2mProvider(tenantId: string, pixConfig?: ResolvedRafflePixConfig) {
+    const config = getPay2mGatewayConfig(tenantId, pixConfig);
     return config ? { config, provider: new Pay2mProvider(config) } : null;
   }
 
-  function getCoraGatewayConfig(tenantId: string) {
-    const config = getDefaultPaymentGatewayConfig(tenantId);
+  function getCoraGatewayConfig(tenantId: string, pixConfig?: ResolvedRafflePixConfig) {
+    const config = getResolvedPaymentGatewayConfig(tenantId, "cora", pixConfig);
     const provider = normalizePaymentProvider(config.provider);
     if (provider !== "cora" || !config.enabled) return null;
     const credentials = config.credentials || {};
@@ -10171,13 +10202,13 @@ async function startServer() {
     };
   }
 
-  function getCoraProvider(tenantId: string) {
-    const config = getCoraGatewayConfig(tenantId);
+  function getCoraProvider(tenantId: string, pixConfig?: ResolvedRafflePixConfig) {
+    const config = getCoraGatewayConfig(tenantId, pixConfig);
     return config ? { config, provider: new CoraProvider(config) } : null;
   }
 
-  function getPrimepagGatewayConfig(tenantId: string) {
-    const config = getDefaultPaymentGatewayConfig(tenantId);
+  function getPrimepagGatewayConfig(tenantId: string, pixConfig?: ResolvedRafflePixConfig) {
+    const config = getResolvedPaymentGatewayConfig(tenantId, "primepag", pixConfig);
     const provider = normalizePaymentProvider(config.provider);
     if (provider !== "primepag" || !config.enabled) return null;
     const credentials = config.credentials || {};
@@ -10199,13 +10230,13 @@ async function startServer() {
     };
   }
 
-  function getPrimepagProvider(tenantId: string) {
-    const config = getPrimepagGatewayConfig(tenantId);
+  function getPrimepagProvider(tenantId: string, pixConfig?: ResolvedRafflePixConfig) {
+    const config = getPrimepagGatewayConfig(tenantId, pixConfig);
     return config ? { config, provider: new PrimepagProvider(config) } : null;
   }
 
-  function getPagbankGatewayConfig(tenantId: string) {
-    const config = getDefaultPaymentGatewayConfig(tenantId);
+  function getPagbankGatewayConfig(tenantId: string, pixConfig?: ResolvedRafflePixConfig) {
+    const config = getResolvedPaymentGatewayConfig(tenantId, "pagbank", pixConfig);
     const provider = normalizePaymentProvider(config.provider);
     if (provider !== "pagbank" || !config.enabled) return null;
     const credentials = config.credentials || {};
@@ -10222,8 +10253,8 @@ async function startServer() {
     };
   }
 
-  function getPagbankProvider(tenantId: string) {
-    const config = getPagbankGatewayConfig(tenantId);
+  function getPagbankProvider(tenantId: string, pixConfig?: ResolvedRafflePixConfig) {
+    const config = getPagbankGatewayConfig(tenantId, pixConfig);
     return config ? { config, provider: new PagbankProvider(config) } : null;
   }
 
@@ -10531,8 +10562,8 @@ async function startServer() {
     }
   }
 
-  async function attachMercadoPagoPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
-    const mercadoPago = getMercadoPagoProvider(input.tenantId);
+  async function attachMercadoPagoPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string; pixConfig?: ResolvedRafflePixConfig }) {
+    const mercadoPago = getMercadoPagoProvider(input.tenantId, input.pixConfig);
     if (!mercadoPago || input.amount <= 0) return null;
     const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
     const pixExpiresAt = input.pixExpiresAt || new Date(Date.now() + mercadoPago.config.expirationMinutes * 60_000).toISOString();
@@ -10581,8 +10612,8 @@ async function startServer() {
     return payment;
   }
 
-  async function attachPay2mPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
-    const pay2m = getPay2mProvider(input.tenantId);
+  async function attachPay2mPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string; pixConfig?: ResolvedRafflePixConfig }) {
+    const pay2m = getPay2mProvider(input.tenantId, input.pixConfig);
     if (!pay2m || input.amount <= 0) return null;
     const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
     const payment = await pay2m.provider.createPixPayment({
@@ -10626,8 +10657,8 @@ async function startServer() {
     return payment;
   }
 
-  async function attachPrimepagPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
-    const primepag = getPrimepagProvider(input.tenantId);
+  async function attachPrimepagPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string; pixConfig?: ResolvedRafflePixConfig }) {
+    const primepag = getPrimepagProvider(input.tenantId, input.pixConfig);
     if (!primepag || input.amount <= 0) return null;
     const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
     const pixExpiresAt = input.pixExpiresAt || new Date(Date.now() + primepag.config.expirationTime * 1000).toISOString();
@@ -10672,8 +10703,8 @@ async function startServer() {
     return payment;
   }
 
-  async function attachCoraPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
-    const cora = getCoraProvider(input.tenantId);
+  async function attachCoraPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string; pixConfig?: ResolvedRafflePixConfig }) {
+    const cora = getCoraProvider(input.tenantId, input.pixConfig);
     if (!cora || input.amount <= 0) return null;
     const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
     const pixExpiresAt = input.pixExpiresAt || new Date(Date.now() + cora.config.expirationMinutes * 60_000).toISOString();
@@ -10723,8 +10754,8 @@ async function startServer() {
     return payment;
   }
 
-  async function attachPagbankPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string }) {
-    const pagbank = getPagbankProvider(input.tenantId);
+  async function attachPagbankPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string; pixConfig?: ResolvedRafflePixConfig }) {
+    const pagbank = getPagbankProvider(input.tenantId, input.pixConfig);
     if (!pagbank || input.amount <= 0) return null;
     const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
     const pixExpiresAt = input.pixExpiresAt || new Date(Date.now() + pagbank.config.expirationMinutes * 60_000).toISOString();
@@ -10817,7 +10848,27 @@ async function startServer() {
         throw new Error("Não foi possível gerar PIX pelo Asaas.");
       }
     }
-    return (await attachMercadoPagoPixToOrder(input)) || (await attachAsaasPixToOrder(input)) || (await attachPay2mPixToOrder(input)) || (await attachPrimepagPixToOrder(input)) || (await attachPagbankPixToOrder(input)) || (await attachCoraPixToOrder(input));
+    if (selectedGateway === "mercadopago") {
+      if (!getMercadoPagoGatewayConfig(input.tenantId, input.pixConfig)) throw new Error("ConfiguraÃ§Ã£o Mercado Pago incompleta. Informe as credenciais.");
+      return attachMercadoPagoPixToOrder(input);
+    }
+    if (selectedGateway === "pay2m") {
+      if (!getPay2mGatewayConfig(input.tenantId, input.pixConfig)) throw new Error("ConfiguraÃ§Ã£o Pay2M incompleta. Informe as credenciais.");
+      return attachPay2mPixToOrder(input);
+    }
+    if (selectedGateway === "primepag") {
+      if (!getPrimepagGatewayConfig(input.tenantId, input.pixConfig)) throw new Error("ConfiguraÃ§Ã£o PrimePag incompleta. Informe as credenciais.");
+      return attachPrimepagPixToOrder(input);
+    }
+    if (selectedGateway === "pagbank") {
+      if (!getPagbankGatewayConfig(input.tenantId, input.pixConfig)) throw new Error("ConfiguraÃ§Ã£o PagBank incompleta. Informe as credenciais.");
+      return attachPagbankPixToOrder(input);
+    }
+    if (selectedGateway === "cora") {
+      if (!getCoraGatewayConfig(input.tenantId, input.pixConfig)) throw new Error("ConfiguraÃ§Ã£o Cora incompleta. Informe as credenciais.");
+      return attachCoraPixToOrder(input);
+    }
+    return null;
   }
 
   function normalizeFazendinhaNumber(input: unknown) {
@@ -14140,7 +14191,7 @@ async function startServer() {
       numeros: reservedNumbers,
       reservedUntil,
       pixExpiresAt: reservedUntil,
-      pixPayload: normalizePaymentProvider(pixConfig.gateway) === "asaas" && !shouldUseInternalPixPayload(pixConfig) ? "" : buildPixPayload(payableAmount, raffle, purchaseId),
+      pixPayload: shouldUseInternalPixPayload(pixConfig) ? buildPixPayload(payableAmount, raffle, purchaseId) : "",
       pixGateway: pixConfig.gateway,
       pixWebhookUrl: pixConfig.webhookUrl,
       createdAt: new Date().toISOString(),
@@ -23868,14 +23919,13 @@ async function startServer() {
   app.post("/api/admin/gateways/test", async (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const tenantPixGateways = getTenantGateways(tenantId);
-    const gateway = normalizePaymentProvider(req.body.gateway || getDefaultPaymentGatewayConfig(tenantId).provider || tenantPixGateways.active || "mercadopago");
+    const defaultGatewayConfig = getDefaultPaymentGatewayConfig(tenantId);
+    const gateway = normalizePaymentProvider(req.body.gateway || defaultGatewayConfig.provider || tenantPixGateways.active || "mercadopago");
     const pixConfig = (tenantPixGateways.pix || {}) as Record<string, string | boolean>;
     const gatewayConfig = (tenantPixGateways[gateway] || {}) as Record<string, string>;
-    const officialGatewayConfig = gateway === "asaas"
-      ? getPaymentGatewayConfigs(tenantId)
-        .map(config => decryptPaymentGatewayConfig(config))
-        .find(config => normalizePaymentProvider(config.provider) === "asaas" && config.enabled)
-      : null;
+    const officialGatewayConfig = getPaymentGatewayConfigs(tenantId)
+      .map(config => decryptPaymentGatewayConfig(config))
+      .find(config => normalizePaymentProvider(config.provider) === gateway && config.enabled);
     const officialAsaasApiKey = String(officialGatewayConfig?.credentials?.apiKey || officialGatewayConfig?.pix_key || "");
     const credentialFields: Record<PixGatewayId, string[]> = {
       mercadopago: ["accessToken", "publicKey"],
@@ -23892,14 +23942,23 @@ async function startServer() {
       mock: ["apiKey"]
     };
     const fields = credentialFields[gateway] || [];
+    const officialCredentials = officialGatewayConfig?.credentials || {};
+    const officialPresentCredentials = fields.filter(field => {
+      const snakeField = field.replace(/[A-Z]/g, match => `_${match.toLowerCase()}`);
+      const value = officialCredentials[field] || officialCredentials[snakeField] || (field === "apiKey" ? officialGatewayConfig?.pix_key : "");
+      return Boolean(value && !isMaskedGatewaySecret(value));
+    }).map(field => `credentials.${field}`);
+    const legacyPresentCredentials = fields.filter(field => Boolean(gatewayConfig[field] && !isMaskedGatewaySecret(gatewayConfig[field])));
     const presentCredentials = gateway === "asaas" && officialAsaasApiKey && !isMaskedGatewaySecret(officialAsaasApiKey)
       ? ["credentials.apiKey"]
-      : fields.filter(field => Boolean(gatewayConfig[field]));
-    const hasGatewayCredentials = presentCredentials.length > 0 || (gateway !== "asaas" && Boolean(pixConfig.apiKey));
+      : officialPresentCredentials.length
+        ? officialPresentCredentials
+        : legacyPresentCredentials;
+    const hasGatewayCredentials = presentCredentials.length > 0 || Boolean(!officialGatewayConfig && gateway !== "asaas" && pixConfig.apiKey);
     const webhookUrl = gateway === "asaas" ? "/api/webhooks/asaas" : gatewayConfig.webhookUrl || String(pixConfig.webhookUrl || "") || `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`;
     const recommendedWebhookPath = gateway === "primepag" ? "/api/webhooks/primepag" : gateway === "cora" ? "/api/webhooks/cora" : gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `/api/webhooks/payment/${gateway}`;
     const issues = [
-      ...(!pixConfig.enabled ? ["PIX global está desabilitado"] : []),
+      ...(!defaultGatewayConfig.enabled ? ["PIX global está desabilitado"] : []),
       ...(!hasGatewayCredentials ? [gateway === "asaas" ? "Nenhuma API Key Asaas configurada. Salve a Chave Privada antes de testar." : "Nenhuma credencial/API key configurada para este gateway"] : []),
       ...(!webhookUrl.includes(recommendedWebhookPath) ? [`Webhook recomendado deve apontar para ${recommendedWebhookPath}`] : []),
     ];
@@ -23966,17 +24025,17 @@ async function startServer() {
       gateway,
       ok: issues.length === 0,
       status: !hasGatewayCredentials ? "not_configured" : issues.length === 0 ? "configured" : "needs_attention",
-      mode: pixConfig.sandbox ? "sandbox" : "production",
+      mode: defaultGatewayConfig.environment === "production" ? "production" : "sandbox",
       webhookUrl,
       credentials: presentCredentials,
       issues,
-      pixPayloadPreview: pixConfig.enabled ? buildPixPayload(1, {
+      pixPayloadPreview: defaultGatewayConfig.enabled && isInternalPixGateway(gateway) ? buildPixPayload(1, {
         tenant_id: resolveRequestTenantId(req),
         pixConfig: {
           inheritGlobal: true,
-          enabled: Boolean(pixConfig.enabled),
+          enabled: Boolean(defaultGatewayConfig.enabled),
           gateway,
-          sandbox: Boolean(pixConfig.sandbox)
+          sandbox: defaultGatewayConfig.environment !== "production"
         }
       }) : ""
     });

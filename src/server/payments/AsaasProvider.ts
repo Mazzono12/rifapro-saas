@@ -37,6 +37,28 @@ const ASAAS_BASE_URLS: Record<AsaasEnvironment, string> = {
   production: "https://api.asaas.com/v3"
 };
 
+export class AsaasProviderError extends Error {
+  readonly status?: number;
+  readonly path?: string;
+  readonly bodySummary?: string;
+  readonly method?: string;
+
+  constructor(message: string, details: { status?: number; path?: string; bodySummary?: string; method?: string } = {}) {
+    super(message);
+    this.name = "AsaasProviderError";
+    this.status = details.status;
+    this.path = details.path;
+    this.bodySummary = details.bodySummary;
+    this.method = details.method;
+  }
+}
+
+function summarizeAsaasBody(data: unknown, fallback = "") {
+  const value = data && typeof data === "object" ? data : fallback;
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  return text.replace(/access_token["']?\s*:\s*["'][^"']+["']/gi, 'access_token:"[masked]"').slice(0, 1200);
+}
+
 export class AsaasProvider {
   readonly baseUrl: string;
   private readonly apiKey: string;
@@ -70,14 +92,26 @@ export class AsaasProvider {
           signal: init.signal || controller.signal
         });
         const text = await response.text();
-        const data = text ? JSON.parse(text) : {};
+        let data: Record<string, any> | string = {};
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          data = text;
+        }
         if (!response.ok) {
-          const message = data?.errors?.[0]?.description || data?.message || `Asaas respondeu HTTP ${response.status}`;
+          const dataRecord = data && typeof data === "object" ? data as Record<string, any> : {};
+          const message = dataRecord?.errors?.[0]?.description || dataRecord?.message || `Asaas respondeu HTTP ${response.status}`;
+          const providerError = new AsaasProviderError(message, {
+            status: response.status,
+            path,
+            method: String(init.method || "GET").toUpperCase(),
+            bodySummary: summarizeAsaasBody(data, text)
+          });
           if (response.status >= 500 && attempt === 0) {
-            lastError = new Error(message);
+            lastError = providerError;
             continue;
           }
-          throw new Error(message);
+          throw providerError;
         }
         return data as T;
       } catch (error) {

@@ -68,7 +68,19 @@ for (const needle of [
   "Conexao Mercado Pago testada com sucesso",
   "Conexao Cora testada com sucesso",
   "Conexao PrimePag testada com sucesso",
-  "Webhook recomendado deve apontar para ${recommendedWebhookPath}"
+  "const officialGatewayConfig = getPaymentGatewayConfigs(tenantId)",
+  ".find(config => normalizePaymentProvider(config.provider) === gateway && config.enabled)",
+  "const officialAsaasApiKey = String(officialGatewayConfig?.credentials?.apiKey || officialGatewayConfig?.pix_key || \"\")",
+  "Nenhuma API Key Asaas configurada. Salve a Chave Privada antes de testar.",
+  "new AsaasProvider({",
+  "Webhook recomendado deve apontar para ${recommendedWebhookPath}",
+  "enabled: local.inheritGlobal ? Boolean(defaultGatewayConfig.enabled) : Boolean(local.enabled)",
+  "getResolvedPaymentGatewayConfig(tenantId, \"mercadopago\", pixConfig)",
+  "getResolvedPaymentGatewayConfig(tenantId, \"pay2m\", pixConfig)",
+  "getResolvedPaymentGatewayConfig(tenantId, \"pagbank\", pixConfig)",
+  "getResolvedPaymentGatewayConfig(tenantId, \"cora\", pixConfig)",
+  "getResolvedPaymentGatewayConfig(tenantId, \"primepag\", pixConfig)",
+  "pixPayload: shouldUseInternalPixPayload(pixConfig) ? buildPixPayload"
 ]) {
   assert.ok(server.includes(needle), `backend gateways sem seguranca/teste Pay2M: ${needle}`);
 }

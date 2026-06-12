@@ -96,7 +96,13 @@ async function createRaffle(headers) {
       totalTickets: 10,
       drawDate: "2026-12-31T20:00:00Z",
       image: "",
-      status: "active"
+      status: "active",
+      pixConfig: {
+        inheritGlobal: false,
+        enabled: true,
+        gateway: "mock",
+        sandbox: true
+      }
     })
   });
   assert.equal(response.status, 200);
