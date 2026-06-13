@@ -38,6 +38,11 @@ export interface Raffle {
   heroShowStats?: boolean;
   showHomePrice?: boolean;
   showHomeText?: boolean;
+  showLivePurchaseFeed?: boolean;
+  showSocialProofToast?: boolean;
+  conversionProgressEnabled?: boolean;
+  conversionProgressGoal?: number;
+  conversionProgressLabel?: string;
   topSellerRewards?: TopSellerRewardConfig[];
   status: 'active' | 'completed' | 'draft' | 'paused' | 'cancelled';
   drawDate: string;

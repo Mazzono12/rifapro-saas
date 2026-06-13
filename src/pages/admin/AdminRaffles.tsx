@@ -387,6 +387,37 @@ export function AdminRaffles() {
                     <input type="number" min="0" max="100" step="0.1" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
                            value={currentRaffle.progressOverride ?? ''} onChange={e => setCurrentRaffle({...currentRaffle, progressOverride: e.target.value === "" ? undefined : Number(e.target.value)})} />
                   </div>
+                  <section className="md:col-span-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
+                    <h3 className="text-base font-bold text-white">Conversão social premium</h3>
+                    <p className="mt-1 text-sm text-slate-400">Prova social real, feed de compras pagas e meta comercial para rifas com muitos números.</p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-200">
+                        <input type="checkbox" checked={currentRaffle.showLivePurchaseFeed !== false} onChange={e => setCurrentRaffle({ ...currentRaffle, showLivePurchaseFeed: e.target.checked })} />
+                        Exibir Feed de Compras
+                      </label>
+                      <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-200">
+                        <input type="checkbox" checked={currentRaffle.showSocialProofToast !== false} onChange={e => setCurrentRaffle({ ...currentRaffle, showSocialProofToast: e.target.checked })} />
+                        Exibir Prova Social
+                      </label>
+                      <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-200">
+                        <input type="checkbox" checked={currentRaffle.conversionProgressEnabled !== false} onChange={e => setCurrentRaffle({ ...currentRaffle, conversionProgressEnabled: e.target.checked })} />
+                        Exibir Barra de Progresso
+                      </label>
+                    </div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <label className="block text-sm font-semibold text-slate-300">
+                        Meta visual de progresso
+                        <input type="number" min={0} step={1} placeholder="100000" className="w-full mt-1 p-3 rounded-xl bg-cyber-900 border border-white/10 text-white"
+                          value={currentRaffle.conversionProgressGoal ?? ""} onChange={e => setCurrentRaffle({ ...currentRaffle, conversionProgressGoal: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value) || 0) })} />
+                      </label>
+                      <label className="block text-sm font-semibold text-slate-300">
+                        Texto da meta
+                        <input placeholder="meta alcançada" className="w-full mt-1 p-3 rounded-xl bg-cyber-900 border border-white/10 text-white"
+                          value={currentRaffle.conversionProgressLabel || ""} onChange={e => setCurrentRaffle({ ...currentRaffle, conversionProgressLabel: e.target.value })} />
+                      </label>
+                    </div>
+                    <p className="mt-3 rounded-xl bg-black/20 px-3 py-2 text-xs text-slate-400">Use uma meta comercial para mostrar progresso em rifas com muitos números. Exemplo: uma rifa com 10 milhões de números pode utilizar uma meta visual de 100 mil cotas.</p>
+                  </section>
                   <div className="md:col-span-2">
                     <MediaPicker
                       label="Imagem principal / fallback"

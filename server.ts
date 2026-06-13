@@ -11347,11 +11347,29 @@ async function startServer() {
   }
 
   function getPublicActivity(tenantId: string, raffleId: string) {
-    if (!socialProofEnabled(tenantId)) return [];
-    return publicActivityEvents
-      .filter(event => event.tenant_id === tenantId && event.raffle_id === raffleId && event.visible)
+    const paidPurchaseEvents = purchases
+      .filter(purchase => purchase.tenant_id === tenantId && purchase.raffleId === raffleId && purchase.status === "paid")
+      .sort((a, b) => new Date(b.paymentHistory?.find(item => item.status === "paid")?.date || b.createdAt).getTime() - new Date(a.paymentHistory?.find(item => item.status === "paid")?.date || a.createdAt).getTime())
+      .slice(0, 20)
+      .map(purchase => sanitizePublicActivityEvent({
+        id: `paid:${purchase.purchaseId}`,
+        tenant_id: tenantId,
+        raffle_id: raffleId,
+        event_type: "purchase_approved",
+        display_name_masked: maskDisplayName(purchase.customer?.name),
+        amount: purchase.amount,
+        quantity: purchase.tickets,
+        metadata: { label: "compra aprovada", source: "paid_purchase", orderId: purchase.purchaseId },
+        visible: true,
+        created_at: purchase.paymentHistory?.find(item => item.status === "paid")?.date || purchase.createdAt
+      }));
+    const winnerEvents = publicActivityEvents
+      .filter(event => event.tenant_id === tenantId && event.raffle_id === raffleId && event.visible && ["instant_prize", "mystery_box"].includes(event.event_type))
       .slice(0, 20)
       .map(sanitizePublicActivityEvent);
+    return [...paidPurchaseEvents, ...winnerEvents]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 20);
   }
 
   function getPublicRanking(tenantId: string, raffleId: string) {
@@ -11404,17 +11422,23 @@ async function startServer() {
     const remaining = Math.max(0, raffle.totalTickets - raffle.soldTickets);
     const velocityPerHour = Math.max(0, soldLastHour);
     const estimatedHours = velocityPerHour > 0 ? remaining / velocityPerHour : null;
+    const commercialGoal = Number((raffle as any).conversionProgressGoal || 0);
+    const progressBase = (raffle as any).conversionProgressEnabled !== false && commercialGoal > 0 ? commercialGoal : Number(raffle.totalTickets || 0);
+    const rawProgress = progressBase > 0 ? (Number(raffle.soldTickets || 0) / progressBase) * 100 : 0;
+    const progress = Math.min(100, Math.max(0, Number.isFinite(rawProgress) ? rawProgress : 0));
     return {
-      enabled: socialProofEnabled(tenantId),
+      enabled: socialProofEnabled(tenantId) && (raffle as any).conversionProgressEnabled !== false,
       totalTickets: raffle.totalTickets,
       soldTickets: raffle.soldTickets,
       remainingTickets: remaining,
-      progress: raffle.totalTickets ? Math.round((raffle.soldTickets / raffle.totalTickets) * 10000) / 100 : 0,
+      conversionProgressGoal: commercialGoal > 0 ? commercialGoal : null,
+      conversionProgressLabel: String((raffle as any).conversionProgressLabel || "meta alcançada"),
+      progress: Math.round(progress * 100) / 100,
       soldLastHour,
       velocityPerHour,
       estimatedEndAt: estimatedHours ? new Date(now + estimatedHours * 60 * 60 * 1000).toISOString() : null,
       lastTicketsAlert: remaining > 0 && remaining <= Math.max(25, Math.ceil(raffle.totalTickets * 0.08)),
-      viewersOnline: socialProofEnabled(tenantId) ? Math.max(7, Math.min(247, 12 + recentPurchases.length * 3 + Math.floor((raffle.soldTickets % 19) * 1.7))) : 0
+      viewersOnline: 0
     };
   }
 
@@ -11781,6 +11805,18 @@ async function startServer() {
         gateway: pixConfig.gateway,
         sandbox: pixConfig.sandbox
       } : undefined
+    };
+  }
+
+  function normalizeRaffleConversionPayload(payload: any, current?: any) {
+    const goalInput = payload.conversionProgressGoal ?? current?.conversionProgressGoal;
+    const goal = Number(goalInput);
+    return {
+      showLivePurchaseFeed: payload.showLivePurchaseFeed !== undefined ? Boolean(payload.showLivePurchaseFeed) : current?.showLivePurchaseFeed !== false,
+      showSocialProofToast: payload.showSocialProofToast !== undefined ? Boolean(payload.showSocialProofToast) : current?.showSocialProofToast !== false,
+      conversionProgressEnabled: payload.conversionProgressEnabled !== undefined ? Boolean(payload.conversionProgressEnabled) : current?.conversionProgressEnabled !== false,
+      conversionProgressGoal: Number.isFinite(goal) && goal > 0 ? Math.floor(goal) : undefined,
+      conversionProgressLabel: String(payload.conversionProgressLabel ?? current?.conversionProgressLabel ?? "").trim()
     };
   }
 
@@ -12189,7 +12225,12 @@ async function startServer() {
       return;
     }
     res.setHeader("Cache-Control", "private, max-age=8");
-    res.json({ enabled: socialProofEnabled(tenantId), events: getPublicActivity(tenantId, raffle.id) });
+    res.json({
+      enabled: socialProofEnabled(tenantId) && ((raffle as any).showLivePurchaseFeed !== false || (raffle as any).showSocialProofToast !== false),
+      feedEnabled: (raffle as any).showLivePurchaseFeed !== false,
+      toastEnabled: (raffle as any).showSocialProofToast !== false,
+      events: getPublicActivity(tenantId, raffle.id)
+    });
   });
 
   app.get("/api/public/raffles/:raffleId/ranking", (req, res) => {
@@ -23809,6 +23850,7 @@ async function startServer() {
       tenant_id: tenantId,
       ...normalizeRaffleMinPurchasePayload(req.body),
       ...normalizeRaffleCountdownPayload(req.body),
+      ...normalizeRaffleConversionPayload(req.body),
       topSellerRewards: normalizeTopSellerRewards(req.body.topSellerRewards),
       manuallyClosedAt: req.body.status && req.body.status !== "active" ? new Date().toISOString() : "",
       pixConfig: { ...getDefaultRafflePixConfig(), ...(req.body.pixConfig || {}) },
@@ -23845,6 +23887,7 @@ async function startServer() {
         tenant_id: raffles[index].tenant_id,
         ...normalizeRaffleMinPurchasePayload(req.body, raffles[index]),
         ...nextCountdown,
+        ...normalizeRaffleConversionPayload(req.body, raffles[index]),
         topSellerRewards: normalizeTopSellerRewards(req.body.topSellerRewards, (raffles[index] as any).topSellerRewards),
         manuallyClosedAt: statusChangedToActive ? "" : statusChangedToClosed ? new Date().toISOString() : raffles[index].manuallyClosedAt,
         pixConfig: { ...getDefaultRafflePixConfig(), ...(raffles[index].pixConfig || {}), ...(req.body.pixConfig || {}) },
