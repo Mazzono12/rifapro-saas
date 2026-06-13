@@ -214,8 +214,13 @@ includesAll(hooks, [
   "window.location.host",
   "queryKey: ['raffles', tenantCacheKey()]",
   "queryKey: ['raffle', tenantCacheKey(), id]",
-  "queryKey: ['settings', tenantCacheKey()]"
-], "Cache React Query de rifas e settings deve ser isolado por host/tenant.");
+  "queryKey: ['settings', tenantCacheKey()]",
+  "queryKey: ['fazendinha', tenantCacheKey()]",
+  "queryKey: ['fazendinha-home-media', tenantCacheKey()]",
+  "queryKey: ['fazendinha-media-settings', tenantCacheKey()]",
+  "queryKey: ['modalidades', tenantCacheKey()]",
+  "queryKey: ['number-mode', tenantCacheKey(), mode, customerId]"
+], "Cache React Query de rifas, settings, Fazendinha e modalidades deve ser isolado por host/tenant.");
 
 includesAll(adminLayout, [
   "{ name: \"Super Cotas\", path: \"/admin/cotas\", icon: Star, group: \"Operação\" }"

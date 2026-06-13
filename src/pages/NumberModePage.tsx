@@ -151,7 +151,7 @@ export function NumberModePage() {
       setPendingPix({ purchase: result.purchase, pixPayload: result.pixPayload });
       setCopiedPix(false);
       toast.success("PIX gerado", { description: `${selected.length} número(s) em ${data?.config?.name || modeTitles[mode]}` });
-      queryClient.invalidateQueries({ queryKey: ["number-mode", mode] });
+      queryClient.invalidateQueries({ queryKey: ["number-mode"] });
       queryClient.invalidateQueries({ queryKey: ["modalidades"] });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro ao comprar";
@@ -188,7 +188,7 @@ export function NumberModePage() {
           contact: paidPurchase.customer.phone
         });
       }
-      queryClient.invalidateQueries({ queryKey: ["number-mode", mode] });
+      queryClient.invalidateQueries({ queryKey: ["number-mode"] });
       queryClient.invalidateQueries({ queryKey: ["modalidades"] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro ao verificar pagamento");

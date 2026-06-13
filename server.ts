@@ -4296,8 +4296,7 @@ async function startServer() {
     return (await resolveDomainTenantInfo(req)).tenant;
   }
 
-  function resolveRequestTenantId(req: express.Request) {
-    const session = getAuthSession(req);
+  function getActiveSupportTenantId(req: express.Request, session = getAuthSession(req)) {
     const supportSessionId = String(req.headers["x-support-session-id"] || req.query.supportSessionId || "");
     if (normalizeAuthRole(session?.role) === "superadmin" && supportSessionId) {
       const supportSession = superadminImpersonationSessions.find(item =>
@@ -4308,6 +4307,13 @@ async function startServer() {
       );
       if (supportSession) return supportSession.tenant_id;
     }
+    return null;
+  }
+
+  function resolveRequestTenantId(req: express.Request) {
+    const session = getAuthSession(req);
+    const supportTenantId = getActiveSupportTenantId(req, session);
+    if (supportTenantId) return supportTenantId;
     if (normalizeAuthRole(session?.role) !== "superadmin" && session?.tenant_id) return session.tenant_id;
     const tenant = getRequestTenant(req);
     if (tenant) return tenant.id;
@@ -4332,11 +4338,19 @@ async function startServer() {
     const session = getAuthSession(req);
     const host = getRequestHost(req);
     const superAdminHost = host === "admin" || host.startsWith("admin.");
+    const supportTenantId = getActiveSupportTenantId(req, session);
+    const supportTenant = supportTenantId ? tenants.find(tenant => tenant.id === supportTenantId && isActiveTenantRecord(tenant)) || null : null;
     (req as express.Request & { isSuperAdminHost?: boolean }).isSuperAdminHost = superAdminHost;
 
     if (superAdminHost) {
       if (req.method === "GET" && req.path === "/") {
         res.redirect("/superadmin");
+        return;
+      }
+      if (supportTenant && req.path.startsWith("/api/admin/")) {
+        (req as express.Request & { resolvedTenant?: TenantRecord }).resolvedTenant = supportTenant;
+        res.setHeader("X-Tenant-Slug", supportTenant.slug);
+        next();
         return;
       }
       if (req.path.startsWith("/api/") && !req.path.startsWith("/api/superadmin") && !req.path.startsWith("/api/auth")) {
@@ -4356,7 +4370,7 @@ async function startServer() {
       ? tenants.find(tenant => tenant.id === session.tenant_id && isActiveTenantRecord(tenant))
       : null;
     const resolution = await resolveDomainTenantInfo(req);
-    const tenant = sessionTenant || resolution.tenant;
+    const tenant = supportTenant || sessionTenant || resolution.tenant;
 
     if (!tenant) {
       if (isProductionRuntime) console.warn(`[tenant-resolve] host=${resolution.hostNormalizado} reason=${resolution.reason}`);
@@ -4624,7 +4638,10 @@ async function startServer() {
 
   function adminCanAccessTenant(req: express.Request, tenantId: string) {
     const session = getAuthSession(req);
-    return Boolean(session && (normalizeAuthRole(session.role) === "superadmin" || session.tenant_id === tenantId));
+    if (!session) return false;
+    if (normalizeAuthRole(session.role) !== "superadmin") return session.tenant_id === tenantId;
+    if (req.path.startsWith("/api/superadmin")) return true;
+    return tenantId === resolveRequestTenantId(req);
   }
 
   function getTenantPlan(tenantIdOrPlan: string) {
@@ -4771,7 +4788,9 @@ async function startServer() {
 
   function scoped<T extends { tenant_id: string }>(items: T[], req: express.Request) {
     const session = getAuthSession(req);
-    return normalizeAuthRole(session?.role) === "superadmin" ? items : items.filter(item => item.tenant_id === resolveRequestTenantId(req));
+    const tenantId = resolveRequestTenantId(req);
+    if (normalizeAuthRole(session?.role) === "superadmin" && req.path.startsWith("/api/superadmin")) return items;
+    return items.filter(item => item.tenant_id === tenantId);
   }
 
   function publicPromotionRule(rule: PromotionRule) {

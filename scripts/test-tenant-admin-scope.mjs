@@ -212,6 +212,21 @@ try {
   assertOnlyTenantData("Rifas cliente-a", rafflesA.body, "tenant-cliente-a", "tenant-cliente-b", "Cliente A", "Cliente B");
   assertOnlyTenantData("Rifas cliente-b", rafflesB.body, "tenant-cliente-b", "tenant-cliente-a", "Cliente B", "Cliente A");
 
+  const supportStart = await json("/api/superadmin/tenants/tenant-cliente-a/impersonate/start", {
+    method: "POST",
+    headers: superHeaders,
+    body: JSON.stringify({ reason: "Auditoria multitenant de isolamento do modo suporte" })
+  });
+  assert.equal(supportStart.response.status, 201, `Superadmin deve iniciar suporte: ${JSON.stringify(supportStart.body)}`);
+  assert.ok(supportStart.body.session?.id, `Sessao de suporte deve retornar id: ${JSON.stringify(supportStart.body)}`);
+  const supportHeaders = {
+    Authorization: `Bearer ${superToken}`,
+    "X-Support-Session-Id": supportStart.body.session.id
+  };
+  const supportRaffles = await json("/api/admin/raffles", { headers: supportHeaders });
+  assert.equal(supportRaffles.response.status, 200, `Modo suporte deve listar rifas tenant-scoped: ${JSON.stringify(supportRaffles.body)}`);
+  assertOnlyTenantData("Rifas suporte cliente-a", supportRaffles.body, "tenant-cliente-a", "tenant-cliente-b", "Cliente A", "Cliente B");
+
   const purchasesA = await json("/api/admin/purchases", { headers: headersA });
   const purchasesB = await json("/api/admin/purchases", { headers: headersB });
   assertOnlyTenantData("Compras/PIX cliente-a", purchasesA.body, "tenant-cliente-a", "tenant-cliente-b", "Comprador Cliente A", "Comprador Cliente B");

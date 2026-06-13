@@ -33,7 +33,7 @@ export function useGlobalSettings() {
 
 export function useFazendinha() {
   return useQuery({
-    queryKey: ['fazendinha'],
+    queryKey: ['fazendinha', tenantCacheKey()],
     queryFn: () => fazendinhaService.getState(),
     staleTime: 1000 * 30,
   });
@@ -41,7 +41,7 @@ export function useFazendinha() {
 
 export function useFazendinhaHomeMedia() {
   return useQuery({
-    queryKey: ['fazendinha-home-media'],
+    queryKey: ['fazendinha-home-media', tenantCacheKey()],
     queryFn: () => fazendinhaService.getHomeMedia(),
     staleTime: 1000 * 60 * 5,
     retry: false,
@@ -50,7 +50,7 @@ export function useFazendinhaHomeMedia() {
 
 export function useFazendinhaMediaSettings() {
   return useQuery({
-    queryKey: ['fazendinha-media-settings'],
+    queryKey: ['fazendinha-media-settings', tenantCacheKey()],
     queryFn: () => fazendinhaService.getMediaSettings(),
     staleTime: 1000 * 60 * 5,
     retry: false,
@@ -59,7 +59,7 @@ export function useFazendinhaMediaSettings() {
 
 export function useModalidades() {
   return useQuery({
-    queryKey: ['modalidades'],
+    queryKey: ['modalidades', tenantCacheKey()],
     queryFn: () => modalidadesService.getLanding(),
     staleTime: 1000 * 30,
   });
@@ -67,7 +67,7 @@ export function useModalidades() {
 
 export function useNumberMode(mode: NumberModeId, customerId?: string) {
   return useQuery({
-    queryKey: ['number-mode', mode, customerId],
+    queryKey: ['number-mode', tenantCacheKey(), mode, customerId],
     queryFn: () => modalidadesService.getMode(mode, customerId),
     staleTime: 1000 * 20,
   });
