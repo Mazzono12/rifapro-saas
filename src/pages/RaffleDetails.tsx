@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   Clock3,
   Copy,
+  Crown,
   Gift,
   Headphones,
   Lock,
@@ -45,6 +46,17 @@ import { PublicConversionWidgets } from "../components/PublicConversionWidgets";
 type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
 type CheckoutCustomerForm = { name: string; phone: string; cpf: string; city: string; state: string; accessPassword: string; knownCustomer: boolean };
+type TopSellerRankingItem = {
+  affiliateName?: string;
+  affiliate?: string;
+  refCode: string;
+  totalSold: number;
+  paidPurchasesCount?: number;
+  sales?: number;
+  directBuyersCount?: number;
+  position: number;
+  prizeLabel?: string;
+};
 
 function getLatestSalesDeadline(raffle?: Raffle | null) {
   if (!raffle) return "";
@@ -148,6 +160,7 @@ export function RaffleDetails() {
   const [showNumbers, setShowNumbers] = useState(false);
   const [showLootboxModal, setShowLootboxModal] = useState(false);
   const [ranking, setRanking] = useState<Array<{ name: string; phone: string; tickets: number; amount: number }>>([]);
+  const [topSellers, setTopSellers] = useState<TopSellerRankingItem[]>([]);
   const [instantPrizeNumbers, setInstantPrizeNumbers] = useState<Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }>>([]);
   const [gamification, setGamification] = useState<any>(null);
   const [addonSuggestion, setAddonSuggestion] = useState<{ raffle: Raffle; tickets: number; amount: number } | null>(null);
@@ -184,6 +197,7 @@ export function RaffleDetails() {
   useEffect(() => {
     if (!id) return;
     fetch(`/api/raffles/${id}/ranking`).then(res => res.json()).then(payload => setRanking(Array.isArray(payload) ? payload : [])).catch(() => setRanking([]));
+    fetch(`/api/raffles/${id}/top-sellers`).then(res => res.json()).then(payload => setTopSellers(Array.isArray(payload) ? payload : [])).catch(() => setTopSellers([]));
     fetch(`/api/raffles/${id}/instant-prizes`).then(res => res.json()).then(payload => setInstantPrizeNumbers(Array.isArray(payload) ? payload : [])).catch(() => setInstantPrizeNumbers([]));
     fetch(`/api/raffles/${id}/gamification`).then(res => res.json()).then(setGamification).catch(() => null);
     fetch(`/api/raffles/${id}/addon-suggestion`).then(res => res.ok ? res.json() : null).then(data => data && setAddonSuggestion(data)).catch(() => null);
@@ -485,6 +499,7 @@ export function RaffleDetails() {
           onParticipate={openCheckout}
           isSubmitting={isSubmitting}
           ranking={ranking}
+          topSellers={topSellers}
           prizes={instantPrizeNumbers}
         />
         {salesDeadline && <CountdownStrip countdown={countdown} expired={Boolean((raffle as any).salesExpired)} />}
@@ -598,6 +613,7 @@ function RafflePremiumPage({
   onParticipate,
   isSubmitting,
   ranking,
+  topSellers,
   prizes
 }: {
   raffle: Raffle;
@@ -613,6 +629,7 @@ function RafflePremiumPage({
   onParticipate: () => void;
   isSubmitting: boolean;
   ranking: Array<{ name: string; tickets: number; phone: string }>;
+  topSellers: TopSellerRankingItem[];
   prizes: Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }>;
 }) {
   const totalTickets = Math.max(1, Number(raffle.totalTickets || 1));
@@ -641,6 +658,7 @@ function RafflePremiumPage({
           />
           {raffle.showHomePrice !== false && <RaffleMetricCard icon={<Ticket />} label="POR APENAS" value={formatCurrency(unitPrice)} tone="gold" />}
           <RaffleTopBuyersPanel ranking={ranking} />
+          <RaffleTopSellersPanel ranking={topSellers} />
           <SuperCotasPanel prizes={prizes} />
         </section>
       </div>
@@ -781,6 +799,28 @@ function RaffleTopBuyersPanel({ ranking }: { ranking: Array<{ name: string; tick
       ) : (
         <p>Ranking em apuração com dados reais da campanha.</p>
       )}
+    </section>
+  );
+}
+
+function RaffleTopSellersPanel({ ranking }: { ranking: TopSellerRankingItem[] }) {
+  const sellers = ranking.slice(0, 3);
+  if (!sellers.length) return null;
+  return (
+    <section className="cfx-panel cfx-detail-ranking cfx-detail-top-sellers">
+      <header>
+        <strong><Crown /> Top Vendedores</strong>
+        <Link to="/afiliados">Divulgar</Link>
+      </header>
+      <div>
+        {sellers.map((seller, index) => (
+          <article key={`${seller.refCode}-${index}`}>
+            <span>{seller.position || index + 1}</span>
+            <b>{seller.affiliateName || seller.affiliate || seller.refCode}</b>
+            <small>{seller.prizeLabel || `${Number(seller.paidPurchasesCount ?? seller.sales ?? 0).toLocaleString("pt-BR")} vendas diretas`}</small>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }

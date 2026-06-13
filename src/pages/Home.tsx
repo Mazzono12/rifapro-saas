@@ -32,6 +32,19 @@ import type { ResponsiveMediaAspectMode, ResponsiveMediaFit } from "../utils/med
 /* public-home-render contract: className="cfx-home-hero-media" */
 
 type RankingBuyer = { name: string; phone: string; tickets: number; amount: number };
+type TopSellerRankingItem = {
+  affiliateId?: string;
+  affiliateName?: string;
+  affiliate?: string;
+  refCode: string;
+  totalSold: number;
+  paidPurchasesCount?: number;
+  sales?: number;
+  directBuyersCount?: number;
+  buyers?: number;
+  position: number;
+  prizeLabel?: string;
+};
 
 export function Home() {
   const [boundaryKey, setBoundaryKey] = useState(0);
@@ -270,6 +283,7 @@ function HomeContent() {
   const { data: fazendinha } = useFazendinha();
   const [modalidades, setModalidades] = useState<any>(null);
   const [ranking, setRanking] = useState<RankingBuyer[]>([]);
+  const [topSellers, setTopSellers] = useState<TopSellerRankingItem[]>([]);
   const [winners, setWinners] = useState<Winner[]>([]);
   const [instantRewards, setInstantRewards] = useState<HomeInstantRewardsData>(emptyHomeRewards);
   const raffles = useMemo(() => (
@@ -300,13 +314,24 @@ function HomeContent() {
   useEffect(() => {
     if (!featuredRaffle?.id) {
       setRanking([]);
+      setTopSellers([]);
       return;
     }
     let active = true;
-    fetch(`/api/raffles/${featuredRaffle.id}/ranking`)
-      .then(res => res.ok ? res.json() : [])
-      .then(payload => active && setRanking(Array.isArray(payload) ? payload : []))
-      .catch(() => active && setRanking([]));
+    Promise.all([
+      fetch(`/api/raffles/${featuredRaffle.id}/ranking`).then(res => res.ok ? res.json() : []),
+      fetch(`/api/raffles/${featuredRaffle.id}/top-sellers`).then(res => res.ok ? res.json() : [])
+    ])
+      .then(([buyersPayload, sellersPayload]) => {
+        if (!active) return;
+        setRanking(Array.isArray(buyersPayload) ? buyersPayload : []);
+        setTopSellers(Array.isArray(sellersPayload) ? sellersPayload : []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setRanking([]);
+        setTopSellers([]);
+      });
     return () => {
       active = false;
     };
@@ -361,7 +386,7 @@ function HomeContent() {
     <PremiumPageLayout className="cfx-home-page">
       <main className="cfx-home-shell cfx-home-shell--multi" aria-label="Home publica">
         {storySlots.homeTop && <StoriesSection />}
-        <Hero raffle={featuredRaffle} ranking={ranking} />
+        <Hero raffle={featuredRaffle} ranking={ranking} topSellers={topSellers} />
         <CampaignsSection raffles={activeRaffles} featuredRaffleId={featuredRaffle.id} />
         <GamesAndModalidadesSection fazendinha={fazendinha} modalidades={modalidades} rewards={instantRewards} featuredRaffle={featuredRaffle} />
         <WinnersSection winners={winners} />
@@ -404,7 +429,7 @@ function RifaProLoading() {
   );
 }
 
-function Hero({ raffle, ranking }: { raffle: Raffle; ranking: RankingBuyer[] }) {
+function Hero({ raffle, ranking, topSellers }: { raffle: Raffle; ranking: RankingBuyer[]; topSellers: TopSellerRankingItem[] }) {
   const progress = safeProgress(raffle);
   const mediaUrl = raffle.mediaUrl || raffle.image;
   const countdownTarget = raffle.salesEndAt || raffle.countdownEndAt || raffle.drawDate;
@@ -496,6 +521,7 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: RankingBuyer[] }) 
         </div>
       </div>
       <TopBuyers ranking={ranking} />
+      <TopSellers ranking={topSellers} />
     </section>
   );
 }
@@ -692,6 +718,33 @@ function TopBuyers({ ranking }: { ranking: RankingBuyer[] }) {
         ) : (
           <p className="cfx-top-buyers-empty">Ranking em apuração com dados reais da campanha.</p>
         )}
+      </div>
+    </HomeSection>
+  );
+}
+
+function TopSellers({ ranking }: { ranking: TopSellerRankingItem[] }) {
+  const sellers = ranking.slice(0, 3);
+  if (!sellers.length) return null;
+
+  return (
+    <HomeSection
+      icon={<Trophy />}
+      title="Top Vendedores"
+      action={<Link to="/afiliados">Divulgar <ChevronRight /></Link>}
+      className="cfx-top-buyers cfx-top-sellers"
+    >
+      <div className="cfx-top-buyers-list">
+        {sellers.map((seller, index) => (
+          <article key={`${seller.refCode}-${index}`}>
+            <span>{seller.position || index + 1}</span>
+            <div>
+              <b>{seller.affiliateName || seller.affiliate || seller.refCode}</b>
+              <small>{Number(seller.paidPurchasesCount ?? seller.sales ?? 0).toLocaleString("pt-BR")} vendas diretas</small>
+            </div>
+            <strong>{seller.prizeLabel || formatCurrency(Number(seller.totalSold || 0))}</strong>
+          </article>
+        ))}
       </div>
     </HomeSection>
   );

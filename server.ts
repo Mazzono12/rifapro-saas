@@ -3010,6 +3010,11 @@ async function startServer() {
       heroPrimaryButton: "Participar agora",
       heroSecondaryText: "",
       heroShowStats: true,
+      topSellerRewards: [
+        { position: 1, label: "Moto Pop 110", enabled: true },
+        { position: 2, label: "iPhone", enabled: true },
+        { position: 3, label: "R$ 1.000 Pix", enabled: true }
+      ],
       status: "active",
       drawDate: "2026-10-15T20:00:00Z",
       countdownEnabled: false,
@@ -11579,6 +11584,26 @@ async function startServer() {
     };
   }
 
+  type TopSellerRewardConfig = { position: number; label: string; enabled: boolean };
+
+  function normalizeTopSellerRewards(input: unknown, current: unknown = []) {
+    const source = Array.isArray(input) ? input : Array.isArray(current) ? current : [];
+    const byPosition = new Map<number, TopSellerRewardConfig>();
+    source.forEach(item => {
+      if (!item || typeof item !== "object") return;
+      const record = item as Record<string, unknown>;
+      const position = Math.floor(Number(record.position || 0));
+      if (![1, 2, 3].includes(position)) return;
+      const label = String(record.label || "").trim().slice(0, 120);
+      byPosition.set(position, { position, label, enabled: record.enabled !== false });
+    });
+    return [1, 2, 3].map(position => byPosition.get(position) || { position, label: "", enabled: false });
+  }
+
+  function topSellerRewardsByPosition(raffle?: Partial<typeof raffles[number]> | null) {
+    return new Map(normalizeTopSellerRewards(raffle?.topSellerRewards).map(reward => [reward.position, reward]));
+  }
+
   function isFazendinhaReservationExpired(purchase: FazendinhaPurchase) {
     return purchase.statusPagamento === "cancelled" ||
       (purchase.statusPagamento === "reserved" && isPastReservationExpiry(purchase.reservedUntil || purchase.pixExpiresAt));
@@ -11742,6 +11767,7 @@ async function startServer() {
     const salesExpired = isRaffleSalesExpired(raffle);
     return {
       ...normalizedRaffle,
+      topSellerRewards: normalizeTopSellerRewards((raffle as any).topSellerRewards),
       salesDeadline,
       salesExpired,
       countdownLabel: salesDeadline
@@ -11763,6 +11789,7 @@ async function startServer() {
     const normalizedRaffle = normalizeRaffleMediaPayload(safeRaffle, raffle);
     return {
       ...normalizedRaffle,
+      topSellerRewards: normalizeTopSellerRewards((raffle as any).topSellerRewards),
       salesDeadline: getRaffleSalesDeadline(raffle),
       salesExpired: isRaffleSalesExpired(raffle)
     };
@@ -19182,6 +19209,10 @@ async function startServer() {
   }
 
   function buildAffiliateSellerRanking(tenantId: string, campaign: AffiliateCampaignRef, limit = 10) {
+    const campaignRaffle = campaign.type === "raffle"
+      ? raffles.find(raffle => raffle.tenant_id === tenantId && raffle.id === campaign.id)
+      : undefined;
+    const rewards = topSellerRewardsByPosition(campaignRaffle);
     return Object.values(affiliates)
       .filter(affiliate => affiliate.tenant_id === tenantId)
       .map(affiliate => {
@@ -19190,17 +19221,47 @@ async function startServer() {
           .filter(order => affiliateOrderMatchesCampaign(order, campaign));
         const buyers = new Set(orders.map(order => order.customer?.id).filter(Boolean));
         return {
+          affiliateId: affiliate.customerId || affiliate.refCode,
           refCode: affiliate.refCode,
+          affiliateName: maskDisplayName(owner?.name || affiliate.refCode),
           affiliate: maskDisplayName(owner?.name || affiliate.refCode),
           totalSold: Number(orders.reduce((sum, order) => sum + Number(order.amount || 0), 0).toFixed(2)),
+          paidPurchasesCount: orders.length,
           sales: orders.length,
+          directBuyersCount: buyers.size,
           buyers: buyers.size
         };
       })
       .filter(item => item.totalSold > 0 || item.sales > 0)
       .sort((a, b) => b.totalSold - a.totalSold || b.sales - a.sales || b.buyers - a.buyers)
       .slice(0, limit)
-      .map((item, index) => ({ position: index + 1, ...item }));
+      .map((item, index) => {
+        const position = index + 1;
+        const reward = rewards.get(position);
+        return {
+          position,
+          ...item,
+          prizeLabel: reward?.enabled && reward.label ? reward.label : undefined
+        };
+      });
+  }
+
+  function buildAffiliateTopSellerStatus(affiliate: AffiliateRecord, campaign: AffiliateCampaignRef) {
+    const ranking = buildAffiliateSellerRanking(affiliate.tenant_id, campaign, 50);
+    const current = ranking.find(item => item.refCode === affiliate.refCode);
+    const thirdPlace = ranking.find(item => item.position === 3);
+    const missingToTop3 = current && current.position <= 3
+      ? 0
+      : Number(Math.max(0, Number(thirdPlace?.totalSold || 0) - Number(current?.totalSold || 0) + 0.01).toFixed(2));
+    return {
+      position: current?.position || null,
+      totalSold: current?.totalSold || 0,
+      paidPurchasesCount: current?.paidPurchasesCount || 0,
+      directBuyersCount: current?.directBuyersCount || 0,
+      prizeLabel: current?.prizeLabel,
+      missingToTop3,
+      rankingSize: ranking.length
+    };
   }
 
   function affiliateOwnerCustomer(affiliate: AffiliateRecord) {
@@ -19853,6 +19914,8 @@ async function startServer() {
           type: "Rifa",
           status: "Ativa",
           ...buildAffiliateCampaignCommissionStatus(affiliate, { type: "raffle", id: raffle.id }),
+          topSellerStatus: buildAffiliateTopSellerStatus(affiliate, { type: "raffle", id: raffle.id }),
+          topSellerRewards: normalizeTopSellerRewards((raffle as any).topSellerRewards),
           publicPath: `/raffle/${encodeURIComponent(raffle.id)}`,
           affiliateUrl: addAffiliateParams(`/raffle/${encodeURIComponent(raffle.id)}`),
           imageUrl: raffle.image || raffle.mediaUrl || "",
@@ -19864,6 +19927,8 @@ async function startServer() {
           type: "Fazendinha",
           status: "Ativa",
           ...buildAffiliateCampaignCommissionStatus(affiliate, { type: "fazendinha", id: "fazendinha" }),
+          topSellerStatus: buildAffiliateTopSellerStatus(affiliate, { type: "fazendinha", id: "fazendinha" }),
+          topSellerRewards: [],
           publicPath: "/fazendinha",
           affiliateUrl: addAffiliateParams("/fazendinha"),
           imageUrl: fazendinha.mediaUrl || "",
@@ -19875,6 +19940,8 @@ async function startServer() {
           type: "Número da Sorte",
           status: "Ativa",
           ...buildAffiliateCampaignCommissionStatus(affiliate, { type: "number_mode", id: config.id }),
+          topSellerStatus: buildAffiliateTopSellerStatus(affiliate, { type: "number_mode", id: config.id }),
+          topSellerRewards: [],
           publicPath: `/${config.id}`,
           affiliateUrl: addAffiliateParams(`/${config.id}`),
           imageUrl: config.mediaUrl || "",
@@ -19890,6 +19957,8 @@ async function startServer() {
             type: "Promoção",
             status: "Ativa",
             ...buildAffiliateCampaignCommissionStatus(affiliate, linkedRaffle ? { type: "raffle", id: linkedRaffle.id } : undefined),
+            topSellerStatus: linkedRaffle ? buildAffiliateTopSellerStatus(affiliate, { type: "raffle", id: linkedRaffle.id }) : undefined,
+            topSellerRewards: linkedRaffle ? normalizeTopSellerRewards((linkedRaffle as any).topSellerRewards) : [],
             publicPath,
             affiliateUrl,
             imageUrl: linkedRaffle?.image || linkedRaffle?.mediaUrl || "",
@@ -23701,6 +23770,7 @@ async function startServer() {
       tenant_id: tenantId,
       ...normalizeRaffleMinPurchasePayload(req.body),
       ...normalizeRaffleCountdownPayload(req.body),
+      topSellerRewards: normalizeTopSellerRewards(req.body.topSellerRewards),
       manuallyClosedAt: req.body.status && req.body.status !== "active" ? new Date().toISOString() : "",
       pixConfig: { ...getDefaultRafflePixConfig(), ...(req.body.pixConfig || {}) },
       videoConfig: { ...settings.mainVideoPlayer, ...(req.body.videoConfig || {}) },
@@ -23736,6 +23806,7 @@ async function startServer() {
         tenant_id: raffles[index].tenant_id,
         ...normalizeRaffleMinPurchasePayload(req.body, raffles[index]),
         ...nextCountdown,
+        topSellerRewards: normalizeTopSellerRewards(req.body.topSellerRewards, (raffles[index] as any).topSellerRewards),
         manuallyClosedAt: statusChangedToActive ? "" : statusChangedToClosed ? new Date().toISOString() : raffles[index].manuallyClosedAt,
         pixConfig: { ...getDefaultRafflePixConfig(), ...(raffles[index].pixConfig || {}), ...(req.body.pixConfig || {}) },
         videoConfig: { ...settings.mainVideoPlayer, ...(raffles[index].videoConfig || {}), ...(req.body.videoConfig || {}) },

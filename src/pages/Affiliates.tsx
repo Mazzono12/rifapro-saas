@@ -41,6 +41,16 @@ type AffiliateCampaignLink = {
   status: string;
   commissionEnabled?: boolean;
   commissionStatusLabel?: string;
+  topSellerStatus?: {
+    position: number | null;
+    totalSold: number;
+    paidPurchasesCount: number;
+    directBuyersCount: number;
+    prizeLabel?: string;
+    missingToTop3: number;
+    rankingSize: number;
+  };
+  topSellerRewards?: Array<{ position: number; label: string; enabled: boolean }>;
   publicPath: string;
   affiliateUrl: string;
   imageUrl?: string;
@@ -1335,6 +1345,24 @@ function MarketingCampaignCard({ campaign, onCopy }: MarketingCampaignCardProps)
               : "border-[var(--admin-warning)]/35 bg-[var(--admin-warning)]/10 text-[var(--admin-warning)]"
           )}>
             {campaign.commissionStatusLabel}
+          </div>
+        )}
+        {campaign.topSellerStatus && (
+          <div className="mt-3 rounded-[8px] border border-amber-300/25 bg-amber-300/10 p-3 text-xs text-[var(--admin-text)]">
+            <p className="font-black uppercase text-amber-200">Top Vendedores da campanha</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <span><b>Posição</b><small>{campaign.topSellerStatus.position ? `${campaign.topSellerStatus.position}º` : "Fora do ranking"}</small></span>
+              <span><b>Total vendido</b><small>{money(campaign.topSellerStatus.totalSold)}</small></span>
+              <span><b>Vendas</b><small>{campaign.topSellerStatus.paidPurchasesCount.toLocaleString("pt-BR")}</small></span>
+              <span><b>Compradores</b><small>{campaign.topSellerStatus.directBuyersCount.toLocaleString("pt-BR")}</small></span>
+            </div>
+            {campaign.topSellerStatus.prizeLabel ? (
+              <p className="mt-2 font-bold text-amber-100">Prêmio da posição: {campaign.topSellerStatus.prizeLabel}</p>
+            ) : campaign.topSellerStatus.missingToTop3 > 0 ? (
+              <p className="mt-2 font-bold text-amber-100">Faltam {money(campaign.topSellerStatus.missingToTop3)} em vendas diretas para entrar no Top 3.</p>
+            ) : (
+              <p className="mt-2 font-bold text-amber-100">Top 3 em formação nesta campanha.</p>
+            )}
           </div>
         )}
         <div className="mt-4 min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3">

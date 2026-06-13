@@ -38,6 +38,7 @@ export interface Raffle {
   heroShowStats?: boolean;
   showHomePrice?: boolean;
   showHomeText?: boolean;
+  topSellerRewards?: TopSellerRewardConfig[];
   status: 'active' | 'completed' | 'draft' | 'paused' | 'cancelled';
   drawDate: string;
   countdownEnabled?: boolean;
@@ -50,6 +51,12 @@ export interface Raffle {
   n8nEnabled?: boolean;
   lootboxEnabled?: boolean;
   lootboxConfig?: LootboxConfig;
+}
+
+export interface TopSellerRewardConfig {
+  position: number;
+  label: string;
+  enabled: boolean;
 }
 
 export interface VideoPlayerConfig {

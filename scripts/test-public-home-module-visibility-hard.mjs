@@ -52,8 +52,9 @@ hasNone(home, [
 ], "Home Premium nova nao deve renderizar estruturas antigas ou modulos desligados");
 
 hasAll(home, [
-  "<Hero raffle={featuredRaffle} ranking={ranking} />",
+  "<Hero raffle={featuredRaffle} ranking={ranking} topSellers={topSellers} />",
   "fetch(`/api/raffles/${featuredRaffle.id}/ranking`)",
+  "fetch(`/api/raffles/${featuredRaffle.id}/top-sellers`)",
   "className=\"cfx-home-hero\"",
   "cfx-home-hero-media--story",
   "className=\"cfx-home-media-block\"",

@@ -68,6 +68,17 @@ function getDefaultHomeMediaAspect(raffle: Partial<Raffle>): ResponsiveMediaAspe
   return ["video", "youtube", "vimeo", "bunny"].includes(String(raffle.mediaType || "").toLowerCase()) ? "wide" : "portrait";
 }
 
+function normalizeTopSellerRewards(rewards: Partial<Raffle>["topSellerRewards"] = []) {
+  return [1, 2, 3].map(position => {
+    const current = rewards.find(reward => Number(reward.position) === position);
+    return {
+      position,
+      label: current?.label || "",
+      enabled: Boolean(current?.enabled && current?.label)
+    };
+  });
+}
+
 export function AdminRaffles() {
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -171,6 +182,13 @@ export function AdminRaffles() {
     });
   };
 
+  const updateTopSellerReward = (position: number, patch: { label?: string; enabled?: boolean }) => {
+    const rewards = normalizeTopSellerRewards(currentRaffle.topSellerRewards).map(reward =>
+      reward.position === position ? { ...reward, ...patch } : reward
+    );
+    setCurrentRaffle({ ...currentRaffle, topSellerRewards: rewards });
+  };
+
   const downloadCsv = (filename: string, headers: string[], rows: Array<Array<string | number>>) => {
     const escape = (value: string | number) => `"${String(value ?? "").replace(/"/g, '""')}"`;
     const csvContent = [headers.map(escape).join(","), ...rows.map(row => row.map(escape).join(","))].join("\n");
@@ -223,7 +241,7 @@ export function AdminRaffles() {
             <p className="mt-2 text-sm text-slate-400">Crie, publique e acompanhe suas campanhas comerciais.</p>
          </div>
          <button 
-           onClick={() => { setCurrentRaffle({ status: 'active', minPurchaseTickets: 1, mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
+           onClick={() => { setCurrentRaffle({ status: 'active', minPurchaseTickets: 1, mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, topSellerRewards: normalizeTopSellerRewards(), heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
            className="bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/50 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
          >
            <Plus className="w-4 h-4" /> Nova campanha
@@ -589,6 +607,32 @@ export function AdminRaffles() {
                       </label>
                     </div>
                   </div>
+                  <div className="md:col-span-2 rounded-3xl border border-amber-300/20 bg-amber-300/[0.05] p-5">
+                    <h3 className="font-display text-lg font-bold text-white">Premiação Top Vendedores</h3>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Configure os prêmios exibidos para afiliados com mais vendas pagas de indicados diretos nesta campanha. Isso não altera comissão.
+                    </p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      {normalizeTopSellerRewards(currentRaffle.topSellerRewards).map(reward => (
+                        <div key={reward.position} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                          <label className="flex items-center justify-between gap-3 text-sm font-bold text-white">
+                            <span>{reward.position}º lugar</span>
+                            <input
+                              type="checkbox"
+                              checked={reward.enabled}
+                              onChange={e => updateTopSellerReward(reward.position, { enabled: e.target.checked })}
+                            />
+                          </label>
+                          <input
+                            className="mt-3 w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                            value={reward.label}
+                            onChange={e => updateTopSellerReward(reward.position, { label: e.target.value, enabled: reward.enabled })}
+                            placeholder={reward.position === 1 ? "Moto Pop 110" : reward.position === 2 ? "iPhone" : "R$ 1.000 Pix"}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                   <div>
                     <label className="block text-xs font-mono text-slate-400 mb-1">Status</label>
                     <select className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none" 
@@ -733,7 +777,7 @@ export function AdminRaffles() {
                   Nenhum registro encontrado.
                 </p>
                 <button
-                  onClick={() => { setCurrentRaffle({ status: 'active', minPurchaseTickets: 1, mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
+                  onClick={() => { setCurrentRaffle({ status: 'active', minPurchaseTickets: 1, mediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, mediaType: "bunny", checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL, checkoutMediaType: "bunny", pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, topSellerRewards: normalizeTopSellerRewards(), heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
                   className="neon-button mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3"
                 >
                   <Plus className="h-4 w-4" /> Nova campanha
