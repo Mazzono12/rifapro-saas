@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
-import type { Raffle, Winner } from "../types";
+import type { Customer, Raffle, Winner } from "../types";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { usePurchasePolling } from "../hooks/usePurchasePolling";
 import { NumberRevealModal } from "../components/NumberRevealModal";
@@ -143,7 +143,7 @@ function normalizePixPurchase<T extends Record<string, any> | null | undefined>(
 export function RaffleDetails() {
   const { id } = useParams();
   const { branding } = useTenantBranding();
-  const { customer, setCustomer } = useCustomerStore();
+  const { customer, setCustomer, clearCustomer } = useCustomerStore();
   const [raffle, setRaffle] = useState<Raffle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -176,6 +176,16 @@ export function RaffleDetails() {
   const notifiedPrizePurchase = useRef<string | null>(null);
   const { purchase: polledPurchase } = usePurchasePolling(purchase?.purchaseId, 7000);
   const { detectedCity } = useCityDetection();
+  const raffleTenantId = String((raffle as any)?.tenant_id || (raffle as any)?.tenantId || "");
+  const customerTenantId = String((customer as any)?.tenant_id || (customer as any)?.tenantId || "");
+  const recognizedCustomer: Customer | null = customer &&
+    raffleTenantId &&
+    customerTenantId === raffleTenantId &&
+    customer.id &&
+    customer.name &&
+    (customer.phone || customer.cpf)
+    ? customer
+    : null;
 
   useEffect(() => {
     startMetric("public_page_load");
@@ -206,19 +216,19 @@ export function RaffleDetails() {
   }, [id]);
 
   useEffect(() => {
-    if (!customer) return;
+    if (!recognizedCustomer) return;
     setCustomerForm(current => ({
-      name: customer.name || "",
-      phone: customer.phone || "",
-      cpf: customer.cpf || "",
-      city: customer.city || current.city || "",
-      state: customer.state || current.state || "",
+      name: recognizedCustomer.name || "",
+      phone: recognizedCustomer.phone || "",
+      cpf: recognizedCustomer.cpf || "",
+      city: recognizedCustomer.city || current.city || "",
+      state: recognizedCustomer.state || current.state || "",
       accessPassword: "",
       knownCustomer: true
     }));
     setCustomerMode("login");
     setRequireIdentity(false);
-  }, [customer]);
+  }, [recognizedCustomer]);
 
   useEffect(() => {
     if (!detectedCity?.city) return;
@@ -314,15 +324,15 @@ export function RaffleDetails() {
     const geoLocation = await captureGeoLocation();
     GeoPrefillService.saveManual(customerForm.city, customerForm.state);
     const form = resolvedCustomer ? { ...customerForm, ...resolvedCustomer, knownCustomer: true } : customerForm;
-    return customer
+    return recognizedCustomer
       ? {
           ...form,
-          name: customer.name,
-          phone: customer.phone,
-          cpf: customer.cpf,
-          city: customer.city || form.city,
-          state: customer.state || form.state,
-          browserId: customer.browserId,
+          name: recognizedCustomer.name,
+          phone: recognizedCustomer.phone,
+          cpf: recognizedCustomer.cpf,
+          city: recognizedCustomer.city || form.city,
+          state: recognizedCustomer.state || form.state,
+          browserId: recognizedCustomer.browserId,
           geoLocation
         }
       : { ...form, geoLocation };
@@ -331,12 +341,12 @@ export function RaffleDetails() {
   const validateCheckoutForm = (resolvedCustomer?: Partial<CheckoutCustomerForm>) => {
     if (!raffle) return;
     const form = resolvedCustomer ? { ...customerForm, ...resolvedCustomer, knownCustomer: true } : customerForm;
-    const phone = (customer?.phone || form.phone || "").replace(/\D/g, "");
+    const phone = (recognizedCustomer?.phone || form.phone || "").replace(/\D/g, "");
     if (!phone) {
       toast.error("Informe seu WhatsApp");
       return false;
     }
-    if (!customer && !form.knownCustomer && !/^\d{6}$/.test(form.accessPassword)) {
+    if (!recognizedCustomer && !form.knownCustomer && !/^\d{6}$/.test(form.accessPassword)) {
       toast.error("Informe uma senha de acesso com 6 digitos");
       return false;
     }
@@ -358,7 +368,7 @@ export function RaffleDetails() {
         type: "raffle",
         raffleId: id,
         tickets,
-        customer: customer ? { ...customerForm, name: customer.name, phone: customer.phone, cpf: customer.cpf } : customerForm,
+        customer: recognizedCustomer ? { ...customerForm, name: recognizedCustomer.name, phone: recognizedCustomer.phone, cpf: recognizedCustomer.cpf } : customerForm,
         refCode: localStorage.getItem("refCode") || undefined,
         useBalance,
         couponCode: couponCode || undefined,
@@ -381,7 +391,7 @@ export function RaffleDetails() {
     setIsSubmitting(true);
     try {
       const checkoutCustomer = await buildCheckoutCustomer(resolvedCustomer);
-      const phone = (customer?.phone || checkoutCustomer.phone || "").replace(/\D/g, "");
+      const phone = (recognizedCustomer?.phone || checkoutCustomer.phone || "").replace(/\D/g, "");
       const res = await fetch(`/api/raffles/${id}/buy`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -475,6 +485,22 @@ export function RaffleDetails() {
     toast.success("Resumo copiado para compartilhar");
   };
 
+  const switchCheckoutCustomer = () => {
+    clearCustomer();
+    setRequireIdentity(true);
+    setCustomerMode("register");
+    setCustomerForm(current => ({
+      name: "",
+      phone: "",
+      cpf: "",
+      city: current.city || detectedCity?.city || "",
+      state: current.state || detectedCity?.state || "",
+      accessPassword: "",
+      knownCustomer: false
+    }));
+    toast.info("Informe os dados do novo comprador");
+  };
+
   const openCheckout = () => {
     setCheckoutOpen(true);
     setCheckoutStep(purchase ? (purchase.status === "paid" ? "ticket" : "payment") : "review");
@@ -516,7 +542,7 @@ export function RaffleDetails() {
         minPurchaseTickets={minPurchaseTickets}
         totalValue={totalValue}
         purchase={purchase}
-        customer={customer}
+        customer={recognizedCustomer}
         customerForm={customerForm}
         setCustomerForm={setCustomerForm}
         customerMode={customerMode}
@@ -541,6 +567,7 @@ export function RaffleDetails() {
         copied={copied}
         confirmingPix={confirmingPix}
         onClose={() => setCheckoutOpen(false)}
+        onSwitchCustomer={switchCheckoutCustomer}
         onSubmit={(event, resolvedCustomer) => {
           event.preventDefault();
           executeBuy(resolvedCustomer);
@@ -1199,6 +1226,7 @@ function CheckoutModal(props: {
   copied: boolean;
   confirmingPix: boolean;
   onClose: () => void;
+  onSwitchCustomer: () => void;
   onSubmit: (event: React.FormEvent, resolvedCustomer?: Partial<CheckoutCustomerForm>) => void;
   onCopyPix: () => void;
   onConfirmPix: () => void;
@@ -1374,12 +1402,13 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         </div>
 
         {props.customer && !props.requireIdentity ? (
-          <div className="cfx-review-buyer-readonly">
-            <InfoCard label="Nome" value={buyerName || "Cliente"} />
-            <InfoCard label="Telefone" value={maskPhone(buyerPhone)} />
-            <InfoCard label="CPF" value={maskCpf(buyerCpf)} />
-            {buyerEmail && <InfoCard label="Email" value={maskEmail(buyerEmail)} />}
-            <p className="cfx-review-cpf-hint">Cliente reconhecido. Confirme para gerar o PIX sem preencher tudo novamente.</p>
+          <div className="cfx-review-buyer-readonly cfx-recognized-buyer" data-checkout-recognized-buyer="true">
+            <strong>Comprador reconhecido</strong>
+            <p>Finalizar como {buyerName || "cliente"}</p>
+            <small>{maskPhone(buyerPhone) || maskCpf(buyerCpf)}</small>
+            <button type="button" className="cfx-switch-buyer-link" onClick={props.onSwitchCustomer}>
+              Nao e voce? Trocar comprador
+            </button>
           </div>
         ) : (
           <div className="cfx-review-buyer-form">

@@ -37,6 +37,7 @@ function ensureBrowserId() {
 
 function createCookieCustomer(customer: Customer): Customer {
   return {
+    tenant_id: customer.tenant_id,
     id: customer.id,
     name: customer.name,
     phone: customer.phone,

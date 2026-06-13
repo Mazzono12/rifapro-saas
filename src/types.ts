@@ -327,6 +327,7 @@ export interface GamificationWinner {
 }
 
 export interface Customer {
+  tenant_id?: string;
   id: string;
   name: string;
   phone: string;

@@ -18399,6 +18399,40 @@ body {
   order: -1;
 }
 
+.cfx-recognized-buyer {
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0;
+}
+
+.cfx-recognized-buyer strong {
+  color: #dcfce7;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cfx-recognized-buyer p {
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 900;
+  margin: 0;
+}
+
+.cfx-recognized-buyer small {
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.82rem;
+}
+
+.cfx-switch-buyer-link {
+  color: #facc15;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.25rem 0;
+  text-align: left;
+}
+
 @media (max-width: 640px) {
   .cfx-fast-pix-checkout {
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
