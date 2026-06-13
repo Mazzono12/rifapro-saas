@@ -73,6 +73,9 @@ assert(raffleDetails.includes("if (!customer && !form.knownCustomer") || raffleD
 const checkoutReview = sliceBetween(raffleDetails, "function CheckoutReview", "function PaymentPix");
 assert(checkoutReview.includes('data-checkout-mode="pix-rapido"'), "Checkout deve operar em modo PIX rapido");
 assert(checkoutReview.includes("Nome completo") && checkoutReview.includes("WhatsApp") && checkoutReview.includes("CPF"), "PIX rapido deve mostrar nome, WhatsApp e CPF antes do PIX");
+assert(checkoutReview.includes("body: JSON.stringify({ cpf: cpfDigits, phone: phoneDigits })"), "Lookup do checkout deve reconhecer cliente por CPF ou WhatsApp");
+assert(checkoutReview.includes("const [needsAccessPassword, setNeedsAccessPassword] = useState(false)"), "Senha nao deve aparecer inicialmente para gerar PIX");
+assert(checkoutReview.includes("needsAccessPassword && !props.customerForm.knownCustomer"), "Senha deve aparecer somente quando cadastro novo precisar dela");
 assert(checkoutReview.includes("Gerar PIX agora"), "CTA Gerar PIX agora deve ficar visivel no checkout mobile");
 assert(!checkoutReview.includes("showRegistration"), "Checkout nao deve exigir clique duplicado para abrir cadastro antes do PIX");
 assert((checkoutReview.match(/type="submit"/g) || []).length === 1, "Checkout deve ter apenas um CTA submit antes do PIX");

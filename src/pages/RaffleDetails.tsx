@@ -1230,6 +1230,7 @@ function CheckoutModal(props: {
 }
 
 function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
+  const [needsAccessPassword, setNeedsAccessPassword] = useState(false);
   const buyer = props.customer || {};
   const buyerName = buyer.name || props.customerForm.name || "";
   const buyerPhone = buyer.phone || props.customerForm.phone || "";
@@ -1240,6 +1241,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
   const fees = 0;
   const needsCustomerData = !props.customer || props.requireIdentity;
   const cpfDigits = String(props.customerForm.cpf || buyerCpf || "").replace(/\D/g, "");
+  const phoneDigits = String(props.customerForm.phone || buyerPhone || "").replace(/\D/g, "");
   const campaignImage = props.raffle.image || props.raffle.checkoutMediaUrl || props.raffle.mediaUrl || "";
   const rawPixPrize = (props.raffle as any).pixPrizeValue ?? (props.raffle as any).pixPrize ?? (props.raffle as any).cashPrize ?? "";
   const pixPrize = typeof rawPixPrize === "number" && rawPixPrize > 0
@@ -1276,7 +1278,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         const response = await fetch("/api/customers/checkout-lookup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cpf: cpfDigits })
+          body: JSON.stringify({ cpf: cpfDigits, phone: phoneDigits })
         });
         if (response.ok) {
           const payload = await response.json();
@@ -1309,6 +1311,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         return;
       }
       if (!props.customerForm.knownCustomer && !/^\d{6}$/.test(String(props.customerForm.accessPassword || ""))) {
+        setNeedsAccessPassword(true);
         toast.error("Crie uma senha de acesso com 6 digitos");
         return;
       }
@@ -1322,8 +1325,8 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         <button type="button" onClick={props.onClose} aria-label="Voltar para o sorteio">
           <ChevronLeft />
         </button>
-        <h2>REVISÃO DA COMPRA</h2>
-        <p>Confira os dados e gere seu PIX.</p>
+        <h2>PIX RAPIDO</h2>
+        <p>Informe seus dados e gere o PIX.</p>
       </header>
 
       <section className="cfx-review-prize-card">
@@ -1381,10 +1384,10 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         ) : (
           <div className="cfx-review-buyer-form">
             <Field label="Nome completo" value={props.customerForm.name} onChange={value => props.setCustomerForm((current: any) => ({ ...current, name: value }))} autoComplete="name" />
-            <Field label="WhatsApp" value={props.customerForm.phone} onChange={value => props.setCustomerForm((current: any) => ({ ...current, phone: value }))} inputMode="tel" autoComplete="tel" />
+            <Field label="WhatsApp" value={props.customerForm.phone} onChange={value => props.setCustomerForm((current: any) => ({ ...current, phone: value, knownCustomer: false }))} inputMode="tel" autoComplete="tel" />
             <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value.replace(/\D/g, "").slice(0, 11), knownCustomer: false }))} required inputMode="numeric" maxLength={11} />
-            {!props.customerForm.knownCustomer && <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} inputMode="numeric" maxLength={6} autoComplete="one-time-code" />}
-            <p className="cfx-review-cpf-hint">Se o CPF ou WhatsApp ja existir, usamos seus dados salvos e seguimos direto para o PIX.</p>
+            {needsAccessPassword && !props.customerForm.knownCustomer && <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} inputMode="numeric" maxLength={6} autoComplete="one-time-code" />}
+            <p className="cfx-review-cpf-hint">{needsAccessPassword ? "Cadastro novo. Crie uma senha simples para proteger seus bilhetes." : "Se o CPF ou WhatsApp ja existir, usamos seus dados salvos e seguimos direto para o PIX."}</p>
           </div>
         )}
       </section>
