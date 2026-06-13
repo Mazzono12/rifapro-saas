@@ -10059,6 +10059,52 @@ async function startServer() {
     };
   }
 
+  function hasPixGatewayCredentials(gateway: string, credentials: Record<string, string>) {
+    const normalizedGateway = normalizePaymentProvider(gateway);
+    if (isInternalPixGateway(normalizedGateway)) return true;
+    if (normalizedGateway === "asaas") return Boolean(credentials.apiKey);
+    if (normalizedGateway === "mercadopago") return Boolean(credentials.accessToken || credentials.apiKey);
+    if (normalizedGateway === "pay2m") return Boolean(credentials.clientId && credentials.clientSecret);
+    if (normalizedGateway === "pagbank") return Boolean(credentials.token || credentials.accessToken || credentials.apiKey);
+    if (normalizedGateway === "cora") return Boolean((credentials.clientId && credentials.clientSecret) || credentials.apiKey);
+    if (normalizedGateway === "primepag") return Boolean((credentials.clientId && credentials.clientSecret) || credentials.accessToken || credentials.apiKey);
+    return Boolean(credentials.apiKey || credentials.accessToken || credentials.token || credentials.clientId || credentials.clientSecret);
+  }
+
+  function normalizeLocalPixGatewayForCheckout<T extends RafflePixConfig & {
+    pixKey?: string;
+    accessToken?: string;
+    publicKey?: string;
+    clientId?: string;
+    clientSecret?: string;
+  }>(pixConfig: T): T {
+    if (isProductionRuntime || process.env.DISABLE_LOCAL_PIX_MOCK_FALLBACK === "true") return pixConfig;
+    const configuredGateway = normalizePaymentProvider(pixConfig.gateway);
+    if (isInternalPixGateway(configuredGateway) || (configuredGateway !== "asaas" && Boolean(pixConfig.sandbox))) return pixConfig;
+    const credentials = {
+      apiKey: pixConfig.apiKey || pixConfig.pixKey || "",
+      accessToken: pixConfig.accessToken || pixConfig.apiKey || "",
+      token: (pixConfig as any).token || pixConfig.accessToken || pixConfig.apiKey || "",
+      clientId: pixConfig.clientId || "",
+      clientSecret: pixConfig.clientSecret || ""
+    };
+    if (hasPixGatewayCredentials(configuredGateway, credentials)) return pixConfig;
+    return {
+      ...pixConfig,
+      inheritGlobal: false,
+      gateway: "mock" as PixGatewayId,
+      sandbox: true,
+      apiKey: "mock-only",
+      accessToken: "",
+      publicKey: "",
+      clientId: "",
+      clientSecret: "",
+      pixKey: "mock-only",
+      webhookUrl: "/api/webhooks/payment/mock",
+      webhookSecret: ""
+    };
+  }
+
   function getRafflePixConfig(raffle?: { id?: string; tenant_id?: string; pixConfig?: Partial<RafflePixConfig> }, tenantId = raffle?.tenant_id || legacyTenantId) {
     const local = { ...getDefaultRafflePixConfig(), ...(raffle?.pixConfig || {}) };
     const tenantPixGateways = getTenantGateways(tenantId);
@@ -10066,7 +10112,7 @@ async function startServer() {
     const gateway = normalizePaymentProvider((local.inheritGlobal ? defaultGatewayConfig.provider : local.gateway) || "mercadopago");
     const gatewayConfig = (tenantPixGateways[gateway as PixGatewayId] || {}) as Record<string, string>;
     const normalizedCredentials = (defaultGatewayConfig.credentials || {}) as Record<string, string>;
-    return {
+    return normalizeLocalPixGatewayForCheckout({
       ...local,
       enabled: local.inheritGlobal ? Boolean(defaultGatewayConfig.enabled) : Boolean(local.enabled),
       sandbox: local.inheritGlobal ? defaultGatewayConfig.environment === "sandbox" : Boolean(local.sandbox),
@@ -10082,7 +10128,7 @@ async function startServer() {
         : (local.webhookUrl || `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`),
       webhookSecret: local.inheritGlobal ? (defaultGatewayConfig.webhook_secret || tenantPixGateways.pix?.webhookSecret || gatewayConfig.webhookSecret || "") : (local.webhookSecret || ""),
       webhookEvents: local.inheritGlobal ? (tenantPixGateways.pix?.webhookEvents || local.webhookEvents || "") : (local.webhookEvents || "")
-    };
+    });
   }
 
   type ResolvedRafflePixConfig = ReturnType<typeof getRafflePixConfig>;
@@ -14461,7 +14507,10 @@ async function startServer() {
       const gateway = purchase.pixGateway || pixConfig.gateway || "pix";
       const message = error instanceof Error ? error.message : `Falha ao criar PIX ${gateway}`;
       recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId, status: "failed", message, statusCode: 502, eventStatus: "PAYMENT_CREATE_FAILED" });
-      res.status(502).json({ error: message });
+      const publicMessage = /configura/i.test(message) || /credencia/i.test(message) || /chave api/i.test(message)
+        ? "PIX temporariamente indisponivel. Tente novamente em instantes."
+        : message;
+      res.status(502).json({ error: publicMessage });
       return;
     }
 
