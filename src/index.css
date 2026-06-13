@@ -18385,3 +18385,40 @@ body {
     display: grid;
   }
 }
+/* Fast PIX checkout: keep the path to payment short on mobile. */
+.cfx-fast-pix-checkout .cfx-review-buyer {
+  order: -3;
+}
+
+.cfx-fast-pix-checkout .cfx-fast-pix-submit {
+  order: -2;
+}
+
+.cfx-fast-pix-checkout .cfx-review-prize-card,
+.cfx-fast-pix-checkout .cfx-review-columns {
+  order: -1;
+}
+
+@media (max-width: 640px) {
+  .cfx-fast-pix-checkout {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-prize-card {
+    min-height: 96px;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-benefits,
+  .cfx-fast-pix-checkout .cfx-review-super-prizes,
+  .cfx-fast-pix-checkout .cfx-review-security {
+    display: none;
+  }
+
+  .cfx-fast-pix-submit {
+    position: sticky;
+    bottom: env(safe-area-inset-bottom);
+    z-index: 30;
+    margin-top: 0.75rem;
+    box-shadow: 0 -18px 48px rgba(0, 0, 0, 0.42);
+  }
+}

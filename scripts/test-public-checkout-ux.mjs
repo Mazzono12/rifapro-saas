@@ -70,6 +70,13 @@ assert(raffleDetails.includes("/api/customers/checkout-lookup"), "Checkout deve 
 assert(raffleDetails.includes("knownCustomer") && (raffleDetails.includes("!customerForm.knownCustomer") || raffleDetails.includes("!form.knownCustomer")), "Cliente existente nao deve precisar de senha para gerar PIX");
 assert(server.includes('app.post("/api/customers/checkout-lookup"'), "Backend deve expor lookup publico seguro para checkout");
 assert(raffleDetails.includes("if (!customer && !form.knownCustomer") || raffleDetails.includes("if (!customer && !customerForm.knownCustomer"), "Senha deve ser obrigatoria somente para cadastro inicial no checkout");
+const checkoutReview = sliceBetween(raffleDetails, "function CheckoutReview", "function PaymentPix");
+assert(checkoutReview.includes('data-checkout-mode="pix-rapido"'), "Checkout deve operar em modo PIX rapido");
+assert(checkoutReview.includes("Nome completo") && checkoutReview.includes("WhatsApp") && checkoutReview.includes("CPF"), "PIX rapido deve mostrar nome, WhatsApp e CPF antes do PIX");
+assert(checkoutReview.includes("Gerar PIX agora"), "CTA Gerar PIX agora deve ficar visivel no checkout mobile");
+assert(!checkoutReview.includes("showRegistration"), "Checkout nao deve exigir clique duplicado para abrir cadastro antes do PIX");
+assert((checkoutReview.match(/type="submit"/g) || []).length === 1, "Checkout deve ter apenas um CTA submit antes do PIX");
+assert(raffleDetails.includes('fetch(`/api/raffles/${id}/buy`'), "PIX deve continuar sendo criado pelo fluxo original de compra da rifa");
 const accessPasswordContract = sliceBetween(server, "function normalizeAccessPassword", "function stripSensitiveCustomerFields");
 assert(accessPasswordContract.includes('replace(/\\D/g, "")'), "Senha de acesso deve considerar apenas os digitos informados");
 assert(accessPasswordContract.includes('value.length === 6 ? value : ""'), "Qualquer senha numerica com exatamente 6 digitos deve ser aceita");

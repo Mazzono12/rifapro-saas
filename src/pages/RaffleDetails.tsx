@@ -1230,7 +1230,6 @@ function CheckoutModal(props: {
 }
 
 function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
-  const [showRegistration, setShowRegistration] = useState(false);
   const buyer = props.customer || {};
   const buyerName = buyer.name || props.customerForm.name || "";
   const buyerPhone = buyer.phone || props.customerForm.phone || "";
@@ -1267,7 +1266,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
       : null
   ].filter(Boolean) as Array<{ icon: React.ReactNode; title: string; detail: string; tone: string }>;
   const handleReviewSubmit = async (event: React.FormEvent) => {
-    if (needsCustomerData && !showRegistration) {
+    if (needsCustomerData) {
       event.preventDefault();
       if (cpfDigits.length !== 11) {
         toast.error("Informe seu CPF para continuar");
@@ -1299,16 +1298,26 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
           return;
         }
       } catch {
-        // Se a busca falhar, mantem o fluxo de cadastro novo.
+        // Se a busca falhar, segue com os dados preenchidos no PIX rapido.
       }
-      setShowRegistration(true);
-      return;
+      if (!props.customerForm.name.trim()) {
+        toast.error("Informe seu nome completo");
+        return;
+      }
+      if (!String(props.customerForm.phone || "").replace(/\D/g, "")) {
+        toast.error("Informe seu WhatsApp");
+        return;
+      }
+      if (!props.customerForm.knownCustomer && !/^\d{6}$/.test(String(props.customerForm.accessPassword || ""))) {
+        toast.error("Crie uma senha de acesso com 6 digitos");
+        return;
+      }
     }
     props.onSubmit(event);
   };
 
   return (
-    <form onSubmit={handleReviewSubmit} className="cfx-checkout-form cfx-review-premium">
+    <form onSubmit={handleReviewSubmit} className="cfx-checkout-form cfx-review-premium cfx-fast-pix-checkout" data-checkout-mode="pix-rapido">
       <header className="cfx-review-top">
         <button type="button" onClick={props.onClose} aria-label="Voltar para o sorteio">
           <ChevronLeft />
@@ -1358,31 +1367,31 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
       <section className="cfx-review-panel cfx-review-buyer">
         <div className="cfx-review-panel-head">
           <span><WalletCards /></span>
-          <h3>DADOS DO COMPRADOR</h3>
+          <h3>DADOS PARA GERAR PIX</h3>
         </div>
 
         {props.customer && !props.requireIdentity ? (
           <div className="cfx-review-buyer-readonly">
             <InfoCard label="Nome" value={buyerName || "Cliente"} />
             <InfoCard label="Telefone" value={maskPhone(buyerPhone)} />
-            <InfoCard label="Email" value={maskEmail(buyerEmail)} />
             <InfoCard label="CPF" value={maskCpf(buyerCpf)} />
+            {buyerEmail && <InfoCard label="Email" value={maskEmail(buyerEmail)} />}
+            <p className="cfx-review-cpf-hint">Cliente reconhecido. Confirme para gerar o PIX sem preencher tudo novamente.</p>
           </div>
         ) : (
           <div className="cfx-review-buyer-form">
+            <Field label="Nome completo" value={props.customerForm.name} onChange={value => props.setCustomerForm((current: any) => ({ ...current, name: value }))} autoComplete="name" />
+            <Field label="WhatsApp" value={props.customerForm.phone} onChange={value => props.setCustomerForm((current: any) => ({ ...current, phone: value }))} inputMode="tel" autoComplete="tel" />
             <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value.replace(/\D/g, "").slice(0, 11), knownCustomer: false }))} required inputMode="numeric" maxLength={11} />
-            {!showRegistration ? (
-              <p className="cfx-review-cpf-hint">Informe o CPF para localizar ou iniciar seu cadastro com segurança.</p>
-            ) : (
-              <>
-                <Field label="Nome completo" value={props.customerForm.name} onChange={value => props.setCustomerForm((current: any) => ({ ...current, name: value }))} required />
-                <Field label="WhatsApp" value={props.customerForm.phone} onChange={value => props.setCustomerForm((current: any) => ({ ...current, phone: value }))} required inputMode="tel" />
-                {!props.customerForm.knownCustomer && <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} required inputMode="numeric" maxLength={6} />}
-              </>
-            )}
+            {!props.customerForm.knownCustomer && <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} inputMode="numeric" maxLength={6} autoComplete="one-time-code" />}
+            <p className="cfx-review-cpf-hint">Se o CPF ou WhatsApp ja existir, usamos seus dados salvos e seguimos direto para o PIX.</p>
           </div>
         )}
       </section>
+
+      <CheckoutPrimaryActionButton type="submit" disabled={props.isSubmitting} className="cfx-review-submit cfx-fast-pix-submit disabled:opacity-45">
+        <WalletCards /> {props.isSubmitting ? "GERANDO PIX..." : "Gerar PIX agora"}
+      </CheckoutPrimaryActionButton>
 
       {benefits.length > 0 && (
         <section className="cfx-review-panel cfx-review-benefits cfx-review-benefits-mobile">
@@ -1426,10 +1435,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         ))}
       </section>
 
-      <CheckoutPrimaryActionButton type="submit" disabled={props.isSubmitting} className="cfx-review-submit disabled:opacity-45">
-        <WalletCards /> {props.isSubmitting ? "GERANDO PIX..." : "GERAR PIX"}
-      </CheckoutPrimaryActionButton>
-      <p className="cfx-review-footnote"><Lock /> Ao clicar em GERAR PIX, você será direcionado para a etapa de pagamento seguro via PIX.</p>
+      <p className="cfx-review-footnote"><Lock /> PIX seguro. Seus dados sao usados apenas para identificar a compra.</p>
     </form>
   );
 }
@@ -1825,11 +1831,11 @@ function InfoCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Field({ label, value, onChange, required, inputMode, maxLength }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]; maxLength?: number }) {
+function Field({ label, value, onChange, required, inputMode, maxLength, autoComplete }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]; maxLength?: number; autoComplete?: string }) {
   return (
     <label className="block">
       <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">{label}</span>
-      <input aria-label={label} value={value} onChange={e => onChange(e.target.value)} required={required} inputMode={inputMode} maxLength={maxLength} className="min-h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-[var(--theme-primary)] focus:ring-4 focus:ring-cyan-300/10" />
+      <input aria-label={label} value={value} onChange={e => onChange(e.target.value)} required={required} inputMode={inputMode} maxLength={maxLength} autoComplete={autoComplete} className="min-h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-[var(--theme-primary)] focus:ring-4 focus:ring-cyan-300/10" />
     </label>
   );
 }
