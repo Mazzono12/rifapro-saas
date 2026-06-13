@@ -55,7 +55,7 @@ includesAll(affiliates, [
 
 includesAll(affiliates, [
   "AffiliateGamificationPanel",
-  "Ranking de Afiliados",
+  "Top Vendedores",
   "Posição",
   "Você vendeu",
   "Total indicado",
@@ -172,7 +172,7 @@ includesAll(rankingRowsBlock, [
 const affiliateRankingBlock = server.slice(server.indexOf("function buildAffiliateRanking"), server.indexOf("function buildAffiliateDashboard"));
 includesAll(affiliateRankingBlock, [
   "commissionGenerated",
-  ".sort((a, b) => b.commissionGenerated - a.commissionGenerated || b.revenue - a.revenue)",
+  ".sort((a, b) => b.revenue - a.revenue || b.conversions - a.conversions || b.commissionGenerated - a.commissionGenerated)",
   "position: index + 1",
   "affiliate: item.affiliate",
   "customers: item.customers",
@@ -391,12 +391,12 @@ includesAll(publicAffiliateViewBlock, [
 
 includesAll(adminSales, [
   "Usa comissão padrão",
-  "Usa comissão personalizada",
-  "Comissão personalizada (%)",
-  "Essa alteração vale apenas para novas vendas indicadas.",
+  "Usa comissão especial",
+  "Comissão especial (%)",
+  "Se comissão especial estiver vazia, usa a comissão padrão.",
   "useCustomCommission",
   "customCommissionRate"
-], "ui admin comissao personalizada");
+], "ui admin comissao especial");
 
 includesAll(adminSales, [
   "Recompensas do afiliado",

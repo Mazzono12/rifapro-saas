@@ -745,12 +745,12 @@ async function startServer() {
 
   // === Mock DB ===
   const defaultAffiliateLevelConfigs = [
-    { id: "BRONZE", label: "BRONZE", emoji: "🥉", threshold: 0, commissionRate: 10, enabled: true, benefits: ["Link afiliado", "Materiais divulgação"] },
-    { id: "PRATA", label: "PRATA", emoji: "🥈", threshold: 10000, commissionRate: 12, enabled: true, benefits: ["+2% comissão", "Badge prata", "Ranking premium"] },
-    { id: "OURO", label: "OURO", emoji: "🥇", threshold: 50000, commissionRate: 14, enabled: true, benefits: ["+4% comissão", "Sorteios exclusivos afiliados"] },
-    { id: "DIAMANTE", label: "DIAMANTE", emoji: "💎", threshold: 200000, commissionRate: 16, enabled: true, benefits: ["+6% comissão", "Grupo VIP"] },
-    { id: "IMPERADOR", label: "IMPERADOR", emoji: "👑", threshold: 1000000, commissionRate: 18, enabled: true, benefits: ["+8% comissão", "Campanhas antecipadas"] },
-    { id: "LENDARIO", label: "LENDÁRIO", emoji: "🔥", threshold: 5000000, commissionRate: 20, enabled: true, benefits: ["+10% comissão", "Hall da Fama"] }
+    { id: "BRONZE", label: "BRONZE", emoji: "🥉", threshold: 0, commissionRate: 0, enabled: true, benefits: ["Link afiliado", "Materiais divulgação"] },
+    { id: "PRATA", label: "PRATA", emoji: "🥈", threshold: 10000, commissionRate: 0, enabled: true, benefits: ["Status prata", "Ranking de desempenho"] },
+    { id: "OURO", label: "OURO", emoji: "🥇", threshold: 50000, commissionRate: 0, enabled: true, benefits: ["Status ouro", "Sorteios exclusivos afiliados"] },
+    { id: "DIAMANTE", label: "DIAMANTE", emoji: "💎", threshold: 200000, commissionRate: 0, enabled: true, benefits: ["Status diamante", "Grupo VIP"] },
+    { id: "IMPERADOR", label: "IMPERADOR", emoji: "👑", threshold: 1000000, commissionRate: 0, enabled: true, benefits: ["Status imperador", "Campanhas antecipadas"] },
+    { id: "LENDARIO", label: "LENDÁRIO", emoji: "🔥", threshold: 5000000, commissionRate: 0, enabled: true, benefits: ["Status lendário", "Hall da Fama"] }
   ];
 
   let settings = {
@@ -957,6 +957,7 @@ async function startServer() {
     sourceSettings.affiliateProgram = {
       ...settings.affiliateProgram,
       ...(sourceSettings.affiliateProgram || {}),
+      commissionRate: normalizeAffiliateCommissionRate(sourceSettings.affiliateProgram?.commissionRate ?? settings.affiliateProgram.commissionRate ?? 10),
       monthlyActivationAmount: Math.max(0, Number(sourceSettings.affiliateProgram?.monthlyActivationAmount || 0))
     };
     sourceSettings.publicModules = {
@@ -2749,6 +2750,7 @@ async function startServer() {
     | "ALREADY_REWARDED"
     | "INVALID_TENANT_SCOPE"
     | "SELF_SPONSOR_BLOCKED"
+    | "DIRECT_REFERRAL_ONLY"
     | "CAMPAIGN_MISMATCH"
     | "PURCHASE_NOT_CONFIRMED";
   type SponsorModalityType = "raffle" | "fazendinha" | NumberModeId | string;
@@ -9708,7 +9710,7 @@ async function startServer() {
       label: current.label,
       emoji: current.emoji,
       displayName: `${current.emoji} ${current.label}`,
-      commissionRate: current.commissionRate,
+      commissionRate: 0,
       enabled: current.enabled,
       benefits: current.benefits,
       nextLevelLabel: next?.label || "",
@@ -9721,15 +9723,16 @@ async function startServer() {
     const now = new Date().toISOString();
     const paidOrders = getAffiliatePaidOrders(affiliate.tenant_id, affiliate.refCode);
     const salesPoints = Number(paidOrders.reduce((sum, order) => sum + Number(order.amount || 0), 0).toFixed(2));
-    const activeCustomers = new Set(paidOrders.map(order => order.customer?.id).filter(Boolean));
-    const networkPoints = activeCustomers.size * 500;
-    const sponsorPrizeCount = sponsorRewards.filter(reward =>
+    const directReferredCustomers = new Set(paidOrders.map(order => order.customer?.id).filter(Boolean));
+    const directReferralPoints = directReferredCustomers.size * 500;
+    const directPrizeCount = sponsorRewards.filter(reward =>
       reward.tenant_id === affiliate.tenant_id &&
       reward.sponsor_affiliate_id === affiliate.refCode &&
+      isDirectSponsorReward(reward) &&
       ["approved", "credited"].includes(reward.status)
     ).length;
-    const sponsorPoints = sponsorPrizeCount * 1000;
-    const totalPoints = Number((salesPoints + networkPoints + sponsorPoints).toFixed(2));
+    const directPrizePoints = directPrizeCount * 1000;
+    const totalPoints = Number((salesPoints + directReferralPoints + directPrizePoints).toFixed(2));
     const tenantLevelCatalog = activeAffiliateLevelCatalog(affiliate.tenant_id);
     const level = affiliateLevelForPoints(affiliate.tenant_id, totalPoints);
     const next = tenantLevelCatalog[tenantLevelCatalog.findIndex(item => item.id === level.id) + 1];
@@ -9757,8 +9760,8 @@ async function startServer() {
       current_level: level.id,
       points: totalPoints,
       sales_points: salesPoints,
-      network_points: networkPoints,
-      sponsor_points: sponsorPoints,
+      network_points: directReferralPoints,
+      sponsor_points: directPrizePoints,
       next_level: next?.id || "",
       next_level_points: next?.threshold || level.threshold,
       progress_percent: Number(Math.max(0, Math.min(100, progress)).toFixed(2)),
@@ -9807,7 +9810,7 @@ async function startServer() {
       .map(item => {
         const affiliate = affiliates[tenantCustomerKey(item.tenant_id, item.affiliate_id)];
         const owner = affiliate ? affiliateOwnerCustomer(affiliate) : undefined;
-        const rewards = sponsorRewards.filter(reward => reward.tenant_id === tenantId && reward.sponsor_affiliate_id === item.affiliate_id && ["approved", "credited"].includes(reward.status));
+        const rewards = sponsorRewards.filter(reward => reward.tenant_id === tenantId && reward.sponsor_affiliate_id === item.affiliate_id && isDirectSponsorReward(reward) && ["approved", "credited"].includes(reward.status));
         return {
           refCode: item.affiliate_id,
           name: maskDisplayName(owner?.name || item.affiliate_id),
@@ -9823,9 +9826,11 @@ async function startServer() {
   }
 
   function resolveAffiliateCommissionRate(affiliate: AffiliateRecord) {
-    if (affiliate.useCustomCommission) return normalizeAffiliateCommissionRate(affiliate.customCommissionRate);
-    const levelState = getAffiliateLevelState(affiliate);
-    return normalizeAffiliateCommissionRate(affiliateLevelDefinition(affiliate.tenant_id, levelState.current_level).commissionRate);
+    const customRate = affiliate.customCommissionRate;
+    if (customRate !== undefined && customRate !== null && Number.isFinite(Number(customRate))) {
+      return normalizeAffiliateCommissionRate(customRate);
+    }
+    return normalizeAffiliateCommissionRate(getTenantSettings(affiliate.tenant_id).affiliateProgram?.commissionRate ?? 10);
   }
 
   function publicAffiliateView(affiliate?: AffiliateRecord | null) {
@@ -12142,6 +12147,13 @@ async function startServer() {
     res.json(getBuyerRanking(tenantId, req.params.id, config.buyerRanking.metric, config.buyerRanking.limit));
   });
 
+  app.get("/api/raffles/:id/top-sellers", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === req.params.id);
+    if (!raffle) return res.status(404).json({ error: "Raffle not found" });
+    res.json(buildAffiliateSellerRanking(tenantId, { type: "raffle", id: raffle.id }, Math.max(1, Math.min(50, Number(req.query.limit || 10)))));
+  });
+
   app.get("/api/public/raffles/:raffleId/activity", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === req.params.raffleId);
@@ -12162,6 +12174,17 @@ async function startServer() {
     }
     res.setHeader("Cache-Control", "private, max-age=15");
     res.json(getPublicRanking(tenantId, raffle.id));
+  });
+
+  app.get("/api/public/raffles/:raffleId/top-sellers", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === req.params.raffleId);
+    if (!raffle) {
+      res.status(404).json({ error: "Raffle not found" });
+      return;
+    }
+    res.setHeader("Cache-Control", "private, max-age=15");
+    res.json(buildAffiliateSellerRanking(tenantId, { type: "raffle", id: raffle.id }, Math.max(1, Math.min(20, Number(req.query.limit || 10)))));
   });
 
   app.get("/api/public/raffles/:raffleId/scarcity", (req, res) => {
@@ -18820,6 +18843,7 @@ async function startServer() {
     const referrer = input.refCode ? affiliates[tenantCustomerKey(input.tenantId, input.refCode)] : undefined;
     if (!referrer || referrer.customerId === input.buyerCustomerId) return null;
     const affiliate = referrer;
+    if (!isDirectAffiliateCustomer(input.tenantId, affiliate.refCode, input.buyerCustomerId)) return null;
     const purchase = { amount: input.amount };
     if (affiliate.history.some(entry => entry.type === input.source || entry.type === `pending:${input.source}` || entry.type === `ineligible:${input.source}`)) return affiliate;
     if (!affiliateIsActiveLast30Days(affiliate)) {
@@ -18854,13 +18878,9 @@ async function startServer() {
       });
       return affiliate;
     }
-    const levelState = getAffiliateLevelState(affiliate);
-    const levelDefinition = affiliateLevelDefinition(affiliate.tenant_id, levelState.current_level);
     const commissionRate = resolveAffiliateCommissionRate(affiliate);
     const commissionSnapshot = {
-      source: affiliate.useCustomCommission ? "custom_affiliate_rate" : "affiliate_level_config",
-      level: levelState.current_level,
-      levelLabel: levelDefinition.label,
+      source: affiliate.customCommissionRate !== undefined && affiliate.customCommissionRate !== null ? "custom_affiliate_rate" : "tenant_default_affiliate_rate",
       tenantId: affiliate.tenant_id,
       commissionRate
     };
@@ -18871,10 +18891,10 @@ async function startServer() {
     if (eligibility.isEligibleThisMonth) {
       affiliate.commissionBalance += comm;
       affiliate.commission = affiliate.commissionBalance + affiliate.prizeBalance;
-      affiliate.history.push({ amount: comm, type: input.source, date: new Date().toISOString(), campaignType: input.campaign?.type, campaignId: input.campaign?.id, commissionRate, commissionLevel: levelState.current_level, commissionSnapshot });
+      affiliate.history.push({ amount: comm, type: input.source, date: new Date().toISOString(), campaignType: input.campaign?.type, campaignId: input.campaign?.id, commissionRate, commissionSnapshot });
       evaluateAffiliateRewards({ tenantId: input.tenantId, affiliate, source: input.source });
     } else {
-      affiliate.history.push({ amount: comm, type: `pending:${input.source}`, date: new Date().toISOString(), campaignType: input.campaign?.type, campaignId: input.campaign?.id, commissionRate, commissionLevel: levelState.current_level, commissionSnapshot });
+      affiliate.history.push({ amount: comm, type: `pending:${input.source}`, date: new Date().toISOString(), campaignType: input.campaign?.type, campaignId: input.campaign?.id, commissionRate, commissionSnapshot });
     }
     recalculateAffiliateLevel(affiliate, "venda_confirmada");
     return affiliate;
@@ -19139,15 +19159,48 @@ async function startServer() {
 
   function getAffiliatePaidOrders(tenantId: string, refCode: string): AffiliatePaidOrder[] {
     const traditional = purchases
-      .filter(item => item.tenant_id === tenantId && item.refCode === refCode && item.status === "paid")
+      .filter(item => item.tenant_id === tenantId && item.refCode === refCode && item.status === "paid" && item.customer?.referredBy === refCode)
       .map(item => ({ id: item.purchaseId, tenant_id: item.tenant_id, refCode: item.refCode, customer: item.customer, amount: item.amount, status: item.status, createdAt: item.createdAt, channel: "rifa" }));
     const modes = numberModePurchases
-      .filter(item => item.tenant_id === tenantId && item.refCode === refCode && item.status === "paid")
+      .filter(item => item.tenant_id === tenantId && item.refCode === refCode && item.status === "paid" && item.customer?.referredBy === refCode)
       .map(item => ({ id: item.id, tenant_id: item.tenant_id, refCode: item.refCode, customer: item.customer, amount: item.amount, status: item.status, createdAt: item.createdAt, channel: item.mode }));
     const farm = fazendinhaCompras
-      .filter(item => item.tenant_id === tenantId && item.refCode === refCode && item.statusPagamento === "paid")
+      .filter(item => item.tenant_id === tenantId && item.refCode === refCode && item.statusPagamento === "paid" && item.customer?.referredBy === refCode)
       .map(item => ({ id: item.id, tenant_id: item.tenant_id, refCode: item.refCode, customer: item.customer, amount: item.valorPago, status: item.statusPagamento, createdAt: item.paidAt || item.confirmedAt || item.dataCompra, channel: "fazendinha" }));
     return [...traditional, ...modes, ...farm].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  function affiliateOrderMatchesCampaign(order: AffiliatePaidOrder, campaign?: AffiliateCampaignRef) {
+    if (!campaign?.id) return true;
+    return order.channel === campaign.type || order.channel === campaign.id || order.id === campaign.id
+      ? true
+      : campaign.type === "raffle"
+        ? purchases.some(purchase => purchase.purchaseId === order.id && purchase.raffleId === campaign.id)
+        : campaign.type === "fazendinha"
+          ? order.channel === "fazendinha" && campaign.id === "fazendinha"
+          : numberModePurchases.some(purchase => purchase.id === order.id && purchase.mode === campaign.id);
+  }
+
+  function buildAffiliateSellerRanking(tenantId: string, campaign: AffiliateCampaignRef, limit = 10) {
+    return Object.values(affiliates)
+      .filter(affiliate => affiliate.tenant_id === tenantId)
+      .map(affiliate => {
+        const owner = affiliateOwnerCustomer(affiliate);
+        const orders = getAffiliatePaidOrders(tenantId, affiliate.refCode)
+          .filter(order => affiliateOrderMatchesCampaign(order, campaign));
+        const buyers = new Set(orders.map(order => order.customer?.id).filter(Boolean));
+        return {
+          refCode: affiliate.refCode,
+          affiliate: maskDisplayName(owner?.name || affiliate.refCode),
+          totalSold: Number(orders.reduce((sum, order) => sum + Number(order.amount || 0), 0).toFixed(2)),
+          sales: orders.length,
+          buyers: buyers.size
+        };
+      })
+      .filter(item => item.totalSold > 0 || item.sales > 0)
+      .sort((a, b) => b.totalSold - a.totalSold || b.sales - a.sales || b.buyers - a.buyers)
+      .slice(0, limit)
+      .map((item, index) => ({ position: index + 1, ...item }));
   }
 
   function affiliateOwnerCustomer(affiliate: AffiliateRecord) {
@@ -19214,6 +19267,19 @@ async function startServer() {
     return customerSponsors.find(item => item.tenant_id === tenantId && item.customer_id === customerId);
   }
 
+  function isDirectAffiliateCustomer(tenantId: string, affiliateRefCode: string, customerId?: string) {
+    if (!customerId || !affiliateRefCode) return false;
+    return Object.values(customersByPhone).some(customer =>
+      customer.tenant_id === tenantId &&
+      customer.id === customerId &&
+      customer.referredBy === affiliateRefCode
+    );
+  }
+
+  function isDirectSponsorReward(reward: SponsorRewardRecord) {
+    return isDirectAffiliateCustomer(reward.tenant_id, reward.sponsor_affiliate_id, reward.winner_customer_id);
+  }
+
   function bindPermanentSponsor(input: { tenantId: string; customer: CustomerRecord; refCode: string; campaignId?: string; sourceUrl?: string }) {
     const refCode = String(input.refCode || "").trim();
     const sponsor = affiliates[tenantCustomerKey(input.tenantId, refCode)];
@@ -19228,6 +19294,10 @@ async function startServer() {
     }
     const current = getCustomerSponsor(input.tenantId, input.customer.id);
     if (current) return current;
+    if (input.customer.referredBy && input.customer.referredBy !== refCode) {
+      recordSponsorRewardAuditLog({ tenant_id: input.tenantId, campaign_id: input.campaignId || "", event_type: "sponsor_bind_blocked", reason: "DIRECT_REFERRAL_ONLY", winner_customer_id: input.customer.id, sponsor_affiliate_id: sponsor.refCode, payload: { refCode, directRefCode: input.customer.referredBy } });
+      return null;
+    }
     const owner = affiliateOwnerCustomer(sponsor);
     const record: CustomerSponsorRecord = {
       id: createPublicId("CSR_"),
@@ -19325,6 +19395,10 @@ async function startServer() {
     if (!sponsor || sponsor.tenant_id !== input.tenantId) {
       return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, sponsorAffiliateId: sponsorLink.sponsor_affiliate_id, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "INVALID_TENANT_SCOPE" });
     }
+    const winnerCustomer = Object.values(customersByPhone).find(customer => customer.tenant_id === input.tenantId && customer.id === input.winnerCustomerId);
+    if (!winnerCustomer || winnerCustomer.referredBy !== sponsor.refCode) {
+      return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, sponsorAffiliateId: sponsor.refCode, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "DIRECT_REFERRAL_ONLY", payload: { directRefCode: winnerCustomer?.referredBy || "" } });
+    }
     if (!affiliateIsActiveLast30Days(sponsor)) {
       return rejectSponsorRewardEvaluation({ tenantId: input.tenantId, campaignId: input.campaignId, winnerCustomerId: input.winnerCustomerId, sponsorAffiliateId: sponsor.refCode, prizeId: input.prizeId, purchaseId: input.purchaseId, reason: "SPONSOR_INACTIVE" });
     }
@@ -19371,7 +19445,7 @@ async function startServer() {
     return Object.values(affiliates)
       .filter(affiliate => affiliate.tenant_id === tenantId)
       .map(affiliate => {
-        const rewards = sponsorRewards.filter(reward => reward.tenant_id === tenantId && reward.sponsor_affiliate_id === affiliate.refCode && ["pending", "approved", "credited"].includes(reward.status));
+        const rewards = sponsorRewards.filter(reward => reward.tenant_id === tenantId && reward.sponsor_affiliate_id === affiliate.refCode && isDirectSponsorReward(reward) && ["pending", "approved", "credited"].includes(reward.status));
         const owner = affiliateOwnerCustomer(affiliate);
         const level = affiliateLevelPublicView(getAffiliateLevelState(affiliate));
         return {
@@ -19678,7 +19752,7 @@ async function startServer() {
         };
       })
       .filter(item => item.customers > 0 || item.commissionGenerated > 0 || item.revenue > 0)
-      .sort((a, b) => b.commissionGenerated - a.commissionGenerated || b.revenue - a.revenue)
+      .sort((a, b) => b.revenue - a.revenue || b.conversions - a.conversions || b.commissionGenerated - a.commissionGenerated)
       .slice(0, 10)
       .map((item, index) => ({
         position: index + 1,
@@ -25057,6 +25131,17 @@ async function startServer() {
     res.json({ ranking: buildAffiliateLevelRanking(resolveRequestTenantId(req)) });
   });
 
+  app.get("/api/admin/affiliates/top-sellers", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const campaignType = String(req.query.campaignType || "raffle") as AffiliateCampaignType;
+    const campaignId = String(req.query.campaignId || req.query.raffleId || "");
+    if (!campaignId) {
+      res.status(400).json({ error: "Campanha obrigatoria para Top Vendedores" });
+      return;
+    }
+    res.json({ ranking: buildAffiliateSellerRanking(tenantId, { type: campaignType, id: campaignId }, Math.max(1, Math.min(100, Number(req.query.limit || 20)))) });
+  });
+
   app.get("/api/public/affiliate-levels/ranking", (req, res) => {
     res.json({ ranking: buildAffiliateLevelRanking(resolveRequestTenantId(req)).slice(0, 20) });
   });
@@ -25140,8 +25225,8 @@ async function startServer() {
       activeLast30Days: affiliateIsActiveLast30Days(affiliate),
       ownerCustomerId: owner?.id,
       paidPurchasesLast30Days: paidActivity.filter(item => new Date(item.created_at).getTime() >= Date.now() - 30 * 24 * 60 * 60 * 1000).length,
-      sponsorLinks: customerSponsors.filter(item => item.tenant_id === tenantId && item.sponsor_affiliate_id === affiliate.refCode).length,
-      rewards: sponsorRewards.filter(item => item.tenant_id === tenantId && item.sponsor_affiliate_id === affiliate.refCode)
+      sponsorLinks: customerSponsors.filter(item => item.tenant_id === tenantId && item.sponsor_affiliate_id === affiliate.refCode && isDirectAffiliateCustomer(tenantId, affiliate.refCode, item.customer_id)).length,
+      rewards: sponsorRewards.filter(item => item.tenant_id === tenantId && item.sponsor_affiliate_id === affiliate.refCode && isDirectSponsorReward(item))
     });
   });
 
@@ -25151,7 +25236,7 @@ async function startServer() {
     if (!affiliate) return res.status(404).json({ error: "Afiliado nao encontrado" });
     if (!isAffiliateOwnerRequest(req, affiliate)) return res.status(403).json({ error: "Acesso negado para este afiliado" });
     const rows = customerSponsors
-      .filter(item => item.tenant_id === tenantId && item.sponsor_affiliate_id === affiliate.refCode)
+      .filter(item => item.tenant_id === tenantId && item.sponsor_affiliate_id === affiliate.refCode && isDirectAffiliateCustomer(tenantId, affiliate.refCode, item.customer_id))
       .map(link => {
         const customer = Object.values(customersByPhone).find(item => item.tenant_id === tenantId && item.id === link.customer_id);
         return {
@@ -25171,7 +25256,7 @@ async function startServer() {
     const affiliate = affiliates[tenantCustomerKey(tenantId, req.params.refCode)];
     if (!affiliate) return res.status(404).json({ error: "Afiliado nao encontrado" });
     if (!isAffiliateOwnerRequest(req, affiliate)) return res.status(403).json({ error: "Acesso negado para este afiliado" });
-    const rewards = sponsorRewards.filter(item => item.tenant_id === tenantId && item.sponsor_affiliate_id === affiliate.refCode);
+    const rewards = sponsorRewards.filter(item => item.tenant_id === tenantId && item.sponsor_affiliate_id === affiliate.refCode && isDirectSponsorReward(item));
     res.json({
       rewards,
       totals: {

@@ -59,12 +59,14 @@ mustInclude(pkg.scripts["test:sponsor-rewards-hard"], "scripts/test-sponsor-rewa
   "ALREADY_REWARDED",
   "INVALID_TENANT_SCOPE",
   "SELF_SPONSOR_BLOCKED",
+  "DIRECT_REFERRAL_ONLY",
   "PURCHASE_NOT_CONFIRMED"
 ].forEach(reason => mustInclude(server, reason, `motivo de elegibilidade: ${reason}`));
 
 mustMatch(server, /customerSponsors\.find\(item => item\.tenant_id === tenantId && item\.customer_id === customerId\)/, "patrocinador permanente por cliente/tenant");
 mustMatch(server, /sponsor\.customerId === input\.customer\.id[\s\S]*SELF_SPONSOR_BLOCKED/, "bloqueio de autopatrocinio");
 mustMatch(server, /if \(current\) return current;/, "nao substitui patrocinador permanente existente");
+mustMatch(server, /winnerCustomer\.referredBy !== sponsor\.refCode[\s\S]*DIRECT_REFERRAL_ONLY/, "premio considera somente indicado direto do afiliado");
 mustMatch(server, /purchaseStatus: string/, "status de compra obrigatorio na avaliacao");
 mustMatch(server, /input\.purchaseStatus !== "paid"[\s\S]*PURCHASE_NOT_CONFIRMED/, "nao avalia compra nao confirmada");
 mustMatch(server, /function isSponsorPrizeEligible[\s\S]*eligible_prize_scope === "main"[\s\S]*prizeScope === "main"/, "escopo de premio elegivel respeitado");

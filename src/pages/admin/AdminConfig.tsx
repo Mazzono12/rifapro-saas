@@ -22,12 +22,12 @@ const paletteFields = [
 ] as const;
 
 const defaultAffiliateLevelConfig = [
-  { id: "BRONZE", label: "Bronze", emoji: "🥉", threshold: 0, commissionRate: 10, enabled: true },
-  { id: "PRATA", label: "Prata", emoji: "🥈", threshold: 10000, commissionRate: 12, enabled: true },
-  { id: "OURO", label: "Ouro", emoji: "🥇", threshold: 50000, commissionRate: 14, enabled: true },
-  { id: "DIAMANTE", label: "Diamante", emoji: "💎", threshold: 200000, commissionRate: 16, enabled: true },
-  { id: "IMPERADOR", label: "Imperador", emoji: "👑", threshold: 1000000, commissionRate: 18, enabled: true },
-  { id: "LENDARIO", label: "Lendário", emoji: "🔥", threshold: 5000000, commissionRate: 20, enabled: true }
+  { id: "BRONZE", label: "Bronze", emoji: "🥉", threshold: 0, commissionRate: 0, enabled: true },
+  { id: "PRATA", label: "Prata", emoji: "🥈", threshold: 10000, commissionRate: 0, enabled: true },
+  { id: "OURO", label: "Ouro", emoji: "🥇", threshold: 50000, commissionRate: 0, enabled: true },
+  { id: "DIAMANTE", label: "Diamante", emoji: "💎", threshold: 200000, commissionRate: 0, enabled: true },
+  { id: "IMPERADOR", label: "Imperador", emoji: "👑", threshold: 1000000, commissionRate: 0, enabled: true },
+  { id: "LENDARIO", label: "Lendário", emoji: "🔥", threshold: 5000000, commissionRate: 0, enabled: true }
 ];
 
 function normalizeAffiliateLevelConfig(config: any[] = []) {
@@ -543,7 +543,6 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
   const minWithdrawAmount = Math.max(0, Number(affiliateProgram.minWithdrawAmount || 0));
   const monthlyActivationAmount = Math.max(0, Number(affiliateProgram.monthlyActivationAmount || 0));
   const affiliateLevelConfig = normalizeAffiliateLevelConfig(settings.affiliateLevelConfig);
-  const bronzeCommissionRate = Number(affiliateLevelConfig.find(level => level.id === "BRONZE")?.commissionRate ?? commissionRate);
   const performanceRewards = settings.affiliatePerformanceRewards || { enabled: false, rules: [] };
   const performanceRewardRules = Array.isArray(performanceRewards.rules) ? performanceRewards.rules : [];
   const rewardGoalOptions = [
@@ -560,7 +559,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     ["future_reward", "Recompensa futura"]
   ];
   const previewTicketValue = 100;
-  const previewCommission = Number((previewTicketValue * (bronzeCommissionRate / 100)).toFixed(2));
+  const previewCommission = Number((previewTicketValue * (commissionRate / 100)).toFixed(2));
 
   return (
     <div className="space-y-8 fade-in">
@@ -838,7 +837,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                  <div className="grid gap-4">
                    <AffiliateSection icon={Percent} title="Comissão" description="Defina quanto o afiliado recebe por cada venda aprovada.">
                      <div className="grid gap-4 md:grid-cols-3">
-                       <AffiliateField label="Comissão padrão legado (%)" help="Fallback antigo para integrações que ainda não usam níveis. Novas comissões usam a configuração por nível.">
+                       <AffiliateField label="Comissão padrão do programa (%)" help="Percentual usado nas novas compras pagas dos indicados diretos, salvo quando o afiliado tiver comissão especial.">
                          <input type="number" min="0" max="100" step="0.01" value={commissionRate} onChange={e => updateAffiliateProgram({ commissionRate: Math.min(100, Math.max(0, Number(e.target.value))) })} placeholder="Ex.: 10" className="w-full p-3" />
                        </AffiliateField>
                        <AffiliateField label="Comissão vitalícia" help="As indicações continuam vinculadas ao afiliado pelo código de convite.">
@@ -850,9 +849,22 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                      </div>
                    </AffiliateSection>
 
-                   <AffiliateSection icon={Medal} title="Comissões por Nível" description="Configure a comissão oficial usada nas novas vendas confirmadas por afiliados.">
+                   <AffiliateSection icon={Trophy} title="Rankings da campanha" description="Top Vendedores e Top Compradores são calculados por campanha, usando apenas compras pagas do tenant atual.">
+                     <div className="grid gap-3 md:grid-cols-2">
+                       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                         <p className="text-sm font-black text-white">Top Vendedores</p>
+                         <p className="mt-2 text-xs leading-5 text-slate-400">Considera vendas pagas geradas por indicados diretos do afiliado na campanha selecionada.</p>
+                       </div>
+                       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                         <p className="text-sm font-black text-white">Top Compradores</p>
+                         <p className="mt-2 text-xs leading-5 text-slate-400">Considera compradores reais da campanha, sem misturar outros tenants ou outras campanhas.</p>
+                       </div>
+                     </div>
+                   </AffiliateSection>
+
+                   <AffiliateSection icon={Medal} title="Status visual do afiliado" description="Configure nomes e metas visuais. Estes status não alteram a comissão.">
                      <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm font-semibold text-amber-100">
-                       As alterações valem apenas para novas comissões geradas após salvar.
+                       A comissão é definida apenas pela comissão padrão do programa ou pela comissão especial do afiliado.
                      </div>
                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                        {affiliateLevelConfig.map(level => (
@@ -872,17 +884,6 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                              </label>
                            </div>
                            <div className="grid gap-3">
-                             <AffiliateField label={`${level.label} %`} help="Percentual usado para novas comissões deste nível.">
-                               <input
-                                 type="number"
-                                 min="0"
-                                 max="100"
-                                 step="0.01"
-                                 value={level.commissionRate}
-                                 onChange={e => updateAffiliateLevelConfig(level.id, { commissionRate: Math.min(100, Math.max(0, Number(e.target.value))) })}
-                                 className="w-full p-3"
-                               />
-                             </AffiliateField>
                              <AffiliateField label="Pontos mínimos" help="Pontuação mínima para o afiliado atingir este nível.">
                                <input
                                  type="number"
@@ -914,7 +915,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
                        <AffiliateField label="Bônus por venda" help="A comissão padrão funciona como bônus por venda aprovada.">
                          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-300">{commissionRate.toFixed(2)}% por venda paga</div>
                        </AffiliateField>
-                       <AffiliateField label="Meta mensal" help="Valor que o afiliado precisa comprar no mês para liberar comissões pendentes. Use zero para não exigir meta.">
+                       <AffiliateField label="Compra mínima mensal para ativação do afiliado" help="Defina o valor mínimo mensal em cotas para liberar comissões pendentes. Use 0 para desativar a exigência.">
                          <input type="number" min="0" step="0.01" value={monthlyActivationAmount} onChange={e => updateAffiliateProgram({ monthlyActivationAmount: Math.max(0, Number(e.target.value)) })} className="w-full p-3" placeholder="Ex.: 50.00" />
                        </AffiliateField>
                        <AffiliateField label="Meta anual" help="Acompanhe a meta anual pelos relatórios de ranking e receita do afiliado.">

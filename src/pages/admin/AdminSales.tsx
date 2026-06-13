@@ -982,7 +982,7 @@ export function AdminSales() {
                     <p className="font-semibold text-white">{item.customer?.name || "Cliente"}</p>
                     <p className="text-xs text-slate-500">{item.customer?.phone || "sem telefone"} • CPF {item.customer?.cpf || "não informado"}</p>
                     <p className="text-xs text-emerald-300">Código de indicação: {item.affiliate?.refCode || "não definido"}</p>
-                    <p className="text-xs text-slate-400">{item.affiliate?.useCustomCommission ? "Usa comissão personalizada" : "Usa comissão padrão"}</p>
+                    <p className="text-xs text-slate-400">{item.affiliate?.useCustomCommission ? "Usa comissão especial" : "Usa comissão padrão"}</p>
                   </button>
                 ))}
               </div>
@@ -1017,9 +1017,9 @@ export function AdminSales() {
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <p className="text-sm font-bold text-white">
-                            {selectedAffiliate.affiliate?.useCustomCommission ? "Usa comissão personalizada" : "Usa comissão padrão"}
+                            {selectedAffiliate.affiliate?.useCustomCommission ? "Usa comissão especial" : "Usa comissão padrão"}
                           </p>
-                          <p className="mt-1 text-xs text-slate-400">Essa alteração vale apenas para novas vendas indicadas.</p>
+                          <p className="mt-1 text-xs text-slate-400">Essa alteração vale apenas para novas vendas indicadas. Se comissão especial estiver vazia, usa a comissão padrão.</p>
                         </div>
                         <label className="flex items-center gap-2 text-sm text-slate-200">
                           <input
@@ -1030,11 +1030,11 @@ export function AdminSales() {
                               affiliate: { ...selectedAffiliate.affiliate, useCustomCommission: e.target.checked }
                             })}
                           />
-                          Comissão personalizada ativa
+                          Comissão especial ativa
                         </label>
                       </div>
                       <label className="mt-3 block space-y-1">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Comissão personalizada (%)</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Comissão especial (%)</span>
                         <input
                           type="number"
                           min="0"
@@ -1066,9 +1066,9 @@ export function AdminSales() {
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
                         <MiniWallet label="Meta mensal" value={selectedAffiliate.affiliate.eligibility.monthlyRequiredAmount} />
-                        <MiniWallet label="Comprado no mês" value={selectedAffiliate.affiliate.eligibility.monthlyPurchasedAmount} />
+                        <MiniWallet label="Comprado mês" value={selectedAffiliate.affiliate.eligibility.monthlyPurchasedAmount} />
                         <MiniWallet label="Falta para liberar" value={selectedAffiliate.affiliate.eligibility.remainingAmount} />
-                        <MiniWallet label="Comissão aguardando meta" value={selectedAffiliate.affiliate.eligibility.blockedCommissionAmount} />
+                        <MiniWallet label="Comissão bloqueada" value={selectedAffiliate.affiliate.eligibility.blockedCommissionAmount} />
                       </div>
                     </div>
                   )}

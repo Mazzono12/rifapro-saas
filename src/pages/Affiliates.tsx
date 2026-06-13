@@ -440,14 +440,14 @@ export function Affiliates() {
           <div className="affiliate-v2-metric-grid">
             <AffiliateV2MetricCard icon={<DollarSign />} title="Ganhos Totais" value={money(totalCommissions + paidAmount + prizeBalance)} caption="Todos os ganhos" tone="green" />
             <AffiliateV2MetricCard icon={<Wallet />} title="Disponível para Saque" value={money(totalBalance)} caption="Disponível agora" tone="gold" />
-            <AffiliateV2MetricCard icon={<Banknote />} title="Compras da Rede" value={money(Number(dashboard?.metrics.revenue ?? stats.revenue ?? 0))} caption="Total da rede" tone="blue" />
+            <AffiliateV2MetricCard icon={<Banknote />} title="Compras Indicadas" value={money(Number(dashboard?.metrics.revenue ?? stats.revenue ?? 0))} caption="Indicados diretos" tone="blue" />
             <AffiliateV2MetricCard icon={<span className="affiliate-v2-symbol">%</span>} title="Comissões Geradas" value={money(totalCommissions)} caption="Total de comissões" tone="purple" />
           </div>
         </section>
 
         <div className="affiliate-v2-dashboard-grid">
           <section className="affiliate-v2-card affiliate-v2-card-level">
-            <AffiliateV2Title number="02" title="Status e Nível" compact />
+            <AffiliateV2Title number="02" title="Status e Metas" compact />
             <div className="affiliate-v2-level-layout">
               <div className="affiliate-v2-level-badge">
                 <span>{affiliateLevel.emoji}</span>
@@ -459,8 +459,8 @@ export function Affiliates() {
                   <strong>{Number(affiliateLevel.points || 0).toLocaleString("pt-BR")}</strong>
                 </div>
                 <div className="affiliate-v2-split">
-                  <span>Próximo nível</span>
-                  <strong>{affiliateLevel.nextLevelDisplayName || "Nível máximo"}</strong>
+                  <span>Próxima meta</span>
+                  <strong>{affiliateLevel.nextLevelDisplayName || "Meta máxima"}</strong>
                 </div>
                 <ProgressBar value={affiliateLevel.progress_percent || 0} className="affiliate-v2-progress" />
                 <div className="affiliate-v2-status-row">
@@ -476,7 +476,7 @@ export function Affiliates() {
             <div className="affiliate-v2-opportunity-body">
               <div>
                 <p>Você possui <strong>{opportunityCount}</strong> indicados participando de campanhas.</p>
-                <p>Compre sua participação para ficar apto ao Prêmio de Patrocinador.</p>
+                <p>Compre sua participação para ficar apto ao prêmio por indicado direto.</p>
               </div>
               <a href={primaryCampaignLink} className="affiliate-v2-cta">Quero Participar</a>
             </div>
@@ -484,11 +484,11 @@ export function Affiliates() {
         </div>
 
         <section className="affiliate-v2-card affiliate-v2-sponsor">
-          <AffiliateV2Title number="04" title="Patrocinador Premiado" compact />
+          <AffiliateV2Title number="04" title="Indicação Premiada" compact />
           <div className="affiliate-v2-sponsor-layout">
             <div className="affiliate-v2-trophy" aria-hidden="true">🏆</div>
             <div className="affiliate-v2-sponsor-content">
-              <p className="affiliate-v2-card-lead">Quando seus indicados ganham, você também ganha.</p>
+              <p className="affiliate-v2-card-lead">Quando seus indicados diretos ganham, você também ganha.</p>
               <div className="affiliate-v2-mini-grid">
                 <AffiliateV2MiniStat label="Indicados" value={Number(dashboard?.metrics.referredCustomers ?? stats.referredCustomers ?? 0)} />
                 <AffiliateV2MiniStat label="Indicados Ativos" value={activeReferred} />
@@ -504,7 +504,7 @@ export function Affiliates() {
           <AffiliateV2Title number="06" title="Posição nos Rankings" compact />
           <div className="affiliate-v2-ranking-grid">
             <AffiliateV2RankingBlock icon="💰" title="Top por Comissão" position={commissionRankingPosition} detail={`${money(totalCommissions)} acumulados`} tone="green" />
-            <AffiliateV2RankingBlock icon="🎁" title="Top Patrocinadores Premiados" position={sponsorRankingPosition} detail={`${sponsorPrizes} prêmios recebidos`} tone="purple" />
+            <AffiliateV2RankingBlock icon="🎁" title="Top Indicações Premiadas" position={sponsorRankingPosition} detail={`${sponsorPrizes} prêmios recebidos`} tone="purple" />
           </div>
         </section>
 
@@ -525,7 +525,7 @@ export function Affiliates() {
         <nav className="affiliate-v2-bottom-nav" aria-label="Navegação do afiliado">
           {[
             ["🏠", "Dashboard", true],
-            ["👥", "Minha Rede", false],
+            ["👥", "Equipe direta", false],
             ["📢", "Divulgar", false],
             ["🏆", "Prêmios", false],
             ["💰", "Financeiro", false]
@@ -747,8 +747,8 @@ export function Affiliates() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2" data-affiliate-premium="ranking">
-        <RankingCard title="Top afiliados do mês" rows={rankingMonth} />
-        <RankingCard title="Top afiliados do ano" rows={rankingYear} />
+        <RankingCard title="Top Vendedores do mês" rows={rankingMonth} />
+        <RankingCard title="Top Vendedores do ano" rows={rankingYear} />
       </section>
       <RankingByLevelCard rows={levelRankingRows} />
 
@@ -965,14 +965,14 @@ function AffiliateCurrentLevelCard({ level }: { level: AffiliateLevelDashboard }
           {level.emoji}
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Card Nível Atual</p>
+          <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Status visual</p>
           <h2 className="mt-1 break-words text-3xl font-black text-[var(--admin-text)]">{level.displayName}</h2>
           <p className="mt-2 text-sm font-semibold text-[var(--admin-muted)]">
-            {Number(level.points || 0).toLocaleString("pt-BR")} pontos · Comissão {level.commissionRate}%
+            {Number(level.points || 0).toLocaleString("pt-BR")} pontos de vendas indicadas
           </p>
           <div className="mt-4">
             <div className="mb-2 flex items-center justify-between gap-3 text-xs font-bold uppercase text-[var(--admin-muted)]">
-              <span>{level.nextLevelDisplayName ? `Próximo: ${level.nextLevelDisplayName}` : "Nível máximo"}</span>
+              <span>{level.nextLevelDisplayName ? `Próxima meta: ${level.nextLevelDisplayName}` : "Meta máxima"}</span>
               <span>{Number(level.progress_percent || 0).toFixed(0)}%</span>
             </div>
             <ProgressBar value={level.progress_percent || 0} animated />
@@ -992,13 +992,13 @@ function RankingByLevelCard({ rows }: { rows: React.ReactNode[][] }) {
   return (
     <section className="admin-card p-4 sm:p-5" data-affiliate-premium="level-ranking">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="min-w-0 break-words text-lg font-bold text-[var(--admin-text)]">Ranking por nível</h2>
+        <h2 className="min-w-0 break-words text-lg font-bold text-[var(--admin-text)]">Ranking de desempenho</h2>
         <Medal className="h-5 w-5 shrink-0 text-[var(--admin-primary)]" />
       </div>
       <ResponsiveDataTable
-        columns={["Posição", "Nome", "Nível", "Pontos", "Comissões", "Prêmios"]}
+        columns={["Posição", "Nome", "Status", "Pontos", "Comissões", "Prêmios"]}
         rows={rows}
-        empty="O ranking por nível aparecerá quando houver afiliados pontuando."
+        empty="O ranking aparecerá quando houver vendas indicadas."
         minWidth="760px"
       />
     </section>
@@ -1093,7 +1093,7 @@ function RankingOverviewCard({ summary }: { summary: AffiliateGamificationSummar
     <section className="admin-card min-w-0 p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Ranking de Afiliados</p>
+          <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Top Vendedores</p>
           <h2 className="mt-2 break-words text-2xl font-black text-[var(--admin-text)]">{summary.positionLabel}</h2>
         </div>
         <Trophy className="h-8 w-8 shrink-0 text-[var(--admin-primary)]" />
@@ -1118,7 +1118,7 @@ function LevelProgressCard({ summary }: { summary: AffiliateGamificationSummary 
     <section className="admin-card min-w-0 p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Níveis</p>
+          <p className="text-xs font-black uppercase text-[var(--admin-primary)]">Metas visuais</p>
           <h2 className={cn("mt-2 break-words text-2xl font-black", summary.currentLevel.tone)}>
             {summary.currentLevel.icon} {summary.currentLevel.name}
           </h2>
@@ -1136,7 +1136,7 @@ function LevelProgressCard({ summary }: { summary: AffiliateGamificationSummary 
       <div className="mt-5">
         <div className="flex min-w-0 items-center justify-between gap-3">
           <p className="min-w-0 break-words text-sm font-bold text-[var(--admin-text)]">
-            Próximo nível: {summary.nextLevel ? summary.nextLevel.name : "nível máximo"}
+            Próxima meta: {summary.nextLevel ? summary.nextLevel.name : "meta máxima"}
           </p>
           <span className="shrink-0 text-sm font-bold text-[var(--admin-primary)]">{summary.levelProgress.toFixed(0)}%</span>
         </div>
@@ -1560,7 +1560,7 @@ function buildAffiliateGamification({
     levelProgress: clamp(levelProgress, 0, 100),
     monthlyGoal: monthlySalesGoal,
     monthlyProgress: clamp((monthlyRevenue / monthlySalesGoal) * 100, 0, 100),
-    rewardText: nextLevel ? `Faltam ${money(Math.max(0, nextLevel.threshold - monthlyRevenue))} para atingir ${nextLevel.name}.` : "Você atingiu Lendário.",
+    rewardText: nextLevel ? `Faltam ${money(Math.max(0, nextLevel.threshold - monthlyRevenue))} para atingir a próxima meta.` : "Você atingiu a meta máxima.",
     achievements: [
       { label: "Primeira venda", unlocked: conversions >= 1 },
       { label: "10 vendas", unlocked: conversions >= 10 },
@@ -1703,7 +1703,7 @@ function buildFallbackAffiliateLevel(points: number, configuredLevels: any[] = [
     label: current.name.toUpperCase(),
     emoji: current.icon,
     displayName: `${current.icon} ${current.name.toUpperCase()}`,
-    commissionRate: Number(current.commissionRate || 0),
+    commissionRate: 0,
     benefits: [],
     nextLevelDisplayName: next ? `${next.icon} ${next.name.toUpperCase()}` : ""
   };
