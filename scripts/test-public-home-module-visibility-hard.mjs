@@ -292,11 +292,16 @@ hasAll(css, [
 ], "Tela PIX deve manter textos e numeros legiveis no mobile.");
 hasAll(raffleDetails, [
   "cfx-detail-layout cfx-detail-layout--single",
-  "<RaffleTitleBlock raffle={raffle} />",
+  "<RaffleTitleBlock",
+  "onParticipate={onParticipate}",
   "<NumberSelectionPanel",
   "raffle.showHomePrice !== false",
   "<RaffleMetricCard icon={<Ticket />} label=\"POR APENAS\"",
   "<RaffleTopBuyersPanel ranking={ranking} />",
+  "<RaffleTopSellersPanel ranking={topSellers} />",
+  "<LatestWinnersPanel winners={latestWinners} />",
+  "<MobilePurchaseBar",
+  "Comprar Agora",
   "[raffle.salesEndAt, raffle.countdownEndAt, raffle.drawDate]",
   "Ranking em apuração com dados reais da campanha.",
   "copyTextToClipboard",
@@ -304,7 +309,7 @@ hasAll(raffleDetails, [
   "Nao foi possivel copiar o PIX"
 ], "Pagina da rifa deve ordenar banner, nome, escolha rapida, valor e ranking com dados reais.");
 assert.ok(
-  raffleDetails.indexOf("<RaffleTitleBlock raffle={raffle} />") < raffleDetails.indexOf("<NumberSelectionPanel"),
+  raffleDetails.indexOf("<RaffleTitleBlock") < raffleDetails.indexOf("<NumberSelectionPanel"),
   "Escolha rapida deve aparecer logo abaixo do nome do sorteio."
 );
 assert.ok(

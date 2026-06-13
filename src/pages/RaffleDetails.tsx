@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
-import type { Raffle } from "../types";
+import type { Raffle, Winner } from "../types";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { usePurchasePolling } from "../hooks/usePurchasePolling";
 import { NumberRevealModal } from "../components/NumberRevealModal";
@@ -161,6 +161,7 @@ export function RaffleDetails() {
   const [showLootboxModal, setShowLootboxModal] = useState(false);
   const [ranking, setRanking] = useState<Array<{ name: string; phone: string; tickets: number; amount: number }>>([]);
   const [topSellers, setTopSellers] = useState<TopSellerRankingItem[]>([]);
+  const [latestWinners, setLatestWinners] = useState<Winner[]>([]);
   const [instantPrizeNumbers, setInstantPrizeNumbers] = useState<Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }>>([]);
   const [gamification, setGamification] = useState<any>(null);
   const [addonSuggestion, setAddonSuggestion] = useState<{ raffle: Raffle; tickets: number; amount: number } | null>(null);
@@ -199,6 +200,7 @@ export function RaffleDetails() {
     fetch(`/api/raffles/${id}/ranking`).then(res => res.json()).then(payload => setRanking(Array.isArray(payload) ? payload : [])).catch(() => setRanking([]));
     fetch(`/api/raffles/${id}/top-sellers`).then(res => res.json()).then(payload => setTopSellers(Array.isArray(payload) ? payload : [])).catch(() => setTopSellers([]));
     fetch(`/api/raffles/${id}/instant-prizes`).then(res => res.json()).then(payload => setInstantPrizeNumbers(Array.isArray(payload) ? payload : [])).catch(() => setInstantPrizeNumbers([]));
+    fetch("/api/winners").then(res => res.json()).then(payload => setLatestWinners(Array.isArray(payload) ? payload.slice(0, 5) : [])).catch(() => setLatestWinners([]));
     fetch(`/api/raffles/${id}/gamification`).then(res => res.json()).then(setGamification).catch(() => null);
     fetch(`/api/raffles/${id}/addon-suggestion`).then(res => res.ok ? res.json() : null).then(data => data && setAddonSuggestion(data)).catch(() => null);
   }, [id]);
@@ -500,6 +502,7 @@ export function RaffleDetails() {
           isSubmitting={isSubmitting}
           ranking={ranking}
           topSellers={topSellers}
+          latestWinners={latestWinners}
           prizes={instantPrizeNumbers}
         />
         {salesDeadline && <CountdownStrip countdown={countdown} expired={Boolean((raffle as any).salesExpired)} />}
@@ -614,6 +617,7 @@ function RafflePremiumPage({
   isSubmitting,
   ranking,
   topSellers,
+  latestWinners,
   prizes
 }: {
   raffle: Raffle;
@@ -630,6 +634,7 @@ function RafflePremiumPage({
   isSubmitting: boolean;
   ranking: Array<{ name: string; tickets: number; phone: string }>;
   topSellers: TopSellerRankingItem[];
+  latestWinners: Winner[];
   prizes: Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }>;
 }) {
   const totalTickets = Math.max(1, Number(raffle.totalTickets || 1));
@@ -644,7 +649,14 @@ function RafflePremiumPage({
       <div className="cfx-detail-layout cfx-detail-layout--single">
         <section className="cfx-detail-main">
           <RafflePremiumHero raffle={raffle} mediaUrl={mediaUrl} isVideo={isVideo} />
-          <RaffleTitleBlock raffle={raffle} />
+          <RaffleTitleBlock
+            raffle={raffle}
+            soldTickets={soldTickets}
+            participants={ranking.length}
+            unitPrice={unitPrice}
+            minPurchaseTickets={minPurchaseTickets}
+            onParticipate={onParticipate}
+          />
           <NumberSelectionPanel
             tickets={tickets}
             minPurchaseTickets={minPurchaseTickets}
@@ -659,9 +671,16 @@ function RafflePremiumPage({
           {raffle.showHomePrice !== false && <RaffleMetricCard icon={<Ticket />} label="POR APENAS" value={formatCurrency(unitPrice)} tone="gold" />}
           <RaffleTopBuyersPanel ranking={ranking} />
           <RaffleTopSellersPanel ranking={topSellers} />
+          <LatestWinnersPanel winners={latestWinners} />
           <SuperCotasPanel prizes={prizes} />
         </section>
       </div>
+      <MobilePurchaseBar
+        raffle={raffle}
+        minPurchaseTickets={minPurchaseTickets}
+        unitPrice={unitPrice}
+        onParticipate={onParticipate}
+      />
       <div className="cfx-compat" aria-hidden="true">
         {/* Top compradores RankingSection ranking.slice(0, 4) */}
         <span>{ranking.slice(0, 4).length}</span>
@@ -718,11 +737,35 @@ function RafflePremiumHero({ raffle, mediaUrl, isVideo }: { raffle: Raffle; medi
   );
 }
 
-function RaffleTitleBlock({ raffle }: { raffle: Raffle }) {
+function RaffleTitleBlock({
+  raffle,
+  soldTickets,
+  participants,
+  unitPrice,
+  minPurchaseTickets,
+  onParticipate
+}: {
+  raffle: Raffle;
+  soldTickets: number;
+  participants: number;
+  unitPrice: number;
+  minPurchaseTickets: number;
+  onParticipate: () => void;
+}) {
+  const minimumValue = Math.max(1, minPurchaseTickets) * unitPrice;
   return (
     <section className="cfx-title-row cfx-detail-title">
+      <span className="cfx-detail-kicker"><Trophy /> Prêmio principal</span>
       <h1>{raffle.title}</h1>
-      <p><Clock3 /> Sorteio ao vivo <span /> <ShieldCheck /> Compra por quantidade</p>
+      <p><Clock3 /> {formatDate(raffle.drawDate)} <span /> <ShieldCheck /> Compra via PIX seguro</p>
+      <div className="cfx-detail-hero-stats">
+        <span><small>Vendas</small><strong>{soldTickets.toLocaleString("pt-BR")}</strong></span>
+        <span><small>Participantes</small><strong>{Math.max(participants, 0).toLocaleString("pt-BR")}</strong></span>
+        <span><small>Menor compra</small><strong>{formatCurrency(minimumValue)}</strong></span>
+      </div>
+      <button type="button" className="cfx-detail-main-cta" onClick={onParticipate}>
+        <Ticket /> Comprar Agora
+      </button>
     </section>
   );
 }
@@ -822,6 +865,53 @@ function RaffleTopSellersPanel({ ranking }: { ranking: TopSellerRankingItem[] })
         ))}
       </div>
     </section>
+  );
+}
+
+function LatestWinnersPanel({ winners }: { winners: Winner[] }) {
+  const rows = winners.slice(0, 3);
+  if (!rows.length) return null;
+  return (
+    <section className="cfx-panel cfx-detail-ranking cfx-detail-winners">
+      <header>
+        <strong><Gift /> Últimos ganhadores</strong>
+        <Link to="/ganhadores">Ver todos</Link>
+      </header>
+      <div>
+        {rows.map((winner, index) => (
+          <article key={winner.id || `${winner.winnerName}-${index}`}>
+            <span>{index + 1}</span>
+            <b>{maskName(winner.winnerName || "Ganhador")}</b>
+            <small>{winner.prizeDescription || winner.raffleName || "Prêmio entregue"}</small>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MobilePurchaseBar({
+  raffle,
+  minPurchaseTickets,
+  unitPrice,
+  onParticipate
+}: {
+  raffle: Raffle;
+  minPurchaseTickets: number;
+  unitPrice: number;
+  onParticipate: () => void;
+}) {
+  const minimumValue = Math.max(1, minPurchaseTickets) * unitPrice;
+  return (
+    <div className="cfx-mobile-buy-bar">
+      <div>
+        <span>{raffle.title}</span>
+        <strong>A partir de {formatCurrency(minimumValue)}</strong>
+      </div>
+      <button type="button" onClick={onParticipate}>
+        Comprar Agora
+      </button>
+    </div>
   );
 }
 
@@ -976,7 +1066,7 @@ function NumberSelectionPanel({
         <span><small>Valor unitário</small><strong>{formatCurrency(unitPrice)}</strong></span>
         <span><small>Total calculado</small><strong>{formatCurrency(totalValue)}</strong></span>
         <button type="button" onClick={onParticipate} disabled={isSubmitting}>
-          <span><Ticket /> PARTICIPAR AGORA</span>
+          <span><Ticket /> COMPRAR AGORA</span>
           <small><Lock /> Pagamento via PIX 100% seguro</small>
         </button>
       </div>
@@ -1790,6 +1880,12 @@ function useCountdown(date?: string): CountdownParts {
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatDate(value?: string) {
+  const parsed = value ? new Date(value) : null;
+  if (!parsed || !Number.isFinite(parsed.getTime())) return "Data em breve";
+  return parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 function maskPhone(value?: string) {

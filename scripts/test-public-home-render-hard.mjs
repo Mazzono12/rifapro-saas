@@ -42,7 +42,8 @@ includesAll(home, [
   "[public-home] raffles_count",
   "[public-home] render_error",
   "refetchRaffles",
-  "<Hero raffle={featuredRaffle} ranking={ranking} />",
+  "<Hero raffle={featuredRaffle} ranking={ranking} topSellers={topSellers} />",
+  "fetch(`/api/raffles/${featuredRaffle.id}/top-sellers`)",
   "className=\"cfx-home-hero-media\"",
   "className=\"cfx-home-progress\"",
   "Participar agora"
