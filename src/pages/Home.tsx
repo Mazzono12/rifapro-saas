@@ -1,16 +1,37 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, Crown, Gift, Goal, Headphones, LockKeyhole, ShieldCheck, Ticket, Trophy, TrendingUp } from "lucide-react";
-import { useGlobalSettings, useRaffles } from "../hooks/useRaffles";
+import {
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Crown,
+  Gamepad2,
+  Gift,
+  Headphones,
+  LockKeyhole,
+  MessageCircle,
+  PiggyBank,
+  PlayCircle,
+  Radio,
+  ShieldCheck,
+  Sparkles,
+  Ticket,
+  Trophy,
+  Users,
+  WalletCards
+} from "lucide-react";
+import { useFazendinha, useGlobalSettings, useRaffles } from "../hooks/useRaffles";
 import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout } from "../components/premium/PremiumUI";
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
-import type { Raffle } from "../types";
+import type { Raffle, Winner } from "../types";
 import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
 import { StoriesSection } from "../components/StoriesSection";
 import { cn } from "../lib/utils";
 import type { ResponsiveMediaAspectMode, ResponsiveMediaFit } from "../utils/mediaAspect";
 
 /* public-home-render contract: className="cfx-home-hero-media" */
+
+type RankingBuyer = { name: string; phone: string; tickets: number; amount: number };
 
 export function Home() {
   const [boundaryKey, setBoundaryKey] = useState(0);
@@ -139,7 +160,14 @@ function resolveHomeMediaFit(fit: unknown): ResponsiveMediaFit {
 
 function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raffle | null {
   if (!raffle || !raffle.id) return null;
-  const rawRaffle = raffle as Partial<Raffle> & { imageUrl?: string; bannerUrl?: string; coverImageUrl?: string; thumbnailUrl?: string; videoUrl?: string; campaignMedia?: string | { url?: string; mediaUrl?: string } };
+  const rawRaffle = raffle as Partial<Raffle> & {
+    imageUrl?: string;
+    bannerUrl?: string;
+    coverImageUrl?: string;
+    thumbnailUrl?: string;
+    videoUrl?: string;
+    campaignMedia?: string | { url?: string; mediaUrl?: string };
+  };
   const price = safeNumber(rawRaffle.price);
   const totalTickets = Math.max(1, Math.floor(safeNumber(rawRaffle.totalTickets, 1)));
   const soldTickets = Math.max(0, Math.floor(safeNumber(rawRaffle.soldTickets)));
@@ -151,8 +179,8 @@ function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raff
   return {
     ...rawRaffle,
     id: String(rawRaffle.id),
-    title: safeText(rawRaffle.title, "Honda Bros 160 2025"),
-    description: safeText(rawRaffle.description, "Campanha ativa com cotas disponíveis."),
+    title: safeText(rawRaffle.title, "Campanha ativa"),
+    description: safeText(rawRaffle.description, "Campanha ativa com cotas disponiveis."),
     price,
     totalTickets,
     soldTickets: Math.min(soldTickets, totalTickets),
@@ -222,20 +250,34 @@ function getDrawHour(value?: string) {
 function formatHomeDrawText(value?: string) {
   const date = value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) return "";
-  return `Sorteio ao vivo em ${date.toLocaleDateString("pt-BR")} às ${getDrawHour(value)}`;
+  return `Sorteio ao vivo em ${date.toLocaleDateString("pt-BR")} as ${getDrawHour(value)}`;
+}
+
+function sortHomeRaffles(raffles: Raffle[]) {
+  return [...raffles].sort((left, right) => {
+    const rightPriority = Number((right as any).homePriority ?? (right as any).home_priority ?? 0);
+    const leftPriority = Number((left as any).homePriority ?? (left as any).home_priority ?? 0);
+    if (rightPriority !== leftPriority) return rightPriority - leftPriority;
+    const rightDate = String((right as any).createdAt || (right as any).created_at || right.drawDate || "");
+    const leftDate = String((left as any).createdAt || (left as any).created_at || left.drawDate || "");
+    return rightDate.localeCompare(leftDate);
+  });
 }
 
 function HomeContent() {
   const { data: rawRaffles, isLoading: loadingRaffles, isError: rafflesError, refetch: refetchRaffles } = useRaffles();
   const { data: settings } = useGlobalSettings();
-  const [ranking, setRanking] = useState<Array<{ name: string; phone: string; tickets: number; amount: number }>>([]);
+  const { data: fazendinha } = useFazendinha();
+  const [modalidades, setModalidades] = useState<any>(null);
+  const [ranking, setRanking] = useState<RankingBuyer[]>([]);
+  const [winners, setWinners] = useState<Winner[]>([]);
   const [instantRewards, setInstantRewards] = useState<HomeInstantRewardsData>(emptyHomeRewards);
   const raffles = useMemo(() => (
     Array.isArray(rawRaffles)
       ? rawRaffles.map(raffle => normalizePublicRaffle(raffle)).filter((raffle): raffle is Raffle => Boolean(raffle))
       : []
   ), [rawRaffles]);
-  const activeRaffles = raffles.filter(raffle => raffle.status === "active");
+  const activeRaffles = useMemo(() => sortHomeRaffles(raffles.filter(raffle => raffle.status === "active")), [raffles]);
   const featuredRaffle = activeRaffles[0];
   const loading = loadingRaffles;
 
@@ -256,7 +298,10 @@ function HomeContent() {
   }, [activeRaffles.length, loading]);
 
   useEffect(() => {
-    if (!featuredRaffle?.id) return;
+    if (!featuredRaffle?.id) {
+      setRanking([]);
+      return;
+    }
     let active = true;
     fetch(`/api/raffles/${featuredRaffle.id}/ranking`)
       .then(res => res.ok ? res.json() : [])
@@ -266,6 +311,26 @@ function HomeContent() {
       active = false;
     };
   }, [featuredRaffle?.id]);
+
+  useEffect(() => {
+    let active = true;
+    safeJson("/api/modalidades")
+      .then(payload => active && setModalidades(payload && typeof payload === "object" ? payload : null))
+      .catch(() => active && setModalidades(null));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    safeJson("/api/winners")
+      .then(payload => active && setWinners(asArray<Winner>(payload).filter(item => item.active !== false).slice(0, 6)))
+      .catch(() => active && setWinners([]));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!featuredRaffle?.id) {
@@ -294,11 +359,18 @@ function HomeContent() {
 
   return (
     <PremiumPageLayout className="cfx-home-page">
-      <main className="cfx-home-shell" aria-label="Home CIFHER Prime">
+      <main className="cfx-home-shell cfx-home-shell--multi" aria-label="Home publica">
         {storySlots.homeTop && <StoriesSection />}
         <Hero raffle={featuredRaffle} ranking={ranking} />
+        <CampaignsSection raffles={activeRaffles} featuredRaffleId={featuredRaffle.id} />
+        <GamesAndModalidadesSection fazendinha={fazendinha} modalidades={modalidades} rewards={instantRewards} featuredRaffle={featuredRaffle} />
+        <WinnersSection winners={winners} />
+        <AffiliateSection settings={settings} />
+        <HowItWorksSection />
+        <SecuritySection />
+        <PaymentAndLiveSection settings={settings} raffle={featuredRaffle} />
+        <SupportSection settings={settings} />
         <HomeInstantRewards rewards={instantRewards} />
-        <HomeTrustRail />
         {storySlots.homeBottom && <StoriesSection />}
         {storySlots.floatingLeft && <div className="cfx-stories-floating cfx-stories-floating--left"><StoriesSection /></div>}
         {storySlots.floatingRight && <div className="cfx-stories-floating cfx-stories-floating--right"><StoriesSection /></div>}
@@ -332,9 +404,8 @@ function RifaProLoading() {
   );
 }
 
-function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: string; phone: string; tickets: number; amount: number }> }) {
+function Hero({ raffle, ranking }: { raffle: Raffle; ranking: RankingBuyer[] }) {
   const progress = safeProgress(raffle);
-  const remaining = Math.max(0, Number(raffle.totalTickets || 0) - Number(raffle.soldTickets || 0));
   const mediaUrl = raffle.mediaUrl || raffle.image;
   const countdownTarget = raffle.salesEndAt || raffle.countdownEndAt || raffle.drawDate;
   const countdown = useHomeCountdown(countdownTarget);
@@ -348,6 +419,7 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
 
   return (
     <section className="cfx-home-hero">
+      <div className="cfx-home-hero-badge"><Crown /> Rifa principal</div>
       <div
         className={cn("cfx-home-hero-media", isStoryMedia && "cfx-home-hero-media--story")}
         data-home-media-type={mediaKind}
@@ -365,7 +437,12 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
           aspectMode={homeMediaAspect}
           className="cfx-home-media-block"
         />
+        <div className="cfx-home-hero-progress-badge">
+          <strong>{progress.toFixed(0)}%</strong>
+          <small>cotas vendidas</small>
+        </div>
       </div>
+
       {raffle.showHomeText !== false && (
         <div className="cfx-home-title-lockup">
           {raffle.heroEyebrow && <span>{raffle.heroEyebrow}</span>}
@@ -374,12 +451,37 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
           {highlight && <strong>{highlight}</strong>}
         </div>
       )}
+
       {raffle.showHomePrice !== false && (
         <div className="cfx-home-price-strip" aria-label="Por apenas">
           <small>POR APENAS</small>
           <strong>{formatCurrency(raffle.price)}</strong>
         </div>
       )}
+
+      <HomeTrustRail compact />
+
+      <div className="cfx-home-progress-card">
+        <div className="cfx-home-progress-meta">
+          <span>{Number(raffle.soldTickets || 0).toLocaleString("pt-BR")} / {Number(raffle.totalTickets || 0).toLocaleString("pt-BR")} cotas vendidas</span>
+          <strong>{progress.toFixed(0)}%</strong>
+        </div>
+        <div className="cfx-home-progress"><span style={{ width: `${progress}%` }} /></div>
+      </div>
+
+      <div className="cfx-home-hero-facts">
+        {raffle.showHomePrice !== false && (
+          <span>
+            <small>Valor da cota</small>
+            <strong>{formatCurrency(raffle.price)}</strong>
+          </span>
+        )}
+        <span>
+          <small>Sorteio previsto</small>
+          <strong>{formatDate(raffle.drawDate)}</strong>
+        </span>
+      </div>
+
       <div className="cfx-home-hero-actions">
         <Link to={`/raffle/${raffle.id}`} className="cfx-home-primary">Participar agora <ChevronRight /></Link>
         <Link to="/minhas-cotas" className="cfx-home-secondary"><Ticket /> Meus bilhetes <ChevronRight /></Link>
@@ -392,14 +494,8 @@ function Hero({ raffle, ranking }: { raffle: Raffle; ranking: Array<{ name: stri
           <CountdownUnit label="Minutos" value={countdown.minutes} />
           <CountdownUnit label="Segundos" value={countdown.seconds} />
         </div>
-        <div className="cfx-progress-meta">
-          <span>Cotas vendidas</span>
-          <strong>{progress.toFixed(0)}%</strong>
-        </div>
-        <div className="cfx-home-progress"><span style={{ width: `${progress}%` }} /></div>
       </div>
       <TopBuyers ranking={ranking} />
-      <span className="cfx-home-compat" aria-hidden="true">{ranking.length}</span>
     </section>
   );
 }
@@ -413,10 +509,355 @@ function CountdownUnit({ label, value }: { label: string; value: number }) {
   );
 }
 
+function HomeSection({
+  icon,
+  title,
+  action,
+  children,
+  className
+}: {
+  icon: ReactNode;
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn("cfx-home-section", className)}>
+      <header className="cfx-home-section-header">
+        <h2>{icon}{title}</h2>
+        {action}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function CampaignsSection({ raffles, featuredRaffleId }: { raffles: Raffle[]; featuredRaffleId: string }) {
+  return (
+    <HomeSection
+      icon={<Sparkles />}
+      title="Campanhas em andamento"
+      action={<Link to="/" aria-label="Todas as campanhas">Ver todas <ChevronRight /></Link>}
+      className="cfx-home-campaigns"
+    >
+      <div className="cfx-campaign-list">
+        {raffles.map(raffle => (
+          <CampaignCard key={raffle.id} raffle={raffle} featured={raffle.id === featuredRaffleId} />
+        ))}
+      </div>
+    </HomeSection>
+  );
+}
+
+function CampaignCard({ raffle, featured }: { key?: React.Key; raffle: Raffle; featured?: boolean }) {
+  const progress = safeProgress(raffle);
+  return (
+    <article className="cfx-campaign-card">
+      <Link to={`/raffle/${raffle.id}`} className="cfx-campaign-media" aria-label={`Participar de ${raffle.title}`}>
+        <StandardRaffleMediaBlock
+          mediaUrl={raffle.mediaUrl || raffle.image}
+          mediaType={raffle.mediaType}
+          fallbackImageUrl={raffle.image}
+          title={raffle.title}
+          showDescriptionBelow={false}
+          preferredFit={resolveHomeMediaFit(raffle.mediaFit)}
+          aspectMode="square"
+          className="cfx-campaign-media-block"
+        />
+      </Link>
+      <div className="cfx-campaign-body">
+        <div className="cfx-campaign-status"><span className={featured ? "is-featured" : ""}>{featured ? "Principal" : "Em andamento"}</span></div>
+        <h3>{raffle.title}</h3>
+        <p>{safeText(raffle.homeHighlightText, safeText(raffle.description, "Campanha ativa"))}</p>
+        <div className="cfx-campaign-stats">
+          <span><small>Valor da cota</small>{formatCurrency(raffle.price)}</span>
+          <span><small>Cotas vendidas</small>{Number(raffle.soldTickets || 0).toLocaleString("pt-BR")} / {Number(raffle.totalTickets || 0).toLocaleString("pt-BR")}</span>
+        </div>
+        <div className="cfx-home-progress"><span style={{ width: `${progress}%` }} /></div>
+        <Link to={`/raffle/${raffle.id}`} className="cfx-home-primary cfx-campaign-button">Participar <ChevronRight /></Link>
+      </div>
+    </article>
+  );
+}
+
+function GamesAndModalidadesSection({ fazendinha, modalidades, rewards, featuredRaffle }: { fazendinha: any; modalidades: any; rewards: HomeInstantRewardsData; featuredRaffle: Raffle }) {
+  const cards: Array<{ id: string; title: string; description: string; href: string; icon: ReactNode; tone: string; meta?: string }> = [];
+  const fazConfig = fazendinha?.config || modalidades?.fazendinha;
+  if (fazConfig?.enabled !== false && String(fazConfig?.status || "active") === "active") {
+    cards.push({
+      id: "fazendinha",
+      title: safeText(fazConfig?.name, "Fazendinha da sorte"),
+      description: safeText(fazConfig?.description, "Concorra com grupos especiais."),
+      href: "/fazendinha",
+      icon: <Gift />,
+      tone: "green",
+      meta: fazendinha?.groups ? `${asArray(fazendinha.groups).filter((group: any) => group.status === "available").length} grupos disponiveis` : undefined
+    });
+  }
+  asArray<any>(modalidades?.numberModes)
+    .filter(mode => mode?.enabled !== false && String(mode?.status || "active") === "active")
+    .slice(0, 3)
+    .forEach(mode => {
+      cards.push({
+        id: String(mode.id),
+        title: safeText(mode.name, String(mode.id).toUpperCase()),
+        description: safeText(mode.description, safeText(mode.prize, "Modalidade ativa.")),
+        href: `/${mode.id}`,
+        icon: <Gamepad2 />,
+        tone: "purple",
+        meta: mode.price ? `${formatCurrency(mode.price)} por jogo` : undefined
+      });
+    });
+  if (rewards.scratchcard.length) {
+    cards.push({
+      id: "scratchcard",
+      title: "Raspadinha premiada",
+      description: `${rewards.scratchcard.length} premio(s) configurado(s) nesta campanha.`,
+      href: `/raffle/${featuredRaffle.id}`,
+      icon: <Ticket />,
+      tone: "blue",
+      meta: "Disponivel ao participar"
+    });
+  }
+
+  if (!cards.length) return null;
+
+  return (
+    <HomeSection icon={<Gamepad2 />} title="Jogos e modalidades" className="cfx-home-games">
+      <div className="cfx-game-grid">
+        {cards.map(card => (
+          <Link key={card.id} to={card.href} className="cfx-game-card" data-tone={card.tone}>
+            <span>{card.icon}</span>
+            <div>
+              <h3>{card.title}</h3>
+              <p>{card.description}</p>
+              {card.meta && <small>{card.meta}</small>}
+            </div>
+            <ChevronRight />
+          </Link>
+        ))}
+      </div>
+    </HomeSection>
+  );
+}
+
+function WinnersSection({ winners }: { winners: Winner[] }) {
+  if (!winners.length) return null;
+  return (
+    <HomeSection
+      icon={<Trophy />}
+      title="Ultimos ganhadores"
+      action={<Link to="/ganhadores">Ver todos <ChevronRight /></Link>}
+      className="cfx-home-winners"
+    >
+      <div className="cfx-winner-list">
+        {winners.slice(0, 5).map((winner, index) => (
+          <article key={winner.id || `${winner.winnerName}-${index}`} className="cfx-winner-card">
+            <span>{winner.mediaUrl ? <img src={winner.mediaUrl} alt="" loading="lazy" /> : maskBuyerName(winner.winnerName).slice(0, 1)}</span>
+            <div>
+              <h3>{maskBuyerName(winner.winnerName)}</h3>
+              <p>{safeText(winner.prizeDescription || winner.raffleName, "Premio confirmado")}</p>
+            </div>
+            <time>{formatDate(winner.date)}</time>
+          </article>
+        ))}
+      </div>
+    </HomeSection>
+  );
+}
+
+function TopBuyers({ ranking }: { ranking: RankingBuyer[] }) {
+  const buyers = ranking.slice(0, 5);
+
+  return (
+    <HomeSection
+      icon={<Crown />}
+      title="Top compradores"
+      action={<Link to="/ganhadores">Ver ranking <ChevronRight /></Link>}
+      className="cfx-top-buyers"
+    >
+      <div className="cfx-top-buyers-list">
+        {buyers.length ? (
+          buyers.map((buyer, index) => (
+            <article key={`${buyer.phone || buyer.name}-${index}`}>
+              <span>{index + 1}</span>
+              <div>
+                <b>{maskBuyerName(buyer.name)}</b>
+                <small>{Number(buyer.tickets || 0).toLocaleString("pt-BR")} cotas</small>
+              </div>
+              <strong>{formatCurrency(buyer.amount)}</strong>
+            </article>
+          ))
+        ) : (
+          <p className="cfx-top-buyers-empty">Ranking em apuração com dados reais da campanha.</p>
+        )}
+      </div>
+    </HomeSection>
+  );
+}
+
+function AffiliateSection({ settings }: { settings: any }) {
+  if (settings?.affiliateSettings?.publicEnabled === false) return null;
+  return (
+    <section className="cfx-affiliate-card">
+      <span><PiggyBank /></span>
+      <div>
+        <h2>Seja um afiliado</h2>
+        <p>Ganhe comissoes indicando amigos para as campanhas.</p>
+      </div>
+      <Link to="/afiliados">Saiba mais <ChevronRight /></Link>
+    </section>
+  );
+}
+
+function HowItWorksSection() {
+  const steps = [
+    { icon: <Ticket />, title: "Escolha", text: "Selecione sua campanha" },
+    { icon: <Users />, title: "Preencha", text: "Informe seus dados" },
+    { icon: <WalletCards />, title: "Pague", text: "Pagamento via PIX" },
+    { icon: <Trophy />, title: "Concorra", text: "Acompanhe seu bilhete" },
+    { icon: <Gift />, title: "Ganhe", text: "Receba os premios" }
+  ];
+  return (
+    <HomeSection icon={<CheckCircle2 />} title="Como funciona" className="cfx-how-section">
+      <div className="cfx-how-grid">
+        {steps.map((step, index) => (
+          <article key={step.title}>
+            <span>{step.icon}</span>
+            <strong>{index + 1}. {step.title}</strong>
+            <p>{step.text}</p>
+          </article>
+        ))}
+      </div>
+    </HomeSection>
+  );
+}
+
+function SecuritySection() {
+  const items = [
+    "Pagamento seguro",
+    "Sorteios auditados",
+    "Transparencia",
+    "Empresa verificada",
+    "Suporte WhatsApp"
+  ];
+  return (
+    <HomeSection icon={<ShieldCheck />} title="Por que confiar?" className="cfx-security-section">
+      <div className="cfx-security-list">
+        {items.map(item => (
+          <span key={item}><CheckCircle2 />{item}</span>
+        ))}
+      </div>
+    </HomeSection>
+  );
+}
+
+function PaymentAndLiveSection({ settings, raffle }: { settings: any; raffle: Raffle }) {
+  const liveUrl = safeText(settings?.liveDraw?.url || settings?.socialLinks?.youtube || settings?.socialLinks?.instagram, "");
+  return (
+    <div className="cfx-payment-live-grid">
+      <section className="cfx-payment-card">
+        <WalletCards />
+        <div>
+          <h2>PIX</h2>
+          <p>Aprovado na hora conforme confirmacao do pagamento.</p>
+        </div>
+      </section>
+      <section className="cfx-live-card">
+        <Radio />
+        <div>
+          <h2>Sorteio ao vivo</h2>
+          <p>{liveUrl ? "Transmissao disponivel para acompanhar." : formatHomeDrawText(raffle.drawDate) || "Proxima transmissao sera exibida aqui."}</p>
+        </div>
+        {liveUrl ? (
+          <a href={liveUrl} target="_blank" rel="noreferrer">Assistir agora <PlayCircle /></a>
+        ) : (
+          <span><CalendarDays /> {formatDate(raffle.drawDate)}</span>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function SupportSection({ settings }: { settings: any }) {
+  const whatsappUrl = safeText(settings?.socialLinks?.whatsapp || settings?.whatsapp || "", "");
+  if (!whatsappUrl) return null;
+  return (
+    <section className="cfx-support-cta">
+      <div>
+        <h2>Duvidas?</h2>
+        <p>Fale conosco no WhatsApp.</p>
+      </div>
+      <a href={whatsappUrl} target="_blank" rel="noreferrer"><MessageCircle /> Chamar agora</a>
+    </section>
+  );
+}
+
+function HomeTrustRail({ compact = false }: { compact?: boolean }) {
+  const seals = [
+    { icon: <ShieldCheck />, title: "Pagamento seguro" },
+    { icon: <Radio />, title: "Sorteio ao vivo" },
+    { icon: <LockKeyhole />, title: "Transparencia total" },
+    { icon: <Headphones />, title: "Suporte", tone: "support" }
+  ];
+
+  if (!compact) {
+    return (
+      <section className="cfx-home-trust-rail" aria-label="Selos de confiança">
+        {seals.map(seal => (
+          <span key={seal.title} className={seal.tone === "support" ? "is-support" : ""}>{seal.icon}<small>{seal.title}</small></span>
+        ))}
+      </section>
+    );
+  }
+
+  return (
+    <section className="cfx-home-trust-rail cfx-home-trust-rail--compact" aria-label="Selos de confiança">
+      {seals.map(seal => (
+        <span key={seal.title} className={seal.tone === "support" ? "is-support" : ""}>{seal.icon}<small>{seal.title}</small></span>
+      ))}
+    </section>
+  );
+}
+
 async function safeJson(url: string) {
   const res = await fetch(url);
   if (!res.ok) return null;
   return res.json().catch(() => null);
+}
+
+function useHomeCountdown(date?: string) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+  const target = date ? new Date(date).getTime() : now + 3 * 86400000;
+  const diff = Math.max(0, (Number.isFinite(target) ? target : now + 3 * 86400000) - now);
+  return {
+    days: Math.floor(diff / 86400000),
+    hours: Math.floor((diff % 86400000) / 3600000),
+    minutes: Math.floor((diff % 3600000) / 60000),
+    seconds: Math.floor((diff % 60000) / 1000)
+  };
+}
+
+async function loadHomeRankings(raffles: Raffle[]): Promise<RankingBuyer[]> {
+  const rows = await Promise.all(
+    raffles.map(raffle => safeJson(`/api/raffles/${encodeURIComponent(raffle.id)}/ranking`).catch(() => []))
+  );
+  const byBuyer = new Map<string, RankingBuyer>();
+  rows.flatMap(row => asArray<RankingBuyer>(row)).forEach(buyer => {
+    const key = safeText(buyer.phone, safeText(buyer.name, "cliente")).toLowerCase();
+    const current = byBuyer.get(key) || { name: buyer.name, phone: buyer.phone, tickets: 0, amount: 0 };
+    current.name = current.name || buyer.name;
+    current.phone = current.phone || buyer.phone;
+    current.tickets += Number(buyer.tickets || 0);
+    current.amount += Number(buyer.amount || 0);
+    byBuyer.set(key, current);
+  });
+  return [...byBuyer.values()].sort((a, b) => b.tickets - a.tickets || b.amount - a.amount).slice(0, 10);
 }
 
 async function loadHomeInstantRewards(raffle: Raffle): Promise<HomeInstantRewardsData> {
@@ -561,6 +1002,12 @@ function formatCurrency(value: unknown) {
   return parsed.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function formatDate(value?: string) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "A definir";
+  return date.toLocaleDateString("pt-BR");
+}
+
 function statusLabel(status: HomeRewardStatus) {
   if (status === "available") return "Disponível";
   if (status === "claimed") return "Resgatada";
@@ -581,7 +1028,7 @@ function HomeInstantRewards({ rewards }: { rewards: HomeInstantRewardsData }) {
     {
       id: "wheel" as const,
       title: "ROLETA PREMIADA",
-      icon: <Goal />,
+      icon: <Gamepad2 />,
       tone: "purple",
       cta: "VER PRÊMIOS DA ROLETA",
       items: rewards.wheel,
@@ -717,66 +1164,6 @@ function RewardSummaryCard({ label, value }: { label: string; value: string | nu
       <strong>{value}</strong>
     </span>
   );
-}
-
-function TopBuyers({ ranking }: { ranking: Array<{ name: string; phone: string; tickets: number; amount: number }> }) {
-  const buyers = ranking.slice(0, 3);
-
-  return (
-    <section className="cfx-top-buyers">
-      <header>
-        <strong><TrendingUp /> Top compradores</strong>
-        <Link to="/ganhadores">Ver ranking <ChevronRight /></Link>
-      </header>
-      {buyers.length ? (
-        <div>
-          {buyers.map((buyer, index) => (
-          <article key={`${buyer.phone}-${index}`}>
-            <span>{maskBuyerName(buyer.name).slice(0, 1)}</span>
-            <b>{maskBuyerName(buyer.name)}</b>
-            <small>{Number(buyer.tickets || 0).toLocaleString("pt-BR")} bilhetes</small>
-            <i>{index + 1}</i>
-          </article>
-          ))}
-        </div>
-      ) : (
-        <p className="cfx-top-buyers-empty">Ranking em apuração com dados reais da campanha.</p>
-      )}
-    </section>
-  );
-}
-
-function HomeTrustRail() {
-  const seals = [
-    { icon: <ShieldCheck />, title: "Pagamento Seguro" },
-    { icon: <LockKeyhole />, title: "Dados Protegidos" },
-    { icon: <Ticket />, title: "Transparência" },
-    { icon: <Headphones />, title: "Suporte", tone: "support" }
-  ];
-
-  return (
-    <section className="cfx-home-trust-rail" aria-label="Selos de confiança">
-      {seals.map(seal => (
-        <span key={seal.title} className={seal.tone === "support" ? "is-support" : ""}>{seal.icon}<small>{seal.title}</small></span>
-      ))}
-    </section>
-  );
-}
-
-function useHomeCountdown(date?: string) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const interval = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(interval);
-  }, []);
-  const target = date ? new Date(date).getTime() : now + 3 * 86400000;
-  const diff = Math.max(0, (Number.isFinite(target) ? target : now + 3 * 86400000) - now);
-  return {
-    days: Math.floor(diff / 86400000),
-    hours: Math.floor((diff % 86400000) / 3600000),
-    minutes: Math.floor((diff % 3600000) / 60000),
-    seconds: Math.floor((diff % 60000) / 1000)
-  };
 }
 
 function maskBuyerName(value: string) {
