@@ -82,6 +82,7 @@ const RaffleDetails = lazy(() => import("./pages/RaffleDetails").then(module => 
 const Fazendinha = lazy(() => import("./pages/Fazendinha").then(module => ({ default: module.Fazendinha })));
 const Winners = lazy(() => import("./pages/Winners").then(module => ({ default: module.Winners })));
 const NumberModePage = lazy(() => import("./pages/NumberModePage").then(module => ({ default: module.NumberModePage })));
+const CheckoutOrderResume = lazy(() => import("./pages/CheckoutOrderResume").then(module => ({ default: module.CheckoutOrderResume })));
 const Affiliates = lazy(() => import("./pages/Affiliates").then(module => ({ default: module.Affiliates })));
 const Login = lazy(() => import("./pages/auth/Login").then(module => ({ default: module.Login })));
 const Signup = lazy(() => import("./pages/auth/Signup").then(module => ({ default: module.Signup })));
@@ -281,6 +282,7 @@ export default function App() {
               <Route path="/raffle/:id" element={<RaffleDetails />} />
               <Route path="/rifa/:id" element={<RaffleDetails />} />
               <Route path="/sorteio/:id" element={<RaffleDetails />} />
+              <Route path="/checkout/orders/:orderId" element={<CheckoutOrderResume />} />
               <Route path="/campanhas" element={<Navigate to="/" replace />} />
               <Route path="/sorteios" element={<Navigate to="/" replace />} />
               <Route path="/fazendinha" element={<Fazendinha />} />

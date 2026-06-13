@@ -161,6 +161,7 @@ async function checkoutHard() {
   });
   await runNodeScript("scripts/test-purchase-concurrency.mjs");
   await runNodeScript("scripts/test-pix-confirmation-safety.mjs");
+  await runNodeScript("scripts/test-checkout-order-resume-hard.mjs");
 }
 
 async function rafflesHard() {

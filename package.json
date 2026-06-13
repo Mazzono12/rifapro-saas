@@ -47,6 +47,7 @@
     "test:ui-contrast-hard": "node scripts/test-ui-contrast-hard.mjs",
     "test:hover-contrast-hard": "node scripts/test-hover-contrast-hard.mjs",
     "test:checkout-layout-hard": "node scripts/test-checkout-layout-hard.mjs",
+    "test:checkout-order-resume-hard": "node scripts/test-checkout-order-resume-hard.mjs",
     "test:checkout-visual-regression-hard": "node scripts/test-checkout-visual-regression-hard.mjs",
     "test:checkout-participar-bug": "node scripts/test-checkout-participar-bug.mjs",
     "test:full-purchase-staging-hard": "node scripts/test-full-purchase-staging-hard.mjs",

@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 const engine = readFileSync("src/server/promotions/promotionEngine.ts", "utf8");
 const server = readFileSync("server.ts", "utf8");
 const adminSales = readFileSync("src/pages/admin/AdminSales.tsx", "utf8");
+const app = readFileSync("src/App.tsx", "utf8");
+const checkoutResume = readFileSync("src/pages/CheckoutOrderResume.tsx", "utf8");
 const hardSuite = readFileSync("scripts/test-hard-suite.mjs", "utf8");
 
 function includesAll(source, needles, label) {
@@ -71,6 +73,9 @@ includesAll(adminSales, [
   "Nenhum PIX pendente encontrado"
 ], "ui comercial de recuperacao pix");
 assert(!adminSales.includes("process-abandoned-pix"), "ui nao deve disparar automacao de WhatsApp");
+includesAll(app, ['path="/checkout/orders/:orderId"', "CheckoutOrderResume"], "rota publica para retomar PIX pendente");
+includesAll(checkoutResume, ["Finalize seu PIX", 'fetch(`/api/checkout/orders/${orderId}/status`)', "PixPaymentCard", "Ja paguei, verificar"], "pagina publica de retomada PIX");
+assert(!checkoutResume.includes("/buy") && !checkoutResume.includes("/api/checkout/preview") && !checkoutResume.includes('method: "POST"'), "retomada publica nao deve recriar PIX/compra");
 assert(hardSuite.includes('scripts/test-pix-recovery-hard.mjs'), "production-readiness deve rodar teste hard de recuperacao pix");
 
 console.log("pix-recovery-hard ok");
