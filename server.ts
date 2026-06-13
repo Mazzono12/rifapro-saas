@@ -16397,6 +16397,7 @@ async function startServer() {
     const rate = (part: number, total: number) => total ? Number(((part / total) * 100).toFixed(1)) : 0;
 
     const pixRecoveryMessages = getWhatsAppPixRecoveryQueue(tenantId);
+    const pixRecoveryMetrics = buildWhatsAppPixRecoveryMetrics(tenantId);
     const recoveredPix = pixRecoveryMessages
       .filter(message => message.status === "sent")
       .map(message => ({ message, order: whatsappDashboardOrderAmount(tenantId, message) }))
@@ -16473,6 +16474,8 @@ async function startServer() {
         pixRecoveredCount: recoveredPix.length,
         pixRecoveredValue: recoveredPixValue,
         pixRecoveryRate: rate(recoveredPix.length, pixRecoveryCandidates),
+        pixPendingCount: pixRecoveryMetrics.pendingPix,
+        pixRecoveryMessagesSent: pixRecoveryMetrics.messagesSent,
         campaignsSent: whatsappCrmCampaigns.filter(campaign => campaign.tenant_id === tenantId && ["queued", "sending", "completed"].includes(campaign.status)).length,
         queueQueued: queueStats.queued,
         queueProcessing: queueStats.processing + queueStats.claimed,
@@ -16516,6 +16519,10 @@ async function startServer() {
     const host = verifiedDomain?.domain || tenant?.dominio_customizado || tenant?.dominio || `${tenant?.slug || "rifapro"}.meudominio.com`;
     const protocol = host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
     return `${protocol}://${host}${path.startsWith("/") ? path : `/${path}`}`;
+  }
+
+  function buildPublicCheckoutOrderResumeUrl(tenantId: string, orderId: string) {
+    return buildTenantPublicPath(tenantId, `/checkout/orders/${encodeURIComponent(orderId)}`);
   }
 
   function buildWhatsAppOrderCandidateFromPurchase(purchase: PurchaseRecord): WhatsAppOrderCandidate {
@@ -16641,6 +16648,10 @@ async function startServer() {
     ];
   }
 
+  function buildWhatsAppPixRecoveryMessage(input: { customerName: string; campaign: string; link: string }) {
+    return `Ola ${input.customerName || "cliente"}, seu PIX da campanha ${input.campaign || "campanha"} ainda esta aguardando pagamento. Sua reserva esta ativa por pouco tempo. Finalize aqui: ${input.link}`;
+  }
+
   function buildWhatsAppPixRecoveryCandidate(tenantId: string, purchase: PurchaseRecord, settingsRecord = getWhatsAppPixRecoverySettings(tenantId)) {
     return buildWhatsAppPixRecoveryCandidateFromOrder(tenantId, purchase, settingsRecord);
   }
@@ -16651,9 +16662,8 @@ async function startServer() {
     const templateName = eventType === "pix_expired_reminder" ? settingsRecord.expired_template_name : settingsRecord.pending_template_name;
     const language = eventType === "pix_expired_reminder" ? settingsRecord.expired_template_language : settingsRecord.pending_template_language;
     const customer = orderCandidate.customerId ? Object.values(customersByPhone).find(item => item.tenant_id === tenantId && item.id === orderCandidate.customerId) : undefined;
-    const paymentLink = eventType === "pix_pending_reminder" && orderCandidate.orderType === "raffle" ? buildPublicTicketUrl(order as PurchaseRecord) : "";
-    const campaignLink = orderCandidate.publicLink;
-    const link = paymentLink || campaignLink;
+    const link = isPastReservationExpiry(orderCandidate.expiresAt) ? "" : buildPublicCheckoutOrderResumeUrl(tenantId, orderCandidate.orderId);
+    const previewMessage = buildWhatsAppPixRecoveryMessage({ customerName: orderCandidate.customerName, campaign: orderCandidate.campaignName, link });
     return {
       purchase: order,
       order: orderCandidate,
@@ -16665,6 +16675,7 @@ async function startServer() {
       campaign: orderCandidate.campaignName,
       customerName: orderCandidate.customerName,
       link,
+      previewMessage,
       idempotencyKey: `whatsapp-cloud-pix-recovery:${tenantId}:${orderCandidate.orderType}:${orderCandidate.orderId}:${eventType}`,
       components: buildWhatsAppPixRecoveryComponents({ customerName: orderCandidate.customerName, campaign: orderCandidate.campaignName, amount: orderCandidate.amount, link })
     };
@@ -16681,6 +16692,27 @@ async function startServer() {
       const time = new Date(message.sent_at || message.processed_at || message.created_at).getTime();
       return time >= start.getTime() && ["queued", "pending", "retrying", "sent"].includes(message.status);
     }).length;
+  }
+
+  function buildWhatsAppPixRecoveryMetrics(tenantId: string) {
+    const pendingPix = listWhatsAppOrderSourcesForPixRecovery(tenantId)
+      .map(order => buildWhatsAppOrderCandidate(order))
+      .filter(order => (["pending", "reserved"].includes(order.status) || ["pending", "reserved"].includes(order.paymentStatus)) && !isPastReservationExpiry(order.expiresAt))
+      .length;
+    const messages = getWhatsAppPixRecoveryQueue(tenantId);
+    const sentMessages = messages.filter(message => ["sent", "delivered", "read"].includes(whatsappDashboardEffectiveQueueStatus(tenantId, message)));
+    const recovered = sentMessages
+      .map(message => ({ message, order: whatsappDashboardOrderAmount(tenantId, message) }))
+      .filter(item => item.order.recovered);
+    const recoveredValue = Number(recovered.reduce((sum, item) => sum + item.order.amount, 0).toFixed(2));
+    const recoveryRate = sentMessages.length ? Number(((recovered.length / sentMessages.length) * 100).toFixed(1)) : 0;
+    return {
+      pendingPix,
+      messagesSent: sentMessages.length,
+      recoveredSales: recovered.length,
+      recoveredValue,
+      recoveryRate
+    };
   }
 
   function hasRecentWhatsAppPixRecoveryForCustomer(tenantId: string, customerId: string | undefined, eventType: WhatsAppPixRecoveryEventType, cooldownHours: number) {
@@ -16708,6 +16740,7 @@ async function startServer() {
     if (orderCandidate.tenantId !== tenantId) return { candidate, eligible: false, reason: "Compra de outro cliente da plataforma" };
     if (!["pending", "reserved"].includes(orderCandidate.status) && !["pending", "reserved"].includes(orderCandidate.paymentStatus)) return { candidate, eligible: false, reason: "Compra nao esta pendente" };
     if (orderCandidate.status === "cancelled" || orderCandidate.paymentStatus === "cancelled") return { candidate, eligible: false, reason: "Compra cancelada" };
+    if (isPastReservationExpiry(orderCandidate.expiresAt)) return { candidate, eligible: false, reason: "PIX expirado" };
     const pixOrder = order as WhatsAppOrderSource & { pixPayload?: string; pixGateway?: string; pixQrCodeBase64?: string };
     if (!pixOrder.pixPayload && !pixOrder.pixGateway && !pixOrder.pixQrCodeBase64) return { candidate, eligible: false, reason: "Compra nao parece ser PIX" };
     if (ageMinutes < settingsRecord.min_age_minutes && candidate.eventType === "pix_pending_reminder") return { candidate, eligible: false, reason: "Ainda dentro do tempo minimo" };
@@ -16750,7 +16783,7 @@ async function startServer() {
       customer_id: validation.candidate.customer?.id || orderCandidate.customerId,
       phone: validation.candidate.phone,
       message_type: "whatsapp_cloud_pix_recovery",
-      message_body: "",
+      message_body: validation.candidate.previewMessage,
       provider: "meta_cloud",
       status: "queued",
       attempts: 0,
@@ -16770,6 +16803,7 @@ async function startServer() {
         status: orderCandidate.status,
         amount: orderCandidate.amount,
         link: validation.candidate.link,
+        previewMessage: validation.candidate.previewMessage,
         components: validation.candidate.components
       },
       created_at: now,
@@ -18174,11 +18208,7 @@ async function startServer() {
   }
 
   function buildPublicTicketUrl(purchase: PurchaseRecord) {
-    const tenant = tenants.find(item => item.id === purchase.tenant_id);
-    const verifiedDomain = tenantDomains.find(domain => domain.tenant_id === purchase.tenant_id && ["verified", "active"].includes(domain.status) && domain.is_primary);
-    const host = verifiedDomain?.domain || tenant?.dominio_customizado || tenant?.dominio || `${tenant?.slug || "rifapro"}.meudominio.com`;
-    const protocol = host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
-    return `${protocol}://${host}/rifa/${purchase.raffleId}?pedido=${encodeURIComponent(purchase.purchaseId)}`;
+    return buildTenantPublicPath(purchase.tenant_id, `/rifa/${purchase.raffleId}?pedido=${encodeURIComponent(purchase.purchaseId)}`);
   }
 
   function getTicketConfirmationOrder(purchase: PurchaseRecord): TicketConfirmationOrder {
@@ -18231,8 +18261,9 @@ async function startServer() {
     const name = customer?.name || purchase?.customer?.name || "cliente";
     const campaign = raffle?.title || "campanha";
     const amount = purchase ? `R$ ${Number(purchase.amount || 0).toFixed(2)}` : "";
+    const checkoutResumeLink = purchase ? buildPublicCheckoutOrderResumeUrl(purchase.tenant_id, purchase.purchaseId) : "";
     const messages: Record<string, string> = {
-      abandoned_pix_recovery: `Ola ${name}, seu PIX da campanha ${campaign} ainda esta pendente. Valor ${amount}. Finalize para garantir suas cotas.`,
+      abandoned_pix_recovery: `Ola ${name}, seu PIX da campanha ${campaign} ainda esta aguardando pagamento. Sua reserva esta ativa por pouco tempo. Valor ${amount}. Finalize aqui: ${checkoutResumeLink}`,
       post_purchase_thanks: `Obrigado pela compra, ${name}! Recebemos seu pagamento da campanha ${campaign}. Boa sorte no sorteio.`,
       raffle_ending_reminder: `A campanha ${campaign} esta chegando ao fim. Ainda da tempo de participar.`,
       winner_announcement: `Resultado publicado para ${campaign}. Confira os ganhadores na plataforma.`,
@@ -22148,7 +22179,8 @@ async function startServer() {
     if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
     res.json({
       settings: sanitizeWhatsAppPixRecoverySettings(getWhatsAppPixRecoverySettings(tenantId)),
-      templates: getSavedWhatsAppCloudTemplates(tenantId).map(sanitizeWhatsAppCloudTemplate)
+      templates: getSavedWhatsAppCloudTemplates(tenantId).map(sanitizeWhatsAppCloudTemplate),
+      metrics: buildWhatsAppPixRecoveryMetrics(tenantId)
     });
   });
 
@@ -22156,7 +22188,7 @@ async function startServer() {
     const tenantId = resolveRequestTenantId(req);
     if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
     const settingsRecord = upsertWhatsAppPixRecoverySettings(req, tenantId);
-    res.json({ settings: sanitizeWhatsAppPixRecoverySettings(settingsRecord) });
+    res.json({ settings: sanitizeWhatsAppPixRecoverySettings(settingsRecord), metrics: buildWhatsAppPixRecoveryMetrics(tenantId) });
   });
 
   app.post("/api/admin/whatsapp-cloud/pix-recovery/preview", (req, res) => {
@@ -22177,7 +22209,9 @@ async function startServer() {
       templateName: item.candidate.templateName,
       language: item.candidate.language,
       eligible: item.eligible,
-      reason: item.reason || "Pronto para enfileirar"
+      reason: item.reason || "Pronto para enfileirar",
+      link: item.candidate.link,
+      previewMessage: item.candidate.previewMessage
     }));
     recordWhatsAppCloudLog(tenantId, {
       action: "pix_recovery_preview",
@@ -22189,6 +22223,7 @@ async function startServer() {
       settings: sanitizeWhatsAppPixRecoverySettings(settingsRecord),
       total: items.length,
       eligible: items.filter(item => item.eligible).length,
+      metrics: buildWhatsAppPixRecoveryMetrics(tenantId),
       items
     });
   });
@@ -22215,6 +22250,7 @@ async function startServer() {
       queued: queued.length,
       skipped: results.length - queued.length,
       messages: queued.map(sanitizeWhatsAppQueueRecord),
+      metrics: buildWhatsAppPixRecoveryMetrics(tenantId),
       results: results.map(item => ({
         orderId: item.validation.candidate.order.orderId,
         purchaseId: item.validation.candidate.order.orderId,
@@ -22233,6 +22269,7 @@ async function startServer() {
     const result = await processWhatsappPixRecoveryQueue(tenantId, limit);
     res.json({
       ...result,
+      metrics: buildWhatsAppPixRecoveryMetrics(tenantId),
       queue: getWhatsAppPixRecoveryQueue(tenantId).slice(0, 100).map(sanitizeWhatsAppQueueRecord)
     });
   });
@@ -22241,7 +22278,8 @@ async function startServer() {
     const tenantId = resolveRequestTenantId(req);
     if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
     res.json({
-      queue: getWhatsAppPixRecoveryQueue(tenantId).slice(0, 200).map(sanitizeWhatsAppQueueRecord)
+      queue: getWhatsAppPixRecoveryQueue(tenantId).slice(0, 200).map(sanitizeWhatsAppQueueRecord),
+      metrics: buildWhatsAppPixRecoveryMetrics(tenantId)
     });
   });
 
@@ -22250,6 +22288,7 @@ async function startServer() {
     if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
     const actions = new Set(["pix_recovery_settings_saved", "pix_recovery_preview", "pix_recovery_enqueued", "pix_recovery_sent", "pix_recovery_skipped", "meta_api_error"]);
     res.json({
+      metrics: buildWhatsAppPixRecoveryMetrics(tenantId),
       logs: whatsappCloudLogs
         .filter(log => log.tenant_id === tenantId && actions.has(log.action))
         .slice(0, 100)

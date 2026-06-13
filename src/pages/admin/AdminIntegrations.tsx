@@ -29,6 +29,16 @@ type ProviderCatalogEntry = {
   notes: string;
 };
 
+const defaultPixRecoveryMetrics = {
+  pendingPix: 0,
+  messagesSent: 0,
+  recoveredSales: 0,
+  recoveredValue: 0,
+  recoveryRate: 0
+};
+
+const defaultPixRecoveryMessage = "Olá {{nome}}, seu PIX da campanha {{campanha}} ainda está aguardando pagamento. Sua reserva está ativa por pouco tempo. Finalize aqui: {{link}}";
+
 export function AdminIntegrations() {
   const [providers, setProviders] = useState<ProviderCatalogEntry[]>([]);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
@@ -53,6 +63,7 @@ export function AdminIntegrations() {
   const [pixRecoveryPreview, setPixRecoveryPreview] = useState<any[]>([]);
   const [pixRecoveryQueue, setPixRecoveryQueue] = useState<any[]>([]);
   const [pixRecoveryLogs, setPixRecoveryLogs] = useState<any[]>([]);
+  const [pixRecoveryMetrics, setPixRecoveryMetrics] = useState(defaultPixRecoveryMetrics);
   const [purchaseConfirmationSettings, setPurchaseConfirmationSettings] = useState<any>({
     enabled: false,
     template_name: "",
@@ -101,10 +112,13 @@ export function AdminIntegrations() {
     setSavedCloudTemplates(savedTemplatesData.templates || []);
     const pixSettingsData = await pixRecoverySettingsRes.json();
     setPixRecoverySettings(pixSettingsData.settings || pixRecoverySettings);
+    setPixRecoveryMetrics(pixSettingsData.metrics || defaultPixRecoveryMetrics);
     const pixQueueData = await pixRecoveryQueueRes.json();
     setPixRecoveryQueue(pixQueueData.queue || []);
+    if (pixQueueData.metrics) setPixRecoveryMetrics(pixQueueData.metrics);
     const pixLogsData = await pixRecoveryLogsRes.json();
     setPixRecoveryLogs(pixLogsData.logs || []);
+    if (pixLogsData.metrics) setPixRecoveryMetrics(pixLogsData.metrics);
     const purchaseSettingsData = await purchaseConfirmationSettingsRes.json();
     setPurchaseConfirmationSettings(purchaseSettingsData.settings || purchaseConfirmationSettings);
     const purchaseQueueData = await purchaseConfirmationQueueRes.json();
@@ -278,6 +292,7 @@ export function AdminIntegrations() {
     if (!res.ok) toast.error(data.error || "Não foi possível salvar a recuperação de PIX");
     else {
       setPixRecoverySettings(data.settings);
+      setPixRecoveryMetrics(data.metrics || defaultPixRecoveryMetrics);
       toast.success("Recuperação de PIX salva");
     }
     await load();
@@ -289,6 +304,7 @@ export function AdminIntegrations() {
     if (!res.ok) toast.error(data.error || "Não foi possível testar a regra");
     else {
       setPixRecoveryPreview(data.items || []);
+      setPixRecoveryMetrics(data.metrics || defaultPixRecoveryMetrics);
       toast.success("Regra testada sem enviar mensagens");
     }
     await load();
@@ -300,6 +316,7 @@ export function AdminIntegrations() {
     if (!res.ok) toast.error(data.error || "Não foi possível criar a fila");
     else {
       setPixRecoveryQueue(data.messages || []);
+      setPixRecoveryMetrics(data.metrics || defaultPixRecoveryMetrics);
       toast.success(`${data.queued || 0} mensagem(ns) adicionada(s) à fila`);
     }
     await load();
@@ -311,6 +328,7 @@ export function AdminIntegrations() {
     if (!res.ok) toast.error(data.error || "Não foi possível processar a fila");
     else {
       setPixRecoveryQueue(data.queue || []);
+      setPixRecoveryMetrics(data.metrics || defaultPixRecoveryMetrics);
       toast.success(`${data.sent || 0} mensagem(ns) enviada(s)`);
     }
     await load();
@@ -324,9 +342,20 @@ export function AdminIntegrations() {
     const queueData = await queueRes.json();
     const logsData = await logsRes.json();
     if (!queueRes.ok) toast.error(queueData.error || "Não foi possível ver a fila");
-    else setPixRecoveryQueue(queueData.queue || []);
+    else {
+      setPixRecoveryQueue(queueData.queue || []);
+      if (queueData.metrics) setPixRecoveryMetrics(queueData.metrics);
+    }
     if (!logsRes.ok) toast.error(logsData.error || "Não foi possível ver os logs");
-    else setPixRecoveryLogs(logsData.logs || []);
+    else {
+      setPixRecoveryLogs(logsData.logs || []);
+      if (logsData.metrics) setPixRecoveryMetrics(logsData.metrics);
+    }
+  };
+
+  const copyPixRecoveryTemplate = async () => {
+    await navigator.clipboard.writeText(defaultPixRecoveryMessage);
+    toast.success("Mensagem padrão copiada");
   };
 
   const savePurchaseConfirmationSettings = async () => {
@@ -670,6 +699,25 @@ export function AdminIntegrations() {
             </div>
           </div>
 
+          <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <PixRecoveryMetricCard label="PIX pendentes" value={String(pixRecoveryMetrics.pendingPix || 0)} />
+            <PixRecoveryMetricCard label="Mensagens enviadas" value={String(pixRecoveryMetrics.messagesSent || 0)} />
+            <PixRecoveryMetricCard label="Vendas recuperadas" value={String(pixRecoveryMetrics.recoveredSales || 0)} />
+            <PixRecoveryMetricCard label="Valor recuperado" value={formatCurrency(pixRecoveryMetrics.recoveredValue || 0)} />
+            <PixRecoveryMetricCard label="Taxa de recuperação" value={`${Number(pixRecoveryMetrics.recoveryRate || 0).toFixed(1)}%`} />
+          </div>
+
+          <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[var(--admin-text)]">Mensagem padrão de retomada</p>
+                <p className="mt-1 text-sm text-[var(--admin-muted)]">{defaultPixRecoveryMessage}</p>
+                <p className="mt-2 text-xs text-emerald-700">Link usado no envio: /checkout/orders/:orderId. PIX vencido não é enviado pela recuperação.</p>
+              </div>
+              <button type="button" onClick={copyPixRecoveryTemplate} className="admin-button-secondary shrink-0"><Copy className="h-4 w-4" />Copiar preview</button>
+            </div>
+          </div>
+
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <label className="flex items-center gap-2 rounded-lg border border-[var(--admin-border)] px-3 py-2 text-sm text-[var(--admin-text)]">
               <input
@@ -731,6 +779,18 @@ export function AdminIntegrations() {
                 onChange={event => setPixRecoverySettings((prev: any) => ({ ...prev, min_age_minutes: Number(event.target.value) }))}
                 className="admin-input mt-1"
               />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {[15, 30, 60].map(minutes => (
+                  <button
+                    key={minutes}
+                    type="button"
+                    onClick={() => setPixRecoverySettings((prev: any) => ({ ...prev, min_age_minutes: minutes }))}
+                    className={`rounded-md border px-2 py-1 text-xs ${Number(pixRecoverySettings.min_age_minutes || 15) === minutes ? "border-emerald-500 bg-emerald-500/10 text-emerald-700" : "border-[var(--admin-border)] text-[var(--admin-muted)]"}`}
+                  >
+                    {minutes} min
+                  </button>
+                ))}
+              </div>
             </label>
             <label className="text-sm text-[var(--admin-muted)]">
               Limite por cliente
@@ -1013,6 +1073,19 @@ function parseConfigText(value: string): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
+}
+
+function PixRecoveryMetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-[var(--admin-border)] bg-[var(--admin-card-muted)] px-3 py-2">
+      <p className="text-xs text-[var(--admin-muted)]">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-[var(--admin-text)]">{value}</p>
+    </div>
+  );
 }
 
 function friendlyProviderName(value?: string) {

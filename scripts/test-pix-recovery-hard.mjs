@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 const engine = readFileSync("src/server/promotions/promotionEngine.ts", "utf8");
 const server = readFileSync("server.ts", "utf8");
 const adminSales = readFileSync("src/pages/admin/AdminSales.tsx", "utf8");
+const adminIntegrations = readFileSync("src/pages/admin/AdminIntegrations.tsx", "utf8");
 const app = readFileSync("src/App.tsx", "utf8");
 const checkoutResume = readFileSync("src/pages/CheckoutOrderResume.tsx", "utf8");
 const hardSuite = readFileSync("scripts/test-hard-suite.mjs", "utf8");
@@ -19,6 +20,22 @@ assert(server.includes("process-abandoned-pix"));
 assert(server.includes("whatsappMessageQueue"));
 assert(server.includes("scheduleAutomation(\"abandoned_pix_recovery\""));
 assert(server.includes("PIX pendente") || server.includes("paymentStatus"));
+
+includesAll(server, [
+  "buildPublicCheckoutOrderResumeUrl",
+  "`/checkout/orders/${encodeURIComponent(orderId)}`",
+  "buildWhatsAppPixRecoveryMessage",
+  "Sua reserva esta ativa por pouco tempo",
+  "message_body: validation.candidate.previewMessage",
+  "previewMessage: validation.candidate.previewMessage",
+  "PIX expirado",
+  "buildWhatsAppPixRecoveryMetrics",
+  "pendingPix",
+  "messagesSent",
+  "recoveredSales",
+  "recoveredValue",
+  "recoveryRate"
+], "recuperacao whatsapp pix com retomada e metricas");
 
 includesAll(server, [
   'app.use("/api/admin", rateLimiter, requireTenantAdmin)',
@@ -73,6 +90,21 @@ includesAll(adminSales, [
   "Nenhum PIX pendente encontrado"
 ], "ui comercial de recuperacao pix");
 assert(!adminSales.includes("process-abandoned-pix"), "ui nao deve disparar automacao de WhatsApp");
+
+includesAll(adminIntegrations, [
+  "/api/admin/whatsapp-cloud/pix-recovery/settings",
+  "/api/admin/whatsapp-cloud/pix-recovery/preview",
+  "Mensagem padrão de retomada",
+  "/checkout/orders/:orderId",
+  "PIX pendentes",
+  "Mensagens enviadas",
+  "Vendas recuperadas",
+  "Valor recuperado",
+  "Taxa de recuperação",
+  "Copiar preview",
+  "[15, 30, 60].map"
+], "admin whatsapp pix recovery");
+
 includesAll(app, ['path="/checkout/orders/:orderId"', "CheckoutOrderResume"], "rota publica para retomar PIX pendente");
 includesAll(checkoutResume, ["Finalize seu PIX", 'fetch(`/api/checkout/orders/${orderId}/status`)', "PixPaymentCard", "Ja paguei, verificar"], "pagina publica de retomada PIX");
 assert(!checkoutResume.includes("/buy") && !checkoutResume.includes("/api/checkout/preview") && !checkoutResume.includes('method: "POST"'), "retomada publica nao deve recriar PIX/compra");
