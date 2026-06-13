@@ -568,7 +568,7 @@ export function FazendinhaSection() {
               {pendingPix && (
                 <div className="mt-5 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4 text-center">
                   <p className="text-xs font-mono uppercase tracking-widest text-emerald-200">PIX gerado</p>
-                  <p className="mt-1 text-sm text-slate-300">Escaneie o QR Code ou copie o código PIX.</p>
+                  <p className="mt-1 text-sm text-slate-300">Copie o PIX ou use o QR Code no app do banco.</p>
                   <p className="mx-auto mt-3 w-fit rounded-2xl border border-emerald-300/20 bg-black/20 px-4 py-2 font-mono text-sm font-black text-emerald-100">
                     Expira em {pixCountdown}
                   </p>
@@ -609,7 +609,7 @@ export function FazendinhaSection() {
                 </div>
               </div>
               <CheckoutPrimaryButton onClick={pendingPix ? checkPixPayment : openPrePaymentReceipt} disabled={buying} className="sticky bottom-0 z-20 mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-black shadow-[0_-18px_45px_rgba(0,0,0,0.38)] disabled:opacity-50">
-                <CheckCircle2 className="h-5 w-5" /> {buying ? "Processando..." : pendingPix ? "Confirmar PIX" : "Revisar compra"}
+                <CheckCircle2 className="h-5 w-5" /> {buying ? "Processando..." : pendingPix ? "Ja paguei, verificar" : "Revisar compra"}
               </CheckoutPrimaryButton>
           </CheckoutModalShell>
           </>

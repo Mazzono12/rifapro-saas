@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
-import { AlertTriangle, CheckCircle2, Clock3, Inbox, QrCode, ShieldCheck, Ticket, Trophy } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, Copy, Inbox, QrCode, ShieldCheck, Ticket, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "../../lib/utils";
@@ -467,18 +467,27 @@ export function CheckoutModalHeader({ title, eyebrow = "Checkout seguro", compac
 
 export function PixPaymentCard({ payload, copied, onCopy }: { payload?: string; copied?: boolean; onCopy: () => void }) {
   return (
-    <div className="space-y-4 text-center">
+    <div className="checkout-pix-card space-y-4 text-center">
       <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-cyan-300/10 text-cyan-100">
         <QrCode className="h-8 w-8" />
       </div>
       {payload ? (
-        <div className="mx-auto w-full max-w-[min(18rem,calc(100vw-3rem))] rounded-[1.35rem] bg-white p-3 sm:w-fit sm:max-w-none sm:rounded-[1.75rem] sm:p-5">
-          <QRCodeSVG value={payload} className="h-auto w-full sm:h-[236px] sm:w-[236px]" bgColor="#ffffff" fgColor="#0f172a" level="M" />
-        </div>
+        <>
+          <div className="mx-auto w-full max-w-[min(18rem,calc(100vw-3rem))] rounded-[1.35rem] bg-white p-3 sm:w-fit sm:max-w-none sm:rounded-[1.75rem] sm:p-5">
+            <QRCodeSVG value={payload} className="h-auto w-full sm:h-[236px] sm:w-[236px]" bgColor="#ffffff" fgColor="#0f172a" level="M" />
+          </div>
+          <div className="checkout-pix-code-box">
+            <span>PIX copia e cola</span>
+            <code>{payload}</code>
+          </div>
+        </>
       ) : (
         <div className="premium-card border-red-300/20 bg-red-500/10 text-red-100">PIX indisponível.</div>
       )}
-      <CheckoutPrimaryButton onClick={onCopy} className={cn("w-full", copied && "bg-emerald-200")}>{copied ? "PIX copiado" : "Copiar PIX"}</CheckoutPrimaryButton>
+      <CheckoutPrimaryButton onClick={onCopy} aria-label="Copiar PIX copia e cola" className={cn("checkout-pix-copy-button w-full", copied && "bg-emerald-200")}>
+        {copied ? "Código PIX copiado" : <><Copy className="h-5 w-5" /> Copiar código PIX</>}
+      </CheckoutPrimaryButton>
+      <p className="checkout-pix-help">Depois de copiar, abra o app do banco e pague via PIX copia e cola.</p>
     </div>
   );
 }

@@ -47,10 +47,9 @@ assert(!premiumUi.includes("checkout-modal-close"), "checkout publico nao deve r
 assert(!premiumUi.includes("aria-label=\"Fechar checkout\""), "checkout publico nao deve expor botao Fechar checkout");
 
 includesAll(receipt, [
-  "Confirme seus dados",
   "<CheckoutCampaignMedia",
   "CheckoutModalShell",
-  "Recibo pre-pagamento"
+  "Revise e gere seu PIX"
 ], "recibo pre-PIX");
 
 includesAll(raffleDetails, [

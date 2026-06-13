@@ -20,7 +20,7 @@ hasAll(premium, ["CheckoutModalShell", "CheckoutContentArea", "CheckoutSafeTop",
 hasAll(css, [".checkout-content-area", "max-height: calc(100dvh", "overflow-y: auto", "overscroll-behavior: contain"], "area segura de checkout");
 hasAll(css, [".checkout-modal-header", "flex: 0 0 auto", "line-height: 1.2", "writing-mode: horizontal-tb"], "header seguro");
 hasAll(css, ["@media (max-width: 640px)", "grid-template-columns: minmax(0, 1fr) !important", "grid-column: 1 / -1 !important"], "mobile header");
-hasAll(receipt, ["CheckoutModalShell", "Confirme seus dados", "Recibo pre-pagamento", "compact={!hasCheckoutMedia}", "mediaAware"], "recibo pre-PIX");
+hasAll(receipt, ["CheckoutModalShell", "Revise e gere seu PIX", "Checkout seguro", "compact={!hasCheckoutMedia}", "mediaAware"], "recibo pre-PIX");
 hasAll(raffle, ["CheckoutModalShell", "CheckoutCampaignMedia", "Pagamento PIX", "Bilhete premium"], "rifa tradicional");
 hasAll(numberMode, ["PremiumCheckoutModal", "CheckoutCampaignMedia", "Confirmar participação", "Pagamento PIX"], "NumberMode");
 hasAll(fazendinha, ["PremiumCheckoutModal", "Confirmar participação", "Pagamento PIX", "FazendinhaCheckoutMedia"], "Fazendinha page");

@@ -111,8 +111,8 @@ export function PrePaymentReceiptModal({
     <CheckoutModalShell
       open={open}
       variant="receipt"
-      title="Confirme seus dados"
-      eyebrow="Recibo pre-pagamento"
+      title="Revise e gere seu PIX"
+      eyebrow="Checkout seguro"
       onClose={onClose}
       compact={!hasCheckoutMedia}
       mediaAware={hasCheckoutMedia ? "with-media" : "compact-no-media"}
@@ -157,13 +157,13 @@ export function PrePaymentReceiptModal({
               Alterar Dados
             </button>
             <CheckoutPrimaryButton onClick={onConfirm} disabled={loading} className="checkout-action-button min-h-14 rounded-2xl px-5 text-base font-black disabled:opacity-60">
-              {loading ? "Concluindo..." : "Concluir Compra"}
+              {loading ? "Gerando PIX..." : "Gerar PIX agora"}
             </CheckoutPrimaryButton>
           </div>
 
-          <p className="flex items-center justify-center gap-2 text-center text-xs font-semibold text-slate-400">
+          <p className="checkout-receipt-note flex items-center justify-center gap-2 text-center text-xs font-semibold text-slate-400">
             <ShieldCheck className="h-4 w-4 text-emerald-500" />
-            O pedido e o PIX so serao gerados apos esta confirmacao.
+            Seu PIX aparece na proxima tela. As cotas ficam reservadas enquanto voce paga.
           </p>
       </div>
     </CheckoutModalShell>
@@ -203,9 +203,9 @@ export function CheckoutReceiptSummary({
       {selectedPackage && <SummaryRow label="Pacote escolhido" value={selectedPackage} />}
       {affiliateInfo?.refCode && <SummaryRow label="Afiliado aplicado" value={affiliateInfo.name || affiliateInfo.refCode} />}
       {walletUsage?.enabled && <SummaryRow label="Saldo usado" value={currency.format(Number(walletUsage.amount || 0))} />}
-      <SummaryRow label="Gateway" value={String(gateway || "PIX").toUpperCase()} />
-      <SummaryRow label="Valor restante no PIX" value={currency.format(pixAmount)} strong />
-      <SummaryRow label="Valor" value={currency.format(total)} strong />
+      <SummaryRow label="Pagamento" value={String(gateway || "PIX").toUpperCase()} />
+      <SummaryRow label="Total no PIX" value={currency.format(pixAmount)} strong />
+      <SummaryRow label="Total da compra" value={currency.format(total)} strong />
     </CheckoutCard>
   );
 }
@@ -220,10 +220,12 @@ export function CustomerDataSummary({ customerData }: { customerData?: CustomerD
       </div>
       <SummaryRow label="Nome" value={customerData?.name || "Nao informado"} />
       <SummaryRow label="Telefone" value={customerData?.phone || "Nao informado"} />
-      <SummaryRow label="E-mail" value={customerData?.email || "Nao informado"} />
       <SummaryRow label="CPF" value={customerData?.cpf || "Nao informado"} />
-      <SummaryRow label="Cidade" value={[customerData?.city, customerData?.state].filter(Boolean).join(" - ") || "Nao informado"} />
-      <SummaryRow label="Data/hora da confirmação" value={now} />
+      {customerData?.email && <SummaryRow label="E-mail" value={customerData.email} />}
+      {[customerData?.city, customerData?.state].filter(Boolean).length > 0 && (
+        <SummaryRow label="Cidade" value={[customerData?.city, customerData?.state].filter(Boolean).join(" - ")} />
+      )}
+      <SummaryRow label="Gerado em" value={now} />
     </CheckoutCard>
   );
 }

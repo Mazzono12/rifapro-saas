@@ -29,7 +29,7 @@ const receipt = includes("src/components/checkout/PrePaymentReceiptModal.tsx", [
   "checkout-summary-value",
   "checkout-action-button",
   "Resumo da Compra",
-  "Confirme seus dados",
+  "Revise e gere seu PIX",
   "Seus Dados"
 ], "recibo pre-PIX responsivo");
 

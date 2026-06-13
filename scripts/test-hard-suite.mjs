@@ -153,7 +153,7 @@ async function gatewaysHard() {
 async function checkoutHard() {
   await step("checkout usa reserva, pagamento e provider preservado", () => {
     assertContains("server.ts", ["reservedUntil", "reserveAvailableNumbers", "releaseReservedNumbers", "pixGateway: pixConfig.gateway", "app.post(\"/api/checkout/preview\""]);
-    assertContains("src/components/checkout/PrePaymentReceiptModal.tsx", ["Confirme seus dados", "Resumo da Compra", "Seus Dados", "Concluir Compra", "Alterar Dados"]);
+    assertContains("src/components/checkout/PrePaymentReceiptModal.tsx", ["Revise e gere seu PIX", "Resumo da Compra", "Seus Dados", "Gerar PIX agora", "Alterar Dados"]);
     assertContains("src/pages/RaffleDetails.tsx", ["openPrePaymentReceipt", "PrePaymentReceiptModal", "checkoutService.preview", "executeBuy"]);
     assertContains("src/pages/NumberModePage.tsx", ["openPrePaymentReceipt", "PrePaymentReceiptModal", "checkoutService.preview"]);
     assertContains("src/pages/Fazendinha.tsx", ["openPrePaymentReceipt", "PrePaymentReceiptModal", "checkoutService.preview"]);

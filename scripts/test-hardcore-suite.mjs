@@ -327,7 +327,7 @@ async function purchaseHardcore() {
   await staticReadinessChecks();
   await step("recibo pre-pagamento obrigatorio antes do PIX", () => {
     assertContains("server.ts", ["app.post(\"/api/checkout/preview\"", "pixGateway: pixConfig.gateway"]);
-    assertContains("src/components/checkout/PrePaymentReceiptModal.tsx", ["Confirme seus dados", "O pedido e o PIX so serao gerados apos esta confirmacao."]);
+    assertContains("src/components/checkout/PrePaymentReceiptModal.tsx", ["Revise e gere seu PIX", "Seu PIX aparece na proxima tela. As cotas ficam reservadas enquanto voce paga."]);
     assertContains("src/pages/RaffleDetails.tsx", ["checkoutService.preview", "executeBuy"]);
     assertContains("src/pages/NumberModePage.tsx", ["checkoutService.preview", "onConfirm={buy}"]);
     assertContains("src/pages/Fazendinha.tsx", ["checkoutService.preview", "onConfirm={confirmBuy}"]);

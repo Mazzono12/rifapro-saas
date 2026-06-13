@@ -377,14 +377,14 @@ export function NumberModePage() {
               <div className="premium-card border-emerald-300/20 bg-emerald-300/[0.07] text-center">
                 <p className="premium-eyebrow text-emerald-100">PIX gerado</p>
                 <h3 className="mt-2 text-2xl font-black text-white">R$ {checkoutTotal.toFixed(2)}</h3>
-                <p className="mt-2 text-sm text-slate-300">Escaneie o QR Code ou copie o código PIX.</p>
+                <p className="mt-2 text-sm text-slate-300">Copie o PIX ou use o QR Code no app do banco.</p>
                 <p className="mt-3 rounded-2xl border border-emerald-300/20 bg-black/20 px-4 py-2 font-mono text-sm font-black text-emerald-100">
                   Expira em {pixCountdown}
                 </p>
               </div>
               <PixPaymentCard payload={pendingPix.pixPayload} copied={copiedPix} onCopy={copyPixPayload} />
               <CheckoutPrimaryButton onClick={checkPixPayment} disabled={buying} className="min-h-14 w-full disabled:opacity-50">
-                {buying ? "Consultando status..." : "Confirmar PIX"}
+                {buying ? "Consultando pagamento..." : "Ja paguei, verificar"}
               </CheckoutPrimaryButton>
             </>
           ) : (

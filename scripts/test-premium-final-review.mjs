@@ -62,7 +62,7 @@ includesAll(premiumUi, [
 assert(!premiumUi.includes("checkout-modal-close"), "checkout publico nao deve renderizar X superior no header");
 assert(!premiumUi.includes("aria-label=\"Fechar checkout\""), "checkout publico nao deve expor botao Fechar checkout");
 assert(!premiumUi.includes("checkout-modal-header premium-site-header"), "header de checkout nao deve herdar premium-site-header publico");
-includesAll(preReceipt, ["CheckoutModalShell", "Recibo pre-pagamento", "Confirme seus dados"], "recibo usa shell compartilhado");
+includesAll(preReceipt, ["CheckoutModalShell", "Checkout seguro", "Revise e gere seu PIX"], "recibo usa shell compartilhado");
 includesAll(raffleDetails, ["CheckoutModalShell", "Pagamento PIX", "Bilhete premium"], "checkout/PIX/bilhete usam shell compartilhado");
 includesAll(section, ["CheckoutModalShell", "Participar da Fazendinha"], "checkout da Fazendinha usa shell compartilhado");
 

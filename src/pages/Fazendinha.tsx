@@ -448,7 +448,7 @@ export function Fazendinha() {
               </div>
               <PixPaymentCard payload={pendingPix.pixPayload} copied={copiedPix} onCopy={copyPixPayload} />
               <CheckoutPrimaryButton onClick={checkPixPayment} disabled={buying} className="min-h-14 w-full disabled:opacity-50">
-                {buying ? "Consultando status..." : "Confirmar PIX"}
+                {buying ? "Consultando pagamento..." : "Ja paguei, verificar"}
               </CheckoutPrimaryButton>
             </>
           ) : (

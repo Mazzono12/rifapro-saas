@@ -58,7 +58,7 @@ assert(!customerStore.includes("nexusdraw_admin_token"), "Logout do cliente nao 
 
 const paymentPix = sliceBetween(raffleDetails, "function PaymentPix", "function PremiumTicket");
 assert(!/Suporte WhatsApp|supportUrl|wa\.me|api\.whatsapp\.com/i.test(paymentPix), "Checkout PIX nao pode conter CTA de WhatsApp");
-assert(paymentPix.includes("JÁ REALIZEI O PAGAMENTO") || paymentPix.includes("Confirmar PIX"), "Checkout PIX deve conter botao de consulta do pagamento");
+assert(paymentPix.includes("JÁ REALIZEI O PAGAMENTO") || paymentPix.includes("Confirmar PIX") || paymentPix.includes("Ja paguei, verificar"), "Checkout PIX deve conter botao de consulta do pagamento");
 assert(paymentPix.includes("COPIAR PIX"), "Checkout PIX deve conter botao COPIAR PIX");
 assert(paymentPix.includes("cfx-copy-pix-button"), "Botao COPIAR PIX deve usar classe propria");
 assert(raffleDetails.includes("copyTextToClipboard") && raffleDetails.includes("document.execCommand(\"copy\")"), "Copiar PIX deve ter fallback para HTTP/local mobile");
@@ -83,7 +83,7 @@ assert(receipt.includes("CheckoutModalShell"), "Recibo pre-pagamento deve usar s
 assert(premiumUi.includes("TenantLogo"), "Header compartilhado do checkout deve usar logo do tenant");
 assert(premiumUi.includes("TenantHeaderName"), "Header compartilhado do checkout deve usar nome do tenant");
 assert(receipt.includes('label="Cidade"'), "Recibo deve mostrar cidade antes do PIX");
-assert(receipt.includes("Recibo pre-pagamento"), "Recibo deve ter hierarquia profissional de pre-pagamento");
+assert(receipt.includes("Revise e gere seu PIX"), "Recibo deve ter hierarquia profissional de pre-pagamento");
 
 assert(server.includes('app.get("/api/public/geo"'), "Backend deve ter endpoint publico seguro de geolocalizacao");
 assert(geoService.includes("/api/public/geo"), "GeoPrefillService deve buscar cidade antes do PIX");
@@ -92,7 +92,7 @@ assert(useCityDetection.includes("GeoPrefillService.detect"), "useCityDetection 
 for (const [name, content] of [["RaffleDetails", raffleDetails], ["NumberModePage", numberMode], ["Fazendinha", fazendinha], ["FazendinhaSection", fazendinhaSection]]) {
   assert(content.includes("useCityDetection"), `${name} deve preencher cidade antes do PIX`);
   assert(content.includes("GeoPrefillService.saveManual"), `${name} deve salvar cidade editada no cache`);
-  assert(content.includes("Confirmar PIX") || content.includes("JÁ REALIZEI O PAGAMENTO"), `${name} deve expor consulta de pagamento no fluxo PIX`);
+  assert(content.includes("Confirmar PIX") || content.includes("JÁ REALIZEI O PAGAMENTO") || content.includes("Ja paguei, verificar"), `${name} deve expor consulta de pagamento no fluxo PIX`);
 }
 
 assert(!/SERVICE_ROLE_KEY|SUPABASE_SERVICE_ROLE_KEY/.test(campaignHero + videoPlayer + soundToggle + receipt + geoService + useCityDetection), "Codigo publico nao deve expor service role");

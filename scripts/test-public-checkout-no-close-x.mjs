@@ -29,7 +29,7 @@ for (const [label, source] of [
 }
 
 assert.ok(receipt.includes("Alterar Dados"), "Recibo deve manter acao de alterar dados.");
-assert.ok(receipt.includes("Concluir Compra"), "Recibo deve manter acao principal de concluir compra.");
+assert.ok(receipt.includes("Gerar PIX agora"), "Recibo deve manter acao principal de gerar PIX.");
 assert.ok(premium.includes("Copiar PIX"), "PIX deve manter acao principal de copiar.");
 
 console.log("PASS: Checkout publico sem X superior e com acoes principais preservadas.");
