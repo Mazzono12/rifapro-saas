@@ -79,7 +79,7 @@ export function AdminRaffles() {
     inheritGlobal: true,
     enabled: true,
     gateway: "mercadopago",
-    sandbox: true,
+    sandbox: false,
     apiKey: "",
     accessToken: "",
     publicKey: "",
@@ -273,7 +273,7 @@ export function AdminRaffles() {
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <MiniStat label="Status PIX" value={raffleAdmin.pix.enabled ? "Habilitado" : "Desabilitado"} />
                     <MiniStat label="Conexão" value={raffleAdmin.pix.gateway ? "Protegida" : "Pendente"} />
-                    <MiniStat label="Status da conexão" value={raffleAdmin.pix.sandbox ? "Validação interna" : "Produção"} />
+                    <MiniStat label="Status da conexão" value={raffleAdmin.pix.sandbox ? "Modo Sandbox/Teste Ativo" : "Produção"} />
                     <MiniStat label="Canal seguro" value={raffleAdmin.pix.webhookUrl ? "Configurado" : "Não configurado"} />
                   </div>
                 </div>
@@ -695,10 +695,11 @@ export function AdminRaffles() {
                     <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:col-span-2">
                       <summary className="cursor-pointer text-sm font-semibold text-slate-200">Configurações Avançadas</summary>
                       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                        <label className={`flex items-start gap-3 rounded-2xl border p-4 ${activePixConfig.sandbox ? "border-amber-300/40 bg-amber-300/10" : "border-white/10 bg-white/[0.03]"}`}>
                           <input className="mt-1" type="checkbox" checked={activePixConfig.sandbox} onChange={e => updatePixConfig({ sandbox: e.target.checked })} />
                           <span>
-                            <span className="block text-sm text-white">{isAsaasPix ? "Usar sandbox Asaas (testes)" : "Validação interna"}</span>
+                            <span className="block text-sm text-white">{activePixConfig.sandbox ? "Modo Sandbox/Teste Ativo" : isAsaasPix ? "Usar sandbox Asaas (testes)" : "Validação interna"}</span>
+                            <span className="mt-1 block text-xs text-slate-300">Opção avançada para testes; produção é o padrão.</span>
                             {isAsaasPix && <span className="mt-1 block text-xs text-amber-200/80">Para API Key de produção do Asaas, deixe esta opção desmarcada.</span>}
                           </span>
                         </label>

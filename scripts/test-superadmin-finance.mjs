@@ -43,7 +43,14 @@ async function createTenantAdmin(superHeaders, tenantId) {
   return login(email, "SenhaTenant123!");
 }
 async function createPaidOrder(headers, host) {
-  await json("/api/admin/gateways", { method: "PUT", headers, body: JSON.stringify({ pix: { apiKey: "key", webhookSecret: "secret", webhookUrl: "/api/webhooks/payment/mercadopago" } }) });
+  await json("/api/admin/gateways", {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({
+      pix: { apiKey: "key", sandbox: true, webhookSecret: "secret", webhookUrl: "/api/webhooks/payment/mercadopago" },
+      mercadopago: { environment: "sandbox" }
+    })
+  });
   const raffle = await json("/api/admin/raffles", { method: "POST", headers, body: JSON.stringify({ title: `Finance ${host}`, price: 5, totalTickets: 100, drawDate: "2026-12-31T20:00:00Z", status: "active" }) });
   assert.equal(raffle.response.status, 200);
   const buy = await json(`/api/raffles/${raffle.body.id}/buy`, { method: "POST", headers: { "x-forwarded-host": host }, body: JSON.stringify({ tickets: 2, contact: "11911110000", customer: { name: "Cliente Finance", phone: "11911110000", cpf: "11111111111", accessPassword: "123456" } }) });

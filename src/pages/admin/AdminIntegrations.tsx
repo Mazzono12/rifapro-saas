@@ -423,7 +423,7 @@ export function AdminIntegrations() {
             <select value={selected} onChange={event => {
               const provider = providers.find(item => item.provider === event.target.value);
               setSelected(event.target.value);
-              setSettings(JSON.stringify(provider?.defaultSettings || { sandbox: true, mock: true }, null, 2));
+              setSettings(JSON.stringify(provider?.defaultSettings || { environment: "production", sandbox: false, mock: false }, null, 2));
             }} className="admin-input mt-1 w-full">
               {providers.map(item => <option key={item.provider} value={item.provider}>{item.label}</option>)}
             </select>

@@ -8,7 +8,7 @@ create table if not exists public.payment_gateway_configs (
   provider text not null,
   display_name text,
   enabled boolean default true,
-  environment text default 'sandbox',
+  environment text default 'production',
   credentials jsonb not null default '{}'::jsonb,
   webhook_secret text,
   pix_key text,
@@ -17,7 +17,7 @@ create table if not exists public.payment_gateway_configs (
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   constraint payment_gateway_configs_environment_check
-    check (environment in ('sandbox', 'production', 'mock')),
+    check (environment in ('sandbox', 'production', 'staging', 'mock')),
   constraint payment_gateway_configs_provider_check
     check (provider in (
       'primepag',

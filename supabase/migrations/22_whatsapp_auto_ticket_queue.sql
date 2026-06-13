@@ -3,7 +3,7 @@ create table if not exists public.whatsapp_provider_configs (
   tenant_id uuid not null references public.tenants(id) on delete cascade,
   provider text not null default 'mock',
   enabled boolean default false,
-  environment text default 'sandbox',
+  environment text default 'production',
   phone_number_id text,
   business_account_id text,
   access_token_encrypted text,

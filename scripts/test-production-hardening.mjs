@@ -135,7 +135,10 @@ try {
   await json("/api/admin/gateways", {
     method: "PUT",
     headers: headersA,
-    body: JSON.stringify({ pix: { apiKey: "pix-key-a", webhookSecret: "secret-a", webhookUrl: "/api/webhooks/payment/mercadopago" } })
+    body: JSON.stringify({
+      pix: { apiKey: "pix-key-a", sandbox: true, webhookSecret: "secret-a", webhookUrl: "/api/webhooks/payment/mercadopago" },
+      mercadopago: { environment: "sandbox" }
+    })
   });
   const raffleA = await createRaffle(headersA, "Fila Webhook A");
   assert.equal(raffleA.response.status, 200);

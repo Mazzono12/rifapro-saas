@@ -5,7 +5,7 @@ import { toast } from "sonner";
 const defaultGateways = {
   pix: {
     enabled: true,
-    sandbox: true,
+    sandbox: false,
     apiKey: "",
     pixKey: "",
     webhookUrl: "/api/webhooks/mercadopago",
@@ -15,7 +15,7 @@ const defaultGateways = {
   active: "mercadopago",
   mercadopago: {
     enabled: false,
-    environment: "sandbox",
+    environment: "production",
     accessToken: "",
     publicKey: "",
     webhookUrl: "/api/webhooks/mercadopago",
@@ -25,7 +25,7 @@ const defaultGateways = {
   },
   pagbank: {
     enabled: false,
-    environment: "sandbox",
+    environment: "production",
     token: "",
     apiKey: "",
     webhookUrl: "/api/webhooks/pagbank",
@@ -35,7 +35,7 @@ const defaultGateways = {
   },
   asaas: {
     enabled: false,
-    environment: "sandbox",
+    environment: "production",
     apiKey: "",
     userAgent: "CIFHER Prime",
     webhookUrl: "/api/webhooks/asaas",
@@ -56,8 +56,8 @@ const defaultGateways = {
     splitLink: "",
     releaseStatus: "paid"
   },
-  cora: { enabled: false, environment: "sandbox", clientId: "", clientSecret: "", certificate: "", privateKey: "", apiKey: "", webhookUrl: "/api/webhooks/cora", webhookSecret: "", expirationMinutes: "15" },
-  primepag: { enabled: false, environment: "staging", clientId: "", clientSecret: "", accessToken: "", apiKey: "", webhookUrl: "/api/webhooks/primepag", webhookSecret: "", expirationTime: "1800" },
+  cora: { enabled: false, environment: "production", clientId: "", clientSecret: "", certificate: "", privateKey: "", apiKey: "", webhookUrl: "/api/webhooks/cora", webhookSecret: "", expirationMinutes: "15" },
+  primepag: { enabled: false, environment: "production", clientId: "", clientSecret: "", accessToken: "", apiKey: "", webhookUrl: "/api/webhooks/primepag", webhookSecret: "", expirationTime: "1800" },
   paggue: { clientId: "", clientSecret: "", apiKey: "", webhookUrl: "", webhookSecret: "" },
   cashpay: { clientId: "", clientSecret: "", apiKey: "", webhookUrl: "", webhookSecret: "" },
   fakeprocessor: { apiKey: "", webhookUrl: "", webhookSecret: "" },
@@ -188,7 +188,7 @@ function normalizeGateways(input: any) {
   const mercadoPagoConfig = findConfig("mercadopago");
   const mercadoPagoFromConfig = mercadoPagoConfig ? {
     enabled: Boolean(mercadoPagoConfig.enabled),
-    environment: mercadoPagoConfig.environment || "sandbox",
+    environment: mercadoPagoConfig.environment || "production",
     accessToken: mercadoPagoConfig.credentials?.accessToken || mercadoPagoConfig.credentials?.access_token || mercadoPagoConfig.credentials?.token || "",
     publicKey: mercadoPagoConfig.credentials?.publicKey || mercadoPagoConfig.credentials?.public_key || "",
     webhookUrl: "/api/webhooks/mercadopago",
@@ -199,7 +199,7 @@ function normalizeGateways(input: any) {
   const asaasConfig = findConfig("asaas");
   const asaasFromConfig = asaasConfig ? {
     enabled: Boolean(asaasConfig.enabled),
-    environment: asaasConfig.environment || "sandbox",
+    environment: asaasConfig.environment || "production",
     apiKey: asaasConfig.credentials?.apiKey || "",
     userAgent: asaasConfig.config_json?.userAgent || asaasConfig.credentials?.userAgent || "CIFHER Prime",
     webhookUrl: "/api/webhooks/asaas",
@@ -223,7 +223,7 @@ function normalizeGateways(input: any) {
   const pagbankConfig = findConfig("pagbank");
   const pagbankFromConfig = pagbankConfig ? {
     enabled: Boolean(pagbankConfig.enabled),
-    environment: pagbankConfig.environment || "sandbox",
+    environment: pagbankConfig.environment || "production",
     token: pagbankConfig.credentials?.token || pagbankConfig.credentials?.apiKey || "",
     apiKey: pagbankConfig.credentials?.token || pagbankConfig.credentials?.apiKey || "",
     webhookUrl: "/api/webhooks/pagbank",
@@ -234,7 +234,7 @@ function normalizeGateways(input: any) {
   const coraConfig = findConfig("cora");
   const coraFromConfig = coraConfig ? {
     enabled: Boolean(coraConfig.enabled),
-    environment: coraConfig.environment || "sandbox",
+    environment: coraConfig.environment || "production",
     clientId: coraConfig.credentials?.clientId || coraConfig.credentials?.client_id || "",
     clientSecret: coraConfig.credentials?.clientSecret || coraConfig.credentials?.client_secret || "",
     certificate: coraConfig.credentials?.certificate || coraConfig.credentials?.certificado || "",
@@ -246,7 +246,7 @@ function normalizeGateways(input: any) {
   const primepagConfig = findConfig("primepag");
   const primepagFromConfig = primepagConfig ? {
     enabled: Boolean(primepagConfig.enabled),
-    environment: primepagConfig.environment || "staging",
+    environment: primepagConfig.environment || "production",
     clientId: primepagConfig.credentials?.clientId || primepagConfig.credentials?.client_id || "",
     clientSecret: primepagConfig.credentials?.clientSecret || primepagConfig.credentials?.client_secret || "",
     accessToken: primepagConfig.credentials?.accessToken || primepagConfig.credentials?.access_token || primepagConfig.credentials?.apiKey || "",
@@ -536,6 +536,11 @@ export function AdminPaymentGateways() {
 
                 <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                     <summary className="cursor-pointer text-sm font-bold text-white">Configurações Avançadas</summary>
+                    {Boolean(gateways.pix?.sandbox) && (
+                      <div className="mt-4 rounded-xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
+                        Modo Sandbox/Teste Ativo
+                      </div>
+                    )}
                     <label className="mt-4 flex items-center justify-between gap-4 text-sm text-slate-300">
                         Modo de validação
                         <input
@@ -610,7 +615,7 @@ export function AdminPaymentGateways() {
                         </label>
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
-                          <select value={gateways.mercadopago?.environment || "sandbox"} onChange={e => updateGateway("mercadopago", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
+                          <select value={gateways.mercadopago?.environment || "production"} onChange={e => updateGateway("mercadopago", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
                             <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
@@ -656,7 +661,7 @@ export function AdminPaymentGateways() {
                         </label>
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
-                          <select value={gateways.pagbank?.environment || "sandbox"} onChange={e => updateGateway("pagbank", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
+                          <select value={gateways.pagbank?.environment || "production"} onChange={e => updateGateway("pagbank", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
                             <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
@@ -711,7 +716,7 @@ export function AdminPaymentGateways() {
                         </label>
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
-                          <select value={gateways.asaas?.environment || "sandbox"} onChange={e => updateGateway("asaas", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
+                          <select value={gateways.asaas?.environment || "production"} onChange={e => updateGateway("asaas", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
                             <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
@@ -831,7 +836,7 @@ export function AdminPaymentGateways() {
                         </p>
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
-                          <select value={gateways.primepag?.environment || "staging"} onChange={e => updateGateway("primepag", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
+                          <select value={gateways.primepag?.environment || "production"} onChange={e => updateGateway("primepag", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
                             <option value="staging">Validação assistida</option>
                             <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
@@ -880,7 +885,7 @@ export function AdminPaymentGateways() {
                         </p>
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
-                          <select value={gateways.cora?.environment || "sandbox"} onChange={e => updateGateway("cora", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
+                          <select value={gateways.cora?.environment || "production"} onChange={e => updateGateway("cora", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
                             <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>

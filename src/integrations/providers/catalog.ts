@@ -27,7 +27,7 @@ export const providerCatalog: Record<IntegrationProviderId, ProviderCatalogEntry
     homologationStatus: "partial",
     requiredCredentials: ["clientId", "clientSecret"],
     optionalCredentials: ["webhookUsername", "webhookPassword"],
-    defaultSettings: { sandbox: true, mock: true },
+    defaultSettings: { environment: "production", sandbox: false, mock: false },
     environments: {
       sandbox: "https://api-stg.primepag.com.br",
       production: "https://api.primepag.com.br"
@@ -46,7 +46,7 @@ export const providerCatalog: Record<IntegrationProviderId, ProviderCatalogEntry
     documentationStatus: "official_portal",
     homologationStatus: "placeholder",
     requiredCredentials: ["clientKey", "clientSecret"],
-    defaultSettings: { sandbox: true, mock: true },
+    defaultSettings: { environment: "production", sandbox: false, mock: false },
     environments: {},
     docs: [
       "https://paggue.io/venda-via-pix-no-seu-site/",
@@ -62,7 +62,7 @@ export const providerCatalog: Record<IntegrationProviderId, ProviderCatalogEntry
     documentationStatus: "missing",
     homologationStatus: "placeholder",
     requiredCredentials: ["apiKey"],
-    defaultSettings: { sandbox: true, mock: true },
+    defaultSettings: { environment: "production", sandbox: false, mock: false },
     environments: {},
     docs: [],
     webhookValidation: "shared_secret",
@@ -75,7 +75,7 @@ export const providerCatalog: Record<IntegrationProviderId, ProviderCatalogEntry
     documentationStatus: "missing",
     homologationStatus: "placeholder",
     requiredCredentials: ["apiKey"],
-    defaultSettings: { sandbox: true, mock: true },
+    defaultSettings: { environment: "production", sandbox: false, mock: false },
     environments: {},
     docs: [],
     webhookValidation: "shared_secret",
@@ -88,7 +88,7 @@ export const providerCatalog: Record<IntegrationProviderId, ProviderCatalogEntry
     documentationStatus: "official_public",
     homologationStatus: "partial",
     requiredCredentials: ["clientId", "clientSecret"],
-    defaultSettings: { sandbox: true, mock: true },
+    defaultSettings: { environment: "production", sandbox: false, mock: false },
     environments: {
       sandbox: "https://api-h.nuvende.com.br",
       production: "https://api.nuvende.com.br"
@@ -109,7 +109,7 @@ export const providerCatalog: Record<IntegrationProviderId, ProviderCatalogEntry
     homologationStatus: "partial",
     requiredCredentials: ["apiKey"],
     optionalCredentials: ["clientId", "clientSecret"],
-    defaultSettings: { sandbox: true, mock: true },
+    defaultSettings: { environment: "production", sandbox: false, mock: false },
     environments: {
       production: "https://api.sendpulse.com"
     },
@@ -126,7 +126,7 @@ export const providerCatalog: Record<IntegrationProviderId, ProviderCatalogEntry
     documentationStatus: "missing",
     homologationStatus: "placeholder",
     requiredCredentials: ["apiKey"],
-    defaultSettings: { sandbox: true, mock: true },
+    defaultSettings: { environment: "production", sandbox: false, mock: false },
     environments: {},
     docs: ["https://wetalkie.com/"],
     webhookValidation: "shared_secret",
@@ -140,7 +140,7 @@ export const providerCatalog: Record<IntegrationProviderId, ProviderCatalogEntry
     homologationStatus: "ready",
     requiredCredentials: ["host", "port", "username", "password", "from"],
     optionalCredentials: ["secure"],
-    defaultSettings: { sandbox: true, mock: true },
+    defaultSettings: { environment: "production", sandbox: false, mock: false },
     environments: {},
     docs: ["RFC 5321 / documentacao do provedor SMTP contratado"],
     webhookValidation: "none",
@@ -154,7 +154,7 @@ export const providerCatalog: Record<IntegrationProviderId, ProviderCatalogEntry
     homologationStatus: "partial",
     requiredCredentials: ["pixelId", "accessToken"],
     optionalCredentials: ["testEventCode"],
-    defaultSettings: { sandbox: true, mock: true, apiVersion: "v20.0" },
+    defaultSettings: { environment: "production", sandbox: false, mock: false, apiVersion: "v20.0" },
     environments: {
       production: "https://graph.facebook.com"
     },
@@ -169,7 +169,7 @@ export const providerCatalog: Record<IntegrationProviderId, ProviderCatalogEntry
     documentationStatus: "official_public",
     homologationStatus: "partial",
     requiredCredentials: ["customerId", "conversionActionId", "developerToken", "clientId", "clientSecret", "refreshToken"],
-    defaultSettings: { sandbox: true, mock: true },
+    defaultSettings: { environment: "production", sandbox: false, mock: false },
     environments: {
       production: "https://googleads.googleapis.com"
     },

@@ -6,7 +6,7 @@ create table if not exists public.payment_gateways (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
   provider text not null check (provider in ('asaas')),
-  environment text not null default 'sandbox' check (environment in ('sandbox', 'production')),
+  environment text not null default 'production' check (environment in ('sandbox', 'production')),
   api_key_encrypted text,
   webhook_token text,
   is_active boolean not null default false,

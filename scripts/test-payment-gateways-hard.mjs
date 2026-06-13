@@ -7,6 +7,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = file => readFileSync(join(root, file), "utf8");
 
 const admin = read("src/pages/admin/AdminPaymentGateways.tsx");
+const adminRaffles = read("src/pages/admin/AdminRaffles.tsx");
 const server = read("server.ts");
 const migration17 = read("supabase/migrations/17_payment_gateway_configs.sql");
 const migration40 = read("supabase/migrations/40_pay2m_pix_gateway.sql");
@@ -14,6 +15,7 @@ const migration41 = read("supabase/migrations/41_pagbank_pix_gateway.sql");
 const migrationMp = read("supabase/migrations/42_mercadopago_pix_gateway.sql");
 const migrationCora = read("supabase/migrations/43_cora_pix_gateway.sql");
 const migrationPrimepag = read("supabase/migrations/44_primepag_pix_gateway.sql");
+const productionDefaultMigration = read("supabase/migrations/45_production_default_environments.sql");
 const docs = read("docs/pay2m-pix-integration.md");
 const pagbankDocs = read("docs/pagbank-pix-integration.md");
 const mercadoPagoDocs = read("docs/mercadopago-pix-integration.md");
@@ -54,6 +56,27 @@ for (const needle of [
 }
 
 for (const needle of [
+  "sandbox: false",
+  "Modo Sandbox/Teste Ativo",
+  "Opção avançada para testes; produção é o padrão."
+]) {
+  assert.ok(adminRaffles.includes(needle), `campanha deve nascer em producao e destacar sandbox manual: ${needle}`);
+}
+
+for (const needle of [
+  "sandbox: false",
+  "environment: \"production\"",
+  "mercadoPagoConfig.environment || \"production\"",
+  "asaasConfig.environment || \"production\"",
+  "pagbankConfig.environment || \"production\"",
+  "coraConfig.environment || \"production\"",
+  "primepagConfig.environment || \"production\"",
+  "Modo Sandbox/Teste Ativo"
+]) {
+  assert.ok(admin.includes(needle), `admin gateways deve usar producao por padrao: ${needle}`);
+}
+
+for (const needle of [
   "credentials: encryptGatewayCredentialObject",
   "webhook_secret: isMaskedGatewaySecret",
   "sanitizePaymentGatewayConfig",
@@ -85,7 +108,20 @@ for (const needle of [
   assert.ok(server.includes(needle), `backend gateways sem seguranca/teste Pay2M: ${needle}`);
 }
 
+for (const needle of [
+  "sandbox: false",
+  "sandbox: local.inheritGlobal ? defaultGatewayConfig.environment === \"sandbox\" : Boolean(local.sandbox)",
+  "environment: raw.environment === \"sandbox\" ? \"sandbox\" : raw.environment === \"staging\" ? \"staging\" : raw.environment === \"mock\" ? \"mock\" : \"production\"",
+  "environment: config.environment === \"sandbox\" ? \"sandbox\" as const : \"production\" as const",
+  "config.environment === \"sandbox\" ? \"sandbox\" as const : config.environment === \"staging\" ? \"staging\" as const : \"production\" as const"
+]) {
+  assert.ok(server.includes(needle), `backend deve usar producao por padrao: ${needle}`);
+}
+
 assert.ok(migration17.includes("'pay2m'"), "payment_gateway_configs deve aceitar pay2m.");
+assert.ok(migration17.includes("environment text default 'production'"), "payment_gateway_configs deve nascer em producao.");
+assert.ok(migration17.includes("check (environment in ('sandbox', 'production', 'staging', 'mock'))"), "payment_gateway_configs deve permitir staging apenas explicitamente.");
+assert.ok(productionDefaultMigration.includes("alter column environment set default 'production'"), "migration corretiva deve forcar default production.");
 assert.ok(migration40.includes("payment_gateways_provider_check"), "payment_gateways deve aceitar pay2m.");
 assert.ok(migration40.includes("payments_provider_check"), "payments deve aceitar pay2m.");
 assert.ok(migration41.includes("provider in ('asaas', 'pay2m', 'pagbank')"), "payment_gateways/payments deve aceitar pagbank.");

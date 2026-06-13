@@ -3020,7 +3020,7 @@ async function startServer() {
         inheritGlobal: true,
         enabled: true,
         gateway: "mercadopago" as PixGatewayId,
-        sandbox: true,
+        sandbox: false,
         apiKey: "",
         webhookUrl: "",
         webhookSecret: "",
@@ -3071,7 +3071,7 @@ async function startServer() {
         inheritGlobal: true,
         enabled: true,
         gateway: "mercadopago" as PixGatewayId,
-        sandbox: true,
+        sandbox: false,
         apiKey: "",
         webhookUrl: "",
         webhookSecret: "",
@@ -10041,7 +10041,7 @@ async function startServer() {
       inheritGlobal: true,
       enabled: true,
       gateway: "mercadopago",
-      sandbox: true,
+      sandbox: false,
       apiKey: "",
       webhookUrl: "",
       webhookSecret: "",
@@ -10059,7 +10059,7 @@ async function startServer() {
     return {
       ...local,
       enabled: local.inheritGlobal ? Boolean(defaultGatewayConfig.enabled) : Boolean(local.enabled),
-      sandbox: local.inheritGlobal ? (defaultGatewayConfig.environment !== "production" || Boolean(tenantPixGateways.pix?.sandbox)) : Boolean(local.sandbox),
+      sandbox: local.inheritGlobal ? defaultGatewayConfig.environment === "sandbox" : Boolean(local.sandbox),
       gateway,
       pixKey: local.inheritGlobal ? (defaultGatewayConfig.pix_key || tenantPixGateways.pix?.pixKey || gatewayConfig.pixKey || "") : (local.pixKey || ""),
       apiKey: local.inheritGlobal ? (normalizedCredentials.apiKey || tenantPixGateways.pix?.apiKey || gatewayConfig.apiKey || gatewayConfig.accessToken || gatewayConfig.token || "") : (local.apiKey || ""),
@@ -10204,7 +10204,7 @@ async function startServer() {
     const configJson = config.config_json || {};
     const apiKey = String(credentials.apiKey || config.pix_key || "");
     if (!apiKey || isMaskedGatewaySecret(apiKey)) return null;
-    const environment = resolveAsaasEnvironment(apiKey, config.environment === "production" ? "production" as const : "sandbox" as const);
+    const environment = resolveAsaasEnvironment(apiKey, config.environment === "sandbox" ? "sandbox" as const : "production" as const);
     assertAsaasApiKeyMatchesEnvironment(apiKey, environment);
     return {
       environment,
@@ -10231,7 +10231,7 @@ async function startServer() {
     const accessToken = String(credentials.accessToken || credentials.access_token || credentials.token || "");
     if (!accessToken || isMaskedGatewaySecret(accessToken)) return null;
     return {
-      environment: config.environment === "production" ? "production" as const : "sandbox" as const,
+      environment: config.environment === "sandbox" ? "sandbox" as const : "production" as const,
       accessToken,
       webhookToken: String(config.webhook_secret || credentials.webhookToken || ""),
       expirationMinutes: Math.max(1, Math.min(1440, Number(configJson.expirationMinutes || credentials.expirationMinutes || 15))),
@@ -10283,7 +10283,7 @@ async function startServer() {
     const privateKey = String(credentials.privateKey || credentials.private_key || credentials.chavePrivada || "");
     if (!clientId || !certificate || !privateKey || isMaskedGatewaySecret(clientId) || isMaskedGatewaySecret(certificate) || isMaskedGatewaySecret(privateKey)) return null;
     return {
-      environment: config.environment === "production" ? "production" as const : "sandbox" as const,
+      environment: config.environment === "sandbox" ? "sandbox" as const : "production" as const,
       clientId,
       clientSecret,
       certificate,
@@ -10313,7 +10313,7 @@ async function startServer() {
     const hasOauthCredentials = Boolean(clientId && clientSecret && !isMaskedGatewaySecret(clientId) && !isMaskedGatewaySecret(clientSecret));
     if (!hasStaticToken && !hasOauthCredentials) return null;
     return {
-      environment: config.environment === "production" ? "production" as const : config.environment === "sandbox" ? "sandbox" as const : "staging" as const,
+      environment: config.environment === "sandbox" ? "sandbox" as const : config.environment === "staging" ? "staging" as const : "production" as const,
       clientId,
       clientSecret,
       accessToken,
@@ -10337,7 +10337,7 @@ async function startServer() {
     const token = String(credentials.token || credentials.apiKey || credentials.api_token || config.pix_key || "");
     if (!token || isMaskedGatewaySecret(token)) return null;
     return {
-      environment: config.environment === "production" ? "production" as const : "sandbox" as const,
+      environment: config.environment === "sandbox" ? "sandbox" as const : "production" as const,
       token,
       webhookToken: String(config.webhook_secret || credentials.webhookToken || ""),
       expirationMinutes: Math.max(1, Math.min(1440, Number(configJson.expirationMinutes || credentials.expirationMinutes || 15))),
@@ -23757,7 +23757,7 @@ async function startServer() {
   let gateways = {
     pix: {
       enabled: true,
-      sandbox: true,
+      sandbox: false,
       apiKey: "",
       pixKey: "",
       webhookUrl: "http://127.0.0.1:3000/api/webhooks/payment/mercadopago",
@@ -23765,13 +23765,13 @@ async function startServer() {
       webhookEvents: "payment.created,payment.updated,payment.paid"
     },
     active: 'mercadopago',
-    mercadopago: { accessToken: '', publicKey: '', webhookUrl: '/api/webhooks/mercadopago', webhookSecret: '', environment: 'sandbox', expirationMinutes: '15', releaseStatus: 'approved' },
-    pagbank: { token: '', apiKey: '', webhookUrl: '/api/webhooks/pagbank', webhookSecret: '', environment: 'sandbox', expirationMinutes: '15', releaseStatus: 'PAID' },
-    asaas: { apiKey: '', webhookUrl: '', webhookSecret: '' },
+    mercadopago: { accessToken: '', publicKey: '', webhookUrl: '/api/webhooks/mercadopago', webhookSecret: '', environment: 'production', expirationMinutes: '15', releaseStatus: 'approved' },
+    pagbank: { token: '', apiKey: '', webhookUrl: '/api/webhooks/pagbank', webhookSecret: '', environment: 'production', expirationMinutes: '15', releaseStatus: 'PAID' },
+    asaas: { apiKey: '', webhookUrl: '', webhookSecret: '', environment: 'production' },
     infinitypay: { token: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
     pay2m: { clientId: '', clientSecret: '', webhookUrl: '/api/webhooks/pay2m', webhookSecret: '', environment: 'production', expirationTime: '1800', splitLink: '', releaseStatus: 'paid' },
-    cora: { clientId: '', clientSecret: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
-    primepag: { clientId: '', clientSecret: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
+    cora: { clientId: '', clientSecret: '', apiKey: '', webhookUrl: '', webhookSecret: '', environment: 'production' },
+    primepag: { clientId: '', clientSecret: '', apiKey: '', webhookUrl: '', webhookSecret: '', environment: 'production' },
     paggue: { clientId: '', clientSecret: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
     cashpay: { clientId: '', clientSecret: '', apiKey: '', webhookUrl: '', webhookSecret: '' },
     fakeprocessor: { apiKey: '', webhookUrl: '', webhookSecret: '' },
@@ -23861,7 +23861,7 @@ async function startServer() {
       provider,
       display_name: provider,
       enabled: Boolean(tenantPixGateways.pix?.enabled),
-      environment: tenantPixGateways.pix?.sandbox ? "sandbox" : "production",
+      environment: gatewayConfig.environment === "sandbox" ? "sandbox" : gatewayConfig.environment === "mock" ? "mock" : tenantPixGateways.pix?.sandbox ? "sandbox" : "production",
       credentials: encryptGatewayCredentialObject(gatewayCredentialsFromLegacy(provider, tenantPixGateways)),
       webhook_secret: encryptGatewaySecret(tenantPixGateways.pix?.webhookSecret || gatewayConfig.webhookSecret || ""),
       pix_key: encryptGatewaySecret(tenantPixGateways.pix?.pixKey || gatewayConfig.pixKey || tenantPixGateways.pix?.apiKey || gatewayConfig.apiKey || ""),
@@ -23898,7 +23898,7 @@ async function startServer() {
       provider,
       display_name: raw.display_name || provider,
       enabled: raw.enabled !== false,
-      environment: raw.environment === "production" ? "production" : raw.environment === "mock" ? "mock" : "sandbox",
+      environment: raw.environment === "sandbox" ? "sandbox" : raw.environment === "staging" ? "staging" : raw.environment === "mock" ? "mock" : "production",
       credentials: encryptGatewayCredentialObject(credentials),
       webhook_secret: isMaskedGatewaySecret(raw.webhook_secret) ? (current?.webhook_secret || "") : encryptGatewaySecret(raw.webhook_secret || ""),
       pix_key: isMaskedGatewaySecret(raw.pix_key) ? (current?.pix_key || "") : encryptGatewaySecret(raw.pix_key || ""),
