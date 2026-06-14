@@ -27,22 +27,41 @@ type TenantForm = {
   nome: string;
   slug: string;
   dominio_customizado: string;
+  status: TenantStatus;
   plano: string;
   percentual_plataforma: number;
   cor_primaria: string;
+  initialAdmin?: {
+    nome: string;
+    email: string;
+    password: string;
+  };
 };
 
 const emptyForm: TenantForm = {
   nome: "",
   slug: "",
   dominio_customizado: "",
+  status: "active",
   plano: "starter",
   percentual_plataforma: 0,
-  cor_primaria: "#06b6d4"
+  cor_primaria: "#06b6d4",
+  initialAdmin: {
+    nome: "",
+    email: "",
+    password: ""
+  }
 };
 
 function money(value: number) {
   return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function generateTemporaryPassword() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const values = new Uint32Array(10);
+  window.crypto.getRandomValues(values);
+  return `CIFHER${Array.from(values).map(value => alphabet[value % alphabet.length]).join("")}!`;
 }
 
 function statusBadge(status: string) {
@@ -72,6 +91,7 @@ export function SuperAdminClients() {
   const [saving, setSaving] = useState(false);
   const [supportTenant, setSupportTenant] = useState<Tenant | null>(null);
   const [supportReason, setSupportReason] = useState("");
+  const [temporaryPassword, setTemporaryPassword] = useState("");
 
   async function loadData() {
     setLoading(true);
@@ -98,13 +118,31 @@ export function SuperAdminClients() {
     setSaving(true);
     try {
       const url = form.id ? `/api/superadmin/tenants/${form.id}` : "/api/superadmin/tenants";
+      const initialAdmin = !form.id && form.initialAdmin?.email.trim()
+        ? {
+          nome: form.initialAdmin.nome.trim(),
+          email: form.initialAdmin.email.trim().toLowerCase(),
+          password: form.initialAdmin.password.trim() || undefined
+        }
+        : undefined;
+      const payload = {
+        nome: form.nome,
+        slug: form.slug,
+        dominio_customizado: form.dominio_customizado,
+        status: form.status,
+        plano: form.plano,
+        percentual_plataforma: form.percentual_plataforma,
+        cor_primaria: form.cor_primaria,
+        ...(initialAdmin ? { admin: initialAdmin } : {})
+      };
       const response = await fetch(url, {
         method: form.id ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify(payload)
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Falha ao salvar cliente.");
+      if (!form.id && result.admin?.temporaryPassword) setTemporaryPassword(result.admin.temporaryPassword);
       toast.success(form.id ? "Cliente atualizado" : "Cliente criado");
       setForm(null);
       await loadData();
@@ -206,7 +244,7 @@ export function SuperAdminClients() {
             <ClientActions
               key={`${tenant.id}-actions`}
               tenant={tenant}
-              onEdit={() => setForm({ ...tenant })}
+              onEdit={() => setForm({ ...tenant, initialAdmin: undefined })}
               onSupport={() => { setSupportTenant(tenant); setSupportReason(""); }}
               onToggle={() => void toggleSuspension(tenant)}
             />
@@ -238,6 +276,17 @@ export function SuperAdminClients() {
                   ))}
                 </select>
               </label>
+              <label className="space-y-1 text-sm text-[var(--admin-muted)]">Status
+                <select className="admin-input w-full" value={form.status} onChange={event => setForm({ ...form, status: event.target.value as TenantStatus })}>
+                  <option value="active">Ativo</option>
+                  <option value="trial">Teste</option>
+                  <option value="suspended">Suspenso</option>
+                  <option value="overdue">Em atraso</option>
+                  <option value="maintenance">Manutenção</option>
+                  <option value="blocked">Bloqueado</option>
+                  <option value="inactive">Inativo</option>
+                </select>
+              </label>
               <label className="space-y-1 text-sm text-[var(--admin-muted)]">Percentual operacional
                 <input className="admin-input w-full" type="number" min="0" max="100" step="0.01" value={form.percentual_plataforma} onChange={event => setForm({ ...form, percentual_plataforma: Number(event.target.value) })} />
               </label>
@@ -254,11 +303,50 @@ export function SuperAdminClients() {
                 <input className="admin-input w-full" value={form.slug} onChange={event => setForm({ ...form, slug: event.target.value })} required />
               </label>
             </details>
+            {!form.id && (
+              <section className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--admin-text)]">Administrador inicial</h3>
+                  <p className="mt-1 text-sm text-[var(--admin-muted)]">Este será o login inicial do cliente para acessar o painel administrativo do tenant. A senha pode ser redefinida depois pelo Super Admin.</p>
+                </div>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="space-y-1 text-sm text-[var(--admin-muted)]">Nome do administrador
+                    <input className="admin-input w-full" value={form.initialAdmin?.nome || ""} onChange={event => setForm({ ...form, initialAdmin: { ...(form.initialAdmin || { email: "", password: "" }), nome: event.target.value } })} />
+                  </label>
+                  <label className="space-y-1 text-sm text-[var(--admin-muted)]">Email de login
+                    <input className="admin-input w-full" type="email" value={form.initialAdmin?.email || ""} onChange={event => setForm({ ...form, initialAdmin: { ...(form.initialAdmin || { nome: "", password: "" }), email: event.target.value } })} />
+                  </label>
+                  <label className="space-y-1 text-sm text-[var(--admin-muted)]">Senha temporária
+                    <input className="admin-input w-full" type="text" value={form.initialAdmin?.password || ""} onChange={event => setForm({ ...form, initialAdmin: { ...(form.initialAdmin || { nome: "", email: "" }), password: event.target.value } })} placeholder="Deixe em branco para gerar automaticamente" />
+                  </label>
+                  <div className="flex items-end">
+                    <button type="button" className="admin-button-secondary h-11 px-3 text-sm" onClick={() => setForm({ ...form, initialAdmin: { ...(form.initialAdmin || { nome: "", email: "" }), password: generateTemporaryPassword() } })}>
+                      Gerar senha automaticamente
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
             <div className="flex justify-end gap-2 border-t border-[var(--admin-border)] pt-4">
               <button type="button" onClick={() => setForm(null)} className="admin-button-secondary">Cancelar</button>
               <button type="submit" disabled={saving} className="admin-button-primary">{saving ? "Salvando..." : "Salvar cliente"}</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {temporaryPassword && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">
+          <div className="admin-card w-full max-w-xl space-y-4 p-5">
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--admin-text)]">Senha temporária do administrador</h2>
+              <p className="mt-1 text-sm text-[var(--admin-muted)]">Copie esta senha agora, ela não será exibida novamente.</p>
+            </div>
+            <input className="admin-input w-full font-mono" readOnly value={temporaryPassword} />
+            <div className="flex justify-end">
+              <button type="button" className="admin-button-primary" onClick={() => setTemporaryPassword("")}>Entendi</button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -5559,18 +5559,23 @@ async function startServer() {
       res.status(409).json({ error: "Tenant ja existe" });
       return;
     }
+    const initialAdminPayload = req.body.admin || (req.body.admin_email ? {
+      nome: req.body.admin_nome || `${nome} Admin`,
+      email: req.body.admin_email,
+      password: req.body.admin_password
+    } : null);
+    if (!initialAdminPayload) {
+      res.status(400).json({ error: "Administrador inicial e obrigatorio para criar tenant" });
+      return;
+    }
     tenants.push(tenant);
+    let initialAdminRecord: AuthUserRecord | null = null;
     let initialAdmin: ReturnType<typeof publicAuthUser> | null = null;
     let initialAdminProfile: ReturnType<typeof publicAuthProfile> | null = null;
     let temporaryPassword: string | undefined;
-    if (req.body.admin || req.body.admin_email) {
-      try {
-        const adminPayload = req.body.admin || {
-          nome: req.body.admin_nome || `${nome} Admin`,
-          email: req.body.admin_email,
-          password: req.body.admin_password
-        };
-        const created = await createTenantAdminUser(tenant.id, adminPayload);
+    try {
+        const created = await createTenantAdminUser(tenant.id, initialAdminPayload);
+        initialAdminRecord = created.user;
         initialAdmin = publicAuthUser(created.user);
         initialAdminProfile = publicAuthProfile(created.user);
         temporaryPassword = created.temporaryPassword;
@@ -5583,11 +5588,16 @@ async function startServer() {
           actor: getAuthSession(req)?.email,
           detail: created.user.email
         });
-      } catch (error) {
-        tenants.splice(tenants.findIndex(item => item.id === tenant.id), 1);
-        res.status(400).json({ error: error instanceof Error ? error.message : "Erro ao criar admin inicial" });
-        return;
-      }
+        recordSuperadminAudit(req, "TENANT_ADMIN_CREATED", {
+          tenant_id: tenant.id,
+          resource_type: "tenant_admin",
+          resource_id: created.user.id,
+          metadata: publicTenantAdminUser(created.user)
+        });
+    } catch (error) {
+      tenants.splice(tenants.findIndex(item => item.id === tenant.id), 1);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Erro ao criar admin inicial" });
+      return;
     }
     recordSecurityEvent({
       tenant_id: tenant.id,
@@ -5602,7 +5612,7 @@ async function startServer() {
       ...tenant,
       plan: getTenantPlan(tenant.id),
       tenant,
-      admin: initialAdmin ? { user: initialAdmin, profile: initialAdminProfile, temporaryPassword } : null
+      admin: initialAdmin && initialAdminRecord ? { user: initialAdmin, admin: publicTenantAdminUser(initialAdminRecord), profile: initialAdminProfile, temporaryPassword } : null
     });
   });
 

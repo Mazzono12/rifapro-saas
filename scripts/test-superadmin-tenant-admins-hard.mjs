@@ -77,6 +77,53 @@ try {
   const superadmin = usersBefore.body.find(user => user.role === "superadmin");
   assert.ok(superadmin?.id, "Superadmin deve existir para validar protecao contra edicao como admin tenant.");
 
+  const createdTenant = await json("/api/superadmin/tenants", {
+    method: "POST",
+    headers: superHeaders,
+    body: JSON.stringify({
+      nome: "Cliente Com Admin Inicial",
+      slug: "cliente-admin-inicial",
+      plano: "pro",
+      status: "active",
+      admin: {
+        nome: "Admin Inicial",
+        email: "admin.inicial@test.local",
+        password: "SenhaInicial123!"
+      }
+    })
+  });
+  assert.equal(createdTenant.response.status, 201, `Criacao de tenant com admin inicial deve funcionar: ${JSON.stringify(createdTenant.body)}`);
+  assert.equal(createdTenant.body.admin.admin.tenant_id, createdTenant.body.id, "Admin inicial deve receber tenant_id correto.");
+  assert.equal(createdTenant.body.admin.admin.email, "admin.inicial@test.local");
+  assert.equal(createdTenant.body.admin.temporaryPassword, "SenhaInicial123!", "Senha temporaria deve ser retornada somente na criacao.");
+  assertNoSecrets(createdTenant.body.admin.admin, "admin inicial sanitizado");
+  await login("admin.inicial@test.local", createdTenant.body.admin.temporaryPassword);
+
+  const initialAdmins = await json(`/api/superadmin/tenants/${createdTenant.body.id}/admins`, { headers: superHeaders });
+  assert.equal(initialAdmins.response.status, 200);
+  assert.ok(initialAdmins.body.some(admin => admin.email === "admin.inicial@test.local"), "Admin inicial deve aparecer no detalhe/lista do tenant.");
+  assert.ok(!JSON.stringify(initialAdmins.body).includes("temporaryPassword"), "Listagem nao deve reexibir senha temporaria.");
+
+  const usersAfterInitial = await json("/api/superadmin/users", { headers: superHeaders });
+  assert.equal(usersAfterInitial.response.status, 200);
+  assert.ok(!JSON.stringify(usersAfterInitial.body).includes("temporaryPassword"), "Usuarios globais nao devem reexibir senha temporaria.");
+
+  const duplicateInitialAdmin = await json("/api/superadmin/tenants", {
+    method: "POST",
+    headers: superHeaders,
+    body: JSON.stringify({
+      nome: "Cliente Email Duplicado",
+      slug: "cliente-email-duplicado-admin",
+      plano: "pro",
+      admin: {
+        nome: "Admin Duplicado",
+        email: "admin.inicial@test.local",
+        password: "SenhaInicial123!"
+      }
+    })
+  });
+  assert.equal(duplicateInitialAdmin.response.status, 400, "Email do admin inicial deve ser unico.");
+
   const createA = await json("/api/superadmin/tenants/tenant-cliente-a/admins", {
     method: "POST",
     headers: superHeaders,
