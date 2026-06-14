@@ -108,7 +108,8 @@ try {
       nome: "Cliente Plano Persistente",
       slug: `cliente-plano-${port}`,
       plano: "starter",
-      percentual_plataforma: 7.5
+      percentual_plataforma: 7.5,
+      admin: { nome: "Admin Plano Inicial", email: `admin.plano.${port}@test.local`, password: "SenhaTenant123!" }
     })
   });
   assert.equal(created.response.status, 201, "Superadmin deve criar tenant com plano Basico.");

@@ -103,7 +103,12 @@ try {
   const tenantRes = await json("/api/superadmin/tenants", {
     method: "POST",
     headers: superHeaders,
-    body: JSON.stringify({ nome: "Cliente Basico", slug: "cliente-basico", plano: "gratis" })
+    body: JSON.stringify({
+      nome: "Cliente Basico",
+      slug: "cliente-basico",
+      plano: "gratis",
+      admin: { nome: "Admin Basico Inicial", email: "admin.basico.initial@test.local", password: "SenhaTenant123!" }
+    })
   });
   assert.equal(tenantRes.response.status, 201);
   assert.equal(tenantRes.body.plano, "starter");

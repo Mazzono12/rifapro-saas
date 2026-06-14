@@ -79,7 +79,12 @@ try {
       nome: "Cliente Protegido",
       slug: "cliente-protegido",
       plano: "pro",
-      percentual_plataforma: 7.5
+      percentual_plataforma: 7.5,
+      admin: {
+        nome: "Admin Cliente Protegido Inicial",
+        email: "tenant.admin.inicial@test.local",
+        password: "SenhaTenant123!"
+      }
     })
   });
   assert.equal(createdTenantResponse.status, 201, "Superadmin deve criar tenant.");

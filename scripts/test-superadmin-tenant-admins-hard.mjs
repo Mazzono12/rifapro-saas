@@ -77,6 +77,18 @@ try {
   const superadmin = usersBefore.body.find(user => user.role === "superadmin");
   assert.ok(superadmin?.id, "Superadmin deve existir para validar protecao contra edicao como admin tenant.");
 
+  const tenantWithoutAdmin = await json("/api/superadmin/tenants", {
+    method: "POST",
+    headers: superHeaders,
+    body: JSON.stringify({
+      nome: "Cliente Sem Admin",
+      slug: "cliente-sem-admin",
+      plano: "pro",
+      status: "active"
+    })
+  });
+  assert.equal(tenantWithoutAdmin.response.status, 400, "Tenant nao pode ser criado sem administrador inicial.");
+
   const createdTenant = await json("/api/superadmin/tenants", {
     method: "POST",
     headers: superHeaders,

@@ -95,7 +95,12 @@ async function createTenantAdmin(superHeaders) {
   const tenant = await json("/api/superadmin/tenants", {
     method: "POST",
     headers: superHeaders,
-    body: JSON.stringify({ nome: "Gateway Switch", slug: "gateway-switch", plano: "premium" })
+    body: JSON.stringify({
+      nome: "Gateway Switch",
+      slug: "gateway-switch",
+      plano: "premium",
+      admin: { nome: "Admin Gateway Switch Inicial", email: "admin.gateway-switch.initial@test.local", password: "SenhaTenant123!" }
+    })
   });
   assert.equal(tenant.response.status, 201, tenant.body?.error);
 

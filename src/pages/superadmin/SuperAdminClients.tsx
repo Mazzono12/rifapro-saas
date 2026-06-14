@@ -22,6 +22,7 @@ type Tenant = {
   platformCommission: number;
 };
 type Plan = { id: string; nome: string; percentual_comissao: number };
+type SuperadminUser = { id: string; nome: string; email: string; role: string; tenant_id: string | null; ativo: boolean };
 type TenantForm = {
   id?: string;
   nome: string;
@@ -86,21 +87,28 @@ function statusBadge(status: string) {
 export function SuperAdminClients() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [users, setUsers] = useState<SuperadminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<TenantForm | null>(null);
   const [saving, setSaving] = useState(false);
   const [supportTenant, setSupportTenant] = useState<Tenant | null>(null);
   const [supportReason, setSupportReason] = useState("");
   const [temporaryPassword, setTemporaryPassword] = useState("");
+  const [initialAdminTenant, setInitialAdminTenant] = useState<Tenant | null>(null);
+  const [initialAdminForm, setInitialAdminForm] = useState({ nome: "", email: "", password: "" });
 
   async function loadData() {
     setLoading(true);
     try {
-      const response = await fetch("/api/superadmin/overview");
+      const [response, usersResponse] = await Promise.all([
+        fetch("/api/superadmin/overview"),
+        fetch("/api/superadmin/users")
+      ]);
       const overview = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(overview.error || "Nao foi possivel carregar clientes.");
       setTenants(Array.isArray(overview.tenants) ? overview.tenants : []);
       setPlans(Array.isArray(overview.plans) ? overview.plans : []);
+      setUsers(usersResponse.ok ? await usersResponse.json() : []);
     } catch (error) {
       toast.error("Falha ao carregar clientes", { description: error instanceof Error ? error.message : "Tente novamente." });
     } finally {
@@ -115,6 +123,17 @@ export function SuperAdminClients() {
   async function submitTenant(event: FormEvent) {
     event.preventDefault();
     if (!form) return;
+    if (!form.id) {
+      const admin = form.initialAdmin;
+      if (!admin?.nome.trim() || !admin.email.trim() || !admin.password.trim()) {
+        toast.error("Administrador inicial obrigatorio", { description: "Informe nome, email e senha temporaria para criar o tenant." });
+        return;
+      }
+      if (admin.password.trim().length < 8) {
+        toast.error("Senha temporaria invalida", { description: "Use pelo menos 8 caracteres." });
+        return;
+      }
+    }
     setSaving(true);
     try {
       const url = form.id ? `/api/superadmin/tenants/${form.id}` : "/api/superadmin/tenants";
@@ -184,6 +203,39 @@ export function SuperAdminClients() {
     window.location.href = body.redirectUrl;
   }
 
+  async function createInitialAdmin(event: FormEvent) {
+    event.preventDefault();
+    if (!initialAdminTenant) return;
+    if (!initialAdminForm.nome.trim() || !initialAdminForm.email.trim() || !initialAdminForm.password.trim()) {
+      toast.error("Informe nome, email e senha temporaria.");
+      return;
+    }
+    if (initialAdminForm.password.trim().length < 8) {
+      toast.error("Senha temporaria deve ter pelo menos 8 caracteres.");
+      return;
+    }
+    const response = await fetch(`/api/superadmin/tenants/${initialAdminTenant.id}/admins`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nome: initialAdminForm.nome,
+        email: initialAdminForm.email,
+        password: initialAdminForm.password,
+        role: "tenant_admin"
+      })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      toast.error(body.error || "Nao foi possivel criar administrador inicial.");
+      return;
+    }
+    setTemporaryPassword(body.temporaryPassword || initialAdminForm.password);
+    setInitialAdminTenant(null);
+    setInitialAdminForm({ nome: "", email: "", password: "" });
+    toast.success("Administrador inicial criado");
+    await loadData();
+  }
+
   const summary = useMemo(() => {
     const active = tenants.filter(item => item.status === "active").length;
     const suspended = tenants.filter(item => item.status === "suspended" || item.status === "blocked").length;
@@ -191,6 +243,15 @@ export function SuperAdminClients() {
     const sales = tenants.reduce((sum, item) => sum + Number(item.purchaseCount || 0), 0);
     return { active, suspended, revenue, sales };
   }, [tenants]);
+
+  const adminCountByTenant = useMemo(() => {
+    return users.reduce<Record<string, number>>((acc, user) => {
+      if (user.tenant_id && (user.role === "tenant_admin" || user.role === "admin")) {
+        acc[user.tenant_id] = (acc[user.tenant_id] || 0) + 1;
+      }
+      return acc;
+    }, {});
+  }, [users]);
 
   if (loading) return <AdminLoadingSkeleton />;
 
@@ -247,6 +308,11 @@ export function SuperAdminClients() {
               onEdit={() => setForm({ ...tenant, initialAdmin: undefined })}
               onSupport={() => { setSupportTenant(tenant); setSupportReason(""); }}
               onToggle={() => void toggleSuspension(tenant)}
+              needsInitialAdmin={!adminCountByTenant[tenant.id]}
+              onCreateInitialAdmin={() => {
+                setInitialAdminTenant(tenant);
+                setInitialAdminForm({ nome: "", email: "", password: generateTemporaryPassword() });
+              }}
             />
           ])}
         />
@@ -350,6 +416,36 @@ export function SuperAdminClients() {
         </div>
       )}
 
+      {initialAdminTenant && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">
+          <form onSubmit={createInitialAdmin} className="admin-card w-full max-w-xl space-y-4 p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--admin-text)]">Criar Administrador Inicial</h2>
+                <p className="mt-1 text-sm text-[var(--admin-muted)]">Tenant: {initialAdminTenant.nome}</p>
+              </div>
+              <button type="button" className="admin-icon-button" onClick={() => setInitialAdminTenant(null)}><X className="h-4 w-4" /></button>
+            </div>
+            <label className="space-y-1 text-sm text-[var(--admin-muted)]">Nome do administrador
+              <input className="admin-input w-full" value={initialAdminForm.nome} onChange={event => setInitialAdminForm({ ...initialAdminForm, nome: event.target.value })} required />
+            </label>
+            <label className="space-y-1 text-sm text-[var(--admin-muted)]">Email de login
+              <input className="admin-input w-full" type="email" value={initialAdminForm.email} onChange={event => setInitialAdminForm({ ...initialAdminForm, email: event.target.value })} required />
+            </label>
+            <label className="space-y-1 text-sm text-[var(--admin-muted)]">Senha temporária
+              <input className="admin-input w-full" type="text" value={initialAdminForm.password} onChange={event => setInitialAdminForm({ ...initialAdminForm, password: event.target.value })} required />
+            </label>
+            <button type="button" className="admin-button-secondary h-10 px-3 text-sm" onClick={() => setInitialAdminForm({ ...initialAdminForm, password: generateTemporaryPassword() })}>
+              Gerar senha automática
+            </button>
+            <div className="flex justify-end gap-2 border-t border-[var(--admin-border)] pt-4">
+              <button type="button" className="admin-button-secondary" onClick={() => setInitialAdminTenant(null)}>Cancelar</button>
+              <button type="submit" className="admin-button-primary">Criar administrador</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {supportTenant && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">
           <form onSubmit={startSupport} className="admin-card w-full max-w-xl space-y-4 p-5">
@@ -376,13 +472,17 @@ function ClientActions({
   tenant,
   onEdit,
   onSupport,
-  onToggle
+  onToggle,
+  needsInitialAdmin,
+  onCreateInitialAdmin
 }: {
   key?: string;
   tenant: Tenant;
   onEdit: () => void;
   onSupport: () => void;
   onToggle: () => void;
+  needsInitialAdmin: boolean;
+  onCreateInitialAdmin: () => void;
 }) {
   return (
     <div className="flex min-w-[248px] flex-wrap items-center gap-2">
@@ -400,6 +500,11 @@ function ClientActions({
       <button type="button" className="admin-action-button" onClick={onToggle}>
         {tenant.status === "suspended" ? "Reativar" : "Suspender"}
       </button>
+      {needsInitialAdmin && (
+        <button type="button" className="admin-action-button border-amber-400/60 text-amber-300" onClick={onCreateInitialAdmin}>
+          Criar Administrador Inicial
+        </button>
+      )}
     </div>
   );
 }
