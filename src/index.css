@@ -781,6 +781,138 @@
   display: none !important;
 }
 
+.cfx-home-hero-fallback {
+  display: grid;
+  min-height: 100%;
+  align-content: end;
+  gap: 12px;
+  padding: clamp(22px, 7vw, 34px) 16px 18px;
+  background:
+    radial-gradient(circle at 78% 12%, rgba(34, 211, 238, .28), transparent 12rem),
+    radial-gradient(circle at 12% 30%, rgba(168, 85, 247, .42), transparent 13rem),
+    linear-gradient(145deg, rgba(17, 24, 39, .98), rgba(5, 3, 10, .98));
+}
+
+.cfx-home-hero-fallback > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cfx-home-hero-fallback span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .28);
+  padding: 8px 10px;
+  color: #f8fbff;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.cfx-home-hero-fallback svg {
+  width: 15px;
+  height: 15px;
+  color: #67e8f9;
+}
+
+.cfx-home-hero-fallback h2 {
+  max-width: 11ch;
+  color: #fff;
+  font-size: clamp(2.15rem, 11vw, 4.6rem);
+  font-weight: 1000;
+  line-height: .9;
+  text-transform: uppercase;
+  text-shadow: 0 0 34px rgba(168, 85, 247, .55);
+}
+
+.cfx-home-hero-fallback > strong {
+  color: #f7c948;
+  font-size: .92rem;
+  line-height: 1.25;
+}
+
+.cfx-home-fallback-cta {
+  margin-top: 2px;
+}
+
+.cfx-home-hero-quick-cta {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  z-index: 4;
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #22c55e, #b6f63d);
+  color: #06120a;
+  font-size: .92rem;
+  font-weight: 1000;
+  text-transform: uppercase;
+  box-shadow: 0 16px 44px rgba(34, 197, 94, .38);
+}
+
+.cfx-home-hero-quick-cta svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cfx-home-social-proof-strip {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 12px 0;
+}
+
+.cfx-home-social-proof-strip span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  justify-items: center;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .06);
+  padding: 9px 6px;
+  text-align: center;
+}
+
+.cfx-home-social-proof-strip svg {
+  width: 17px;
+  height: 17px;
+  color: #67e8f9;
+}
+
+.cfx-home-social-proof-strip strong,
+.cfx-home-social-proof-strip small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cfx-home-social-proof-strip strong {
+  color: #fff;
+  font-size: clamp(.72rem, 2.8vw, .86rem);
+  font-weight: 950;
+}
+
+.cfx-home-social-proof-strip small {
+  color: rgba(255, 255, 255, .62);
+  font-size: .58rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .cfx-premium-media-placeholder {
   background:
     radial-gradient(circle at 50% 24%, rgba(168, 85, 247, .28), transparent 15rem),
@@ -16728,6 +16860,8 @@ html[data-admin-theme="light"] .admin-shell {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 14px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .cfx-detail-hero-stats span {
@@ -16737,32 +16871,37 @@ html[data-admin-theme="light"] .admin-shell {
   background:
     radial-gradient(circle at 50% 0%, rgba(168, 85, 247, .18), transparent 6rem),
     rgba(255, 255, 255, .055);
-  padding: 11px 9px;
+  padding: 11px clamp(5px, 1.8vw, 9px);
 }
 
 .cfx-detail-hero-stats small,
 .cfx-detail-hero-stats strong {
   display: block;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-align: center;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .cfx-detail-hero-stats small {
   color: rgba(255,255,255,.62);
-  font-size: 9px;
+  font-size: clamp(8px, 2.45vw, 9px);
   font-weight: 900;
-  letter-spacing: .08em;
+  letter-spacing: .02em;
+  line-height: 1.1;
   text-transform: uppercase;
+  white-space: normal;
 }
 
 .cfx-detail-hero-stats strong {
   margin-top: 4px;
   color: #fff;
-  font-size: clamp(1rem, 4.8vw, 1.35rem);
+  font-size: clamp(.86rem, 4.3vw, 1.35rem);
   font-weight: 950;
+  line-height: 1.08;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .cfx-detail-main-cta {
@@ -16884,7 +17023,8 @@ html[data-admin-theme="light"] .admin-shell {
 
 @media (max-width: 380px) {
   .cfx-detail-hero-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .cfx-mobile-buy-bar {
@@ -18116,6 +18256,433 @@ body,
 
 body {
   overflow-x: clip;
+}
+
+body[data-checkout-open="true"] .pwa-install-prompt,
+body[data-checkout-open="true"] [data-pwa-install-prompt] {
+  display: none !important;
+}
+
+/* Public draws catalog */
+.cfx-draws-page {
+  min-height: 100svh;
+  width: min(100%, 920px);
+  margin: 0 auto;
+  padding: 18px 14px 112px;
+  color: #fff;
+}
+
+.cfx-draws-hero {
+  display: grid;
+  gap: 18px;
+  padding: 18px 4px 10px;
+}
+
+.cfx-draws-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #f7c948;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.cfx-draws-eyebrow svg,
+.cfx-draws-hero aside svg {
+  width: 22px;
+  height: 22px;
+}
+
+.cfx-draws-hero h1 {
+  margin-top: 10px;
+  font-size: clamp(2.6rem, 12vw, 5.2rem);
+  font-weight: 1000;
+  line-height: .92;
+  letter-spacing: 0;
+}
+
+.cfx-draws-hero p {
+  max-width: 28rem;
+  margin-top: 10px;
+  color: rgba(255, 255, 255, .72);
+  font-size: clamp(1rem, 4vw, 1.2rem);
+  line-height: 1.35;
+}
+
+.cfx-draws-hero aside {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 12px;
+  align-items: center;
+  border: 1px solid rgba(247, 201, 72, .2);
+  border-radius: 22px;
+  background: rgba(247, 201, 72, .06);
+  padding: 14px;
+}
+
+.cfx-draws-hero aside svg {
+  grid-row: span 2;
+  color: #f7c948;
+}
+
+.cfx-draws-hero aside strong {
+  font-size: 1rem;
+  font-weight: 950;
+}
+
+.cfx-draws-hero aside small {
+  color: rgba(255, 255, 255, .7);
+  font-size: .82rem;
+  line-height: 1.3;
+}
+
+.cfx-draw-tabs {
+  position: sticky;
+  top: calc(var(--public-navbar-height, 68px) + 8px);
+  z-index: 12;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 20px;
+  background: rgba(8, 8, 12, .82);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, .34);
+  backdrop-filter: blur(18px);
+}
+
+.cfx-draw-tabs a {
+  display: inline-flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: rgba(255, 255, 255, .55);
+  font-size: 1rem;
+  font-weight: 950;
+}
+
+.cfx-draw-tabs a.is-active {
+  color: #f7c948;
+  background: linear-gradient(180deg, rgba(247, 201, 72, .14), rgba(247, 201, 72, .03));
+  box-shadow: inset 0 -3px 0 #f7c948;
+}
+
+.cfx-draw-tabs svg {
+  width: 20px;
+  height: 20px;
+}
+
+.cfx-draw-section {
+  margin-top: 26px;
+}
+
+.cfx-draw-section > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.cfx-draw-section h2 {
+  font-size: clamp(1.55rem, 6vw, 2.35rem);
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.cfx-draw-section p {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, .58);
+  font-size: .9rem;
+  font-weight: 700;
+}
+
+.cfx-draw-section > header a {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  color: #f7c948;
+  font-size: .86rem;
+  font-weight: 950;
+}
+
+.cfx-draw-section > header svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cfx-draw-list {
+  display: grid;
+  gap: 14px;
+}
+
+.cfx-draw-card-shell {
+  min-width: 0;
+}
+
+.cfx-draw-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(247, 201, 72, .24);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 82% 18%, rgba(247, 201, 72, .2), transparent 15rem),
+    linear-gradient(145deg, rgba(21, 18, 12, .92), rgba(7, 7, 10, .98));
+  box-shadow: 0 22px 70px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255, 255, 255, .1);
+}
+
+.cfx-draw-card.is-completed {
+  border-color: rgba(255, 255, 255, .16);
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, .12), transparent 14rem),
+    linear-gradient(145deg, rgba(22, 22, 24, .88), rgba(7, 7, 10, .98));
+}
+
+.cfx-draw-media {
+  position: relative;
+  min-height: 12.5rem;
+  overflow: hidden;
+}
+
+.cfx-draw-media::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 62%;
+  background: linear-gradient(180deg, transparent, rgba(5, 5, 8, .92));
+  pointer-events: none;
+}
+
+.cfx-draw-media-block,
+.cfx-draw-media-block .clean-media-block,
+.cfx-draw-media-block .responsive-media-frame {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 12.5rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.cfx-draw-media-block .media-info-block {
+  display: none !important;
+}
+
+.cfx-draw-media-block img,
+.cfx-draw-media-block video,
+.cfx-draw-media-block iframe {
+  object-fit: cover !important;
+}
+
+.cfx-draw-media-fallback {
+  display: grid;
+  min-height: 12.5rem;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(247, 201, 72, .24), transparent 12rem),
+    linear-gradient(145deg, #14100a, #050507);
+}
+
+.cfx-draw-media-fallback svg {
+  width: 54px;
+  height: 54px;
+  color: #f7c948;
+}
+
+.cfx-draw-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f7c948, #f59e0b);
+  color: #140d02;
+  padding: 8px 10px;
+  font-size: .78rem;
+  font-weight: 1000;
+  text-transform: uppercase;
+}
+
+.cfx-draw-card.is-completed .cfx-draw-badge {
+  background: rgba(255, 255, 255, .16);
+  color: #fff;
+}
+
+.cfx-draw-badge svg {
+  width: 15px;
+  height: 15px;
+}
+
+.cfx-draw-body {
+  display: grid;
+  gap: 13px;
+  padding: 16px;
+}
+
+.cfx-draw-title h3 {
+  color: #fff;
+  font-size: clamp(1.45rem, 6vw, 2rem);
+  font-weight: 1000;
+  line-height: 1.02;
+}
+
+.cfx-draw-title p {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, .66);
+  font-size: .95rem;
+  line-height: 1.32;
+}
+
+.cfx-draw-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cfx-draw-card.is-completed .cfx-draw-meta {
+  grid-template-columns: 1fr;
+}
+
+.cfx-draw-meta span {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, .22);
+  padding: 10px;
+}
+
+.cfx-draw-meta small {
+  color: rgba(255, 255, 255, .5);
+  font-size: .7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cfx-draw-meta strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #fff;
+  font-size: .95rem;
+  font-weight: 950;
+}
+
+.cfx-draw-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.cfx-draw-progress span {
+  display: block;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .12);
+}
+
+.cfx-draw-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f59e0b, #f7c948);
+  box-shadow: 0 0 24px rgba(247, 201, 72, .34);
+}
+
+.cfx-draw-progress strong {
+  color: #fff;
+  font-size: .98rem;
+  font-weight: 1000;
+}
+
+.cfx-draw-participate-button,
+.cfx-draw-result-button {
+  display: inline-flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 16px;
+  font-size: 1rem;
+  font-weight: 1000;
+}
+
+.cfx-draw-participate-button {
+  background: linear-gradient(135deg, #f7c948, #f59e0b);
+  color: #160d02;
+  animation: cfx-draw-pulse 1.55s ease-in-out infinite;
+}
+
+.cfx-draw-result-button {
+  border: 1px solid rgba(255, 255, 255, .16);
+  background: rgba(255, 255, 255, .08);
+  color: #fff;
+}
+
+.cfx-draw-participate-button svg,
+.cfx-draw-result-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.cfx-draw-empty {
+  border: 1px dashed rgba(255, 255, 255, .18);
+  border-radius: 18px;
+  padding: 18px;
+  color: rgba(255, 255, 255, .66);
+  text-align: center;
+}
+
+.cfx-draw-skeleton {
+  min-height: 23rem;
+  background: linear-gradient(90deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .11), rgba(255, 255, 255, .05));
+  animation: cfx-pulse 1.4s infinite;
+}
+
+@keyframes cfx-draw-pulse {
+  0%, 100% {
+    transform: translateY(0);
+    box-shadow: 0 12px 34px rgba(247, 201, 72, .24);
+  }
+  50% {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 48px rgba(247, 201, 72, .42);
+  }
+}
+
+@media (min-width: 760px) {
+  .cfx-draws-page {
+    padding-inline: 24px;
+  }
+
+  .cfx-draws-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(17rem, .42fr);
+    align-items: center;
+  }
+
+  .cfx-draw-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cfx-draw-card-shell:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .cfx-draw-card-shell:first-child .cfx-draw-media {
+    min-height: 17rem;
+  }
+
+  .cfx-draw-card-shell:first-child .cfx-draw-media-block,
+  .cfx-draw-card-shell:first-child .cfx-draw-media-block .clean-media-block,
+  .cfx-draw-card-shell:first-child .cfx-draw-media-block .responsive-media-frame {
+    min-height: 17rem !important;
+  }
 }
 
 .premium-page-layout,

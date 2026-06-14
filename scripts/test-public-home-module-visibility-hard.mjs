@@ -18,6 +18,7 @@ function hasNone(content, tokens, context) {
 }
 
 const home = read("src/pages/Home.tsx");
+const sorteios = read("src/pages/Sorteios.tsx");
 const navbar = read("src/components/Navbar.tsx");
 const publicBottomNav = read("src/components/PublicBottomNav.tsx");
 const supportChat = read("src/components/SupportChat.tsx");
@@ -58,25 +59,25 @@ hasAll(home, [
   "className=\"cfx-home-hero\"",
   "cfx-home-hero-media--story",
   "className=\"cfx-home-media-block\"",
-  "className=\"cfx-home-price-strip\"",
-  "POR APENAS",
-  "className=\"cfx-countdown-grid\"",
+  "function resolveHomeHeroMedia",
+  "data-home-hero-fallback=\"premium\"",
+  "className=\"cfx-home-hero-quick-cta\"",
+  "Comprar Agora",
+  "PIX imediato",
+  "Compra segura",
   "className=\"cfx-home-progress\"",
   "showHomePrice",
   "showHomeText",
-  "className=\"cfx-home-primary\"",
-  "Participar agora",
+  "className=\"cfx-home-hero-quick-cta\"",
   "Link to={`/raffle/${raffle.id}`}",
-  "className=\"cfx-home-secondary\"",
-  "Meus bilhetes",
-  "Link to=\"/minhas-cotas\"",
-  "fallbackImageUrl={raffle.image}",
+  "fallbackImageUrl={heroMedia.fallbackImageUrl}",
   "function TopBuyers",
   "className=\"cfx-top-buyers\"",
   "Ranking em apuração com dados reais da campanha.",
-  "function HomeTrustRail",
-  "className=\"cfx-home-trust-rail\"",
-  "Selos de confiança",
+  "const secondaryRaffles = useMemo",
+  "activeRaffles.filter(raffle => raffle.id !== featuredRaffle?.id)",
+  "<CampaignsSection raffles={secondaryRaffles} />",
+  "if (raffles.length === 0) return null",
   "isVideoMediaType",
   "isStoryFirstVideoSource",
   "resolveHomeMediaAspect",
@@ -92,13 +93,29 @@ hasAll(home, [
   "aspectMode={homeMediaAspect}",
   "preferredFit={resolveHomeMediaFit(raffle.mediaFit)}",
   "safeText(raffle.homeTitle",
-  "safeText(raffle.homeSubtitle",
   "safeText(raffle.homeHighlightText",
-  "raffle.showHomeText !== false",
-  "formatHomeDrawText(raffle.drawDate)",
   "rewardWinnerName",
   "buyerName: rewardWinnerName"
 ], "Home Premium deve expor contratos visuais novos da Fase 01");
+
+hasNone(home, [
+  "Rifa principal",
+  "className=\"cfx-home-price-strip\"",
+  "POR APENAS",
+  "className=\"cfx-home-secondary\"",
+  "Meus bilhetes",
+  "HomeSocialProofStrip",
+  "HomeTrustRail",
+  "AffiliateSection",
+  "HowItWorksSection",
+  "SecuritySection",
+  "PaymentAndLiveSection",
+  "SupportSection",
+  "Sorteio ao vivo em",
+  "Seja um afiliado",
+  "Como funciona",
+  "Duvidas?"
+], "Home enxuta nao deve renderizar duplicidades, afiliado, como funciona, suporte ou sorteio ao vivo.");
 
 hasNone(home, [
   "function HomeBottomNav",
@@ -110,6 +127,8 @@ hasAll(publicBottomNav, [
   "public-mobile-bottom-nav",
   "label: \"Início\"",
   "label: \"Sorteios\"",
+  "to: \"/sorteios\"",
+  "location.pathname === \"/sorteios\"",
   "label: \"Ganhadores\"",
   "label: \"WhatsApp\"",
   "label: \"Instagram\"",
@@ -117,6 +136,43 @@ hasAll(publicBottomNav, [
   "settings?.socialLinks?.whatsapp",
   "settings?.socialLinks?.instagram"
 ], "Rodape global deve substituir o rodape antigo da Home");
+
+hasAll(app, [
+  "const Sorteios = lazy(() => import(\"./pages/Sorteios\")",
+  "<Route path=\"/sorteios\" element={<Sorteios />} />"
+], "App deve expor pagina publica de sorteios.");
+hasNone(app, [
+  "<Route path=\"/sorteios\" element={<Navigate to=\"/\" replace />} />"
+], "Sorteios nao pode redirecionar para Home.");
+
+hasAll(sorteios, [
+  "export function Sorteios",
+  "useRaffleCatalog",
+  "useFazendinha",
+  "useModalidades",
+  "fetch(\"/api/winners\")",
+  "activeRaffles",
+  "completedRaffles",
+  "status === \"completed\"",
+  "Sorteios Ativos",
+  "Sorteios Encerrados",
+  "Ganhador",
+  "Cota vencedora",
+  "Resultado",
+  "cfx-draw-participate-button",
+  "Participar",
+  "cfx-draw-progress",
+  "card.progress",
+  "showProgress: false"
+], "Pagina Sorteios deve listar ativos, encerrados e modalidades sem duplicar a Home.");
+hasNone(sorteios, [
+  "Bilhetes vendidos",
+  "bilhetes vendidos",
+  "Cotas vendidas",
+  "cotas vendidas",
+  "Total de bilhetes",
+  "Total de cotas"
+], "Pagina Sorteios nao deve exibir quantidade de bilhetes/cotas.");
 
 hasNone(home, [
   "className=\"cfx-home-play\"",
@@ -126,24 +182,12 @@ hasNone(home, [
   "cotas restantes"
 ], "Frame de midia da Home deve ficar limpo, sem play fake ou controles sobrepostos");
 assert.ok(
-  home.indexOf("cfx-home-hero-media") < home.indexOf("className=\"cfx-home-title-lockup\""),
-  "Conteudo promocional da Home deve renderizar abaixo da midia principal."
+  home.indexOf("className=\"cfx-home-hero-quick-cta\"") < home.indexOf("<TopBuyers ranking={ranking} />"),
+  "CTA principal deve aparecer no bloco da midia antes dos rankings."
 );
 assert.ok(
-  home.indexOf("className=\"cfx-home-title-lockup\"") < home.indexOf("className=\"cfx-home-price-strip\""),
-  "Nome do sorteio deve aparecer antes do valor da cota."
-);
-assert.ok(
-  home.indexOf("className=\"cfx-home-price-strip\"") < home.indexOf("className=\"cfx-home-hero-actions\""),
-  "Valor da cota deve aparecer junto do CTA principal."
-);
-assert.ok(
-  home.indexOf("className=\"cfx-home-hero-actions\"") < home.indexOf("className=\"cfx-live-card\""),
-  "CTA deve aparecer antes do contador regressivo."
-);
-assert.ok(
-  home.indexOf("className=\"cfx-live-card\"") < home.indexOf("<TopBuyers ranking={ranking} />"),
-  "Top Compradores deve aparecer abaixo do cronometro na Home."
+  home.indexOf("const secondaryRaffles = useMemo") < home.indexOf("<CampaignsSection raffles={secondaryRaffles} />"),
+  "Lista de campanhas deve usar apenas rifas secundarias."
 );
 
 hasAll(css, [
@@ -151,12 +195,10 @@ hasAll(css, [
   "--public-navbar-height: 68px",
   ".cfx-home-hero",
   ".cfx-home-hero-media",
-  ".cfx-home-price-strip",
-  ".cfx-live-card",
-  ".cfx-countdown-grid",
+  ".cfx-home-hero-fallback",
+  ".cfx-home-hero-quick-cta",
   ".cfx-home-progress",
   ".cfx-home-primary",
-  ".cfx-home-secondary",
   ".cfx-top-buyers",
   ".cfx-home-trust-rail",
   ".public-mobile-bottom-nav",
@@ -182,6 +224,22 @@ hasAll(css, [
   "grid-template-columns: repeat(5, minmax(0, 1fr))",
   "white-space: nowrap"
 ], "CSS da Home Premium deve validar midia dominante por tipo/aspecto e identidade cfx");
+
+hasAll(css, [
+  ".cfx-draws-page",
+  ".cfx-draw-card",
+  ".cfx-draw-card-shell",
+  ".cfx-draw-participate-button",
+  "cfx-draw-pulse",
+  ".cfx-draw-progress"
+], "CSS deve estilizar a pagina publica de sorteios.");
+
+hasAll(css, [
+  ".cfx-detail-hero-stats",
+  "grid-template-columns: repeat(3, minmax(0, 1fr))",
+  "overflow-wrap: anywhere",
+  "white-space: normal"
+], "Cards do hero da campanha devem ser responsivos e nao cortar Menor compra.");
 
 hasNone(css, [
   ".public-shell:has(.cfx-home-page) .premium-site-header",
@@ -360,6 +418,11 @@ hasAll(server, [
   "process.env.DEFAULT_TENANT_ID",
   "local_dev_no_active_tenant"
 ], "Configuracao publica e multitenant");
+hasAll(server, [
+  "app.get(\"/api/public/raffles/catalog\"",
+  "[\"active\", \"completed\"].includes(String(raffle.status))",
+  "tenantCatalog.map(sanitizeRaffleForPublic)"
+], "Backend deve expor catalogo publico tenant-scoped com ativos e encerrados.");
 hasNone(server, [
   "tenantWithActiveRaffle",
   "raffles.some(raffle => raffle.tenant_id === tenant.id && raffle.status === \"active\")"

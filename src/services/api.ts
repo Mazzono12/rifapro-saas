@@ -26,6 +26,15 @@ export const raffleService = {
     return Array.isArray(payload) ? payload as Raffle[] : [];
   },
 
+  async getRaffleCatalog() {
+    const res = await fetch("/api/public/raffles/catalog");
+    if (!res.ok) throw new Error("Falha ao buscar sorteios");
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) throw new Error("Resposta invalida ao buscar sorteios");
+    const payload = await res.json();
+    return Array.isArray(payload) ? payload as Raffle[] : [];
+  },
+
   async getRaffleById(id: string) {
     const res = await fetch(`/api/raffles/${id}`);
     if (!res.ok) throw new Error("Falha ao buscar detalhes da rifa");

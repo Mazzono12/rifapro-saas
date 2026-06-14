@@ -12,6 +12,8 @@ function includesAll(source, tokens, label) {
 const app = read("src/App.tsx");
 const page = read("src/pages/CheckoutOrderResume.tsx");
 const premiumUi = read("src/components/premium/PremiumUI.tsx");
+const pwaInstallPrompt = read("src/components/pwa/PwaInstallPrompt.tsx");
+const css = read("src/index.css");
 const server = read("server.ts");
 
 includesAll(app, [
@@ -33,6 +35,20 @@ includesAll(page, [
   "orderId"
 ], "pagina publica de retomada PIX");
 assert((page + premiumUi).includes("Copiar código PIX"), "pagina deve expor CTA Copiar código PIX via componente PIX");
+
+includesAll(pwaInstallPrompt, [
+  "isCheckoutSurfaceBlocked",
+  "window.location.pathname.startsWith(\"/checkout/orders/\")",
+  "document.body.dataset.checkoutOpen === \"true\"",
+  "MutationObserver",
+  "data-pwa-install-prompt",
+  "if (checkoutBlocked) return null"
+], "banner PWA deve sumir na retomada PIX e durante checkout aberto");
+includesAll(css, [
+  "body[data-checkout-open=\"true\"] .pwa-install-prompt",
+  "body[data-checkout-open=\"true\"] [data-pwa-install-prompt]",
+  "display: none !important"
+], "CSS deve proteger checkout aberto contra banner PWA");
 
 assert(page.includes('fetch(`/api/checkout/orders/${orderId}/status`)'), "pagina deve consultar status pelo endpoint publico existente");
 assert(page.includes("status?.paid") && page.includes("status?.expired") && page.includes("pending"), "pagina deve tratar estados pago, expirado e pendente");

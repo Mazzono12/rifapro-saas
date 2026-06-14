@@ -7,11 +7,20 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
+function isCheckoutSurfaceBlocked() {
+  if (typeof window === "undefined" || typeof document === "undefined") return false;
+  return (
+    window.location.pathname.startsWith("/checkout/orders/") ||
+    document.body.dataset.checkoutOpen === "true"
+  );
+}
+
 export function PwaInstallPrompt() {
   const { branding } = useTenantBranding();
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem("rifapro:pwa-install-dismissed") === "true");
   const [online, setOnline] = useState(() => navigator.onLine);
+  const [checkoutBlocked, setCheckoutBlocked] = useState(isCheckoutSurfaceBlocked);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
@@ -30,6 +39,25 @@ export function PwaInstallPrompt() {
     };
   }, []);
 
+  useEffect(() => {
+    const updateBlocked = () => setCheckoutBlocked(isCheckoutSurfaceBlocked());
+    updateBlocked();
+
+    const observer = new MutationObserver(updateBlocked);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["data-checkout-open"] });
+
+    window.addEventListener("popstate", updateBlocked);
+    window.addEventListener("hashchange", updateBlocked);
+    const interval = window.setInterval(updateBlocked, 500);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("popstate", updateBlocked);
+      window.removeEventListener("hashchange", updateBlocked);
+      window.clearInterval(interval);
+    };
+  }, []);
+
   const close = () => {
     localStorage.setItem("rifapro:pwa-install-dismissed", "true");
     setDismissed(true);
@@ -43,8 +71,10 @@ export function PwaInstallPrompt() {
     close();
   };
 
+  if (checkoutBlocked) return null;
+
   return (
-    <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[90] flex flex-col items-center gap-2 sm:inset-x-auto sm:right-4 sm:items-end">
+    <div className="pwa-install-prompt pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-[90] flex flex-col items-center gap-2 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:items-end" data-pwa-install-prompt>
       {!online && (
         <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-amber-300/25 bg-slate-950/92 px-4 py-3 text-sm text-amber-50 shadow-2xl backdrop-blur-xl sm:w-[360px]">
           <WifiOff className="h-5 w-5 shrink-0 text-amber-300" />

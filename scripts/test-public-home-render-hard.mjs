@@ -16,6 +16,7 @@ function includesAll(content, tokens, context) {
 }
 
 const home = read("src/pages/Home.tsx");
+const sorteios = read("src/pages/Sorteios.tsx");
 const fazendinhaSection = read("src/components/FazendinhaSection.tsx");
 const app = read("src/App.tsx");
 const theme = read("src/context/theme/ThemeContext.tsx");
@@ -24,6 +25,7 @@ const campaignMediaHero = read("src/components/CampaignMediaHero.tsx");
 const api = read("src/services/api.ts");
 const standardRaffleMediaBlock = read("src/components/StandardRaffleMediaBlock.tsx");
 const mediaRenderer = read("src/components/MediaRenderer.tsx");
+const css = read("src/index.css");
 
 includesAll(home, [
   "PublicHomeErrorBoundary",
@@ -45,13 +47,32 @@ includesAll(home, [
   "<Hero raffle={featuredRaffle} ranking={ranking} topSellers={topSellers} />",
   "fetch(`/api/raffles/${featuredRaffle.id}/top-sellers`)",
   "className=\"cfx-home-hero-media\"",
+  "resolveHomeHeroMedia",
+  "data-home-hero-fallback=\"premium\"",
+  "className=\"cfx-home-hero-quick-cta\"",
+  "Comprar Agora",
+  "PIX imediato",
+  "Compra segura",
+  "const secondaryRaffles = useMemo",
+  "<CampaignsSection raffles={secondaryRaffles} />",
+  "if (raffles.length === 0) return null",
   "className=\"cfx-home-progress\"",
-  "Participar agora"
+  "TopSellers"
 ], "Home publica resiliente");
 
 assert.ok(home.indexOf("PublicHomeErrorBoundary") < home.indexOf("function HomeContent"), "Boundary deve envolver a Home antes da renderizacao dos hooks/componentes.");
-assert.ok(home.includes("const mediaUrl = raffle.mediaUrl || raffle.image;"), "Midia nula deve cair para imagem/fallback no hero principal.");
-assert.ok(home.includes("fallbackImageUrl={raffle.image}"), "Midia nula deve cair para imagem/fallback no frame padronizado.");
+assert.ok(home.includes("const heroMedia = resolveHomeHeroMedia(raffle);"), "Home deve decidir midia do hero com fallback premium confiavel.");
+assert.ok(home.includes("heroMedia.hasMedia ?"), "Home nao deve renderizar frame vazio quando nao houver midia valida.");
+assert.ok(home.includes("fallbackImageUrl={heroMedia.fallbackImageUrl}"), "Midia nula deve cair para imagem/fallback no frame padronizado.");
+assert.ok(home.includes("mediaType === \"bunny\"") && home.includes("player.mediadelivery.net"), "Home deve evitar hero vazio quando Bunny/MediaDelivery tiver imagem de fallback.");
+assert.ok(home.indexOf("className=\"cfx-home-hero-quick-cta\"") < home.indexOf("<TopBuyers ranking={ranking} />"), "CTA Comprar Agora deve aparecer no primeiro bloco mobile.");
+assert.equal(home.includes("Rifa principal"), false, "Home nao deve mostrar selo Rifa principal.");
+assert.equal(home.includes("className=\"cfx-home-price-strip\""), false, "Home nao deve duplicar valor da cota no hero.");
+assert.equal(home.includes("className=\"cfx-home-secondary\""), false, "Home nao deve mostrar CTA secundario Meus bilhetes no hero.");
+assert.equal(home.includes("AffiliateSection"), false, "Home nao deve mostrar bloco Seja afiliado.");
+assert.equal(home.includes("HowItWorksSection"), false, "Home nao deve mostrar Como funciona.");
+assert.equal(home.includes("SupportSection"), false, "Home nao deve mostrar bloco de duvidas.");
+assert.equal(home.includes("PaymentAndLiveSection"), false, "Home nao deve mostrar sorteio ao vivo na Home.");
 
 assert.ok(fazendinhaSection.includes("const config = data?.config;"), "FazendinhaSection deve guardar config opcional.");
 assert.ok(fazendinhaSection.includes("if (!config.enabled || config.status !== \"active\")"), "FazendinhaSection deve proteger config inativa/ausente.");
@@ -59,11 +80,13 @@ assert.ok(fazendinhaSection.indexOf("if (!config.enabled || config.status !== \"
 assert.ok(!fazendinhaSection.includes("data.config"), "FazendinhaSection nao deve acessar data.config diretamente.");
 
 includesAll(home, [
-  "className=\"cfx-countdown-grid\"",
-  "className=\"cfx-home-primary\"",
-  "className=\"cfx-home-secondary\"",
+  "className=\"cfx-home-hero-quick-cta\"",
   "className=\"cfx-top-buyers\""
-], "Home deve manter CTAs, contador e ranking compactos.");
+], "Home deve manter CTA unico e ranking compactos.");
+includesAll(css, [
+  ".cfx-home-hero-fallback",
+  ".cfx-home-hero-quick-cta"
+], "CSS deve garantir fallback visual e CTA mobile cedo.");
 assert.equal(home.includes("Rifas ativas"), false, "Titulo Rifas ativas deve ser removido da Home publica.");
 assert.equal(home.includes("pb-40"), false, "Home nao deve manter spacer grande antes do rodape.");
 
@@ -85,6 +108,23 @@ includesAll(standardRaffleMediaBlock, [
 includesAll(mediaRenderer, ["alt = \"\"", "alt={alt}"], "MediaRenderer nao deve renderizar alt quebrado como Media.");
 assert.equal(mediaRenderer.includes("alt=\"Media\""), false, "MediaRenderer nao deve mostrar texto Media quebrado.");
 includesAll(app, ["<Route path=\"/\" element={<Home />} />", "<Route path=\"/login\" element={<Login />} />", "TenantBrandingProvider"], "Rotas publicas principais devem continuar registradas.");
+includesAll(app, ["const Sorteios = lazy(() => import(\"./pages/Sorteios\")", "<Route path=\"/sorteios\" element={<Sorteios />} />"], "Rota publica Sorteios deve estar registrada.");
+assert.equal(app.includes("<Route path=\"/sorteios\" element={<Navigate to=\"/\" replace />} />"), false, "Sorteios nao deve redirecionar para Home.");
+includesAll(sorteios, [
+  "useRaffleCatalog",
+  "fetch(\"/api/winners\")",
+  "Sorteios Ativos",
+  "Sorteios Encerrados",
+  "Ganhador",
+  "Cota vencedora",
+  "Resultado",
+  "cfx-draw-participate-button",
+  "Participar",
+  "showProgress: false"
+], "Pagina Sorteios deve exibir catalogo com ativos, encerrados e resultados.");
+for (const forbiddenVisibleLabel of ["Bilhetes vendidos", "bilhetes vendidos", "Cotas vendidas", "cotas vendidas", "Total de bilhetes", "Total de cotas"]) {
+  assert.equal(sorteios.includes(forbiddenVisibleLabel), false, `Pagina Sorteios nao deve renderizar quantidade: ${forbiddenVisibleLabel}`);
+}
 
 const port = Number(process.env.PORT || (3610 + Math.floor(Math.random() * 1000)));
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -156,6 +196,9 @@ try {
   const login = await get("/login");
   assert.equal(login.response.status, 200, "/login deve continuar funcionando.");
 
+  const sorteiosPage = await get("/sorteios");
+  assert.equal(sorteiosPage.response.status, 200, "/sorteios deve continuar servindo SPA.");
+
   const raffleDetails = await get("/raffle/1");
   assert.equal(raffleDetails.response.status, 200, "Clique/rota de detalhe da rifa deve continuar servindo SPA.");
 
@@ -182,6 +225,13 @@ try {
   const noMediaPayload = rafflesJson.map((item, index) => index === 0 ? { ...item, mediaUrl: null, image: null } : item);
   assert.doesNotThrow(() => JSON.stringify(noMediaPayload), "Fixture de campanha sem midia deve continuar serializavel.");
   assert.equal(noMediaPayload[0].mediaUrl, null, "Fixture cobre campaign.media ausente/null.");
+
+  const catalog = await get("/api/public/raffles/catalog");
+  assert.equal(catalog.response.status, 200, `/api/public/raffles/catalog deve retornar catalogo publico. Body: ${catalog.text.slice(0, 500)} Logs: ${output.slice(-1500)}`);
+  assert.equal(catalog.response.headers.get("content-type")?.includes("application/json"), true, "/api/public/raffles/catalog deve retornar JSON.");
+  const catalogJson = JSON.parse(catalog.text);
+  assert.equal(Array.isArray(catalogJson), true, "Catalogo publico deve retornar lista.");
+  assert.ok(catalogJson.every(item => ["active", "completed"].includes(item.status)), "Catalogo publico deve conter apenas rifas ativas ou encerradas.");
 
   console.log("PASS: Home publica protegida contra tela azul, com campanhas e fallbacks validados.");
 } finally {

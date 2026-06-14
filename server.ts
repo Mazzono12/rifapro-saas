@@ -12342,6 +12342,30 @@ async function startServer() {
     res.json(activeTenantRaffles.map(sanitizeRaffleForPublic));
   });
 
+  app.get("/api/public/raffles/catalog", async (req, res) => {
+    try {
+      const resolution = await resolveDomainTenantInfo(req);
+      const tenant = resolution.tenant || getRequestTenant(req);
+      if (!tenant) {
+        res.status(404).json({ error: "Tenant nao encontrado para este dominio" });
+        return;
+      }
+      const tenantId = tenant.id;
+      const tenantCatalog = raffles
+        .filter(raffle => raffle.tenant_id === tenantId && ["active", "completed"].includes(String(raffle.status)))
+        .sort((left, right) => {
+          const statusScore = (status: string) => status === "active" ? 0 : 1;
+          const score = statusScore(String(left.status)) - statusScore(String(right.status));
+          if (score !== 0) return score;
+          return String(right.drawDate || "").localeCompare(String(left.drawDate || ""));
+        });
+      res.json(tenantCatalog.map(sanitizeRaffleForPublic));
+    } catch (error) {
+      console.error("[public-raffles-catalog] failed", error);
+      res.status(500).json({ error: "Falha ao carregar catalogo de sorteios" });
+    }
+  });
+
   app.get("/api/raffles/:id", (req, res) => {
     const raffle = raffles.find(r => r.tenant_id === resolveRequestTenantId(req) && r.id === req.params.id);
     if (!raffle) {

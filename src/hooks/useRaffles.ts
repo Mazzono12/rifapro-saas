@@ -14,6 +14,14 @@ export function useRaffles() {
   });
 }
 
+export function useRaffleCatalog() {
+  return useQuery({
+    queryKey: ['raffle-catalog', tenantCacheKey()],
+    queryFn: () => raffleService.getRaffleCatalog(),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 export function useRaffle(id: string) {
   return useQuery({
     queryKey: ['raffle', tenantCacheKey(), id],

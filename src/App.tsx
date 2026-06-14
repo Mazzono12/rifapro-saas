@@ -78,6 +78,7 @@ function GlobalVideoGuard() {
 }
 
 const Home = lazy(() => import("./pages/Home").then(module => ({ default: module.Home })));
+const Sorteios = lazy(() => import("./pages/Sorteios").then(module => ({ default: module.Sorteios })));
 const RaffleDetails = lazy(() => import("./pages/RaffleDetails").then(module => ({ default: module.RaffleDetails })));
 const Fazendinha = lazy(() => import("./pages/Fazendinha").then(module => ({ default: module.Fazendinha })));
 const Winners = lazy(() => import("./pages/Winners").then(module => ({ default: module.Winners })));
@@ -284,7 +285,7 @@ export default function App() {
               <Route path="/sorteio/:id" element={<RaffleDetails />} />
               <Route path="/checkout/orders/:orderId" element={<CheckoutOrderResume />} />
               <Route path="/campanhas" element={<Navigate to="/" replace />} />
-              <Route path="/sorteios" element={<Navigate to="/" replace />} />
+              <Route path="/sorteios" element={<Sorteios />} />
               <Route path="/fazendinha" element={<Fazendinha />} />
               <Route path="/auth" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<Login />} />
