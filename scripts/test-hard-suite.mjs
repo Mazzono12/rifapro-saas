@@ -178,6 +178,7 @@ async function rafflesHard() {
 
 async function multitenantHard() {
   await runNodeScript("scripts/test-tenant-admin-scope.mjs");
+  await runNodeScript("scripts/test-superadmin-tenant-admins-hard.mjs");
   await runNodeScript("scripts/test-saas-multitenant-foundation.mjs");
   await runNodeScript("scripts/test-rls-policies.mjs");
 }

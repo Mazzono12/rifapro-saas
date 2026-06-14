@@ -3907,6 +3907,21 @@ async function startServer() {
     return { user, temporaryPassword };
   }
 
+  function publicTenantAdminUser(user: AuthUserRecord) {
+    const lastAccessUser = user as AuthUserRecord & { ultimo_acesso?: string; last_login?: string };
+    return {
+      id: user.id,
+      nome: user.nome,
+      email: user.email,
+      role: normalizeAuthRole(user.role),
+      rawRole: user.role,
+      tenant_id: user.tenant_id,
+      ativo: user.ativo,
+      criado_em: user.criado_em,
+      ultimo_acesso: lastAccessUser.ultimo_acesso || lastAccessUser.last_login || null
+    };
+  }
+
   function signSupabaseCompatToken(user: UsuarioRecord) {
     return jwt.sign({
       sub: user.id,
@@ -5499,6 +5514,19 @@ async function startServer() {
     res.json(getSuperadminPlanCatalog());
   });
 
+  app.get("/api/superadmin/tenants/:tenantId/admins", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId && isActiveTenantRecord(item));
+    if (!tenant) {
+      res.status(404).json({ error: "Tenant nao encontrado" });
+      return;
+    }
+    const admins = authUsers
+      .filter(user => user.tenant_id === tenant.id && normalizeAuthRole(user.role) === "admin")
+      .map(publicTenantAdminUser);
+    recordSuperadminAudit(req, "TENANT_ADMINS_VIEW", { tenant_id: tenant.id, resource_type: "tenant_admin" });
+    res.json(admins);
+  });
+
   app.post("/api/superadmin/tenants", async (req, res) => {
     const nome = String(req.body.nome || "").trim();
     const slug = String(req.body.slug || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
@@ -5590,8 +5618,15 @@ async function startServer() {
         actor: getAuthSession(req)?.email,
         detail: created.user.email
       });
+      recordSuperadminAudit(req, "TENANT_ADMIN_CREATED", {
+        tenant_id: req.params.tenantId,
+        resource_type: "tenant_admin",
+        resource_id: created.user.id,
+        metadata: publicTenantAdminUser(created.user)
+      });
       res.status(201).json({
         user: publicAuthUser(created.user),
+        admin: publicTenantAdminUser(created.user),
         profile: publicAuthProfile(created.user),
         temporaryPassword: created.temporaryPassword
       });
@@ -5623,7 +5658,63 @@ async function startServer() {
       actor: getAuthSession(req)?.email,
       detail: user.email
     });
-    res.json({ user: publicAuthUser(user), profile: publicAuthProfile(user), temporaryPassword });
+    recordSuperadminAudit(req, "TENANT_ADMIN_PASSWORD_RESET", {
+      tenant_id: tenant.id,
+      resource_type: "tenant_admin",
+      resource_id: user.id,
+      metadata: publicTenantAdminUser(user)
+    });
+    res.json({ user: publicAuthUser(user), admin: publicTenantAdminUser(user), profile: publicAuthProfile(user), temporaryPassword });
+  });
+
+  app.patch("/api/superadmin/tenants/:tenantId/admins/:userId", (req, res) => {
+    const tenant = tenants.find(item => item.id === req.params.tenantId && isActiveTenantRecord(item));
+    const user = authUsers.find(item => item.id === req.params.userId && item.tenant_id === req.params.tenantId && normalizeAuthRole(item.role) === "admin");
+    if (!tenant || !user) {
+      res.status(404).json({ error: "Admin do tenant nao encontrado" });
+      return;
+    }
+    const before = publicTenantAdminUser(user);
+    if (req.body.nome !== undefined || req.body.name !== undefined) {
+      const nome = String(req.body.nome ?? req.body.name ?? "").trim();
+      if (nome.length < 2) {
+        res.status(400).json({ error: "Nome do administrador deve ter pelo menos 2 caracteres" });
+        return;
+      }
+      user.nome = nome;
+    }
+    if (req.body.email !== undefined) {
+      const email = String(req.body.email || "").trim().toLowerCase();
+      if (!email.includes("@")) {
+        res.status(400).json({ error: "Email valido obrigatorio" });
+        return;
+      }
+      if (authUsers.some(item => item.id !== user.id && item.email === email)) {
+        res.status(409).json({ error: "Email ja cadastrado" });
+        return;
+      }
+      user.email = email;
+    }
+    if (req.body.ativo !== undefined || req.body.active !== undefined) {
+      user.ativo = req.body.ativo !== undefined ? Boolean(req.body.ativo) : Boolean(req.body.active);
+    }
+    const after = publicTenantAdminUser(user);
+    recordSecurityEvent({
+      tenant_id: tenant.id,
+      action: "TENANT_ADMIN_UPDATED",
+      ip: String(req.ip || req.socket.remoteAddress || ""),
+      status: "WARN",
+      severity: "medium",
+      actor: getAuthSession(req)?.email,
+      detail: user.email
+    });
+    recordSuperadminAudit(req, "TENANT_ADMIN_UPDATED", {
+      tenant_id: tenant.id,
+      resource_type: "tenant_admin",
+      resource_id: user.id,
+      metadata: { before, after }
+    });
+    res.json({ admin: after, user: publicAuthUser(user), profile: publicAuthProfile(user) });
   });
 
   app.put("/api/superadmin/tenants/:id", async (req, res) => {
