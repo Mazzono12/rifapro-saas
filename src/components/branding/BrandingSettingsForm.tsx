@@ -25,6 +25,10 @@ export function BrandingSettingsForm({
         <label className="grid gap-2 text-sm font-semibold text-slate-300">Frase institucional<input value={value.slogan || ""} onChange={event => set("slogan", event.target.value)} className="admin-input" placeholder="Tecnologia premium para gestao avancada" /></label>
         <label className="grid gap-2 text-sm font-semibold text-slate-300">WhatsApp suporte<input value={value.support_whatsapp || ""} onChange={event => set("support_whatsapp", event.target.value)} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-semibold text-slate-300">Texto do rodape<textarea value={value.footer_text || ""} onChange={event => set("footer_text", event.target.value)} className="admin-input min-h-24" /></label>
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="grid gap-2 text-sm font-semibold text-slate-300">Logo principal por URL<input value={value.logo_url || ""} onChange={event => set("logo_url", event.target.value)} className="admin-input" placeholder="https://cdn.suaempresa.com/logo.png" /></label>
+          <label className="grid gap-2 text-sm font-semibold text-slate-300">Favicon por URL<input value={value.favicon_url || ""} onChange={event => set("favicon_url", event.target.value)} className="admin-input" placeholder="https://cdn.suaempresa.com/favicon.png" /></label>
+        </div>
         <div className="grid gap-3 md:grid-cols-3">
           <ColorPicker label="Cor primaria" value={value.primary_color || "#00d66b"} onChange={next => set("primary_color", next)} />
           <ColorPicker label="Cor secundaria" value={value.secondary_color || "#0f2d1d"} onChange={next => set("secondary_color", next)} />
@@ -57,8 +61,8 @@ export function BrandingSettingsForm({
           </select>
         </label>
         <div className="flex flex-wrap gap-3">
-          <LogoUploader endpoint={logoEndpoint} onUploaded={onChange} />
-          <LogoUploader endpoint={faviconEndpoint} onUploaded={onChange} />
+          <LogoUploader endpoint={logoEndpoint} onUploaded={onChange} label="Enviar logo/GIF" />
+          <LogoUploader endpoint={faviconEndpoint} onUploaded={onChange} label="Enviar favicon/GIF" />
           <button type="button" onClick={onSave} className="premium-button rounded-xl px-5 py-3">Salvar marca</button>
           <button type="button" onClick={onReset} className="premium-button-ghost min-h-12 rounded-xl px-5 py-3 text-sm font-bold">Resetar padrão</button>
         </div>

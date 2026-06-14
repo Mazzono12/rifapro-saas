@@ -1851,6 +1851,7 @@
 }
 
 .cfx-review-prize-card img,
+.cfx-review-prize-media,
 .cfx-review-prize-placeholder {
   position: absolute;
   inset: 0;
@@ -1858,8 +1859,18 @@
   height: 100%;
 }
 
-.cfx-review-prize-card img {
+.cfx-review-prize-card img,
+.cfx-review-prize-media .responsive-media-frame {
   object-fit: cover;
+}
+
+.cfx-review-prize-media {
+  border: 0;
+  border-radius: 0;
+}
+
+.cfx-review-prize-media .media-info-block {
+  display: none;
 }
 
 .cfx-review-prize-card::after {
@@ -2562,6 +2573,7 @@
 }
 
 .cfx-pix-campaign img,
+.cfx-pix-campaign .responsive-media-frame,
 .cfx-pix-campaign > div:first-child {
   width: 86px;
   height: 86px;
@@ -2573,7 +2585,8 @@
     rgba(255, 255, 255, .06);
 }
 
-.cfx-pix-campaign img {
+.cfx-pix-campaign img,
+.cfx-pix-campaign .responsive-media-frame {
   object-fit: cover;
 }
 
@@ -3535,7 +3548,7 @@
 /* Tela 02 - Detalhe da rifa premium mobile-first. */
 .cfx-detail-shell {
   width: min(100%, 430px);
-  padding: 10px 14px 110px;
+  padding: 0 14px 110px;
 }
 
 .cfx-detail-shell .cfx-raffle-topbar {
@@ -3594,12 +3607,13 @@
   content: none;
 }
 
-.cfx-detail-banner > :not(img):not(video):not(.cfx-media-fallback) {
+.cfx-detail-banner > :not(img):not(video):not(.responsive-media-frame):not(.cfx-detail-banner-back):not(.cfx-media-fallback) {
   display: none !important;
 }
 
 .cfx-detail-banner > img,
 .cfx-detail-banner > video,
+.cfx-detail-banner > .responsive-media-frame,
 .cfx-detail-banner .cfx-media-fallback {
   display: block;
   width: 100%;
@@ -3614,6 +3628,28 @@
     radial-gradient(circle at 50% 35%, rgba(168, 85, 247, .28), transparent 11rem),
     radial-gradient(circle at 75% 70%, rgba(34, 211, 238, .16), transparent 9rem),
     linear-gradient(145deg, #090414, #040208);
+}
+
+.cfx-detail-banner-back {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 4;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 999px;
+  background: rgba(3, 4, 8, .58);
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  backdrop-filter: blur(14px);
+}
+
+.cfx-detail-banner-back svg {
+  width: 23px;
+  height: 23px;
 }
 
 .cfx-detail-title {
@@ -13469,7 +13505,8 @@ html[data-admin-theme="light"] .admin-shell {
   box-shadow: 0 0 28px rgba(168, 85, 247, .22);
 }
 
-.cfx-pix-campaign-logo img {
+.cfx-pix-campaign-logo img,
+.cfx-pix-campaign-logo .responsive-media-frame {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -14286,6 +14323,7 @@ html[data-admin-theme="light"] .admin-shell {
 }
 
 .cfx-receipt-campaign img,
+.cfx-receipt-campaign .responsive-media-frame,
 .cfx-receipt-image-fallback {
   width: 92px;
   height: 72px;
@@ -15200,6 +15238,8 @@ html[data-admin-theme="light"] .admin-shell {
 
 .cfx-pix-premium {
   font-size: 16px;
+  display: grid;
+  gap: 10px;
 }
 
 .cfx-pix-premium-top h2 {
@@ -15231,6 +15271,11 @@ html[data-admin-theme="light"] .admin-shell {
 
 .cfx-pix-premium .cfx-copy-pix-button {
   font-size: clamp(1.25rem, 4.8vw, 1.9rem) !important;
+  min-height: 60px !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, #2ddf73, #8dfc9b) !important;
+  color: #06130a !important;
+  box-shadow: 0 18px 46px rgba(34, 197, 94, .32) !important;
 }
 
 .cfx-pix-premium .cfx-copy-pix-button svg,
@@ -15254,6 +15299,18 @@ html[data-admin-theme="light"] .admin-shell {
 
 .cfx-pix-premium .cfx-pix-actions button {
   font-size: clamp(.98rem, 3.8vw, 1.18rem) !important;
+}
+
+.cfx-pix-premium .cfx-pix-code {
+  order: -1;
+}
+
+.cfx-pix-premium .cfx-pix-qr-card {
+  order: -2;
+}
+
+.cfx-pix-premium .cfx-pix-code p {
+  text-align: center;
 }
 
 @media (max-width: 639px) {
@@ -17224,7 +17281,7 @@ html[data-admin-theme="light"] .admin-shell {
 .cfx-public-winners-shell {
   width: min(100%, 1080px);
   margin: 0 auto;
-  padding: clamp(18px, 4vw, 34px) clamp(14px, 3vw, 30px) 118px;
+  padding: 8px clamp(14px, 3vw, 30px) 118px;
 }
 
 .cfx-winners-hero {
@@ -17234,6 +17291,13 @@ html[data-admin-theme="light"] .admin-shell {
   gap: 10px;
   padding: clamp(20px, 4vw, 42px) 0 12px;
   text-align: center;
+}
+
+.cfx-winners-hero.is-compact {
+  justify-items: start;
+  gap: 0;
+  padding: 8px 4px 10px;
+  text-align: left;
 }
 
 .cfx-winners-hero::before {
@@ -17247,6 +17311,10 @@ html[data-admin-theme="light"] .admin-shell {
     linear-gradient(90deg, transparent, rgba(168, 85, 247, .4), transparent);
   opacity: .7;
   filter: blur(18px);
+}
+
+.cfx-winners-hero.is-compact::before {
+  display: none;
 }
 
 .cfx-winners-crown {
@@ -17274,6 +17342,11 @@ html[data-admin-theme="light"] .admin-shell {
   font-weight: 950;
   color: #f8f7ff;
   text-shadow: 0 2px 0 rgba(0, 0, 0, .7), 0 0 28px rgba(255, 255, 255, .22);
+}
+
+.cfx-winners-hero.is-compact h1 span {
+  font-size: clamp(2rem, 9vw, 3.2rem);
+  text-shadow: none;
 }
 
 .cfx-winners-hero h1 strong {
@@ -17374,6 +17447,7 @@ html[data-admin-theme="light"] .admin-shell {
 .cfx-winner-showcase-card {
   position: relative;
   overflow: hidden;
+  padding: 10px;
   border: 1px solid var(--winners-line);
   border-radius: 20px;
   background: #08040d;
@@ -17384,6 +17458,7 @@ html[data-admin-theme="light"] .admin-shell {
 
 .cfx-winner-showcase-card::after {
   content: "";
+  display: none;
   position: absolute;
   inset: auto 0 0;
   height: 52%;
@@ -17393,8 +17468,10 @@ html[data-admin-theme="light"] .admin-shell {
 
 .cfx-winner-showcase-media {
   position: relative;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
+  border: 1px solid rgba(168, 85, 247, .72);
+  border-radius: 18px;
   background: radial-gradient(circle at 50% 10%, rgba(168, 85, 247, .24), transparent 11rem), #050208;
 }
 
@@ -17464,13 +17541,12 @@ html[data-admin-theme="light"] .admin-shell {
 }
 
 .cfx-winner-showcase-info {
-  position: absolute;
-  inset: auto 0 0;
+  position: relative;
   z-index: 3;
   display: grid;
   gap: 7px;
-  padding: 68px 16px 16px;
-  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, .92) 34%, rgba(0, 0, 0, .97));
+  padding: 13px 4px 4px;
+  background: transparent;
 }
 
 .cfx-winner-showcase-info h2 {
@@ -18263,12 +18339,16 @@ body[data-checkout-open="true"] [data-pwa-install-prompt] {
   display: none !important;
 }
 
+body[data-checkout-open="true"] .public-mobile-bottom-nav {
+  display: none !important;
+}
+
 /* Public draws catalog */
 .cfx-draws-page {
   min-height: 100svh;
   width: min(100%, 920px);
   margin: 0 auto;
-  padding: 18px 14px 112px;
+  padding: 8px 14px 112px;
   color: #fff;
 }
 
@@ -18276,6 +18356,11 @@ body[data-checkout-open="true"] [data-pwa-install-prompt] {
   display: grid;
   gap: 18px;
   padding: 18px 4px 10px;
+}
+
+.cfx-draws-hero.is-compact {
+  gap: 0;
+  padding: 8px 4px 4px;
 }
 
 .cfx-draws-eyebrow {
@@ -18300,6 +18385,11 @@ body[data-checkout-open="true"] [data-pwa-install-prompt] {
   font-weight: 1000;
   line-height: .92;
   letter-spacing: 0;
+}
+
+.cfx-draws-hero.is-compact h1 {
+  margin: 0;
+  font-size: clamp(2rem, 9vw, 3.2rem);
 }
 
 .cfx-draws-hero p {
@@ -18425,6 +18515,7 @@ body[data-checkout-open="true"] [data-pwa-install-prompt] {
 .cfx-draw-card {
   position: relative;
   overflow: hidden;
+  padding: 10px;
   border: 1px solid rgba(247, 201, 72, .24);
   border-radius: 24px;
   background:
@@ -18442,12 +18533,20 @@ body[data-checkout-open="true"] [data-pwa-install-prompt] {
 
 .cfx-draw-media {
   position: relative;
-  min-height: 12.5rem;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
   overflow: hidden;
+  border: 1px solid rgba(168, 85, 247, .72);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(168, 85, 247, .22), transparent 14rem),
+    linear-gradient(135deg, rgba(20, 8, 42, .88), rgba(3, 3, 8, .96));
+  box-shadow: 0 18px 56px rgba(88, 28, 135, .22);
 }
 
 .cfx-draw-media::after {
   content: "";
+  display: none;
   position: absolute;
   inset: auto 0 0;
   height: 62%;
@@ -18460,7 +18559,8 @@ body[data-checkout-open="true"] [data-pwa-install-prompt] {
 .cfx-draw-media-block .responsive-media-frame {
   width: 100% !important;
   height: 100% !important;
-  min-height: 12.5rem !important;
+  min-height: 0 !important;
+  aspect-ratio: 16 / 9 !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -18478,7 +18578,7 @@ body[data-checkout-open="true"] [data-pwa-install-prompt] {
 
 .cfx-draw-media-fallback {
   display: grid;
-  min-height: 12.5rem;
+  height: 100%;
   place-items: center;
   background:
     radial-gradient(circle at 50% 30%, rgba(247, 201, 72, .24), transparent 12rem),
@@ -18521,7 +18621,7 @@ body[data-checkout-open="true"] [data-pwa-install-prompt] {
 .cfx-draw-body {
   display: grid;
   gap: 13px;
-  padding: 16px;
+  padding: 14px 4px 4px;
 }
 
 .cfx-draw-title h3 {
@@ -18666,6 +18766,10 @@ body[data-checkout-open="true"] [data-pwa-install-prompt] {
     align-items: center;
   }
 
+  .cfx-draws-hero.is-compact {
+    grid-template-columns: 1fr;
+  }
+
   .cfx-draw-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -18675,13 +18779,13 @@ body[data-checkout-open="true"] [data-pwa-install-prompt] {
   }
 
   .cfx-draw-card-shell:first-child .cfx-draw-media {
-    min-height: 17rem;
+    min-height: 0;
   }
 
   .cfx-draw-card-shell:first-child .cfx-draw-media-block,
   .cfx-draw-card-shell:first-child .cfx-draw-media-block .clean-media-block,
   .cfx-draw-card-shell:first-child .cfx-draw-media-block .responsive-media-frame {
-    min-height: 17rem !important;
+    min-height: 0 !important;
   }
 }
 
@@ -18966,6 +19070,115 @@ body[data-checkout-open="true"] [data-pwa-install-prompt] {
   order: -1;
 }
 
+.cfx-fast-pix-checkout {
+  gap: 10px;
+}
+
+.cfx-fast-pix-checkout .cfx-review-top {
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  gap: 8px;
+}
+
+.cfx-fast-pix-checkout .cfx-review-top h2 {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: clamp(1.05rem, 4vw, 1.35rem);
+  line-height: 1.05;
+}
+
+.cfx-fast-pix-checkout .cfx-review-top p {
+  grid-column: 1 / -1;
+  font-size: .82rem;
+}
+
+.cfx-fast-pix-checkout .cfx-review-buyer {
+  padding: 14px;
+}
+
+.cfx-fast-pix-checkout .cfx-review-panel-head {
+  gap: 10px;
+}
+
+.cfx-fast-pix-checkout .cfx-review-panel-head > span {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.cfx-fast-pix-checkout .cfx-review-panel-head h3 {
+  font-size: .84rem;
+}
+
+.cfx-fast-pix-checkout .cfx-review-buyer-form {
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.cfx-fast-pix-checkout .cfx-review-buyer-form label > span {
+  margin-bottom: 5px;
+  font-size: .68rem;
+  letter-spacing: .16em;
+}
+
+.cfx-fast-pix-checkout .cfx-review-buyer-form input {
+  min-height: 46px;
+  border-radius: 14px;
+  padding: 10px 13px;
+  font-size: 1rem;
+}
+
+.cfx-fast-pix-checkout .cfx-review-cpf-hint {
+  margin-top: 2px;
+  font-size: .82rem;
+  line-height: 1.25;
+}
+
+.cfx-fast-pix-checkout .cfx-review-submit {
+  min-height: 58px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #2ddf73, #8dfc9b) !important;
+  color: #06130a !important;
+  font-size: clamp(1.05rem, 4vw, 1.35rem);
+  box-shadow: 0 16px 42px rgba(34, 197, 94, .32);
+}
+
+.cfx-fast-pix-checkout .cfx-review-prize-card {
+  min-height: 118px;
+  border-radius: 18px;
+}
+
+.cfx-fast-pix-checkout .cfx-review-prize-copy {
+  min-height: 118px;
+  max-width: 72%;
+  padding: 12px 14px;
+}
+
+.cfx-fast-pix-checkout .cfx-review-prize-copy h3 {
+  font-size: clamp(1.35rem, 6vw, 2rem);
+}
+
+.cfx-fast-pix-checkout .cfx-review-prize-copy strong {
+  font-size: clamp(1.1rem, 5vw, 1.55rem);
+}
+
+.cfx-fast-pix-checkout .cfx-review-summary {
+  padding: 12px 14px;
+}
+
+.cfx-fast-pix-checkout .cfx-review-summary dl {
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.cfx-fast-pix-checkout .cfx-review-total {
+  margin-top: 9px;
+  padding-top: 9px;
+}
+
+.cfx-fast-pix-checkout .cfx-review-total strong {
+  font-size: clamp(1.7rem, 7vw, 2.3rem);
+}
+
 .cfx-recognized-buyer {
   align-items: flex-start;
   gap: 0.5rem;
@@ -19021,5 +19234,578 @@ body[data-checkout-open="true"] [data-pwa-install-prompt] {
     z-index: 30;
     margin-top: 0.75rem;
     box-shadow: 0 -18px 48px rgba(0, 0, 0, 0.42);
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-top {
+    grid-template-columns: 36px minmax(0, 1fr) 36px !important;
+    margin-bottom: -2px;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-top p {
+    display: none !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-buyer {
+    padding: 12px !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-buyer-form {
+    gap: 7px !important;
+    margin-top: 8px !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-buyer-form input {
+    min-height: 42px !important;
+    border-radius: 13px !important;
+    padding-block: 8px !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-cpf-hint {
+    display: none !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-submit {
+    min-height: 56px !important;
+    margin-top: 4px !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-prize-card {
+    min-height: 104px !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-prize-copy {
+    min-height: 104px !important;
+    padding: 10px 12px !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-summary dl div:nth-child(n + 3) {
+    display: none !important;
+  }
+}
+
+/* Campaign conversion compact scale: typography follows marketplace-style proportions. */
+.cfx-detail-title h1 {
+  font-size: clamp(1.62rem, 7.4vw, 2.55rem) !important;
+  line-height: 1 !important;
+}
+
+.cfx-detail-title p {
+  gap: 6px !important;
+  margin-top: 8px !important;
+  font-size: clamp(.7rem, 2.7vw, .78rem) !important;
+  line-height: 1.25 !important;
+}
+
+.cfx-detail-kicker {
+  padding: 5px 8px !important;
+  font-size: 9px !important;
+}
+
+.cfx-detail-hero-stats {
+  gap: 6px !important;
+  margin-top: 10px !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.cfx-detail-hero-stats span {
+  justify-self: stretch !important;
+  min-height: 54px !important;
+  border-radius: 13px !important;
+  padding: 8px 6px !important;
+}
+
+.cfx-detail-hero-stats small {
+  font-size: clamp(7px, 2.15vw, 8px) !important;
+  letter-spacing: .01em !important;
+}
+
+.cfx-detail-hero-stats strong {
+  margin-top: 3px !important;
+  font-size: clamp(.78rem, 3.45vw, 1.05rem) !important;
+}
+
+.cfx-detail-stat {
+  min-height: 66px !important;
+  grid-template-columns: 46px minmax(0, 1fr) auto !important;
+  gap: 9px !important;
+  border-radius: 15px !important;
+  padding: 10px 12px !important;
+}
+
+.cfx-detail-stat > span {
+  width: 38px !important;
+  height: 38px !important;
+}
+
+.cfx-detail-stat svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+.cfx-detail-stat small,
+.cfx-detail-buybox h2 {
+  font-size: clamp(.62rem, 2.2vw, .7rem) !important;
+  letter-spacing: .06em !important;
+}
+
+.cfx-detail-stat strong {
+  font-size: clamp(1.08rem, 4.8vw, 1.45rem) !important;
+}
+
+.cfx-detail-buybox {
+  border-radius: 16px !important;
+  padding: 12px !important;
+}
+
+.cfx-detail-buybox h2 {
+  margin-bottom: 10px !important;
+}
+
+.cfx-detail-buybox .cfx-quick-amounts {
+  gap: 8px !important;
+  margin-top: 10px !important;
+}
+
+.cfx-detail-buybox .cfx-quick-amounts button {
+  min-height: 46px !important;
+  border-radius: 13px !important;
+  padding: 8px !important;
+}
+
+.cfx-detail-buybox .cfx-quick-amounts strong {
+  font-size: clamp(.88rem, 3.9vw, 1.05rem) !important;
+}
+
+.cfx-detail-buybox .cfx-quantity-control {
+  grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+  margin-top: 8px !important;
+}
+
+.cfx-detail-buybox .cfx-quantity-control button,
+.cfx-detail-buybox .cfx-quantity-control input {
+  min-height: 52px !important;
+}
+
+.cfx-detail-buybox .cfx-quantity-control input {
+  font-size: clamp(1.3rem, 5.6vw, 1.75rem) !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row {
+  gap: 7px !important;
+  margin-top: 9px !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row > span,
+.cfx-detail-buybox .cfx-checkout-row > span:nth-child(3) {
+  min-height: 52px !important;
+  border-radius: 13px !important;
+  padding: 8px 7px !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row small {
+  font-size: clamp(.56rem, 2.15vw, .64rem) !important;
+  letter-spacing: .04em !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row strong,
+.cfx-detail-buybox .cfx-checkout-row > span:nth-child(3) strong {
+  font-size: clamp(1.08rem, 4.7vw, 1.45rem) !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button {
+  min-height: 56px !important;
+  border-radius: 15px !important;
+  padding: 10px 12px !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button > span {
+  font-size: clamp(.92rem, 3.85vw, 1.08rem) !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button small {
+  font-size: clamp(.58rem, 2.25vw, .68rem) !important;
+}
+
+/* Mobile conversion tightening: keep the buy CTA visible in the first purchase viewport. */
+@media (max-width: 760px) {
+  .cfx-raffle-page {
+    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  .cfx-detail-shell {
+    gap: 8px !important;
+    padding-top: 0 !important;
+    padding-inline: 12px !important;
+  }
+
+  .cfx-detail-layout,
+  .cfx-detail-main,
+  .cfx-detail-purchase {
+    gap: 8px !important;
+  }
+
+  .cfx-detail-banner {
+    aspect-ratio: 16 / 9 !important;
+    border-radius: 18px !important;
+  }
+
+  .cfx-detail-title {
+    padding-inline: 2px !important;
+  }
+
+  .cfx-detail-kicker {
+    min-height: 30px !important;
+    padding: 5px 10px !important;
+    font-size: .62rem !important;
+    letter-spacing: .12em !important;
+  }
+
+  .cfx-detail-title h1 {
+    font-size: clamp(1.68rem, 8vw, 2.25rem) !important;
+    line-height: .92 !important;
+  }
+
+  .cfx-detail-title p {
+    gap: 7px !important;
+    margin-top: 6px !important;
+    font-size: .68rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .cfx-detail-buybox {
+    padding: 10px !important;
+  }
+
+  .cfx-detail-buybox h2 {
+    margin-bottom: 7px !important;
+  }
+
+  .cfx-detail-buybox .cfx-quick-amounts {
+    gap: 6px !important;
+    margin-top: 0 !important;
+  }
+
+  .cfx-detail-buybox .cfx-quick-amounts button {
+    min-height: 38px !important;
+    border-radius: 12px !important;
+    padding: 5px 7px !important;
+  }
+
+  .cfx-detail-buybox .cfx-quick-amounts strong {
+    font-size: clamp(.82rem, 3.7vw, .98rem) !important;
+  }
+
+  .cfx-detail-buybox .cfx-quantity-control {
+    grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+    margin-top: 7px !important;
+  }
+
+  .cfx-detail-buybox .cfx-quantity-control button,
+  .cfx-detail-buybox .cfx-quantity-control input {
+    min-height: 46px !important;
+  }
+
+  .cfx-detail-buybox .cfx-quantity-control input {
+    font-size: clamp(1.2rem, 5.2vw, 1.55rem) !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+    margin-top: 7px !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row > span:nth-child(1),
+  .cfx-detail-buybox .cfx-checkout-row > span:nth-child(2) {
+    display: none !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row > span:nth-child(3) {
+    grid-column: 1 !important;
+    min-height: 42px !important;
+    border-radius: 12px !important;
+    padding: 6px 8px !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row > span:nth-child(3) small {
+    font-size: .56rem !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row > span:nth-child(3) strong {
+    font-size: clamp(1.1rem, 5vw, 1.38rem) !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row button {
+    min-height: 50px !important;
+    border-radius: 14px !important;
+    padding: 8px 12px !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row button > span {
+    font-size: clamp(.9rem, 3.9vw, 1.04rem) !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row button small {
+    display: none !important;
+  }
+
+  .cfx-detail-banner-back {
+    top: 8px;
+    left: 8px;
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Checkout PIX route: simple, direct, mobile-first. */
+.cfx-fast-pix-checkout {
+  align-content: start;
+}
+
+.cfx-fast-pix-checkout .cfx-review-buyer {
+  order: 1;
+}
+
+.cfx-fast-pix-checkout .cfx-review-submit {
+  order: 2;
+}
+
+.cfx-fast-pix-checkout .cfx-review-prize-card {
+  order: 3;
+}
+
+.cfx-fast-pix-checkout .cfx-review-mini-order {
+  order: 4;
+}
+
+.cfx-fast-pix-checkout .cfx-review-mini-order .cfx-review-panel-head {
+  display: none !important;
+}
+
+.cfx-fast-pix-checkout .cfx-review-mini-order .cfx-review-summary {
+  padding: 10px 12px !important;
+}
+
+.cfx-fast-pix-checkout .cfx-review-mini-order .cfx-review-summary dl {
+  margin-top: 0 !important;
+}
+
+.cfx-fast-pix-checkout .cfx-review-mini-order .cfx-review-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 7px !important;
+  padding-top: 8px !important;
+}
+
+.cfx-fast-pix-checkout .cfx-review-mini-order .cfx-review-total strong {
+  font-size: clamp(1.35rem, 5.4vw, 1.95rem) !important;
+}
+
+.cfx-fast-pix-checkout .cfx-review-prize-card {
+  min-height: 104px !important;
+}
+
+.cfx-fast-pix-checkout .cfx-review-prize-copy {
+  min-height: 104px !important;
+}
+
+.checkout-receipt-body.cfx-prepix-receipt {
+  display: grid;
+  gap: 10px;
+}
+
+.cfx-prepix-receipt .checkout-card {
+  border-radius: 18px !important;
+  padding: 13px !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(168, 85, 247, .14), transparent 12rem),
+    rgba(8, 9, 18, .82) !important;
+}
+
+.cfx-prepix-receipt .checkout-title,
+.cfx-prepix-receipt h3 {
+  font-size: .88rem !important;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.cfx-prepix-receipt .checkout-summary-row {
+  gap: 12px !important;
+  padding-block: 7px !important;
+}
+
+.cfx-prepix-receipt .checkout-summary-label,
+.cfx-prepix-receipt .checkout-summary-value {
+  font-size: .88rem !important;
+}
+
+.cfx-prepix-receipt .checkout-summary-value {
+  max-width: 62%;
+}
+
+.cfx-prepix-receipt .checkout-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  padding-top: 4px;
+  background: linear-gradient(180deg, transparent, rgba(4, 3, 9, .96) 34%);
+}
+
+.cfx-prepix-receipt .checkout-actions .checkout-action-button {
+  min-height: 52px !important;
+  border-radius: 16px !important;
+}
+
+.cfx-pix-premium .cfx-pix-premium-top {
+  order: -4;
+}
+
+.cfx-pix-premium .cfx-pix-timer-card {
+  order: -3;
+}
+
+.cfx-pix-premium .cfx-pix-code {
+  order: -2;
+}
+
+.cfx-pix-premium .cfx-pix-qr-card {
+  order: -1;
+}
+
+.cfx-pix-premium .cfx-pix-summary-compact {
+  order: 1;
+}
+
+.cfx-pix-premium .cfx-pix-actions {
+  order: 2;
+}
+
+.cfx-pix-premium .cfx-pix-timer-card {
+  border-color: rgba(34, 197, 94, .34) !important;
+  background:
+    radial-gradient(circle at 15% 50%, rgba(34, 197, 94, .18), transparent 11rem),
+    rgba(3, 8, 12, .82) !important;
+}
+
+.cfx-pix-premium .cfx-pix-summary-compact {
+  opacity: .92;
+}
+
+.cfx-pix-premium .cfx-pix-qr-card {
+  border-color: rgba(247, 201, 72, .48) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(247, 201, 72, .18), transparent 14rem),
+    radial-gradient(circle at 50% 72%, rgba(168, 85, 247, .22), transparent 14rem),
+    linear-gradient(180deg, rgba(13, 9, 28, .98), rgba(4, 3, 9, .99)) !important;
+  box-shadow: 0 22px 70px rgba(168, 85, 247, .3), 0 0 0 1px rgba(247, 201, 72, .08) inset !important;
+}
+
+.cfx-pix-premium .cfx-qr-wrap {
+  width: min(100%, 360px) !important;
+  padding: 18px !important;
+  border-width: 3px !important;
+  border-color: rgba(247, 201, 72, .86) !important;
+  box-shadow: 0 0 52px rgba(247, 201, 72, .22), 0 0 42px rgba(168, 85, 247, .42) !important;
+}
+
+@media (max-width: 640px) {
+  .cfx-fast-pix-checkout {
+    gap: 8px !important;
+    padding-bottom: calc(4.25rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-buyer {
+    padding: 11px !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-panel-head h3 {
+    font-size: .78rem !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-buyer-form label > span {
+    margin-bottom: 4px !important;
+    font-size: .62rem !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-buyer-form input {
+    min-height: 40px !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-submit {
+    position: sticky;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    z-index: 35;
+    min-height: 54px !important;
+    margin-top: 2px !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-prize-card {
+    min-height: 82px !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-prize-copy {
+    min-height: 82px !important;
+    padding: 8px 10px !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-prize-copy h3 {
+    font-size: clamp(1rem, 4.7vw, 1.28rem) !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-prize-copy strong {
+    font-size: clamp(.9rem, 4.1vw, 1.16rem) !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-mini-order .cfx-review-summary {
+    padding: 8px 10px !important;
+  }
+
+  .cfx-prepix-receipt .checkout-media-preview {
+    max-height: 108px !important;
+  }
+
+  .cfx-prepix-receipt .checkout-card {
+    padding: 11px !important;
+  }
+
+  .cfx-prepix-receipt .checkout-summary-row {
+    padding-block: 6px !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-premium-top {
+    gap: 6px !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-timer-card {
+    min-height: 58px !important;
+    padding: 9px 12px !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-timer-card span {
+    min-height: 0 !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-code code {
+    max-height: 72px !important;
+  }
+
+  .cfx-pix-premium .cfx-qr-wrap {
+    width: min(100%, 312px) !important;
+    padding: 14px !important;
+    border-radius: 24px !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-summary-compact .cfx-pix-campaign {
+    display: none !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-summary-compact .cfx-pix-summary-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .cfx-pix-premium .cfx-pix-summary-compact .cfx-info-card {
+    min-height: 52px !important;
   }
 }

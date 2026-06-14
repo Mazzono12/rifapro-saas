@@ -82,14 +82,14 @@ hasAll(adminRaffles, [
 
 hasAll(mediaPicker, [
   "URL de mídia da campanha",
-  "Imagem ou vídeo direto .mp4/.webm/.mov",
-  "Use link direto de vídeo .mp4/.webm ou arquivo enviado.",
-  "detectedType === \"youtube\" || detectedType === \"vimeo\"",
+  "Imagem, GIF, vídeo, YouTube/Vimeo ou MediaDelivery",
+  "Aceita imagem, GIF, vídeo direto .mp4/.webm/.mov, YouTube/Vimeo",
+  "!allowExternalVideo && isVideoLink",
   "onChange(url, detectedType)",
   "Imagem por link aplicada",
-  "Vídeo por link aplicado",
+  "Mídia por link aplicada",
   "<ResponsiveMediaFrame"
-], "Admin deve aceitar URL de imagem/video direto e avisar YouTube/Vimeo");
+], "Admin deve aceitar URL de imagem/video/player externo por link e upload");
 
 hasAll(mediaUtils, [
   "const imagePattern",
@@ -120,6 +120,11 @@ hasAll(responsiveFrame, [
   "MediaRenderer"
 ], "Frame deve ter fallback premium limpo");
 
+hasAll(read("src/index.css"), [
+  ".cfx-detail-banner > :not(img):not(video):not(.responsive-media-frame):not(.cfx-detail-banner-back):not(.cfx-media-fallback)",
+  ".cfx-detail-banner > .responsive-media-frame"
+], "CSS do detalhe da rifa deve permitir ResponsiveMediaFrame no banner principal");
+
 hasAll(standardBlock, [
   "fallbackImageUrl",
   "setActiveMedia({ url: fallbackUrl, type: \"image\" })",
@@ -132,19 +137,28 @@ hasAll(standardBlock, [
 hasAll(home, [
   "rawRaffle.image || rawRaffle.imageUrl || rawRaffle.bannerUrl || rawRaffle.coverImageUrl || rawRaffle.thumbnailUrl",
   "rawRaffle.mediaUrl || rawRaffle.videoUrl || campaignMediaUrl",
-  "const mediaUrl = raffle.mediaUrl || raffle.image",
+  "resolveHomeHeroMedia",
+  "mediaUrl={heroMedia.mediaUrl}",
   "<StandardRaffleMediaBlock",
-  "fallbackImageUrl={raffle.image}",
+  "fallbackImageUrl=\"\"",
   "showDescriptionBelow={false}",
   "className=\"cfx-home-media-block\""
 ], "Home deve usar a midia persistida sem overlay");
 
 hasAll(details, [
-  "const mediaUrl = raffle?.checkoutMediaUrl || raffle?.mediaUrl || raffle?.image || \"\"",
-  "const fallbackImageUrl = typeof raffle.image === \"string\" ? raffle.image.trim() : \"\"",
-  "autoPlay muted loop playsInline controls={false}",
-  "onError={handleMediaError}",
-  "cfx-media-fallback"
+  "function getRaffleHeroMedia",
+  "function getRaffleCheckoutMedia",
+  "if (imageUrl) return { mediaUrl: imageUrl, mediaType: inferMediaType(imageUrl) as MediaType }",
+  "if (raffle.checkoutMediaUrl) return { mediaUrl: raffle.checkoutMediaUrl",
+  "hideMedia={!checkoutMedia.mediaUrl}",
+  "const heroMedia = getRaffleHeroMedia(raffle)",
+  "const checkoutMedia = getRaffleCheckoutMedia(raffle)",
+  "mediaUrl={heroMedia.mediaUrl}",
+  "mediaUrl={checkoutMedia.mediaUrl}",
+  "ResponsiveMediaFrame",
+  "mediaType={mediaType}",
+  "controls={false}",
+  "onError={handleMediaError}"
 ], "Detalhe da rifa deve usar midia persistida e fallback limpo");
 
 hasAll(types, [

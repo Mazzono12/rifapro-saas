@@ -178,8 +178,8 @@ function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raff
   const campaignMediaUrl = typeof rawRaffle.campaignMedia === "string" ? rawRaffle.campaignMedia : rawRaffle.campaignMedia?.url || rawRaffle.campaignMedia?.mediaUrl;
   const image = safeText(rawRaffle.image || rawRaffle.imageUrl || rawRaffle.bannerUrl || rawRaffle.coverImageUrl || rawRaffle.thumbnailUrl, "");
   const rawMediaUrl = safeText(rawRaffle.mediaUrl || rawRaffle.videoUrl || campaignMediaUrl, "");
-  const mediaUrl = rawMediaUrl || image;
-  const mediaType = rawMediaUrl ? normalizeRaffleMediaType(rawRaffle.mediaType) : image ? "image" : normalizeRaffleMediaType(rawRaffle.mediaType);
+  const mediaUrl = rawMediaUrl;
+  const mediaType = rawMediaUrl ? normalizeRaffleMediaType(rawRaffle.mediaType) : normalizeRaffleMediaType(rawRaffle.mediaType);
   return {
     ...rawRaffle,
     id: String(rawRaffle.id),
@@ -214,22 +214,10 @@ function isVideoMediaType(type: unknown) {
 }
 
 function resolveHomeHeroMedia(raffle: Raffle) {
-  const image = safeText(
-    raffle.image || (raffle as any).imageUrl || (raffle as any).bannerUrl || (raffle as any).coverImageUrl || (raffle as any).thumbnailUrl,
-    ""
-  );
   const rawMedia = safeText(raffle.mediaUrl || (raffle as any).videoUrl, "");
-  const mediaType = String(raffle.mediaType || "").trim().toLowerCase();
-  const shouldPreferImage = mediaType === "bunny" || rawMedia.includes("player.mediadelivery.net");
 
-  if (image && shouldPreferImage) {
-    return { mediaUrl: image, mediaType: "image" as Raffle["mediaType"], fallbackImageUrl: image, isVideo: false, hasMedia: true };
-  }
   if (rawMedia) {
-    return { mediaUrl: rawMedia, mediaType: raffle.mediaType, fallbackImageUrl: image, isVideo: isVideoMediaType(raffle.mediaType), hasMedia: true };
-  }
-  if (image) {
-    return { mediaUrl: image, mediaType: "image" as Raffle["mediaType"], fallbackImageUrl: image, isVideo: false, hasMedia: true };
+    return { mediaUrl: rawMedia, mediaType: raffle.mediaType, fallbackImageUrl: "", isVideo: isVideoMediaType(raffle.mediaType), hasMedia: true };
   }
   return { mediaUrl: "", mediaType: "image" as Raffle["mediaType"], fallbackImageUrl: "", isVideo: false, hasMedia: false };
 }
@@ -431,8 +419,6 @@ function RifaProLoading() {
 function Hero({ raffle, ranking, topSellers }: { raffle: Raffle; ranking: RankingBuyer[]; topSellers: TopSellerRankingItem[] }) {
   const progress = safeProgress(raffle);
   const heroMedia = resolveHomeHeroMedia(raffle);
-  const headline = safeText(raffle.homeTitle, safeText(raffle.heroTitle, raffle.title));
-  const highlight = safeText(raffle.homeHighlightText, "");
   const isVideo = heroMedia.isVideo;
   const mediaKind = isVideo ? "video" : "image";
   const homeMediaAspect = resolveHomeMediaAspect(raffle, isVideo);
@@ -445,21 +431,19 @@ function Hero({ raffle, ranking, topSellers }: { raffle: Raffle; ranking: Rankin
         data-home-media-type={mediaKind}
         data-home-media-aspect={homeMediaAspect}
       >
-        {heroMedia.hasMedia ? (
+        {heroMedia.hasMedia && (
           <StandardRaffleMediaBlock
             mediaUrl={heroMedia.mediaUrl}
             mediaType={heroMedia.mediaType}
             title={raffle.title}
             href={`/raffle/${raffle.id}`}
-            fallbackImageUrl={heroMedia.fallbackImageUrl}
+            fallbackImageUrl=""
             priority
             showDescriptionBelow={false}
             preferredFit={resolveHomeMediaFit(raffle.mediaFit)}
             aspectMode={homeMediaAspect}
             className="cfx-home-media-block"
           />
-        ) : (
-          <HomeHeroFallback raffle={raffle} headline={headline} highlight={highlight} />
         )}
         <div className="cfx-home-hero-progress-badge">
           <strong>{progress.toFixed(0)}%</strong>
@@ -471,19 +455,6 @@ function Hero({ raffle, ranking, topSellers }: { raffle: Raffle; ranking: Rankin
       <TopBuyers ranking={ranking} />
       <TopSellers ranking={topSellers} />
     </section>
-  );
-}
-
-function HomeHeroFallback({ raffle, headline, highlight }: { raffle: Raffle; headline: string; highlight: string }) {
-  return (
-    <div className="cfx-home-hero-fallback" data-home-hero-fallback="premium">
-      <div>
-        <span><Sparkles /> PIX imediato</span>
-        <span><ShieldCheck /> Compra segura</span>
-      </div>
-      <h2>{headline}</h2>
-      <strong>{safeText(highlight, safeText(raffle.description, "Campanha ativa com cotas disponiveis."))}</strong>
-    </div>
   );
 }
 
@@ -535,9 +506,9 @@ function CampaignCard({ raffle }: { key?: React.Key; raffle: Raffle }) {
     <article className="cfx-campaign-card">
       <Link to={`/raffle/${raffle.id}`} className="cfx-campaign-media" aria-label={`Participar de ${raffle.title}`}>
         <StandardRaffleMediaBlock
-          mediaUrl={raffle.mediaUrl || raffle.image}
+          mediaUrl={raffle.mediaUrl}
           mediaType={raffle.mediaType}
-          fallbackImageUrl={raffle.image}
+          fallbackImageUrl=""
           title={raffle.title}
           showDescriptionBelow={false}
           preferredFit={resolveHomeMediaFit(raffle.mediaFit)}

@@ -59,8 +59,8 @@ assert(!customerStore.includes("nexusdraw_admin_token"), "Logout do cliente nao 
 const paymentPix = sliceBetween(raffleDetails, "function PaymentPix", "function PremiumTicket");
 assert(!/Suporte WhatsApp|supportUrl|wa\.me|api\.whatsapp\.com/i.test(paymentPix), "Checkout PIX nao pode conter CTA de WhatsApp");
 assert(paymentPix.includes("JÁ REALIZEI O PAGAMENTO") || paymentPix.includes("Confirmar PIX") || paymentPix.includes("Ja paguei, verificar"), "Checkout PIX deve conter botao de consulta do pagamento");
-assert(paymentPix.includes("COPIAR PIX"), "Checkout PIX deve conter botao COPIAR PIX");
-assert(paymentPix.includes("cfx-copy-pix-button"), "Botao COPIAR PIX deve usar classe propria");
+assert(paymentPix.includes("Copiar código PIX"), "Checkout PIX deve conter botao Copiar codigo PIX");
+assert(paymentPix.includes("cfx-copy-pix-button"), "Botao Copiar codigo PIX deve usar classe propria");
 assert(raffleDetails.includes("copyTextToClipboard") && raffleDetails.includes("document.execCommand(\"copy\")"), "Copiar PIX deve ter fallback para HTTP/local mobile");
 assert(raffleDetails.includes("checkoutService.checkPixPaymentStatus(purchase.purchaseId)"), "Botao de pagamento realizado deve consultar status seguro do pedido");
 assert(api.includes('fetch(`/api/checkout/orders/${orderId}/status`)'), "Status PIX deve usar GET /api/checkout/orders/:id/status");

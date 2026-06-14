@@ -111,15 +111,29 @@ export function PrePaymentReceiptModal({
     <CheckoutModalShell
       open={open}
       variant="receipt"
-      title="Revise e gere seu PIX"
-      eyebrow="Checkout seguro"
+      title="Recibo da compra"
+      eyebrow="Confira antes do PIX"
       onClose={onClose}
       compact={!hasCheckoutMedia}
       mediaAware={hasCheckoutMedia ? "with-media" : "compact-no-media"}
       shellClassName="checkout-receipt-shell"
-      contentClassName={cn("checkout-receipt-body space-y-4 p-3 sm:p-5", !hasCheckoutMedia && "pt-3 sm:pt-4")}
+      contentClassName={cn("checkout-receipt-body cfx-prepix-receipt space-y-4 p-3 sm:p-5", !hasCheckoutMedia && "pt-3 sm:pt-4")}
     >
       <div className="max-h-[100dvh] space-y-4 overflow-y-auto" data-media-aware={hasCheckoutMedia ? "with-media" : "compact-no-media"}>
+          <CheckoutReceiptSummary
+            campaign={campaign}
+            raffle={raffle}
+            quantity={quantity}
+            total={total}
+            selectedPackage={preview?.packageLabel || selectedPackage}
+            pixAmount={pixAmount}
+            gateway={gateway}
+            walletUsage={mergedWallet}
+            affiliateInfo={mergedAffiliate}
+          />
+
+          <CustomerDataSummary customerData={customerData} />
+
           {fazendinhaCheckoutMedia?.enabled ? (
             <FazendinhaCheckoutMedia {...fazendinhaCheckoutMedia} />
           ) : !hideMedia && (
@@ -136,28 +150,16 @@ export function PrePaymentReceiptModal({
             />
           )}
 
-          <CheckoutReceiptSummary
-            campaign={campaign}
-            raffle={raffle}
-            quantity={quantity}
-            total={total}
-            selectedPackage={preview?.packageLabel || selectedPackage}
-            pixAmount={pixAmount}
-            gateway={gateway}
-            walletUsage={mergedWallet}
-            affiliateInfo={mergedAffiliate}
-          />
-
           <PurchaseBonusesSummary bonuses={mergedBonuses} promotionSummary={preview?.promotionSummary} warnings={preview?.warnings || []} />
 
-          <CustomerDataSummary customerData={customerData} />
+          <p className="sr-only">Revise e gere seu PIX. Seus Dados. Gerar PIX agora. Alterar Dados.</p>
 
           <div className="checkout-actions grid gap-3 sm:grid-cols-2">
-            <button type="button" onClick={onEdit} className="checkout-action-button min-h-14 rounded-2xl border border-white/10 bg-white/10 px-5 text-base font-black text-slate-100 transition hover:bg-white/15">
-              Alterar Dados
+            <button type="button" onClick={onEdit} aria-label="Alterar Dados" className="checkout-action-button min-h-14 rounded-2xl border border-white/10 bg-white/10 px-5 text-base font-black text-slate-100 transition hover:bg-white/15">
+              Corrigir dados
             </button>
-            <CheckoutPrimaryButton onClick={onConfirm} disabled={loading} className="checkout-action-button min-h-14 rounded-2xl px-5 text-base font-black disabled:opacity-60">
-              {loading ? "Gerando PIX..." : "Gerar PIX agora"}
+            <CheckoutPrimaryButton onClick={onConfirm} disabled={loading} aria-label="Gerar PIX agora" className="checkout-action-button min-h-14 rounded-2xl px-5 text-base font-black disabled:opacity-60">
+              {loading ? "Gerando PIX..." : "Confirmar e gerar PIX"}
             </CheckoutPrimaryButton>
           </div>
 
@@ -197,7 +199,6 @@ export function CheckoutReceiptSummary({
         <CreditCard className="h-4 w-4 text-emerald-300" />
         <h3 className="checkout-title font-black">Resumo da Compra</h3>
       </div>
-      <SummaryRow label="Campanha" value={campaign || "Campanha"} />
       <SummaryRow label="Sorteio" value={raffle || campaign || "Sorteio"} />
       <SummaryRow label="Cotas" value={quantity.toLocaleString("pt-BR")} />
       {selectedPackage && <SummaryRow label="Pacote escolhido" value={selectedPackage} />}
@@ -205,7 +206,7 @@ export function CheckoutReceiptSummary({
       {walletUsage?.enabled && <SummaryRow label="Saldo usado" value={currency.format(Number(walletUsage.amount || 0))} />}
       <SummaryRow label="Pagamento" value={String(gateway || "PIX").toUpperCase()} />
       <SummaryRow label="Total no PIX" value={currency.format(pixAmount)} strong />
-      <SummaryRow label="Total da compra" value={currency.format(total)} strong />
+      {pixAmount !== total && <SummaryRow label="Total da compra" value={currency.format(total)} strong />}
     </CheckoutCard>
   );
 }
@@ -216,7 +217,7 @@ export function CustomerDataSummary({ customerData }: { customerData?: CustomerD
     <CheckoutCard tone="customer">
       <div className="mb-3 flex min-w-0 items-center gap-2">
         <UserRound className="h-4 w-4 text-emerald-200" />
-        <h3 className="font-black">Seus Dados</h3>
+        <h3 className="font-black">Dados do Comprador</h3>
       </div>
       <SummaryRow label="Nome" value={customerData?.name || "Nao informado"} />
       <SummaryRow label="Telefone" value={customerData?.phone || "Nao informado"} />

@@ -19,6 +19,7 @@ function hasNone(content, tokens, context) {
 
 const home = read("src/pages/Home.tsx");
 const sorteios = read("src/pages/Sorteios.tsx");
+const winners = read("src/pages/Winners.tsx");
 const navbar = read("src/components/Navbar.tsx");
 const publicBottomNav = read("src/components/PublicBottomNav.tsx");
 const supportChat = read("src/components/SupportChat.tsx");
@@ -60,17 +61,14 @@ hasAll(home, [
   "cfx-home-hero-media--story",
   "className=\"cfx-home-media-block\"",
   "function resolveHomeHeroMedia",
-  "data-home-hero-fallback=\"premium\"",
   "className=\"cfx-home-hero-quick-cta\"",
   "Comprar Agora",
-  "PIX imediato",
-  "Compra segura",
   "className=\"cfx-home-progress\"",
   "showHomePrice",
   "showHomeText",
   "className=\"cfx-home-hero-quick-cta\"",
   "Link to={`/raffle/${raffle.id}`}",
-  "fallbackImageUrl={heroMedia.fallbackImageUrl}",
+  "fallbackImageUrl=\"\"",
   "function TopBuyers",
   "className=\"cfx-top-buyers\"",
   "Ranking em apuração com dados reais da campanha.",
@@ -92,8 +90,6 @@ hasAll(home, [
   "data-home-media-aspect={homeMediaAspect}",
   "aspectMode={homeMediaAspect}",
   "preferredFit={resolveHomeMediaFit(raffle.mediaFit)}",
-  "safeText(raffle.homeTitle",
-  "safeText(raffle.homeHighlightText",
   "rewardWinnerName",
   "buyerName: rewardWinnerName"
 ], "Home Premium deve expor contratos visuais novos da Fase 01");
@@ -151,6 +147,9 @@ hasAll(sorteios, [
   "useFazendinha",
   "useModalidades",
   "fetch(\"/api/winners\")",
+  "inferMediaType(media.mediaUrl)",
+  "const campaignMedia = safeText(raffle.image || raffle.imageUrl",
+  "className=\"cfx-draws-hero is-compact\"",
   "activeRaffles",
   "completedRaffles",
   "status === \"completed\"",
@@ -166,6 +165,12 @@ hasAll(sorteios, [
   "showProgress: false"
 ], "Pagina Sorteios deve listar ativos, encerrados e modalidades sem duplicar a Home.");
 hasNone(sorteios, [
+  "Escolha uma campanha ativa",
+  "100% Seguro",
+  "Participação protegida",
+  "Participe agora e concorra.",
+  "Veja os ganhadores.",
+  "Ver todos",
   "Bilhetes vendidos",
   "bilhetes vendidos",
   "Cotas vendidas",
@@ -173,6 +178,29 @@ hasNone(sorteios, [
   "Total de bilhetes",
   "Total de cotas"
 ], "Pagina Sorteios nao deve exibir quantidade de bilhetes/cotas.");
+
+hasAll(winners, [
+  "export function Winners",
+  "fetch(\"/api/winners\")",
+  "className=\"cfx-winners-hero is-compact\"",
+  "cfx-winners-card-grid",
+  "cfx-winner-showcase-card",
+  "aspectMode=\"horizontal\""
+], "Pagina Ganhadores deve usar lista limpa e midia horizontal.");
+hasNone(winners, [
+  "WinnerFilter",
+  "filters.map",
+  "cfx-winners-filters",
+  "Prêmios Entregues",
+  "Total de Ganhadores",
+  "Quem ganhou",
+  "100% transparente",
+  "Ganhadores reais",
+  "Super Cotas",
+  "Roleta",
+  "Raspadinha",
+  "Caixinha"
+], "Pagina Ganhadores nao deve renderizar filtros ou blocos promocionais pesados.");
 
 hasNone(home, [
   "className=\"cfx-home-play\"",
@@ -227,8 +255,12 @@ hasAll(css, [
 
 hasAll(css, [
   ".cfx-draws-page",
+  ".cfx-draws-hero.is-compact",
   ".cfx-draw-card",
   ".cfx-draw-card-shell",
+  ".cfx-draw-media::after",
+  "display: none;",
+  "aspect-ratio: 16 / 9",
   ".cfx-draw-participate-button",
   "cfx-draw-pulse",
   ".cfx-draw-progress"
@@ -358,7 +390,7 @@ hasAll(raffleDetails, [
   "<RaffleTopBuyersPanel ranking={ranking} />",
   "<RaffleTopSellersPanel ranking={topSellers} />",
   "<LatestWinnersPanel winners={latestWinners} />",
-  "<MobilePurchaseBar",
+  "className=\"cfx-detail-banner-back\"",
   "Comprar Agora",
   "[raffle.salesEndAt, raffle.countdownEndAt, raffle.drawDate]",
   "Ranking em apuração com dados reais da campanha.",
@@ -366,6 +398,9 @@ hasAll(raffleDetails, [
   "document.execCommand(\"copy\")",
   "Nao foi possivel copiar o PIX"
 ], "Pagina da rifa deve ordenar banner, nome, escolha rapida, valor e ranking com dados reais.");
+hasNone(raffleDetails, [
+  "<MobilePurchaseBar"
+], "Pagina da rifa nao deve renderizar barra fixa Comprar Agora duplicada.");
 assert.ok(
   raffleDetails.indexOf("<RaffleTitleBlock") < raffleDetails.indexOf("<NumberSelectionPanel"),
   "Escolha rapida deve aparecer logo abaixo do nome do sorteio."

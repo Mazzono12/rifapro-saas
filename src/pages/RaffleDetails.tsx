@@ -29,6 +29,7 @@ import { NumberRevealModal } from "../components/NumberRevealModal";
 import { PostPurchaseLootboxModal } from "../components/PostPurchaseLootboxModal";
 import { PixPaymentResultModal } from "../components/PixPaymentResultModal";
 import { GamificationPanel } from "../components/GamificationPanel";
+import { CheckoutCampaignMedia } from "../components/checkout/CheckoutCampaignMedia";
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 import { CheckoutModalShell, CheckoutPrimaryActionButton } from "../components/premium/PremiumUI";
 import { checkoutService } from "../services/api";
@@ -37,6 +38,8 @@ import { useCityDetection } from "../hooks/useCityDetection";
 import { finishMetric, markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
 import { PublicConversionWidgets } from "../components/PublicConversionWidgets";
+import { ResponsiveMediaFrame } from "../components/ResponsiveMediaFrame";
+import { inferMediaType, type MediaType } from "../utils/media";
 
 /* clean-media contract: StandardRaffleMediaBlock CheckoutCampaignMedia */
 /* ui-contrast/mobile contract: Confirmar PIX premium-button Field label="Cidade" Field label="WhatsApp" FloatingActions */
@@ -57,6 +60,19 @@ type TopSellerRankingItem = {
   position: number;
   prizeLabel?: string;
 };
+
+function getRaffleHeroMedia(raffle?: Raffle | null) {
+  if (!raffle) return { mediaUrl: "", mediaType: "image" as MediaType };
+  const imageUrl = String(raffle.image || "").trim();
+  if (imageUrl) return { mediaUrl: imageUrl, mediaType: inferMediaType(imageUrl) as MediaType };
+  return { mediaUrl: "", mediaType: "image" as MediaType };
+}
+
+function getRaffleCheckoutMedia(raffle?: Raffle | null) {
+  if (!raffle) return { mediaUrl: "", mediaType: "image" as MediaType };
+  if (raffle.checkoutMediaUrl) return { mediaUrl: raffle.checkoutMediaUrl, mediaType: (raffle.checkoutMediaType || inferMediaType(raffle.checkoutMediaUrl)) as MediaType };
+  return { mediaUrl: "", mediaType: "image" as MediaType };
+}
 
 function getLatestSalesDeadline(raffle?: Raffle | null) {
   if (!raffle) return "";
@@ -279,8 +295,8 @@ export function RaffleDetails() {
   const totalValue = Math.max(0, subtotalValue + addonValue + orderBumpValue - couponDiscount);
   const walletBalance = (customer?.affiliate?.commissionBalance ?? customer?.affiliate?.commission ?? 0) + (customer?.affiliate?.prizeBalance || 0);
   const canUseBalance = Boolean(customer?.affiliate?.useBalanceForPurchases && walletBalance >= totalValue);
-  const mediaUrl = raffle?.checkoutMediaUrl || raffle?.mediaUrl || raffle?.image || "";
-  const mediaType = raffle?.checkoutMediaUrl ? raffle.checkoutMediaType : raffle?.mediaType;
+  const heroMedia = getRaffleHeroMedia(raffle);
+  const checkoutMedia = getRaffleCheckoutMedia(raffle);
   const minPurchaseTickets = getRaffleMinPurchaseTickets(raffle);
 
   useEffect(() => {
@@ -358,17 +374,20 @@ export function RaffleDetails() {
     return true;
   };
 
-  const openPrePaymentReceipt = async (event?: React.FormEvent) => {
+  const openPrePaymentReceipt = async (event?: React.FormEvent, resolvedCustomer?: Partial<CheckoutCustomerForm>) => {
     event?.preventDefault();
-    if (!raffle || !validateCheckoutForm()) return;
+    if (!raffle || !validateCheckoutForm(resolvedCustomer)) return;
     startMetric("checkout_modal_open");
     setIsSubmitting(true);
     try {
+      const previewCustomer = recognizedCustomer
+        ? { ...customerForm, name: recognizedCustomer.name, phone: recognizedCustomer.phone, cpf: recognizedCustomer.cpf }
+        : { ...customerForm, ...resolvedCustomer };
       const preview = await checkoutService.preview({
         type: "raffle",
         raffleId: id,
         tickets,
-        customer: recognizedCustomer ? { ...customerForm, name: recognizedCustomer.name, phone: recognizedCustomer.phone, cpf: recognizedCustomer.cpf } : customerForm,
+        customer: previewCustomer,
         refCode: localStorage.getItem("refCode") || undefined,
         useBalance,
         couponCode: couponCode || undefined,
@@ -515,8 +534,8 @@ export function RaffleDetails() {
       <div className="relative z-10">
         <RafflePremiumPage
           raffle={raffle}
-          mediaUrl={mediaUrl}
-          mediaType={mediaType}
+          mediaUrl={heroMedia.mediaUrl}
+          mediaType={heroMedia.mediaType}
           progress={progress}
           countdown={countdown}
           tickets={tickets}
@@ -570,7 +589,7 @@ export function RaffleDetails() {
         onSwitchCustomer={switchCheckoutCustomer}
         onSubmit={(event, resolvedCustomer) => {
           event.preventDefault();
-          executeBuy(resolvedCustomer);
+          openPrePaymentReceipt(event, resolvedCustomer);
         }}
         onCopyPix={copyPix}
         onConfirmPix={confirmPixStatus}
@@ -583,6 +602,9 @@ export function RaffleDetails() {
         campaign={raffle.title}
         raffle={raffle.title}
         raffleData={raffle}
+        mediaUrl={checkoutMedia.mediaUrl}
+        mediaType={checkoutMedia.mediaType}
+        hideMedia={!checkoutMedia.mediaUrl}
         selectedQuantity={tickets}
         selectedPackage={checkoutPreview?.packageLabel || `${tickets.toLocaleString("pt-BR")} cotas`}
         calculatedPrice={totalValue}
@@ -667,22 +689,15 @@ function RafflePremiumPage({
   const totalTickets = Math.max(1, Number(raffle.totalTickets || 1));
   const soldTickets = Math.max(0, Number(raffle.soldTickets || 0));
   const remaining = Math.max(0, totalTickets - soldTickets);
-  const isVideo = ["video", "bunny"].includes(String(mediaType || "").toLowerCase());
   const unitPrice = Number(raffle.price || 0);
 
   return (
     <main className="cfx-raffle-shell cfx-detail-shell">
-      <RafflePremiumTopbar onParticipate={onParticipate} />
       <div className="cfx-detail-layout cfx-detail-layout--single">
         <section className="cfx-detail-main">
-          <RafflePremiumHero raffle={raffle} mediaUrl={mediaUrl} isVideo={isVideo} />
+          <RafflePremiumHero raffle={raffle} mediaUrl={mediaUrl} mediaType={mediaType} />
           <RaffleTitleBlock
             raffle={raffle}
-            soldTickets={soldTickets}
-            participants={ranking.length}
-            unitPrice={unitPrice}
-            minPurchaseTickets={minPurchaseTickets}
-            onParticipate={onParticipate}
           />
           <NumberSelectionPanel
             tickets={tickets}
@@ -702,12 +717,6 @@ function RafflePremiumPage({
           <SuperCotasPanel prizes={prizes} />
         </section>
       </div>
-      <MobilePurchaseBar
-        raffle={raffle}
-        minPurchaseTickets={minPurchaseTickets}
-        unitPrice={unitPrice}
-        onParticipate={onParticipate}
-      />
       <div className="cfx-compat" aria-hidden="true">
         {/* Top compradores RankingSection ranking.slice(0, 4) */}
         <span>{ranking.slice(0, 4).length}</span>
@@ -729,70 +738,59 @@ function RifaProWordmark() {
   return <span className="cfx-wordmark">CIFHER<span>Prime</span></span>;
 }
 
-function RafflePremiumHero({ raffle, mediaUrl, isVideo }: { raffle: Raffle; mediaUrl: string; isVideo: boolean }) {
+function RafflePremiumHero({ raffle, mediaUrl, mediaType }: { raffle: Raffle; mediaUrl: string; mediaType?: MediaType | string | null }) {
   const primaryMediaUrl = typeof mediaUrl === "string" ? mediaUrl.trim() : "";
-  const fallbackImageUrl = typeof raffle.image === "string" ? raffle.image.trim() : "";
-  const [activeMediaUrl, setActiveMediaUrl] = useState(primaryMediaUrl || fallbackImageUrl);
+  const [activeMediaUrl, setActiveMediaUrl] = useState(primaryMediaUrl);
   const [hasMediaError, setHasMediaError] = useState(false);
 
   useEffect(() => {
-    setActiveMediaUrl(primaryMediaUrl || fallbackImageUrl);
+    setActiveMediaUrl(primaryMediaUrl);
     setHasMediaError(false);
-  }, [fallbackImageUrl, primaryMediaUrl]);
+  }, [primaryMediaUrl]);
 
   const handleMediaError = () => {
-    if (fallbackImageUrl && activeMediaUrl !== fallbackImageUrl) {
-      setActiveMediaUrl(fallbackImageUrl);
-      return;
-    }
     setHasMediaError(true);
     setActiveMediaUrl("");
   };
 
-  const renderVideo = isVideo && activeMediaUrl && !hasMediaError && activeMediaUrl !== fallbackImageUrl;
+  const resolvedMediaType = (mediaType as MediaType | undefined) || inferMediaType(activeMediaUrl);
+  const preferredFit = raffle.mediaFit === "contain" ? "contain" : "cover";
+
+  if (!activeMediaUrl || hasMediaError) return null;
 
   return (
     <section className="cfx-raffle-hero cfx-detail-banner">
-      {renderVideo ? (
-        <video src={activeMediaUrl} poster={fallbackImageUrl || undefined} autoPlay muted loop playsInline controls={false} preload="metadata" onError={handleMediaError} />
-      ) : activeMediaUrl && !hasMediaError ? (
-        <img src={activeMediaUrl} alt={raffle.title} onError={handleMediaError} />
-      ) : (
-        <div className="cfx-media-fallback" aria-label="Mídia da campanha indisponível" role="img" />
-      )}
+      <Link to="/" className="cfx-detail-banner-back" aria-label="Voltar"><ChevronLeft /></Link>
+      <ResponsiveMediaFrame
+        src={activeMediaUrl}
+        type={resolvedMediaType}
+        alt={raffle.title}
+        preferredFit={preferredFit}
+        aspectMode="auto"
+        priority
+        autoPlay
+        muted
+        loop
+        controls={false}
+        interactive={false}
+        className="h-full w-full rounded-[inherit]"
+        mediaClassName="h-full w-full"
+        onError={handleMediaError}
+      />
     </section>
   );
 }
 
 function RaffleTitleBlock({
-  raffle,
-  soldTickets,
-  participants,
-  unitPrice,
-  minPurchaseTickets,
-  onParticipate
+  raffle
 }: {
   raffle: Raffle;
-  soldTickets: number;
-  participants: number;
-  unitPrice: number;
-  minPurchaseTickets: number;
-  onParticipate: () => void;
 }) {
-  const minimumValue = Math.max(1, minPurchaseTickets) * unitPrice;
   return (
     <section className="cfx-title-row cfx-detail-title">
       <span className="cfx-detail-kicker"><Trophy /> Prêmio principal</span>
       <h1>{raffle.title}</h1>
       <p><Clock3 /> {formatDate(raffle.drawDate)} <span /> <ShieldCheck /> Compra via PIX seguro</p>
-      <div className="cfx-detail-hero-stats">
-        <span><small>Vendas</small><strong>{soldTickets.toLocaleString("pt-BR")}</strong></span>
-        <span><small>Participantes</small><strong>{Math.max(participants, 0).toLocaleString("pt-BR")}</strong></span>
-        <span><small>Menor compra</small><strong>{formatCurrency(minimumValue)}</strong></span>
-      </div>
-      <button type="button" className="cfx-detail-main-cta" onClick={onParticipate}>
-        <Ticket /> Comprar Agora
-      </button>
     </section>
   );
 }
@@ -1264,37 +1262,15 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
   const buyerPhone = buyer.phone || props.customerForm.phone || "";
   const buyerEmail = (buyer as any).email || props.customerForm.email || "";
   const buyerCpf = buyer.cpf || props.customerForm.cpf || "";
-  const subtotal = props.tickets * Number(props.raffle.price || 0);
   const discount = Number(props.couponPreview?.discount || 0);
-  const fees = 0;
   const needsCustomerData = !props.customer || props.requireIdentity;
   const cpfDigits = String(props.customerForm.cpf || buyerCpf || "").replace(/\D/g, "");
   const phoneDigits = String(props.customerForm.phone || buyerPhone || "").replace(/\D/g, "");
-  const campaignImage = props.raffle.image || props.raffle.checkoutMediaUrl || props.raffle.mediaUrl || "";
+  const checkoutMedia = getRaffleCheckoutMedia(props.raffle);
   const rawPixPrize = (props.raffle as any).pixPrizeValue ?? (props.raffle as any).pixPrize ?? (props.raffle as any).cashPrize ?? "";
   const pixPrize = typeof rawPixPrize === "number" && rawPixPrize > 0
     ? formatCurrency(rawPixPrize)
     : String(rawPixPrize || "").trim();
-  const publicPrizes = props.prizes
-    .filter(prize => Number.isFinite(Number(prize.numeroPremiado)))
-    .slice(0, 6);
-  const lootboxConfig = props.raffle.lootboxConfig || {};
-  const rewardModes = (lootboxConfig as any).rewardModes || {};
-  const benefits = [
-    publicPrizes.length ? { icon: <Gift />, title: "Super Cotas", detail: "Inclusas", tone: "gold" } : null,
-    props.raffle.lootboxEnabled && (rewardModes.wheel || (lootboxConfig as any).experienceType === "wheel")
-      ? { icon: <Trophy />, title: "Roleta", detail: "Premiada", tone: "blue" }
-      : null,
-    props.raffle.lootboxEnabled && (rewardModes.box || (lootboxConfig as any).experienceType === "box")
-      ? { icon: <Gift />, title: "Caixinha", detail: "Premiada", tone: "cyan" }
-      : null,
-    props.gamification?.scratchcard?.enabled || props.gamification?.scratchcard?.prizes?.length
-      ? { icon: <Ticket />, title: "Raspadinha", detail: "Premiada", tone: "purple" }
-      : null,
-    props.ranking.length || props.gamification?.buyerRanking?.enabled
-      ? { icon: <Trophy />, title: "Ranking", detail: "Top Compradores", tone: "gold" }
-      : null
-  ].filter(Boolean) as Array<{ icon: React.ReactNode; title: string; detail: string; tone: string }>;
   const handleReviewSubmit = async (event: React.FormEvent) => {
     if (needsCustomerData) {
       event.preventDefault();
@@ -1353,47 +1329,9 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         <button type="button" onClick={props.onClose} aria-label="Voltar para o sorteio">
           <ChevronLeft />
         </button>
-        <h2>PIX RAPIDO</h2>
-        <p>Informe seus dados e gere o PIX.</p>
+        <h2>Pagamento PIX</h2>
+        <p>Preencha os dados e gere o PIX.</p>
       </header>
-
-      <section className="cfx-review-prize-card">
-        {campaignImage ? (
-          <img src={campaignImage} alt={props.raffle.title} onError={event => { event.currentTarget.style.display = "none"; }} />
-        ) : (
-          <div className="cfx-review-prize-placeholder"><Gift /></div>
-        )}
-        <div className="cfx-review-prize-copy">
-          <h3>{props.raffle.title}</h3>
-          {pixPrize && (
-            <>
-              <span>ou</span>
-              <strong>{pixPrize} NO PIX</strong>
-            </>
-          )}
-          <b><Trophy /> SUPER PRÊMIO</b>
-        </div>
-      </section>
-
-      <div className="cfx-review-columns">
-        <section className="cfx-review-panel cfx-review-summary">
-          <div className="cfx-review-panel-head">
-            <span><Ticket /></span>
-            <h3>RESUMO DO PEDIDO</h3>
-          </div>
-          <dl>
-            <div><dt>Quantidade de cotas:</dt><dd>{props.tickets.toLocaleString("pt-BR")}</dd></div>
-            <div><dt>Valor unitário:</dt><dd>{formatCurrency(props.raffle.price)}</dd></div>
-            <div><dt>Subtotal:</dt><dd>{formatCurrency(subtotal)}</dd></div>
-            <div><dt>Descontos:</dt><dd>{formatCurrency(discount)}</dd></div>
-            <div><dt>Taxas:</dt><dd>{formatCurrency(fees)}</dd></div>
-          </dl>
-          <div className="cfx-review-total">
-            <small>TOTAL A PAGAR</small>
-            <strong>{formatCurrency(props.totalValue)}</strong>
-          </div>
-        </section>
-      </div>
 
       <section className="cfx-review-panel cfx-review-buyer">
         <div className="cfx-review-panel-head">
@@ -1416,7 +1354,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
             <Field label="WhatsApp" value={props.customerForm.phone} onChange={value => props.setCustomerForm((current: any) => ({ ...current, phone: value, knownCustomer: false }))} inputMode="tel" autoComplete="tel" />
             <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value.replace(/\D/g, "").slice(0, 11), knownCustomer: false }))} required inputMode="numeric" maxLength={11} />
             {needsAccessPassword && !props.customerForm.knownCustomer && <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} inputMode="numeric" maxLength={6} autoComplete="one-time-code" />}
-            <p className="cfx-review-cpf-hint">{needsAccessPassword ? "Cadastro novo. Crie uma senha simples para proteger seus bilhetes." : "Se o CPF ou WhatsApp ja existir, usamos seus dados salvos e seguimos direto para o PIX."}</p>
+            <p className="cfx-review-cpf-hint">{needsAccessPassword ? "Crie uma senha de 6 digitos para acessar seus bilhetes depois." : "Se ja comprou antes, seguimos direto para o PIX."}</p>
           </div>
         )}
       </section>
@@ -1425,49 +1363,48 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         <WalletCards /> {props.isSubmitting ? "GERANDO PIX..." : "Gerar PIX agora"}
       </CheckoutPrimaryActionButton>
 
-      {benefits.length > 0 && (
-        <section className="cfx-review-panel cfx-review-benefits cfx-review-benefits-mobile">
-          <div className="cfx-review-panel-head">
-            <span><Gift /></span>
-            <h3>BENEFÍCIOS DA CAMPANHA</h3>
-          </div>
-          <div>
-            {benefits.map(benefit => (
-              <article key={`mobile-${benefit.title}-${benefit.detail}`} data-tone={benefit.tone}>
-                {benefit.icon}
-                <span><strong>{benefit.title}</strong><small>{benefit.detail}</small></span>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {publicPrizes.length > 0 && (
-        <section className="cfx-review-super-prizes cfx-review-super-prizes-mobile">
-          <h3>SUPER COTAS RECEBIDAS</h3>
-          <div>
-            {publicPrizes.map(prize => (
-              <article key={`mobile-${prize.id}`}>
-                <strong>{String(prize.numeroPremiado).padStart(5, "0")}</strong>
-                <small>{formatCurrency(Number(prize.valorPremio || 0))}</small>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="cfx-review-security">
-        {[
-          [<ShieldCheck />, "COMPRA SEGURA"],
-          [<WalletCards />, "PIX INSTANTÂNEO"],
-          [<Lock />, "DADOS PROTEGIDOS"],
-          [<Trophy />, "SORTEIO TRANSPARENTE"]
-        ].map(([icon, label]) => (
-          <span key={String(label)}>{icon}<strong>{label}</strong></span>
-        ))}
+      {checkoutMedia.mediaUrl && (
+      <section className="cfx-review-prize-card">
+        {checkoutMedia.mediaUrl ? (
+          <CheckoutCampaignMedia
+            raffle={props.raffle}
+            mediaUrl={checkoutMedia.mediaUrl}
+            mediaType={checkoutMedia.mediaType}
+            title={props.raffle.title}
+            compact
+            showStatus={false}
+            className="cfx-review-prize-media"
+          />
+        ) : null}
+        <div className="cfx-review-prize-copy">
+          <h3>{props.raffle.title}</h3>
+          {pixPrize && (
+            <>
+              <span>ou</span>
+              <strong>{pixPrize} NO PIX</strong>
+            </>
+          )}
+          <b><Trophy /> SUPER PREMIO</b>
+        </div>
       </section>
+      )}
 
-      <p className="cfx-review-footnote"><Lock /> PIX seguro. Seus dados sao usados apenas para identificar a compra.</p>
+      <div className="cfx-review-columns cfx-review-mini-order">
+        <section className="cfx-review-panel cfx-review-summary">
+          <div className="cfx-review-panel-head">
+            <span><Ticket /></span>
+            <h3>RESUMO DO PEDIDO</h3>
+          </div>
+          <dl>
+            <div><dt>Cotas:</dt><dd>{props.tickets.toLocaleString("pt-BR")}</dd></div>
+            {discount > 0 && <div><dt>Desconto:</dt><dd>{formatCurrency(discount)}</dd></div>}
+          </dl>
+          <div className="cfx-review-total">
+            <small>TOTAL NO PIX</small>
+            <strong>{formatCurrency(props.totalValue)}</strong>
+          </div>
+        </section>
+      </div>
     </form>
   );
 }
@@ -1479,36 +1416,56 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
     return props.purchase?.expiresAt || props.purchase?.expires_at || props.purchase?.pixExpiresAt || props.purchase?.reservedUntil || new Date(Date.now() + 15 * 60 * 1000).toISOString();
   }, [props.purchase?.expiresAt, props.purchase?.expires_at, props.purchase?.pixExpiresAt, props.purchase?.reservedUntil, props.purchase?.purchaseId]);
   const expiresIn = useCountdown(expiresAt);
-  const mediaCandidate = props.raffle.image || props.raffle.checkoutMediaUrl || props.raffle.mediaUrl || "";
-  const mediaType = String(props.raffle.checkoutMediaType || props.raffle.mediaType || "").toLowerCase();
-  const campaignImage = mediaType.includes("video") || mediaType.includes("bunny") ? props.raffle.image || "" : mediaCandidate;
-  const trustItems: Array<[React.ReactNode, string]> = [
-    [<ShieldCheck />, "PIX Seguro"],
-    [<Lock />, "Compra Protegida"],
-    [<Clock3 />, "Reserva Garantida"],
-    [<CheckCircle2 />, "Dados Criptografados"]
-  ];
+  const checkoutMedia = getRaffleCheckoutMedia(props.raffle);
 
   return (
     <div className="cfx-pix-screen cfx-pix-premium">
       <header className="cfx-pix-premium-top">
         <div className="cfx-pix-campaign-logo">
-          {campaignImage ? (
-            <img src={campaignImage} alt={props.raffle.title} onError={event => { event.currentTarget.style.display = "none"; }} />
+          {checkoutMedia.mediaUrl ? (
+            <ResponsiveMediaFrame
+              src={checkoutMedia.mediaUrl}
+              type={checkoutMedia.mediaType}
+              alt={props.raffle.title}
+              preferredFit="cover"
+              aspectMode="square"
+              controls={false}
+              interactive={false}
+              className="h-full w-full rounded-[inherit]"
+              mediaClassName="h-full w-full"
+            />
           ) : (
             <Gift />
           )}
         </div>
-        <h2>PAGAMENTO VIA PIX</h2>
-        <p>Escaneie o QR Code ou copie o código PIX.</p>
+        <h2>Finalize seu PIX</h2>
+        <p>Copie o código PIX ou escaneie o QR Code.</p>
         <small>Aguardando pagamento</small>
       </header>
+
+      <section className="cfx-pix-card cfx-pix-timer-card">
+        <Clock3 />
+        <span>
+          <small>SUA RESERVA EXPIRA EM</small>
+          <strong>{String(expiresIn.minutes).padStart(2, "0")}:{String(expiresIn.seconds).padStart(2, "0")}</strong>
+        </span>
+      </section>
+
+      {pixPayload && (
+        <section className="cfx-pix-card cfx-pix-code">
+          <p>Código copia e cola</p>
+          <code>{pixPayload}</code>
+          <button type="button" onClick={props.onCopyPix} title="Copiar PIX copia e cola" aria-label={props.copied ? "PIX copiado" : "Copiar código PIX"} className={cn("cfx-copy-pix-button checkout-primary-button", props.copied && "is-copied")}>
+            <Copy /> {props.copied ? "PIX copiado" : "Copiar código PIX"}
+          </button>
+        </section>
+      )}
 
       <section className="cfx-pix-card cfx-pix-qr-card">
         <div className="cfx-pix-card-head is-centered">
           <span><QrCode /></span>
           <div>
-            <small>Escaneie com o app do seu banco</small>
+            <small>Abra o app do seu banco</small>
             <strong>QR Code PIX</strong>
           </div>
         </div>
@@ -1525,20 +1482,20 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
       )}
       </section>
 
-      {pixPayload && (
-        <section className="cfx-pix-card cfx-pix-code">
-          <p>CÓDIGO PIX</p>
-          <code>{pixPayload}</code>
-          <button type="button" onClick={props.onCopyPix} title="Copiar PIX copia e cola" aria-label={props.copied ? "PIX copiado" : "Copiar código PIX"} className={cn("cfx-copy-pix-button checkout-primary-button", props.copied && "is-copied")}>
-            <Copy /> {props.copied ? "PIX COPIADO" : "COPIAR PIX"}
-          </button>
-        </section>
-      )}
-
-      <section className="cfx-pix-card cfx-pix-summary-card">
+      <section className="cfx-pix-card cfx-pix-summary-card cfx-pix-summary-compact">
         <div className="cfx-pix-campaign">
-          {campaignImage ? (
-            <img src={campaignImage} alt={props.raffle.title} onError={event => { event.currentTarget.style.display = "none"; }} />
+          {checkoutMedia.mediaUrl ? (
+            <ResponsiveMediaFrame
+              src={checkoutMedia.mediaUrl}
+              type={checkoutMedia.mediaType}
+              alt={props.raffle.title}
+              preferredFit="cover"
+              aspectMode="square"
+              controls={false}
+              interactive={false}
+              className="h-full w-full rounded-[inherit]"
+              mediaClassName="h-full w-full"
+            />
           ) : (
             <div><Gift /></div>
           )}
@@ -1551,20 +1508,6 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
           <InfoCard label="Quantidade" value={props.tickets.toLocaleString("pt-BR")} />
           <InfoCard label="Valor total" value={formatCurrency(props.totalValue)} />
         </div>
-      </section>
-
-      <section className="cfx-pix-card cfx-pix-timer-card">
-        <Clock3 />
-        <span>
-          <small>TEMPO RESTANTE</small>
-          <strong>{String(expiresIn.minutes).padStart(2, "0")}:{String(expiresIn.seconds).padStart(2, "0")}</strong>
-        </span>
-      </section>
-
-      <section className="cfx-pix-card cfx-pix-trust-card">
-        {trustItems.map(([icon, label]) => (
-          <span key={String(label)}>{icon}<strong>{label}</strong></span>
-        ))}
       </section>
 
       <div className="cfx-actions-row checkout-actions cfx-pix-actions">
@@ -1735,9 +1678,7 @@ function PremiumReceiptModal({
 }) {
   if (purchase?.status !== "paid") return null;
 
-  const mediaCandidate = raffle.image || raffle.checkoutMediaUrl || raffle.mediaUrl || "";
-  const mediaType = String(raffle.checkoutMediaType || raffle.mediaType || "").toLowerCase();
-  const campaignImage = mediaType.includes("video") || mediaType.includes("bunny") ? raffle.image || "" : mediaCandidate;
+  const checkoutMedia = getRaffleCheckoutMedia(raffle);
   const buyer = purchase?.customer || customer || {};
   const visibleNumbers = showAllNumbers ? numbers : numbers.slice(0, 30);
   const orderId = purchase?.purchaseId || purchase?.id || "Não informado";
@@ -1756,8 +1697,18 @@ function PremiumReceiptModal({
         </header>
 
         <section className="cfx-receipt-card cfx-receipt-campaign">
-          {campaignImage ? (
-            <img src={campaignImage} alt={raffle.title} onError={event => { event.currentTarget.style.display = "none"; }} />
+          {checkoutMedia.mediaUrl ? (
+            <ResponsiveMediaFrame
+              src={checkoutMedia.mediaUrl}
+              type={checkoutMedia.mediaType}
+              alt={raffle.title}
+              preferredFit="cover"
+              aspectMode="square"
+              controls={false}
+              interactive={false}
+              className="h-full w-full rounded-[inherit]"
+              mediaClassName="h-full w-full"
+            />
           ) : (
             <div className="cfx-receipt-image-fallback"><Gift /></div>
           )}

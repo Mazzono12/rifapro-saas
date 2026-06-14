@@ -49,6 +49,7 @@ type MediaPickerProps = {
   aspectOptions?: Array<{ value: ResponsiveMediaAspectMode; label: string }>;
   required?: boolean;
   accept?: string;
+  allowExternalLink?: boolean;
   allowExternalVideo?: boolean;
   mediaUsage?: MediaUsage;
 };
@@ -63,7 +64,7 @@ const defaultAspectOptions: Array<{ value: ResponsiveMediaAspectMode; label: str
   { value: "banner", label: "Banner largo" },
 ];
 
-export function MediaPicker({ label, value = "", mediaType, onChange, aspectValue, onAspectChange, fitValue, onFitChange, aspectOptions = defaultAspectOptions, required = false, accept = acceptedMedia, allowExternalVideo = true, mediaUsage }: MediaPickerProps) {
+export function MediaPicker({ label, value = "", mediaType, onChange, aspectValue, onAspectChange, fitValue, onFitChange, aspectOptions = defaultAspectOptions, required = false, accept = acceptedMedia, allowExternalLink = true, allowExternalVideo = true, mediaUsage }: MediaPickerProps) {
   const [uploading, setUploading] = useState(false);
   const [lastError, setLastError] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
@@ -149,15 +150,16 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
     }
 
     const detectedType = inferMediaType(url);
-    if (detectedType === "youtube" || detectedType === "vimeo") {
-      const message = "Use link direto de vídeo .mp4/.webm ou arquivo enviado.";
+    const isVideoLink = detectedType === "video" || detectedType === "youtube" || detectedType === "vimeo" || detectedType === "bunny";
+    if (!allowExternalVideo && isVideoLink) {
+      const message = "Use um link de imagem .jpg/.png/.webp/.gif ou envie uma imagem da galeria.";
       setLastError(message);
-      toast.error("Player externo não suportado neste campo");
+      toast.error("Este campo aceita apenas imagem");
       return;
     }
     onChange(url, detectedType);
     setDetectedUploadType(detectedType);
-    toast.success(detectedType === "image" ? "Imagem por link aplicada" : "Vídeo por link aplicado");
+    toast.success(detectedType === "image" ? "Imagem por link aplicada" : "Mídia por link aplicada");
   };
 
   return (
@@ -192,7 +194,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
             className="sr-only"
           />
         </label>
-        {allowExternalVideo && <div className="rounded-lg border border-[var(--admin-border)] p-3">
+        {allowExternalLink && <div className="rounded-lg border border-[var(--admin-border)] p-3">
           <label className="block space-y-2">
             <span className="flex items-center gap-2 text-xs font-semibold text-[var(--admin-muted)]">
               <Link2 className="h-4 w-4" /> URL de mídia da campanha
@@ -202,14 +204,18 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
                 type="url"
                 value={externalUrl}
                 onChange={event => setExternalUrl(event.target.value)}
-                placeholder="Imagem ou vídeo direto .mp4/.webm/.mov"
+                placeholder={allowExternalVideo ? "Imagem, GIF, vídeo, YouTube/Vimeo ou MediaDelivery" : "Link de imagem .jpg/.png/.webp/.gif"}
                 className="admin-input min-h-12 min-w-0 flex-1"
               />
               <button type="button" onClick={applyExternalMedia} className="admin-button-secondary min-h-12 shrink-0">
                 Aplicar link
               </button>
             </div>
-            <small className="block text-xs text-[var(--admin-muted)]">Aceita imagem, vídeo direto .mp4/.webm/.mov ou Bunny/MediaDelivery em player.mediadelivery.net/play. Para YouTube/Vimeo, use um arquivo enviado ou link direto de CDN/storage.</small>
+            <small className="block text-xs text-[var(--admin-muted)]">
+              {allowExternalVideo
+                ? "Aceita imagem, GIF, vídeo direto .mp4/.webm/.mov, YouTube/Vimeo e Bunny/MediaDelivery em player.mediadelivery.net/play."
+                : "Aceita imagem por link ou imagem enviada da galeria. Vídeos ficam bloqueados neste campo."}
+            </small>
           </label>
         </div>
         }
@@ -258,7 +264,8 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
         </div>
       )}
       <p className="mt-2 text-xs text-[var(--admin-muted)]">
-        Arquivos aceitos: {accept.toUpperCase()}. Tipo atual: {mediaType || inferMediaType(value)}. Aceita imagem ou vídeo direto .mp4/.webm/.mov.
+        Arquivos aceitos: {accept.toUpperCase()}. Tipo atual: {mediaType || inferMediaType(value)}.
+        {allowExternalLink ? (allowExternalVideo ? " Aceita imagem, GIF, vídeo e players externos por link." : " Aceita imagem por link.") : ""}
       </p>
     </div>
   );

@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, CheckCircle2, Clock3, Gift, ShieldCheck, Star, Target, Ticket, Trophy } from "lucide-react";
+import { CheckCircle2, Clock3, Star, Target, Ticket, Trophy } from "lucide-react";
 import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
 import { useFazendinha, useModalidades, useRaffleCatalog } from "../hooks/useRaffles";
 import type { Raffle, Winner } from "../types";
 import { cn } from "../lib/utils";
+import { inferMediaType } from "../utils/media";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -57,9 +58,8 @@ function raffleProgress(raffle: Partial<Raffle>) {
 }
 
 function mediaForRaffle(raffle: Partial<Raffle>) {
-  const image = safeText(raffle.image || raffle.imageUrl || raffle.bannerUrl || raffle.coverImageUrl || raffle.thumbnailUrl, "");
-  const mediaUrl = safeText(raffle.mediaUrl || raffle.videoUrl, image);
-  return { mediaUrl, fallbackImageUrl: image || mediaUrl };
+  const campaignMedia = safeText(raffle.image || raffle.imageUrl || raffle.bannerUrl || raffle.coverImageUrl || raffle.thumbnailUrl, "");
+  return { mediaUrl: campaignMedia, fallbackImageUrl: campaignMedia };
 }
 
 function normalizeWinnerKey(value: unknown) {
@@ -101,7 +101,7 @@ function buildRaffleCard(raffle: Raffle, index: number, winners: Winner[]): Draw
     subtitle: safeText(raffle.homeHighlightText, safeText(raffle.description, completed ? "Resultado confirmado" : "Participe agora.")),
     href: `/raffle/${encodeURIComponent(raffle.id)}`,
     mediaUrl: media.mediaUrl,
-    mediaType: raffle.mediaType || "image",
+    mediaType: media.mediaUrl ? inferMediaType(media.mediaUrl) as Raffle["mediaType"] : "image",
     fallbackImageUrl: media.fallbackImageUrl,
     status: completed ? "completed" : "active",
     badge: completed ? "Encerrado" : index === 0 ? "Principal" : index === 1 ? "Em alta" : "Ativo",
@@ -153,17 +153,10 @@ export function Sorteios() {
 
   return (
     <main className="cfx-draws-page" aria-label="Sorteios">
-      <section className="cfx-draws-hero">
+      <section className="cfx-draws-hero is-compact">
         <div>
-          <span className="cfx-draws-eyebrow"><Ticket /> Sorteios</span>
           <h1>Sorteios</h1>
-          <p>Escolha uma campanha ativa ou confira os resultados dos sorteios encerrados.</p>
         </div>
-        <aside>
-          <ShieldCheck />
-          <strong>100% Seguro</strong>
-          <small>Participação protegida e resultados organizados por campanha.</small>
-        </aside>
       </section>
 
       <div className="cfx-draw-tabs" aria-label="Resumo dos sorteios">
@@ -171,7 +164,7 @@ export function Sorteios() {
         <a href="#encerrados"><Clock3 /> Encerrados</a>
       </div>
 
-      <DrawSection id="ativos" title="Sorteios Ativos" subtitle="Participe agora e concorra.">
+      <DrawSection id="ativos" title="Sorteios Ativos">
         {loadingRaffles ? (
           <DrawSkeleton />
         ) : (
@@ -182,7 +175,7 @@ export function Sorteios() {
         )}
       </DrawSection>
 
-      <DrawSection id="encerrados" title="Sorteios Encerrados" subtitle="Veja os ganhadores.">
+      <DrawSection id="encerrados" title="Sorteios Encerrados">
         {completedRaffles.length ? (
           completedRaffles.map(card => <div key={card.id} className="cfx-draw-card-shell"><DrawCardView card={card} /></div>)
         ) : (
@@ -236,15 +229,13 @@ function buildExtraActiveCards(fazendinha: any, modalidades: any): DrawCard[] {
   return cards;
 }
 
-function DrawSection({ id, title, subtitle, children }: { id: string; title: string; subtitle: string; children: ReactNode }) {
+function DrawSection({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <section id={id} className="cfx-draw-section">
       <header>
         <div>
           <h2>{title}</h2>
-          <p>{subtitle}</p>
         </div>
-        <a href={`#${id === "ativos" ? "encerrados" : "ativos"}`}>Ver todos <ArrowRight /></a>
       </header>
       <div className="cfx-draw-list">{children}</div>
     </section>
@@ -255,8 +246,8 @@ function DrawCardView({ card }: { card: DrawCard }) {
   const isCompleted = card.status === "completed";
   return (
     <article className={cn("cfx-draw-card", isCompleted && "is-completed")}>
-      <div className="cfx-draw-media">
-        {card.mediaUrl ? (
+      {card.mediaUrl && (
+        <div className="cfx-draw-media">
           <StandardRaffleMediaBlock
             mediaUrl={card.mediaUrl}
             mediaType={card.mediaType || "image"}
@@ -267,11 +258,9 @@ function DrawCardView({ card }: { card: DrawCard }) {
             aspectMode="horizontal"
             className="cfx-draw-media-block"
           />
-        ) : (
-          <div className="cfx-draw-media-fallback"><Gift /></div>
-        )}
-        <span className="cfx-draw-badge">{isCompleted ? <CheckCircle2 /> : <Star />}{card.badge}</span>
-      </div>
+          <span className="cfx-draw-badge">{isCompleted ? <CheckCircle2 /> : <Star />}{card.badge}</span>
+        </div>
+      )}
 
       <div className="cfx-draw-body">
         <div className="cfx-draw-title">
