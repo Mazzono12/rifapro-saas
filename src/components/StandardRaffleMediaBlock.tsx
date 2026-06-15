@@ -24,6 +24,7 @@ type StandardRaffleMediaBlockProps = {
   preferredFit?: ResponsiveMediaFit;
   aspectMode?: ResponsiveMediaAspectMode;
   className?: string;
+  hideInfo?: boolean;
 };
 
 function formatCurrency(value: unknown) {
@@ -49,7 +50,8 @@ export function StandardRaffleMediaBlock({
   priority = false,
   preferredFit = "auto",
   aspectMode = "auto",
-  className
+  className,
+  hideInfo = false
 }: StandardRaffleMediaBlockProps) {
   const [activeMedia, setActiveMedia] = useState<{ url: string; type: Raffle["mediaType"] } | null>(null);
   const safeProgress = Math.min(100, Math.max(0, Number.isFinite(Number(progress)) ? Number(progress) : 0));
@@ -110,6 +112,7 @@ export function StandardRaffleMediaBlock({
         {!noOverlay && <span className="sr-only">noOverlay preservado sem texto sobre midia</span>}
       </div>
 
+      {!hideInfo && (
       <div className="media-info-block px-4 py-5 sm:px-6 sm:py-6">
         <h2 className="max-w-4xl text-3xl font-black leading-tight text-[var(--theme-text)] sm:text-4xl lg:text-5xl">{title}</h2>
         {showDescriptionBelow && description && (
@@ -141,6 +144,7 @@ export function StandardRaffleMediaBlock({
           </div>
         </div>
       </div>
+      )}
     </article>
   );
 }

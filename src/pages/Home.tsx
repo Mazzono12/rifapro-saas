@@ -277,6 +277,7 @@ function HomeContent() {
   const [livePurchases, setLivePurchases] = useState<RankingBuyer[]>([]);
   const [winners, setWinners] = useState<Winner[]>([]);
   const [instantRewards, setInstantRewards] = useState<HomeInstantRewardsData>(emptyHomeRewards);
+  const [settings, setSettings] = useState<any>(null);
 
   const raffles = useMemo(() => (
     Array.isArray(rawRaffles)
@@ -292,6 +293,20 @@ function HomeContent() {
 
   useEffect(() => {
     startMetric("public_page_load");
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    safeJson("/api/settings")
+      .then(payload => {
+        if (active) setSettings(payload && typeof payload === "object" && !Array.isArray(payload) ? payload : null);
+      })
+      .catch(() => {
+        if (active) setSettings(null);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -390,7 +405,7 @@ function HomeContent() {
         <HomeV1Chances rewards={instantRewards} ranking={ranking} topSellers={topSellers} />
         <HomeV1Winners winners={winners} />
         <HomeV1FeaturedDraws raffles={secondaryRaffles} />
-        <HomeV1StayInside branding={branding} />
+        <HomeV1StayInside branding={branding} settings={settings} />
         <HomeV1TrustStrip />
       </main>
     </PremiumPageLayout>
@@ -449,9 +464,10 @@ function HomeV1Hero({ raffle }: { raffle: Raffle }) {
             fallbackImageUrl=""
             priority
             showDescriptionBelow={false}
-            preferredFit={resolveHomeMediaFit(raffle.mediaFit)}
+            preferredFit={isVideo ? "contain" : resolveHomeMediaFit(raffle.mediaFit)}
             aspectMode={homeMediaAspect}
             className="cfx-v1-media-block cfx-home-media-block"
+            hideInfo
           />
         ) : (
           <div className="cfx-v1-media-empty">
@@ -552,7 +568,7 @@ function HomeV1Chances({ rewards, ranking, topSellers }: { rewards: HomeInstantR
     rewards.superCotas.length ? { label: "Super Cota", icon: <Gift /> } : null,
     rewards.wheel.length ? { label: "Roleta Premiada", icon: <Sparkles /> } : null,
     rewards.mysteryBox.length ? { label: "Caixinha Premiada", icon: <Gift /> } : null,
-    rewards.scratchcard.length ? { label: "Raspadinha", icon: <Ticket /> } : null,
+    { label: "Raspadinha", icon: <Ticket /> },
     rewards.wheel.length || rewards.mysteryBox.length ? { label: "Hora Premiada", icon: <Zap /> } : null,
     rewards.superCotas.length > 1 ? { label: "Chance em Dobro", icon: <Rocket /> } : null,
     ranking.length ? { label: "Top Compradores", icon: <Trophy /> } : null,
@@ -610,7 +626,9 @@ function HomeV1FeaturedDraws({ raffles }: { raffles: Raffle[] }) {
       </header>
       {raffles.length ? (
         <div className="cfx-v1-draw-list">
-          {raffles.slice(0, 3).map(raffle => (
+          {raffles.slice(0, 3).map(raffle => {
+            const drawIsVideo = isVideoMediaType(raffle.mediaType);
+            return (
             <article key={raffle.id}>
               <Link to={`/raffle/${raffle.id}`} className="cfx-v1-draw-media">
                 <StandardRaffleMediaBlock
@@ -619,9 +637,10 @@ function HomeV1FeaturedDraws({ raffles }: { raffles: Raffle[] }) {
                   fallbackImageUrl=""
                   title={raffle.title}
                   showDescriptionBelow={false}
-                  preferredFit={resolveHomeMediaFit(raffle.mediaFit)}
+                  preferredFit={drawIsVideo ? "contain" : resolveHomeMediaFit(raffle.mediaFit)}
                   aspectMode="square"
                   className="cfx-v1-draw-media-block"
+                  hideInfo
                 />
               </Link>
               <div>
@@ -629,7 +648,8 @@ function HomeV1FeaturedDraws({ raffles }: { raffles: Raffle[] }) {
                 <Link to={`/raffle/${raffle.id}`}>Participar</Link>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="cfx-v1-empty">
@@ -642,15 +662,14 @@ function HomeV1FeaturedDraws({ raffles }: { raffles: Raffle[] }) {
   );
 }
 
-function HomeV1StayInside({ branding }: { branding: any }) {
+function HomeV1StayInside({ branding, settings }: { branding: any; settings: any }) {
   const homeBranding = branding?.home_branding || {};
+  const socialLinks = settings?.socialLinks || {};
   const links = [
-    { label: "WhatsApp", href: safeText(homeBranding.whatsapp || branding?.landing?.whatsapp || branding?.support_whatsapp, ""), icon: <MessageCircle /> },
-    { label: "Instagram", href: safeText(homeBranding.instagram || branding?.landing?.instagram, ""), icon: <Instagram /> },
-    { label: "Grupo Oficial", href: safeText(homeBranding.officialGroup, ""), icon: <Globe2 /> }
-  ].filter(item => item.href);
-
-  if (!links.length) return null;
+    { label: "WhatsApp", href: safeText(homeBranding.whatsapp || branding?.landing?.whatsapp || socialLinks.whatsapp || branding?.support_whatsapp, ""), icon: <MessageCircle /> },
+    { label: "Instagram", href: safeText(homeBranding.instagram || branding?.landing?.instagram || socialLinks.instagram, ""), icon: <Instagram /> },
+    { label: "Grupo Oficial", href: safeText(homeBranding.officialGroup || socialLinks.group || socialLinks.whatsappGroup || branding?.landing?.group, ""), icon: <Globe2 /> }
+  ];
 
   return (
     <section className="cfx-v1-card cfx-v1-inside HomeV1StayInside">
@@ -658,7 +677,11 @@ function HomeV1StayInside({ branding }: { branding: any }) {
       <p>Acompanhe novidades, ganhadores, promoções e sorteios.</p>
       <div>
         {links.map(link => (
-          <a key={link.label} href={link.href} target="_blank" rel="noreferrer">{link.icon}{link.label}</a>
+          link.href ? (
+            <a key={link.label} href={link.href} target="_blank" rel="noreferrer">{link.icon}{link.label}</a>
+          ) : (
+            <span key={link.label} className="is-disabled">{link.icon}{link.label}</span>
+          )
         ))}
       </div>
     </section>
@@ -830,7 +853,7 @@ function formatCurrency(value: unknown) {
 function countdownText(raffle: Raffle) {
   if (raffle.countdownLabel) return raffle.countdownLabel;
   const target = raffle.salesEndAt || raffle.countdownEndAt || raffle.drawDate;
-  const date = target ? new Date(target) : null;
+  const date = parseHomeDate(target);
   if (!date || Number.isNaN(date.getTime())) return "Sorteio em breve";
   const diffMs = date.getTime() - Date.now();
   if (diffMs <= 0) return "Sorteio em breve";
@@ -838,6 +861,17 @@ function countdownText(raffle: Raffle) {
   const hours = Math.floor((diffMs % 86_400_000) / 3_600_000);
   if (days > 0) return `Sorteio em ${String(days).padStart(2, "0")} dias ${hours}h`;
   return `Sorteio em ${Math.max(1, hours)}h`;
+}
+
+function parseHomeDate(value: unknown) {
+  const raw = safeText(value, "");
+  if (!raw) return null;
+  const direct = new Date(raw);
+  if (!Number.isNaN(direct.getTime())) return direct;
+  const brDate = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):?(\d{2})?)?/);
+  if (!brDate) return null;
+  const [, day, month, year, hour = "20", minute = "00"] = brDate;
+  return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
 }
 
 function maskBuyerName(name?: string) {
