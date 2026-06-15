@@ -18,6 +18,22 @@ export function BrandingSettingsForm({
   faviconEndpoint: string;
 }) {
   const set = (field: string, nextValue: any) => onChange({ ...value, [field]: nextValue });
+  const homeBranding = value.home_branding || value.homeBranding || value.metadata?.homeBranding || {};
+  const setHomeBranding = (field: string, nextValue: any) => {
+    const nextHomeBranding = {
+      brandLayout: "centered",
+      ...homeBranding,
+      [field]: nextValue
+    };
+    onChange({
+      ...value,
+      home_branding: nextHomeBranding,
+      metadata: {
+        ...(value.metadata || {}),
+        homeBranding: nextHomeBranding
+      }
+    });
+  };
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="premium-card grid gap-4 p-5">
@@ -33,6 +49,37 @@ export function BrandingSettingsForm({
           <ColorPicker label="Cor primaria" value={value.primary_color || "#00d66b"} onChange={next => set("primary_color", next)} />
           <ColorPicker label="Cor secundaria" value={value.secondary_color || "#0f2d1d"} onChange={next => set("secondary_color", next)} />
           <ColorPicker label="Cor CTA" value={value.cta_color || "#00d66b"} onChange={next => set("cta_color", next)} />
+        </div>
+        <div className="mt-2 grid gap-4 rounded-2xl border border-amber-300/20 bg-amber-300/[0.04] p-4">
+          <div>
+            <p className="text-sm font-black text-white">Branding Home</p>
+            <p className="mt-1 text-xs text-slate-400">Configure a marca e os canais exibidos dentro da Home Premium V1.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm font-bold ${homeBranding.brandLayout !== "inline" ? "border-amber-300/50 bg-amber-300/10 text-white" : "border-white/10 bg-black/20 text-slate-300"}`}>
+              <input
+                type="radio"
+                name="homeBrandLayout"
+                checked={homeBranding.brandLayout !== "inline"}
+                onChange={() => setHomeBranding("brandLayout", "centered")}
+              />
+              Logo Centralizada
+            </label>
+            <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm font-bold ${homeBranding.brandLayout === "inline" ? "border-amber-300/50 bg-amber-300/10 text-white" : "border-white/10 bg-black/20 text-slate-300"}`}>
+              <input
+                type="radio"
+                name="homeBrandLayout"
+                checked={homeBranding.brandLayout === "inline"}
+                onChange={() => setHomeBranding("brandLayout", "inline")}
+              />
+              Logo + Texto Lateral
+            </label>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="grid gap-2 text-sm font-semibold text-slate-300">WhatsApp da Home<input value={homeBranding.whatsapp || ""} onChange={event => setHomeBranding("whatsapp", event.target.value)} className="admin-input" placeholder="https://wa.me/..." /></label>
+            <label className="grid gap-2 text-sm font-semibold text-slate-300">Instagram da Home<input value={homeBranding.instagram || ""} onChange={event => setHomeBranding("instagram", event.target.value)} className="admin-input" placeholder="https://instagram.com/..." /></label>
+            <label className="grid gap-2 text-sm font-semibold text-slate-300">Grupo Oficial<input value={homeBranding.officialGroup || ""} onChange={event => setHomeBranding("officialGroup", event.target.value)} className="admin-input" placeholder="https://chat.whatsapp.com/..." /></label>
+          </div>
         </div>
         <div className="mt-2 grid gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <div>

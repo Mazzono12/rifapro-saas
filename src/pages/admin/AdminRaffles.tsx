@@ -241,7 +241,7 @@ export function AdminRaffles() {
             <p className="mt-2 text-sm text-slate-400">Crie, publique e acompanhe suas campanhas comerciais.</p>
          </div>
          <button 
-           onClick={() => { setCurrentRaffle({ status: 'active', minPurchaseTickets: 1, pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, topSellerRewards: normalizeTopSellerRewards(), heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
+           onClick={() => { setCurrentRaffle({ status: 'active', minPurchaseTickets: 1, pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, topSellerRewards: normalizeTopSellerRewards(), heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", editionLabel: "1ª EDIÇÃO", homeEditionLabel: "1ª EDIÇÃO", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
            className="bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/50 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
          >
            <Plus className="w-4 h-4" /> Nova campanha
@@ -600,6 +600,15 @@ export function AdminRaffles() {
                       </label>
                       <TextField label="Etiqueta pequena" value={currentRaffle.heroEyebrow || ""} onChange={value => setCurrentRaffle({ ...currentRaffle, heroEyebrow: value })} placeholder="Experiência premium" />
                       <TextField label="Texto do botão principal" value={currentRaffle.heroPrimaryButton || ""} onChange={value => setCurrentRaffle({ ...currentRaffle, heroPrimaryButton: value })} placeholder="Participar agora" />
+                      <label>
+                        <span className="block text-xs font-mono text-slate-400 mb-1">Selo da edição</span>
+                        <input
+                          className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white focus:border-neon-cyan/50 outline-none"
+                          value={currentRaffle.editionLabel ?? currentRaffle.homeEditionLabel ?? ""}
+                          onChange={e => setCurrentRaffle({ ...currentRaffle, editionLabel: e.target.value, homeEditionLabel: e.target.value })}
+                          placeholder="1ª EDIÇÃO"
+                        />
+                      </label>
                       <label className="md:col-span-2">
                         <span className="block text-xs font-mono text-slate-400 mb-1">Título da Home</span>
                         <input
@@ -808,7 +817,7 @@ export function AdminRaffles() {
                   Nenhum registro encontrado.
                 </p>
                 <button
-                  onClick={() => { setCurrentRaffle({ status: 'active', minPurchaseTickets: 1, pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, topSellerRewards: normalizeTopSellerRewards(), heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
+                  onClick={() => { setCurrentRaffle({ status: 'active', minPurchaseTickets: 1, pixConfig: defaultPixConfig, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, topSellerRewards: normalizeTopSellerRewards(), heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", editionLabel: "1ª EDIÇÃO", homeEditionLabel: "1ª EDIÇÃO", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
                   className="neon-button mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3"
                 >
                   <Plus className="h-4 w-4" /> Nova campanha

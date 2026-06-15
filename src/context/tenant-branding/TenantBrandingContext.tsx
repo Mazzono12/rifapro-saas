@@ -54,6 +54,12 @@ export type PublicTenantBranding = {
     telegram?: string;
     banner_image?: string;
   };
+  home_branding?: {
+    brandLayout?: "centered" | "inline";
+    whatsapp?: string;
+    instagram?: string;
+    officialGroup?: string;
+  };
 };
 
 const fallbackBranding: PublicTenantBranding = {
@@ -77,7 +83,13 @@ const fallbackBranding: PublicTenantBranding = {
   login_primary_color: "#00d66b",
   login_accent_color: "#f5c451",
   login_button_text: "Entrar com segurança",
-  login_footer_text: "Ambiente protegido • Acesso autorizado"
+  login_footer_text: "Ambiente protegido • Acesso autorizado",
+  home_branding: {
+    brandLayout: "centered",
+    whatsapp: "",
+    instagram: "",
+    officialGroup: ""
+  }
 };
 
 const TenantBrandingContext = createContext<{
@@ -99,12 +111,18 @@ function objectOrEmpty<T extends object>(value: unknown): Partial<T> {
 function normalizeBranding(value: Partial<PublicTenantBranding> | null | undefined): PublicTenantBranding {
   const source = objectOrEmpty<PublicTenantBranding>(value);
   const colors = objectOrEmpty<PublicTenantBranding["colors"]>(source.colors);
+  const homeBranding = objectOrEmpty<NonNullable<PublicTenantBranding["home_branding"]>>(source.home_branding);
   return {
     ...fallbackBranding,
     ...source,
     colors: {
       ...fallbackBranding.colors,
       ...colors
+    },
+    home_branding: {
+      ...fallbackBranding.home_branding,
+      ...homeBranding,
+      brandLayout: homeBranding.brandLayout === "inline" ? "inline" : "centered"
     }
   };
 }

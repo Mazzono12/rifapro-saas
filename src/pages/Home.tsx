@@ -1,28 +1,35 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
+  CheckCircle2,
   ChevronRight,
+  Clock3,
   Crown,
-  Gamepad2,
   Gift,
+  Globe2,
+  Handshake,
+  Instagram,
+  MessageCircle,
+  Rocket,
   ShieldCheck,
   Sparkles,
+  Star,
   Ticket,
   Trophy,
-  Users,
+  Zap
 } from "lucide-react";
-import { useFazendinha, useGlobalSettings, useRaffles } from "../hooks/useRaffles";
+import { useRaffles } from "../hooks/useRaffles";
 import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout } from "../components/premium/PremiumUI";
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import type { Raffle, Winner } from "../types";
 import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
-import { StoriesSection } from "../components/StoriesSection";
 import { cn } from "../lib/utils";
 import type { ResponsiveMediaAspectMode, ResponsiveMediaFit } from "../utils/mediaAspect";
+import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
 
-/* public-home-render contract: className="cfx-home-hero-media" */
+/* public-home-premium-v1 contract: cfx-home-premium-v1 HomeV1Hero StandardRaffleMediaBlock className="cfx-home-media-block" */
 
-type RankingBuyer = { name: string; phone: string; tickets: number; amount: number };
+type RankingBuyer = { name: string; phone?: string; tickets?: number; amount?: number };
 type TopSellerRankingItem = {
   affiliateId?: string;
   affiliateName?: string;
@@ -35,6 +42,29 @@ type TopSellerRankingItem = {
   buyers?: number;
   position: number;
   prizeLabel?: string;
+};
+
+type HomeRewardStatus = "available" | "claimed" | "drawn";
+type HomeRewardItem = {
+  id: string;
+  number?: number;
+  prize: string;
+  value?: number;
+  buyerName?: string;
+  status: HomeRewardStatus;
+};
+type HomeInstantRewardsData = {
+  superCotas: HomeRewardItem[];
+  wheel: HomeRewardItem[];
+  scratchcard: HomeRewardItem[];
+  mysteryBox: HomeRewardItem[];
+};
+
+const emptyHomeRewards: HomeInstantRewardsData = {
+  superCotas: [],
+  wheel: [],
+  scratchcard: [],
+  mysteryBox: []
 };
 
 export function Home() {
@@ -171,6 +201,7 @@ function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raff
     thumbnailUrl?: string;
     videoUrl?: string;
     campaignMedia?: string | { url?: string; mediaUrl?: string };
+    heroEyebrow?: string;
   };
   const price = safeNumber(rawRaffle.price);
   const totalTickets = Math.max(1, Math.floor(safeNumber(rawRaffle.totalTickets, 1)));
@@ -178,8 +209,7 @@ function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raff
   const campaignMediaUrl = typeof rawRaffle.campaignMedia === "string" ? rawRaffle.campaignMedia : rawRaffle.campaignMedia?.url || rawRaffle.campaignMedia?.mediaUrl;
   const image = safeText(rawRaffle.image || rawRaffle.imageUrl || rawRaffle.bannerUrl || rawRaffle.coverImageUrl || rawRaffle.thumbnailUrl, "");
   const rawMediaUrl = safeText(rawRaffle.mediaUrl || rawRaffle.videoUrl || campaignMediaUrl, "");
-  const mediaUrl = rawMediaUrl;
-  const mediaType = rawMediaUrl ? normalizeRaffleMediaType(rawRaffle.mediaType) : normalizeRaffleMediaType(rawRaffle.mediaType);
+  const mediaType = normalizeRaffleMediaType(rawRaffle.mediaType);
   return {
     ...rawRaffle,
     id: String(rawRaffle.id),
@@ -190,20 +220,20 @@ function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raff
     soldTickets: Math.min(soldTickets, totalTickets),
     status: normalizeRaffleStatus(rawRaffle.status),
     image,
-    mediaUrl,
+    mediaUrl: rawMediaUrl,
     mediaType,
     mediaFit: normalizeRaffleMediaFit(rawRaffle.mediaFit),
     homeTitle: safeText(rawRaffle.homeTitle, ""),
     homeSubtitle: safeText(rawRaffle.homeSubtitle, ""),
     homeHighlightText: safeText(rawRaffle.homeHighlightText, ""),
-    showHomePrice: (rawRaffle as any).showHomePrice !== false,
-    showHomeText: (rawRaffle as any).showHomeText !== false,
+    editionLabel: safeText(rawRaffle.editionLabel || rawRaffle.homeEditionLabel || rawRaffle.heroEyebrow, "1ª EDIÇÃO"),
+    homeEditionLabel: safeText(rawRaffle.homeEditionLabel || rawRaffle.editionLabel || rawRaffle.heroEyebrow, "1ª EDIÇÃO"),
+    heroPrimaryButton: safeText(rawRaffle.heroPrimaryButton, "Participar agora"),
     drawDate: safeText(rawRaffle.drawDate, new Date().toISOString()),
     countdownEnabled: rawRaffle.countdownEnabled === true,
     countdownEndAt: safeText(rawRaffle.countdownEndAt, ""),
     salesEndAt: safeText(rawRaffle.salesEndAt, ""),
     manuallyClosedAt: safeText(rawRaffle.manuallyClosedAt, ""),
-    heroPrimaryButton: safeText(rawRaffle.heroPrimaryButton, "Participar agora"),
     countdownLabel: rawRaffle.countdownLabel ? String(rawRaffle.countdownLabel) : undefined
   } as Raffle;
 }
@@ -215,37 +245,11 @@ function isVideoMediaType(type: unknown) {
 
 function resolveHomeHeroMedia(raffle: Raffle) {
   const rawMedia = safeText(raffle.mediaUrl || (raffle as any).videoUrl, "");
-
   if (rawMedia) {
     return { mediaUrl: rawMedia, mediaType: raffle.mediaType, fallbackImageUrl: "", isVideo: isVideoMediaType(raffle.mediaType), hasMedia: true };
   }
   return { mediaUrl: "", mediaType: "image" as Raffle["mediaType"], fallbackImageUrl: "", isVideo: false, hasMedia: false };
 }
-
-type HomeRewardStatus = "available" | "claimed" | "drawn";
-
-type HomeRewardItem = {
-  id: string;
-  number?: number;
-  prize: string;
-  value?: number;
-  buyerName?: string;
-  status: HomeRewardStatus;
-};
-
-type HomeInstantRewardsData = {
-  superCotas: HomeRewardItem[];
-  wheel: HomeRewardItem[];
-  scratchcard: HomeRewardItem[];
-  mysteryBox: HomeRewardItem[];
-};
-
-const emptyHomeRewards: HomeInstantRewardsData = {
-  superCotas: [],
-  wheel: [],
-  scratchcard: [],
-  mysteryBox: []
-};
 
 function safeProgress(raffle: Raffle) {
   const total = Math.max(1, Number(raffle.totalTickets || 1));
@@ -267,13 +271,13 @@ function sortHomeRaffles(raffles: Raffle[]) {
 
 function HomeContent() {
   const { data: rawRaffles, isLoading: loadingRaffles, isError: rafflesError, refetch: refetchRaffles } = useRaffles();
-  const { data: settings } = useGlobalSettings();
-  const { data: fazendinha } = useFazendinha();
-  const [modalidades, setModalidades] = useState<any>(null);
+  const { branding } = useTenantBranding();
   const [ranking, setRanking] = useState<RankingBuyer[]>([]);
   const [topSellers, setTopSellers] = useState<TopSellerRankingItem[]>([]);
+  const [livePurchases, setLivePurchases] = useState<RankingBuyer[]>([]);
   const [winners, setWinners] = useState<Winner[]>([]);
   const [instantRewards, setInstantRewards] = useState<HomeInstantRewardsData>(emptyHomeRewards);
+
   const raffles = useMemo(() => (
     Array.isArray(rawRaffles)
       ? rawRaffles.map(raffle => normalizePublicRaffle(raffle)).filter((raffle): raffle is Raffle => Boolean(raffle))
@@ -285,23 +289,22 @@ function HomeContent() {
     () => activeRaffles.filter(raffle => raffle.id !== featuredRaffle?.id),
     [activeRaffles, featuredRaffle?.id]
   );
-  const loading = loadingRaffles;
 
   useEffect(() => {
     startMetric("public_page_load");
   }, []);
 
   useEffect(() => {
-    if (loading) logPublicHome("loading");
-  }, [loading]);
+    if (loadingRaffles) logPublicHome("loading");
+  }, [loadingRaffles]);
 
   useEffect(() => {
-    if (!loading) logPublicHome("raffles_count", { count: activeRaffles.length });
-  }, [activeRaffles.length, loading]);
+    if (!loadingRaffles) logPublicHome("raffles_count", { count: activeRaffles.length });
+  }, [activeRaffles.length, loadingRaffles]);
 
   useEffect(() => {
-    if (!loading) markPageLoaded({ page: "home", raffles: activeRaffles.length });
-  }, [activeRaffles.length, loading]);
+    if (!loadingRaffles) markPageLoaded({ page: "home", raffles: activeRaffles.length });
+  }, [activeRaffles.length, loadingRaffles]);
 
   useEffect(() => {
     if (!featuredRaffle?.id) {
@@ -316,8 +319,8 @@ function HomeContent() {
     ])
       .then(([buyersPayload, sellersPayload]) => {
         if (!active) return;
-        setRanking(Array.isArray(buyersPayload) ? buyersPayload : []);
-        setTopSellers(Array.isArray(sellersPayload) ? sellersPayload : []);
+        setRanking(asArray<RankingBuyer>(buyersPayload));
+        setTopSellers(asArray<TopSellerRankingItem>(sellersPayload));
       })
       .catch(() => {
         if (!active) return;
@@ -330,14 +333,18 @@ function HomeContent() {
   }, [featuredRaffle?.id]);
 
   useEffect(() => {
+    if (!activeRaffles.length) {
+      setLivePurchases([]);
+      return;
+    }
     let active = true;
-    safeJson("/api/modalidades")
-      .then(payload => active && setModalidades(payload && typeof payload === "object" ? payload : null))
-      .catch(() => active && setModalidades(null));
+    loadHomeRankings(activeRaffles)
+      .then(payload => active && setLivePurchases(payload))
+      .catch(() => active && setLivePurchases([]));
     return () => {
       active = false;
     };
-  }, []);
+  }, [activeRaffles]);
 
   useEffect(() => {
     let active = true;
@@ -363,7 +370,7 @@ function HomeContent() {
     };
   }, [featuredRaffle]);
 
-  if (loading) return <RifaProLoading />;
+  if (loadingRaffles) return <RifaProLoading />;
 
   if (rafflesError) {
     logPublicHome("render_error", { reason: "raffles_api_failed" });
@@ -372,304 +379,300 @@ function HomeContent() {
 
   if (!featuredRaffle) return <PublicHomeFallback mode="empty" onRetry={() => void refetchRaffles()} />;
 
-  const storySlots = resolveHomeStorySlots(settings);
-
   return (
-    <PremiumPageLayout className="cfx-home-page">
-      <main className="cfx-home-shell cfx-home-shell--multi" aria-label="Home publica">
-        {storySlots.homeTop && <StoriesSection />}
-        <Hero raffle={featuredRaffle} ranking={ranking} topSellers={topSellers} />
-        <CampaignsSection raffles={secondaryRaffles} />
-        <GamesAndModalidadesSection fazendinha={fazendinha} modalidades={modalidades} rewards={instantRewards} featuredRaffle={featuredRaffle} />
-        <WinnersSection winners={winners} />
-        <HomeInstantRewards rewards={instantRewards} />
-        {storySlots.homeBottom && <StoriesSection />}
-        {storySlots.floatingLeft && <div className="cfx-stories-floating cfx-stories-floating--left"><StoriesSection /></div>}
-        {storySlots.floatingRight && <div className="cfx-stories-floating cfx-stories-floating--right"><StoriesSection /></div>}
+    <PremiumPageLayout className="cfx-home-page cfx-home-premium-v1">
+      <main className="cfx-v1-shell" aria-label="Home publica premium V1">
+        <HomeV1Brand branding={branding} />
+        <HomeV1Hero raffle={featuredRaffle} />
+        <HomeV1Meta raffle={featuredRaffle} />
+        <HomeV1LivePurchases items={livePurchases} />
+        <HomeV1Rankings ranking={ranking} topSellers={topSellers} />
+        <HomeV1Chances rewards={instantRewards} ranking={ranking} topSellers={topSellers} />
+        <HomeV1Winners winners={winners} />
+        <HomeV1FeaturedDraws raffles={secondaryRaffles} />
+        <HomeV1StayInside branding={branding} />
+        <HomeV1TrustStrip />
       </main>
     </PremiumPageLayout>
   );
-}
-
-function resolveHomeStorySlots(settings: any) {
-  const position = String(settings?.storiesPosition || "bottom").trim();
-  const placements = Array.isArray(settings?.storiesPlacements) ? settings.storiesPlacements.map(String) : ["home-bottom"];
-  if (position === "hidden") {
-    return { homeTop: false, homeBottom: false, floatingLeft: false, floatingRight: false };
-  }
-  return {
-    homeTop: placements.includes("home-top") || position === "top",
-    homeBottom: placements.includes("home-bottom") || position === "bottom",
-    floatingLeft: placements.includes("floating-left") || position === "floating-left",
-    floatingRight: placements.includes("floating-right") || position === "floating-right"
-  };
 }
 
 function RifaProLoading() {
   return (
-    <PremiumPageLayout className="cfx-home-page">
-      <main className="cfx-home-shell">
-        <div className="cfx-skeleton cfx-skeleton-top" />
-        <div className="cfx-skeleton cfx-skeleton-hero" />
+    <PremiumPageLayout className="cfx-home-page cfx-home-premium-v1">
+      <main className="cfx-v1-shell">
+        <div className="cfx-v1-skeleton cfx-v1-skeleton-brand" />
+        <div className="cfx-v1-skeleton cfx-v1-skeleton-hero" />
       </main>
     </PremiumPageLayout>
   );
 }
 
-function Hero({ raffle, ranking, topSellers }: { raffle: Raffle; ranking: RankingBuyer[]; topSellers: TopSellerRankingItem[] }) {
-  const progress = safeProgress(raffle);
+function HomeV1Brand({ branding }: { branding: any }) {
+  const layout = branding?.home_branding?.brandLayout === "inline" ? "inline" : "centered";
+  const name = safeText(branding?.display_name || branding?.header_name || branding?.company_name, "CIFHER");
+  return (
+    <header className={cn("cfx-v1-brand", layout === "inline" && "is-inline")}>
+      {branding?.logo_url ? (
+        <img src={branding.logo_url} alt={name} />
+      ) : (
+        <span className="cfx-v1-brand-mark"><Crown /></span>
+      )}
+      <strong>{name}</strong>
+    </header>
+  );
+}
+
+function HomeV1Hero({ raffle }: { raffle: Raffle }) {
   const heroMedia = resolveHomeHeroMedia(raffle);
   const isVideo = heroMedia.isVideo;
-  const mediaKind = isVideo ? "video" : "image";
   const homeMediaAspect = resolveHomeMediaAspect(raffle, isVideo);
-  const isStoryMedia = homeMediaAspect === "story" || homeMediaAspect === "vertical";
+  const title = safeText(raffle.homeTitle || raffle.title, raffle.title);
+  const subtitle = safeText(raffle.homeSubtitle || raffle.homeHighlightText || raffle.description, "ou prêmio especial no PIX");
+  const editionLabel = safeText(raffle.editionLabel || raffle.homeEditionLabel, "1ª EDIÇÃO");
 
   return (
-    <section className="cfx-home-hero">
-      <div
-        className={cn("cfx-home-hero-media", isStoryMedia && "cfx-home-hero-media--story")}
-        data-home-media-type={mediaKind}
+    <section className="cfx-v1-hero HomeV1Hero">
+      <Link
+        to={`/raffle/${raffle.id}`}
+        className="cfx-v1-media"
+        data-home-media-type={isVideo ? "video" : "image"}
         data-home-media-aspect={homeMediaAspect}
+        aria-label={`Participar de ${title}`}
       >
-        {heroMedia.hasMedia && (
+        {heroMedia.hasMedia ? (
           <StandardRaffleMediaBlock
             mediaUrl={heroMedia.mediaUrl}
             mediaType={heroMedia.mediaType}
-            title={raffle.title}
+            title={title}
             href={`/raffle/${raffle.id}`}
             fallbackImageUrl=""
             priority
             showDescriptionBelow={false}
             preferredFit={resolveHomeMediaFit(raffle.mediaFit)}
             aspectMode={homeMediaAspect}
-            className="cfx-home-media-block"
+            className="cfx-v1-media-block cfx-home-media-block"
           />
+        ) : (
+          <div className="cfx-v1-media-empty">
+            <Sparkles />
+            <span>{title}</span>
+          </div>
         )}
-        <div className="cfx-home-hero-progress-badge">
-          <strong>{progress.toFixed(0)}%</strong>
-          <small>cotas vendidas</small>
-        </div>
-        <Link to={`/raffle/${raffle.id}`} className="cfx-home-hero-quick-cta">Comprar Agora <ChevronRight /></Link>
+        <span className="cfx-v1-edition"><Crown /> {editionLabel}</span>
+      </Link>
+
+      <div className="cfx-v1-hero-copy">
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
       </div>
 
-      <TopBuyers ranking={ranking} />
-      <TopSellers ranking={topSellers} />
+      <Link to={`/raffle/${raffle.id}`} className="cfx-v1-primary-cta">
+        <Ticket /> Participar Agora
+      </Link>
     </section>
   );
 }
 
-function HomeSection({
-  icon,
-  title,
-  action,
-  children,
-  className
-}: {
-  icon: ReactNode;
-  title: string;
-  action?: ReactNode;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <section className={cn("cfx-home-section", className)}>
-      <header className="cfx-home-section-header">
-        <h2>{icon}{title}</h2>
-        {action}
-      </header>
-      {children}
-    </section>
-  );
-}
-
-function CampaignsSection({ raffles }: { raffles: Raffle[] }) {
-  if (raffles.length === 0) return null;
-  return (
-    <HomeSection
-      icon={<Sparkles />}
-      title="Campanhas em andamento"
-      action={<Link to="/" aria-label="Todas as campanhas">Ver todas <ChevronRight /></Link>}
-      className="cfx-home-campaigns"
-    >
-      <div className="cfx-campaign-list">
-        {raffles.map(raffle => (
-          <CampaignCard key={raffle.id} raffle={raffle} />
-        ))}
-      </div>
-    </HomeSection>
-  );
-}
-
-function CampaignCard({ raffle }: { key?: React.Key; raffle: Raffle }) {
+function HomeV1Meta({ raffle }: { raffle: Raffle }) {
   const progress = safeProgress(raffle);
   return (
-    <article className="cfx-campaign-card">
-      <Link to={`/raffle/${raffle.id}`} className="cfx-campaign-media" aria-label={`Participar de ${raffle.title}`}>
-        <StandardRaffleMediaBlock
-          mediaUrl={raffle.mediaUrl}
-          mediaType={raffle.mediaType}
-          fallbackImageUrl=""
-          title={raffle.title}
-          showDescriptionBelow={false}
-          preferredFit={resolveHomeMediaFit(raffle.mediaFit)}
-          aspectMode="square"
-          className="cfx-campaign-media-block"
-        />
-      </Link>
-      <div className="cfx-campaign-body">
-        <div className="cfx-campaign-status"><span>Em andamento</span></div>
-        <h3>{raffle.title}</h3>
-        <p>{safeText(raffle.homeHighlightText, safeText(raffle.description, "Campanha ativa"))}</p>
-        <div className="cfx-campaign-stats">
-          <span><small>Cotas vendidas</small>{Number(raffle.soldTickets || 0).toLocaleString("pt-BR")} / {Number(raffle.totalTickets || 0).toLocaleString("pt-BR")}</span>
-        </div>
-        <div className="cfx-home-progress"><span style={{ width: `${progress}%` }} /></div>
-        <Link to={`/raffle/${raffle.id}`} className="cfx-home-primary cfx-campaign-button">Participar <ChevronRight /></Link>
+    <section className="cfx-v1-meta HomeV1Meta">
+      <div className="cfx-v1-meta-head">
+        <span>Meta do sorteio</span>
+        <strong>{progress.toFixed(0)}%</strong>
       </div>
+      <div className="cfx-v1-progress" aria-label={`Meta do sorteio ${progress.toFixed(0)}%`}>
+        <span style={{ width: `${progress}%` }} />
+      </div>
+      <p className="cfx-v1-countdown"><Clock3 /> {countdownText(raffle)}</p>
+      <div className="cfx-v1-trust-grid">
+        <span><ShieldCheck /> 100%<br />Transparente</span>
+        <span><CheckCircle2 /> Resultado<br />ao vivo</span>
+        <span><Sparkles /> Pagamento<br />via PIX</span>
+        <span><Gift /> Sorteio<br />auditado</span>
+      </div>
+    </section>
+  );
+}
+
+function HomeV1LivePurchases({ items }: { items: RankingBuyer[] }) {
+  const [visible, setVisible] = useState(3);
+  const shown = items.slice(0, visible);
+  if (!shown.length) return null;
+  const nextVisible = visible === 3 ? 5 : 10;
+  return (
+    <section className="cfx-v1-card cfx-v1-live HomeV1LivePurchases">
+      <header>
+        <h2><span className="cfx-v1-live-dot" /> Compras ao vivo</h2>
+        {items.length > visible && (
+          <button type="button" onClick={() => setVisible(nextVisible)}>Ver Mais <ChevronRight /></button>
+        )}
+      </header>
+      <div className="cfx-v1-live-list">
+        {shown.map((buyer, index) => (
+          <article key={`${buyer.phone || buyer.name}-${index}`}>
+            <span />
+            <strong>{maskBuyerName(buyer.name)}</strong>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function HomeV1Rankings({ ranking, topSellers }: { ranking: RankingBuyer[]; topSellers: TopSellerRankingItem[] }) {
+  return (
+    <section className="cfx-v1-rankings HomeV1Rankings">
+      <RankingCard title="Top compradores" icon={<Trophy />} names={ranking.slice(0, 3).map(item => item.name)} />
+      <RankingCard title="Top vendedores" icon={<Handshake />} names={topSellers.slice(0, 3).map(item => item.affiliateName || item.affiliate || item.refCode)} />
+    </section>
+  );
+}
+
+function RankingCard({ title, icon, names }: { title: string; icon: ReactNode; names: string[] }) {
+  if (!names.length) return null;
+  return (
+    <article className="cfx-v1-card cfx-v1-ranking-card">
+      <h2>{icon}{title}</h2>
+      <ol>
+        {names.map((name, index) => (
+          <li key={`${name}-${index}`}>
+            <span>{index + 1}</span>
+            <strong>{maskBuyerName(name)}</strong>
+          </li>
+        ))}
+      </ol>
     </article>
   );
 }
 
-function GamesAndModalidadesSection({ fazendinha, modalidades, rewards, featuredRaffle }: { fazendinha: any; modalidades: any; rewards: HomeInstantRewardsData; featuredRaffle: Raffle }) {
-  const cards: Array<{ id: string; title: string; description: string; href: string; icon: ReactNode; tone: string; meta?: string }> = [];
-  const fazConfig = fazendinha?.config || modalidades?.fazendinha;
-  if (fazConfig?.enabled !== false && String(fazConfig?.status || "active") === "active") {
-    cards.push({
-      id: "fazendinha",
-      title: safeText(fazConfig?.name, "Fazendinha da sorte"),
-      description: safeText(fazConfig?.description, "Concorra com grupos especiais."),
-      href: "/fazendinha",
-      icon: <Gift />,
-      tone: "green",
-      meta: fazendinha?.groups ? `${asArray(fazendinha.groups).filter((group: any) => group.status === "available").length} grupos disponiveis` : undefined
-    });
-  }
-  asArray<any>(modalidades?.numberModes)
-    .filter(mode => mode?.enabled !== false && String(mode?.status || "active") === "active")
-    .slice(0, 3)
-    .forEach(mode => {
-      cards.push({
-        id: String(mode.id),
-        title: safeText(mode.name, String(mode.id).toUpperCase()),
-        description: safeText(mode.description, safeText(mode.prize, "Modalidade ativa.")),
-        href: `/${mode.id}`,
-        icon: <Gamepad2 />,
-        tone: "purple",
-        meta: mode.price ? `${formatCurrency(mode.price)} por jogo` : undefined
-      });
-    });
-  if (rewards.scratchcard.length) {
-    cards.push({
-      id: "scratchcard",
-      title: "Raspadinha premiada",
-      description: `${rewards.scratchcard.length} premio(s) configurado(s) nesta campanha.`,
-      href: `/raffle/${featuredRaffle.id}`,
-      icon: <Ticket />,
-      tone: "blue",
-      meta: "Disponivel ao participar"
-    });
-  }
+function HomeV1Chances({ rewards, ranking, topSellers }: { rewards: HomeInstantRewardsData; ranking: RankingBuyer[]; topSellers: TopSellerRankingItem[] }) {
+  const cards = [
+    rewards.superCotas.length ? { label: "Super Cota", icon: <Gift /> } : null,
+    rewards.wheel.length ? { label: "Roleta Premiada", icon: <Sparkles /> } : null,
+    rewards.mysteryBox.length ? { label: "Caixinha Premiada", icon: <Gift /> } : null,
+    rewards.scratchcard.length ? { label: "Raspadinha", icon: <Ticket /> } : null,
+    rewards.wheel.length || rewards.mysteryBox.length ? { label: "Hora Premiada", icon: <Zap /> } : null,
+    rewards.superCotas.length > 1 ? { label: "Chance em Dobro", icon: <Rocket /> } : null,
+    ranking.length ? { label: "Top Compradores", icon: <Trophy /> } : null,
+    topSellers.length ? { label: "Top Vendedores", icon: <Handshake /> } : null
+  ].filter((item): item is { label: string; icon: ReactNode } => Boolean(item));
 
   if (!cards.length) return null;
 
   return (
-    <HomeSection icon={<Gamepad2 />} title="Jogos e modalidades" className="cfx-home-games">
-      <div className="cfx-game-grid">
+    <section className="cfx-v1-card cfx-v1-chances HomeV1Chances">
+      <h2><Gift /> Muitas chances de ganhar</h2>
+      <div className="cfx-v1-chance-grid">
         {cards.map(card => (
-          <Link key={card.id} to={card.href} className="cfx-game-card" data-tone={card.tone}>
-            <span>{card.icon}</span>
-            <div>
-              <h3>{card.title}</h3>
-              <p>{card.description}</p>
-              {card.meta && <small>{card.meta}</small>}
-            </div>
-            <ChevronRight />
-          </Link>
+          <article key={card.label}>{card.icon}<span>{card.label}</span></article>
         ))}
       </div>
-    </HomeSection>
+    </section>
   );
 }
 
-function WinnersSection({ winners }: { winners: Winner[] }) {
-  if (!winners.length) return null;
+function HomeV1Winners({ winners }: { winners: Winner[] }) {
   return (
-    <HomeSection
-      icon={<Trophy />}
-      title="Ultimos ganhadores"
-      action={<Link to="/ganhadores">Ver todos <ChevronRight /></Link>}
-      className="cfx-home-winners"
-    >
-      <div className="cfx-winner-list">
-        {winners.slice(0, 5).map((winner, index) => (
-          <article key={winner.id || `${winner.winnerName}-${index}`} className="cfx-winner-card">
-            <span>{winner.mediaUrl ? <img src={winner.mediaUrl} alt="" loading="lazy" /> : maskBuyerName(winner.winnerName).slice(0, 1)}</span>
-            <div>
-              <h3>{maskBuyerName(winner.winnerName)}</h3>
-              <p>{safeText(winner.prizeDescription || winner.raffleName, "Premio confirmado")}</p>
-            </div>
-            <time>{formatDate(winner.date)}</time>
-          </article>
-        ))}
-      </div>
-    </HomeSection>
-  );
-}
-
-function TopBuyers({ ranking }: { ranking: RankingBuyer[] }) {
-  const buyers = ranking.slice(0, 5);
-
-  return (
-    <HomeSection
-      icon={<Crown />}
-      title="Top compradores"
-      action={<Link to="/ganhadores">Ver ranking <ChevronRight /></Link>}
-      className="cfx-top-buyers"
-    >
-      <div className="cfx-top-buyers-list">
-        {buyers.length ? (
-          buyers.map((buyer, index) => (
-            <article key={`${buyer.phone || buyer.name}-${index}`}>
-              <span>{index + 1}</span>
-              <div>
-                <b>{maskBuyerName(buyer.name)}</b>
-                <small>{Number(buyer.tickets || 0).toLocaleString("pt-BR")} cotas</small>
-              </div>
-              <strong>{formatCurrency(buyer.amount)}</strong>
+    <section className="cfx-v1-card cfx-v1-winners HomeV1Winners">
+      <header>
+        <h2><Trophy /> Ganhadores reais</h2>
+        {winners.length > 0 && <Link to="/ganhadores">Ver todos <ChevronRight /></Link>}
+      </header>
+      {winners.length ? (
+        <div className="cfx-v1-winner-row">
+          {winners.slice(0, 4).map((winner, index) => (
+            <article key={winner.id || `${winner.winnerName}-${index}`}>
+              {winner.mediaUrl ? <img src={winner.mediaUrl} alt="" loading="lazy" /> : <span>{maskBuyerName(winner.winnerName).slice(0, 1)}</span>}
+              <strong>{maskBuyerName(winner.winnerName)}</strong>
+              <small>{safeText(winner.prizeDescription || winner.raffleName, "Prêmio confirmado")}</small>
             </article>
-          ))
-        ) : (
-          <p className="cfx-top-buyers-empty">Ranking em apuração com dados reais da campanha.</p>
-        )}
-      </div>
-    </HomeSection>
+          ))}
+        </div>
+      ) : (
+        <div className="cfx-v1-empty">
+          <Rocket />
+          <strong>Você pode ser o primeiro ganhador</strong>
+          <span>Esta é a primeira edição. Seu nome pode aparecer aqui.</span>
+        </div>
+      )}
+    </section>
   );
 }
 
-function TopSellers({ ranking }: { ranking: TopSellerRankingItem[] }) {
-  const sellers = ranking.slice(0, 3);
-  if (!sellers.length) return null;
+function HomeV1FeaturedDraws({ raffles }: { raffles: Raffle[] }) {
+  return (
+    <section className="cfx-v1-card cfx-v1-draws HomeV1FeaturedDraws">
+      <header>
+        <h2><Star /> Sorteios em destaque</h2>
+        {raffles.length > 0 && <Link to="/sorteios">Ver todos <ChevronRight /></Link>}
+      </header>
+      {raffles.length ? (
+        <div className="cfx-v1-draw-list">
+          {raffles.slice(0, 3).map(raffle => (
+            <article key={raffle.id}>
+              <Link to={`/raffle/${raffle.id}`} className="cfx-v1-draw-media">
+                <StandardRaffleMediaBlock
+                  mediaUrl={raffle.mediaUrl}
+                  mediaType={raffle.mediaType}
+                  fallbackImageUrl=""
+                  title={raffle.title}
+                  showDescriptionBelow={false}
+                  preferredFit={resolveHomeMediaFit(raffle.mediaFit)}
+                  aspectMode="square"
+                  className="cfx-v1-draw-media-block"
+                />
+              </Link>
+              <div>
+                <strong>{raffle.title}</strong>
+                <Link to={`/raffle/${raffle.id}`}>Participar</Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="cfx-v1-empty">
+          <Star />
+          <strong>Novos sorteios chegando</strong>
+          <span>Os próximos sorteios aparecerão aqui.</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function HomeV1StayInside({ branding }: { branding: any }) {
+  const homeBranding = branding?.home_branding || {};
+  const links = [
+    { label: "WhatsApp", href: safeText(homeBranding.whatsapp || branding?.landing?.whatsapp || branding?.support_whatsapp, ""), icon: <MessageCircle /> },
+    { label: "Instagram", href: safeText(homeBranding.instagram || branding?.landing?.instagram, ""), icon: <Instagram /> },
+    { label: "Grupo Oficial", href: safeText(homeBranding.officialGroup, ""), icon: <Globe2 /> }
+  ].filter(item => item.href);
+
+  if (!links.length) return null;
 
   return (
-    <HomeSection
-      icon={<Trophy />}
-      title="Top Vendedores"
-      action={<Link to="/afiliados">Divulgar <ChevronRight /></Link>}
-      className="cfx-top-buyers cfx-top-sellers"
-    >
-      <div className="cfx-top-buyers-list">
-        {sellers.map((seller, index) => (
-          <article key={`${seller.refCode}-${index}`}>
-            <span>{seller.position || index + 1}</span>
-            <div>
-              <b>{seller.affiliateName || seller.affiliate || seller.refCode}</b>
-              <small>{Number(seller.paidPurchasesCount ?? seller.sales ?? 0).toLocaleString("pt-BR")} vendas diretas</small>
-            </div>
-            <strong>{seller.prizeLabel || formatCurrency(Number(seller.totalSold || 0))}</strong>
-          </article>
+    <section className="cfx-v1-card cfx-v1-inside HomeV1StayInside">
+      <h2><Globe2 /> Fique por dentro</h2>
+      <p>Acompanhe novidades, ganhadores, promoções e sorteios.</p>
+      <div>
+        {links.map(link => (
+          <a key={link.label} href={link.href} target="_blank" rel="noreferrer">{link.icon}{link.label}</a>
         ))}
       </div>
-    </HomeSection>
+    </section>
+  );
+}
+
+function HomeV1TrustStrip() {
+  return (
+    <section className="cfx-v1-safe-strip HomeV1TrustStrip">
+      <span><Zap /> PIX Imediato</span>
+      <span><ShieldCheck /> Compra Segura</span>
+      <span><CheckCircle2 /> Sorteio Transparente</span>
+      <span><MessageCircle /> Suporte Premium</span>
+    </section>
   );
 }
 
@@ -689,11 +692,11 @@ async function loadHomeRankings(raffles: Raffle[]): Promise<RankingBuyer[]> {
     const current = byBuyer.get(key) || { name: buyer.name, phone: buyer.phone, tickets: 0, amount: 0 };
     current.name = current.name || buyer.name;
     current.phone = current.phone || buyer.phone;
-    current.tickets += Number(buyer.tickets || 0);
-    current.amount += Number(buyer.amount || 0);
+    current.tickets = Number(current.tickets || 0) + Number(buyer.tickets || 0);
+    current.amount = Number(current.amount || 0) + Number(buyer.amount || 0);
     byBuyer.set(key, current);
   });
-  return [...byBuyer.values()].sort((a, b) => b.tickets - a.tickets || b.amount - a.amount).slice(0, 10);
+  return [...byBuyer.values()].sort((a, b) => Number(b.tickets || 0) - Number(a.tickets || 0) || Number(b.amount || 0) - Number(a.amount || 0)).slice(0, 10);
 }
 
 async function loadHomeInstantRewards(raffle: Raffle): Promise<HomeInstantRewardsData> {
@@ -704,24 +707,12 @@ async function loadHomeInstantRewards(raffle: Raffle): Promise<HomeInstantReward
     safeJson(`/api/raffles/${raffleId}/gamification`)
   ]);
 
-  const rewards = {
+  return {
     superCotas: buildSuperCotaRewards(instantPrizesPayload, superCotasPayload),
     wheel: buildWheelRewards(raffle),
     scratchcard: buildScratchcardRewards(gamificationPayload),
     mysteryBox: buildMysteryBoxRewards(raffle, gamificationPayload)
   };
-
-  if (!import.meta.env.PROD) {
-    console.info("[home-instant-rewards]", {
-      raffleId: raffle.id,
-      hasSuperCotas: rewards.superCotas.length > 0,
-      hasRoulette: rewards.wheel.length > 0,
-      hasScratchcard: rewards.scratchcard.length > 0,
-      hasLootbox: rewards.mysteryBox.length > 0
-    });
-  }
-
-  return rewards;
 }
 
 function normalizeRewardStatus(value: unknown): HomeRewardStatus {
@@ -741,31 +732,29 @@ function buildSuperCotaRewards(instantPrizesPayload: unknown, superCotasPayload:
     if (Number.isFinite(number)) winners.set(number, { name: safeText(winner?.name, "") });
   });
 
-  const rows: Array<HomeRewardItem | null> = asArray(instantPrizesPayload)
+  return asArray(instantPrizesPayload)
     .map((prize: any, index) => {
       const number = Number(prize?.numeroPremiado);
       const value = Number(prize?.valorPremio);
       if (!Number.isFinite(number)) return null;
-      const status = normalizeRewardStatus(prize?.status);
       const winner = winners.get(number);
-      const manualWinnerName = safeText(prize?.winnerName || prize?.ganhadorNome || prize?.nomeGanhador, "");
       return {
         id: String(prize?.id || `super-cota-${number}-${index}`),
         number,
         prize: value > 0 ? formatCurrency(value) : "Super Cota",
         value: Number.isFinite(value) ? value : undefined,
-        buyerName: manualWinnerName || winner?.name,
-        status
+        buyerName: safeText(prize?.winnerName || prize?.ganhadorNome || prize?.nomeGanhador, "") || winner?.name,
+        status: normalizeRewardStatus(prize?.status)
       } satisfies HomeRewardItem;
-    });
-  return rows.filter((item): item is HomeRewardItem => Boolean(item));
+    })
+    .filter(Boolean) as HomeRewardItem[];
 }
 
 function buildWheelRewards(raffle: Raffle): HomeRewardItem[] {
   const config = (raffle.lootboxConfig || {}) as any;
   const wheelEnabled = Boolean(config?.rewardModes?.wheel || config?.experienceType === "wheel");
   if (!wheelEnabled) return [];
-  const rows: Array<HomeRewardItem | null> = asArray(config.wheelSegments)
+  return asArray(config.wheelSegments)
     .map((segment: any, index) => {
       const reward = segment?.reward;
       const label = safeText(reward?.name || segment?.label, "");
@@ -778,8 +767,8 @@ function buildWheelRewards(raffle: Raffle): HomeRewardItem[] {
         buyerName: rewardWinnerName(reward) || rewardWinnerName(segment),
         status: normalizeRewardStatus(reward?.status)
       } satisfies HomeRewardItem;
-    });
-  return rows.filter((item): item is HomeRewardItem => Boolean(item));
+    })
+    .filter(Boolean) as HomeRewardItem[];
 }
 
 function buildScratchcardRewards(gamificationPayload: any): HomeRewardItem[] {
@@ -800,7 +789,7 @@ function buildScratchcardRewards(gamificationPayload: any): HomeRewardItem[] {
 
 function buildMysteryBoxRewards(raffle: Raffle, gamificationPayload: any): HomeRewardItem[] {
   const config = (raffle.lootboxConfig || {}) as any;
-  const configuredRows: Array<HomeRewardItem | null> = asArray(config.milestones)
+  const configured = asArray(config.milestones)
     .map((milestone: any, index) => {
       const value = Number(milestone?.value);
       if (!safeText(milestone?.name, "") && !Number.isFinite(value)) return null;
@@ -811,12 +800,12 @@ function buildMysteryBoxRewards(raffle: Raffle, gamificationPayload: any): HomeR
         buyerName: rewardWinnerName(milestone),
         status: normalizeRewardStatus(milestone?.status)
       } satisfies HomeRewardItem;
-    });
-  const configured = configuredRows.filter((item): item is HomeRewardItem => Boolean(item));
+    })
+    .filter(Boolean) as HomeRewardItem[];
 
   if (configured.length) return configured;
 
-  const rows: Array<HomeRewardItem | null> = asArray(gamificationPayload?.mysteryBox?.boxes)
+  return asArray(gamificationPayload?.mysteryBox?.boxes)
     .map((box: any, index) => {
       const value = Number(box?.value);
       const prize = safeText(box?.prize || box?.label, "");
@@ -828,182 +817,32 @@ function buildMysteryBoxRewards(raffle: Raffle, gamificationPayload: any): HomeR
         buyerName: rewardWinnerName(box),
         status: normalizeRewardStatus(box?.status)
       } satisfies HomeRewardItem;
-    });
-  return rows.filter((item): item is HomeRewardItem => Boolean(item));
+    })
+    .filter(Boolean) as HomeRewardItem[];
 }
 
 function formatCurrency(value: unknown) {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return "—";
+  if (!Number.isFinite(parsed) || parsed <= 0) return "Prêmio";
   return parsed.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function formatDate(value?: string) {
-  const date = value ? new Date(value) : null;
-  if (!date || Number.isNaN(date.getTime())) return "A definir";
-  return date.toLocaleDateString("pt-BR");
+function countdownText(raffle: Raffle) {
+  if (raffle.countdownLabel) return raffle.countdownLabel;
+  const target = raffle.salesEndAt || raffle.countdownEndAt || raffle.drawDate;
+  const date = target ? new Date(target) : null;
+  if (!date || Number.isNaN(date.getTime())) return "Sorteio em breve";
+  const diffMs = date.getTime() - Date.now();
+  if (diffMs <= 0) return "Sorteio em breve";
+  const days = Math.floor(diffMs / 86_400_000);
+  const hours = Math.floor((diffMs % 86_400_000) / 3_600_000);
+  if (days > 0) return `Sorteio em ${String(days).padStart(2, "0")} dias ${hours}h`;
+  return `Sorteio em ${Math.max(1, hours)}h`;
 }
 
-function statusLabel(status: HomeRewardStatus) {
-  if (status === "available") return "Disponível";
-  if (status === "claimed") return "Resgatada";
-  return "Sorteada";
-}
-
-function HomeInstantRewards({ rewards }: { rewards: HomeInstantRewardsData }) {
-  const sections = [
-    {
-      id: "superCotas" as const,
-      title: "SUPER COTAS PREMIADAS",
-      icon: <Crown />,
-      tone: "gold",
-      description: "Concorra a prêmios especiais com números exclusivos!",
-      items: rewards.superCotas,
-      columns: { primary: "Número", secondary: "Prêmio", person: "Ganhador" }
-    },
-    {
-      id: "wheel" as const,
-      title: "ROLETA PREMIADA",
-      icon: <Gamepad2 />,
-      tone: "purple",
-      cta: "VER PRÊMIOS DA ROLETA",
-      items: rewards.wheel,
-      columns: { primary: "Prêmio", secondary: "", person: "Ganhador" }
-    },
-    {
-      id: "scratchcard" as const,
-      title: "RASPADINHA PREMIADA",
-      icon: <Ticket />,
-      tone: "green",
-      cta: "VER PRÊMIOS DA RASPADINHA",
-      items: rewards.scratchcard,
-      columns: { primary: "Prêmio", secondary: "", person: "Ganhador" }
-    },
-    {
-      id: "mysteryBox" as const,
-      title: "CAIXINHA PREMIADA",
-      icon: <Gift />,
-      tone: "pink",
-      cta: "VER PRÊMIOS DA CAIXINHA",
-      items: rewards.mysteryBox,
-      columns: { primary: "Prêmio", secondary: "", person: "Ganhador" }
-    }
-  ].filter(section => section.items.length > 0);
-
-  if (!sections.length) return null;
-
-  return (
-    <section className="cfx-instant-rewards" aria-label="Prêmios instantâneos da campanha">
-      {sections.map(section => (
-        <InstantRewardSection
-          key={section.id}
-          id={section.id}
-          title={section.title}
-          icon={section.icon}
-          tone={section.tone}
-          description={section.description}
-          cta={section.cta}
-          items={section.items}
-          columns={section.columns}
-        />
-      ))}
-    </section>
-  );
-}
-
-function InstantRewardSection({
-  id,
-  title,
-  icon,
-  tone,
-  description,
-  cta,
-  items,
-  columns
-}: {
-  key?: React.Key;
-  id: keyof HomeInstantRewardsData;
-  title: string;
-  icon: ReactNode;
-  tone: string;
-  description?: string;
-  cta?: string;
-  items: HomeRewardItem[];
-  columns: { primary: string; secondary: string; person: string };
-}) {
-  const [visible, setVisible] = useState(10);
-  const cappedItems = items.slice(0, 50);
-  const visibleItems = cappedItems.slice(0, visible);
-  const available = cappedItems.filter(item => item.status === "available").length;
-  const claimed = cappedItems.filter(item => item.status !== "available").length;
-  const totalValue = cappedItems.reduce((sum, item) => sum + (Number(item.value) > 0 ? Number(item.value) : 0), 0);
-  const canShowMore = visible < cappedItems.length && visible < 50;
-  const showValueColumn = Boolean(columns.secondary);
-
-  return (
-    <article className="cfx-reward-section" data-reward-tone={tone} data-reward-id={id}>
-      <header className="cfx-reward-header">
-        <span>{icon}</span>
-        <div>
-          <h2>{title}</h2>
-          {description && <p>{description}</p>}
-        </div>
-        <strong className="cfx-reward-total-badge"><small>Total</small>{cappedItems.length}<em>{id === "superCotas" ? "Super Cotas" : "Prêmios"}</em></strong>
-      </header>
-
-      <div className="cfx-reward-summary" data-summary-count={id === "superCotas" && totalValue > 0 ? 4 : 3}>
-        <RewardSummaryCard label="Disponíveis" value={available} />
-        <RewardSummaryCard label={id === "superCotas" ? "Resgatadas" : "Sorteadas"} value={claimed} />
-        <RewardSummaryCard label="Total" value={cappedItems.length} />
-        {id === "superCotas" && totalValue > 0 && <RewardSummaryCard label="Valor total" value={formatCurrency(totalValue)} />}
-      </div>
-
-      <div className="cfx-reward-list" role="list">
-        {visibleItems.map(item => (
-          <div className="cfx-reward-card" role="listitem" key={item.id}>
-            <div>
-              <small>{columns.primary}</small>
-              <strong>{typeof item.number === "number" ? String(item.number).padStart(6, "0") : item.prize}</strong>
-            </div>
-            {showValueColumn && (
-              <div>
-                <small>{columns.secondary}</small>
-                <strong>{typeof item.number === "number" ? item.prize : formatCurrency(item.value)}</strong>
-              </div>
-            )}
-            <div>
-              <small>{columns.person}</small>
-              <strong>{item.buyerName ? (id === "superCotas" ? item.buyerName : maskBuyerName(item.buyerName)) : "—"}</strong>
-            </div>
-            <span className={item.status === "available" ? "is-available" : "is-claimed"}>{statusLabel(item.status)}</span>
-          </div>
-        ))}
-      </div>
-
-      {canShowMore && (
-        <button
-          type="button"
-          className="cfx-reward-more"
-          onClick={() => setVisible(current => Math.min(50, current + 10, cappedItems.length))}
-        >
-          {cta || "MOSTRAR MAIS"} (10)
-        </button>
-      )}
-    </article>
-  );
-}
-
-function RewardSummaryCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <span>
-      <small>{label}</small>
-      <strong>{value}</strong>
-    </span>
-  );
-}
-
-function maskBuyerName(value: string) {
-  const clean = safeText(value, "Cliente");
-  const [first, second] = clean.split(/\s+/);
-  return `${first || "Cliente"} ${second ? `${second.slice(0, 1)}.` : ""}`.trim();
+function maskBuyerName(name?: string) {
+  const text = safeText(name, "Participante");
+  const parts = text.split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return parts[0] || "Participante";
+  return `${parts[0]} ${parts[1].slice(0, 1)}.`;
 }

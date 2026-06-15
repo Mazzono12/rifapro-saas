@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Bell, Home, Instagram, MessageCircle, Ticket, Trophy, User, Users } from "lucide-react";
+import { Bell, Home, Ticket, Trophy, User, Users } from "lucide-react";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { TenantLogo } from "./branding/TenantLogo";
 import { TenantHeaderName } from "./branding/TenantHeaderName";
@@ -16,17 +16,13 @@ export function Navbar() {
   const [heroVideoCinema, setHeroVideoCinema] = useState(false);
   const notifiedMessageIds = useRef<Set<string>>(new Set());
   const { customer } = useCustomerStore();
-  const whatsappUrl = String(settings?.socialLinks?.whatsapp || branding.support_whatsapp || "").trim();
-  const instagramUrl = String(settings?.socialLinks?.instagram || "").trim();
   const showAffiliatesPublic = settings?.publicModules?.affiliates !== false;
-  const isExternalUrl = (value: string) => /^https?:\/\//i.test(value);
   const bottomNavItems = [
     { label: "Início", to: "/", icon: Home, active: location.pathname === "/" && !location.hash },
     { label: "Sorteios", to: "/sorteios", icon: Ticket, active: location.pathname.startsWith("/raffle") || location.pathname === "/sorteios" },
     { label: "Ganhadores", to: "/ganhadores", icon: Trophy, active: location.pathname === "/ganhadores" || location.hash === "#ganhadores" },
-    ...(whatsappUrl ? [{ label: "WhatsApp", to: whatsappUrl, icon: MessageCircle, active: false, external: isExternalUrl(whatsappUrl), tone: "whatsapp" }] : []),
-    ...(instagramUrl ? [{ label: "Instagram", to: instagramUrl, icon: Instagram, active: false, external: isExternalUrl(instagramUrl), tone: "instagram" }] : [])
-  ].slice(0, 5);
+    { label: "Perfil", to: "/perfil", icon: User, active: location.pathname === "/perfil" }
+  ];
 
   useEffect(() => {
     fetch("/api/settings")
@@ -175,21 +171,8 @@ export function Navbar() {
           <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${bottomNavItems.length}, minmax(0, 1fr))` }}>
             {bottomNavItems.map(item => {
               const Icon = item.icon;
-              const socialTone = item.tone === "whatsapp" ? "text-emerald-300" : item.tone === "instagram" ? "text-fuchsia-300" : "";
-              const className = `flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-black transition ${item.active ? "border border-violet-300/35 bg-violet-500/20 text-violet-100 shadow-[0_10px_30px_rgba(168,85,247,0.28)]" : `text-[#A1A1AA] hover:bg-white/5 hover:text-white ${socialTone}`}`;
-              return item.external ? (
-                <a
-                  key={item.label}
-                  href={item.to}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => setOpen(false)}
-                  className={className}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span className="max-w-full truncate">{item.label}</span>
-                </a>
-              ) : (
+              const className = `flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-black transition ${item.active ? "border border-violet-300/35 bg-violet-500/20 text-violet-100 shadow-[0_10px_30px_rgba(168,85,247,0.28)]" : "text-[#A1A1AA] hover:bg-white/5 hover:text-white"}`;
+              return (
                 <Link
                   key={item.label}
                   to={item.to}

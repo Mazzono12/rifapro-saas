@@ -1210,6 +1210,18 @@ async function startServer() {
     }
   }
 
+  function sanitizeHomeBranding(value: unknown, current: unknown = {}) {
+    const source = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+    const fallback = current && typeof current === "object" && !Array.isArray(current) ? current as Record<string, unknown> : {};
+    const brandLayout = String(source.brandLayout ?? fallback.brandLayout ?? "centered").trim();
+    return {
+      brandLayout: brandLayout === "inline" ? "inline" : "centered",
+      whatsapp: sanitizeWhiteLabelUrl(source.whatsapp ?? fallback.whatsapp),
+      instagram: sanitizeWhiteLabelUrl(source.instagram ?? fallback.instagram),
+      officialGroup: sanitizeWhiteLabelUrl(source.officialGroup ?? source.group ?? fallback.officialGroup ?? fallback.group)
+    };
+  }
+
   function defaultTenantSeoSettings(tenantId: string): TenantSeoSettings {
     const tenant = tenants.find(item => item.id === tenantId);
     const branding = getTenantBranding(tenantId);
@@ -1331,6 +1343,12 @@ async function startServer() {
     const themeMode = String(incoming.theme_mode || current.theme_mode || "vimeu_dark");
     const displayName = sanitizeWhiteLabelText(incoming.display_name ?? incoming.header_name ?? current.display_name ?? current.header_name, 80);
     const companyName = sanitizeWhiteLabelText(incoming.company_name ?? current.company_name ?? displayName, 120);
+    const incomingMetadata = incoming.metadata && typeof incoming.metadata === "object" && !Array.isArray(incoming.metadata) ? incoming.metadata as Record<string, unknown> : {};
+    const currentMetadata = current.metadata && typeof current.metadata === "object" && !Array.isArray(current.metadata) ? current.metadata : {};
+    const homeBranding = sanitizeHomeBranding(
+      incoming.home_branding ?? incoming.homeBranding ?? incomingMetadata.homeBranding,
+      currentMetadata.homeBranding
+    );
     const next: TenantBrandingSettings = {
       ...current,
       company_name: companyName || displayName || defaultTenantBranding(tenantId).header_name,
@@ -1360,7 +1378,11 @@ async function startServer() {
       login_accent_color: isHexColor(incoming.login_accent_color) ? String(incoming.login_accent_color) : current.login_accent_color || current.cta_color,
       login_button_text: String(incoming.login_button_text ?? current.login_button_text ?? "").trim().slice(0, 80) || defaultLoginButtonText,
       login_footer_text: String(incoming.login_footer_text ?? current.login_footer_text ?? "").trim().slice(0, 140) || defaultLoginFooterText,
-      metadata: typeof incoming.metadata === "object" && incoming.metadata ? incoming.metadata as Record<string, unknown> : current.metadata,
+      metadata: {
+        ...currentMetadata,
+        ...incomingMetadata,
+        homeBranding
+      },
       updated_at: new Date().toISOString()
     };
     tenantBrandingSettings[tenantId] = next;
@@ -1402,7 +1424,8 @@ async function startServer() {
       login_primary_color: branding.login_primary_color,
       login_accent_color: branding.login_accent_color,
       login_button_text: branding.login_button_text,
-      login_footer_text: branding.login_footer_text
+      login_footer_text: branding.login_footer_text,
+      home_branding: sanitizeHomeBranding(branding.metadata?.homeBranding)
     };
   }
 

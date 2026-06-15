@@ -33,6 +33,8 @@ export interface Raffle {
   homeTitle?: string;
   homeSubtitle?: string;
   homeHighlightText?: string;
+  editionLabel?: string;
+  homeEditionLabel?: string;
   heroPrimaryButton?: string;
   heroSecondaryText?: string;
   heroShowStats?: boolean;
