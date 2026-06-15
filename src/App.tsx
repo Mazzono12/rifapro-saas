@@ -44,6 +44,20 @@ function MobilePreviewMode() {
   return null;
 }
 
+function ScrollToTopOnNavigation() {
+  const location = useLocation();
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    });
+  }, [location.pathname, location.search, location.hash]);
+
+  return null;
+}
+
 function GlobalVideoGuard() {
   useEffect(() => {
     const silenceOtherVideos = (activeVideo?: HTMLVideoElement | null) => {
@@ -271,6 +285,7 @@ export default function App() {
             }}
           />
           <GlobalTracking />
+          <ScrollToTopOnNavigation />
           <MobilePreviewMode />
           <GlobalVideoGuard />
           <PwaInstallPrompt />
