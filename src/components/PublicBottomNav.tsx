@@ -8,7 +8,7 @@ export function PublicBottomNav({ hidden = false }: { hidden?: boolean }) {
 
   const items = [
     { label: "Início", to: "/", icon: Home, active: location.pathname === "/" && !location.hash },
-    { label: "Sorteios", to: "/sorteios", icon: Gift, active: location.pathname.startsWith("/raffle") || location.pathname === "/sorteios", hard: true },
+    { label: "Sorteios", to: "/sorteios", icon: Gift, active: location.pathname.startsWith("/raffle") || location.pathname === "/sorteios" },
     { label: "Ganhadores", to: "/ganhadores", icon: Trophy, active: location.pathname === "/ganhadores" || location.hash === "#ganhadores" },
     { label: "Perfil", to: "/perfil", icon: User, active: location.pathname === "/perfil" },
     { label: "Notific.", to: "/mensagens", icon: Bell, active: location.pathname === "/mensagens" || location.pathname === "/contato" }
@@ -28,13 +28,6 @@ export function PublicBottomNav({ hidden = false }: { hidden?: boolean }) {
               <span className="max-w-full truncate">{item.label}</span>
             </>
           );
-          if ("hard" in item && item.hard) {
-            return (
-              <a key={item.label} href={item.to} className={className}>
-                {content}
-              </a>
-            );
-          }
           return (
             <Link key={item.label} to={item.to} className={className}>
               {content}

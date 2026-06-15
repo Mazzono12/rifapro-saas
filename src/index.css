@@ -20541,3 +20541,639 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
     padding-top: 18px;
   }
 }
+
+/* CHECKOUT PREMIUM BLACK/GOLD IDENTITY - visual only */
+.checkout-modal-overlay,
+.checkout-receipt-overlay,
+.checkout-resume-page {
+  background: #000 !important;
+}
+
+.checkout-modal-shell,
+.checkout-receipt-shell,
+.cfx-checkout-shell {
+  border-color: rgba(246, 178, 31, .26) !important;
+  background: #000 !important;
+  box-shadow: 0 28px 110px rgba(0, 0, 0, .72), 0 0 0 1px rgba(246, 178, 31, .08) inset !important;
+}
+
+.checkout-modal-header {
+  border-bottom-color: rgba(246, 178, 31, .18) !important;
+  background: #000 !important;
+}
+
+.checkout-modal-kicker {
+  color: #f6b21f !important;
+}
+
+.checkout-modal-title,
+.checkout-title {
+  color: #fff !important;
+}
+
+.checkout-modal-tenant,
+.checkout-summary-label,
+.checkout-receipt-note,
+.cfx-review-cpf-hint,
+.cfx-pix-premium-top p {
+  color: rgba(255, 255, 255, .68) !important;
+}
+
+.cfx-review-premium,
+.cfx-pix-premium,
+.checkout-receipt-body.cfx-prepix-receipt {
+  background: #000 !important;
+}
+
+.cfx-review-top {
+  background: #000 !important;
+}
+
+.cfx-review-top button {
+  border-color: rgba(246, 178, 31, .26) !important;
+  background: #050505 !important;
+  color: #f6b21f !important;
+}
+
+.cfx-review-top h2,
+.cfx-pix-premium-top h2 {
+  color: #fff !important;
+  text-shadow: none !important;
+}
+
+.cfx-review-panel,
+.cfx-review-buyer-readonly,
+.cfx-review-prize-card,
+.cfx-review-summary,
+.checkout-card,
+.cfx-pix-card,
+.checkout-resume-page .premium-card {
+  border-color: rgba(246, 178, 31, .22) !important;
+  background: #000 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06) !important;
+}
+
+.cfx-review-panel-head > span,
+.cfx-pix-card-head > span,
+.cfx-pix-campaign-logo,
+.checkout-pix-card > div:first-child {
+  border-color: rgba(246, 178, 31, .34) !important;
+  background: rgba(246, 178, 31, .1) !important;
+  color: #f6b21f !important;
+}
+
+.cfx-review-panel-head h3,
+.cfx-review-prize-copy b,
+.checkout-summary-value,
+.cfx-pix-card-head strong,
+.cfx-pix-campaign strong {
+  color: #fff !important;
+}
+
+.cfx-review-buyer-form label > span,
+.cfx-pix-card-head small,
+.cfx-pix-campaign small,
+.cfx-pix-premium .cfx-pix-code p {
+  color: #f6b21f !important;
+}
+
+.cfx-review-buyer-form input,
+.cfx-pix-premium .cfx-pix-code code,
+.checkout-pix-code-box,
+.checkout-pix-code-box code {
+  border-color: rgba(246, 178, 31, .24) !important;
+  background: #050505 !important;
+  color: #fff !important;
+}
+
+.cfx-review-buyer-form input:focus,
+.cfx-pix-premium .cfx-pix-code code:focus {
+  border-color: rgba(246, 178, 31, .7) !important;
+  box-shadow: 0 0 0 3px rgba(246, 178, 31, .14) !important;
+}
+
+.public-shell .checkout-primary-button,
+.public-shell .checkout-primary-action-button,
+.checkout-primary-button,
+.checkout-primary-action-button,
+.checkout-screen .premium-button,
+.cfx-fast-pix-checkout .cfx-review-submit,
+.cfx-pix-premium .cfx-copy-pix-button {
+  border: 0 !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #120900 !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+}
+
+.checkout-action-button:not(.checkout-primary-button) {
+  border-color: rgba(246, 178, 31, .22) !important;
+  background: #050505 !important;
+  color: #fff !important;
+}
+
+.cfx-review-total,
+.cfx-pix-summary-columns .cfx-info-card:last-child {
+  border-color: rgba(246, 178, 31, .22) !important;
+}
+
+.cfx-review-total strong,
+.cfx-review-prize-copy strong,
+.cfx-pix-summary-columns .cfx-info-card:last-child strong,
+.cfx-pix-timer-card strong {
+  color: #f6b21f !important;
+  text-shadow: none !important;
+}
+
+.cfx-pix-premium .cfx-pix-qr-card {
+  border-color: rgba(246, 178, 31, .42) !important;
+  background: #000 !important;
+  box-shadow: 0 20px 70px rgba(246, 178, 31, .12), 0 0 0 1px rgba(246, 178, 31, .08) inset !important;
+}
+
+.cfx-pix-premium .cfx-qr-wrap,
+.checkout-pix-card .mx-auto.w-full {
+  border-color: rgba(246, 178, 31, .86) !important;
+  background: #fff !important;
+  box-shadow: 0 0 42px rgba(246, 178, 31, .22) !important;
+}
+
+.cfx-pix-premium .cfx-pix-timer-card {
+  border-color: rgba(246, 178, 31, .24) !important;
+  background: #000 !important;
+}
+
+.cfx-pix-premium .cfx-info-card,
+.cfx-pix-trust-card span,
+.checkout-resume-page .rounded-2xl {
+  border-color: rgba(246, 178, 31, .18) !important;
+  background: #050505 !important;
+}
+
+.checkout-resume-page .premium-eyebrow {
+  color: #f6b21f !important;
+}
+
+@media (max-width: 640px) {
+  .checkout-modal-overlay,
+  .checkout-receipt-overlay {
+    background: #000 !important;
+  }
+
+  .cfx-checkout-shell-review,
+  .cfx-checkout-shell-payment,
+  .checkout-receipt-shell {
+    border-radius: 0 !important;
+  }
+
+  .cfx-fast-pix-checkout .cfx-review-submit,
+  .cfx-pix-premium .cfx-copy-pix-button {
+    min-height: 56px !important;
+  }
+
+  .cfx-pix-premium .cfx-qr-wrap {
+    width: min(100%, 320px) !important;
+  }
+}
+
+/* PURCHASE PAGE PREMIUM BLACK/GOLD IDENTITY - visual only */
+.public-shell:has(.cfx-raffle-page),
+.public-shell:has(.cfx-raffle-page) main,
+.cfx-raffle-page {
+  background: #000 !important;
+  color: #fff !important;
+}
+
+.public-shell:has(.cfx-raffle-page) .premium-site-header {
+  background: #000 !important;
+  border-bottom-color: rgba(246, 178, 31, .12) !important;
+}
+
+.cfx-raffle-shell,
+.cfx-detail-shell,
+.cfx-detail-layout,
+.cfx-detail-main,
+.cfx-detail-purchase {
+  background: #000 !important;
+}
+
+.cfx-raffle-topbar,
+.cfx-detail-title,
+.cfx-detail-progress,
+.cfx-detail-countdown,
+.cfx-detail-ranking,
+.cfx-progress-panel,
+.cfx-super-cotas,
+.cfx-count-prize,
+.cfx-quantity-card,
+.cfx-detail-buybox,
+.cfx-how,
+.cfx-winners,
+.cfx-certification,
+.cfx-trust-stack,
+.cfx-trust-footer,
+.cfx-sales-countdown,
+.cfx-panel {
+  border-color: rgba(246, 178, 31, .16) !important;
+  background: #000 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055), 0 18px 60px rgba(0, 0, 0, .42) !important;
+}
+
+.cfx-detail-banner {
+  background: #000 !important;
+  border-color: rgba(246, 178, 31, .28) !important;
+  box-shadow: 0 24px 90px rgba(246, 178, 31, .08), 0 0 0 1px rgba(246, 178, 31, .08) inset !important;
+}
+
+.cfx-detail-banner::before,
+.cfx-detail-banner::after {
+  display: none !important;
+}
+
+.cfx-detail-banner-back,
+.cfx-top-action,
+.cfx-raffle-topbar a,
+.cfx-raffle-topbar button {
+  border-color: rgba(246, 178, 31, .24) !important;
+  background: rgba(0, 0, 0, .72) !important;
+  color: #f6b21f !important;
+}
+
+.cfx-detail-kicker,
+.cfx-hero-badge,
+.cfx-video-label,
+.cfx-panel-head p,
+.cfx-detail-buybox h2,
+.cfx-detail-stat > span,
+.cfx-countdown strong,
+.cfx-prize strong {
+  color: #f6b21f !important;
+}
+
+.cfx-detail-kicker {
+  border-color: rgba(246, 178, 31, .34) !important;
+  background: rgba(246, 178, 31, .1) !important;
+  font-size: .72rem !important;
+  letter-spacing: .1em !important;
+}
+
+.cfx-detail-title h1 {
+  color: #fff !important;
+  text-shadow: none !important;
+}
+
+.cfx-detail-title p,
+.cfx-panel p,
+.cfx-panel small,
+.cfx-detail-stat small,
+.cfx-mobile-buy-bar span {
+  color: rgba(255, 255, 255, .66) !important;
+}
+
+.cfx-detail-stat,
+.cfx-detail-buybox .cfx-checkout-row > span,
+.cfx-detail-buybox .cfx-quantity-control,
+.cfx-detail-buybox .cfx-quick-amounts button,
+.cfx-trust-item,
+.cfx-detail-ranking li,
+.cfx-mobile-buy-bar {
+  border-color: rgba(246, 178, 31, .16) !important;
+  background: #050505 !important;
+}
+
+.cfx-detail-stat strong,
+.cfx-detail-buybox .cfx-checkout-row strong,
+.cfx-detail-buybox .cfx-quantity-control input,
+.cfx-mobile-buy-bar strong {
+  color: #fff !important;
+}
+
+.cfx-detail-progress i,
+.cfx-progress-panel i,
+.cfx-home-progress {
+  background: rgba(255, 255, 255, .12) !important;
+}
+
+.cfx-detail-progress i span,
+.cfx-progress-panel i span,
+.cfx-home-progress > span {
+  background: linear-gradient(90deg, #f6b21f, #ffd15b) !important;
+}
+
+.cfx-detail-buybox .cfx-quick-amounts button {
+  min-height: 58px !important;
+  color: #fff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06) !important;
+}
+
+.cfx-detail-buybox .cfx-quick-amounts button:hover,
+.cfx-detail-buybox .cfx-quick-amounts button:focus-visible {
+  border-color: rgba(246, 178, 31, .56) !important;
+  background: rgba(246, 178, 31, .1) !important;
+}
+
+.cfx-detail-buybox .cfx-quantity-control button {
+  border-color: rgba(246, 178, 31, .22) !important;
+  background: #0a0a0a !important;
+  color: #f6b21f !important;
+}
+
+.cfx-detail-buybox .cfx-quantity-control button:last-child {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #120900 !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button,
+.cfx-main-cta,
+.cfx-mobile-buy-bar button,
+.cfx-raffle-actions button,
+.cfx-raffle-actions a {
+  border: 0 !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #120900 !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .24), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button small {
+  color: rgba(18, 9, 0, .72) !important;
+}
+
+.cfx-mobile-buy-bar {
+  box-shadow: 0 -18px 54px rgba(0, 0, 0, .76), 0 0 0 1px rgba(246, 178, 31, .1) inset !important;
+}
+
+@media (max-width: 640px) {
+  .cfx-raffle-page {
+    padding-bottom: 118px !important;
+  }
+
+  .cfx-detail-title {
+    padding: 14px 16px !important;
+    gap: 8px !important;
+  }
+
+  .cfx-detail-title h1 {
+    font-size: clamp(2rem, 11vw, 3rem) !important;
+    line-height: .92 !important;
+  }
+
+  .cfx-detail-title p {
+    font-size: .95rem !important;
+  }
+
+  .cfx-detail-buybox {
+    padding: 14px !important;
+  }
+
+  .cfx-detail-buybox .cfx-quick-amounts {
+    gap: 10px !important;
+  }
+
+  .cfx-detail-buybox .cfx-quick-amounts button {
+    min-height: 50px !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row button {
+    min-height: 58px !important;
+    width: 100% !important;
+  }
+}
+
+/* PURCHASE PAGE COMPACT CONVERSION ADJUSTMENTS - visual only */
+.cfx-detail-title {
+  padding: 14px 18px !important;
+  gap: 8px !important;
+}
+
+.cfx-detail-title h1 {
+  font-size: clamp(2.25rem, 7.5vw, 4.2rem) !important;
+  line-height: .88 !important;
+  margin: 0 !important;
+  max-width: 100% !important;
+}
+
+.cfx-detail-title p {
+  margin: 0 !important;
+  font-size: .9rem !important;
+  line-height: 1.25 !important;
+}
+
+.cfx-detail-price-kicker {
+  width: fit-content !important;
+  padding: 6px 10px !important;
+  gap: 7px !important;
+}
+
+.cfx-detail-price-kicker strong {
+  color: #fff !important;
+  font-size: .92rem !important;
+  letter-spacing: 0 !important;
+}
+
+.cfx-detail-rankings-combo .cfx-detail-rankings-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.cfx-detail-rankings-combo .cfx-detail-rankings-grid > div {
+  display: grid !important;
+  gap: 8px !important;
+}
+
+.cfx-detail-rankings-combo h3 {
+  color: #f6b21f !important;
+  font-size: .78rem !important;
+  font-weight: 900 !important;
+  letter-spacing: .12em !important;
+  margin: 0 0 2px !important;
+  text-transform: uppercase !important;
+}
+
+.cfx-detail-super-cotas > div {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 8px !important;
+}
+
+.cfx-detail-super-cotas article {
+  align-items: center !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto auto !important;
+  gap: 10px !important;
+  min-height: 48px !important;
+  padding: 10px 12px !important;
+}
+
+.cfx-super-cotas-more {
+  align-items: center !important;
+  border: 1px solid rgba(246, 178, 31, .22) !important;
+  border-radius: 14px !important;
+  color: #f6b21f !important;
+  display: flex !important;
+  font-size: .78rem !important;
+  font-weight: 900 !important;
+  justify-content: center !important;
+  margin-top: 10px !important;
+  min-height: 40px !important;
+  text-transform: uppercase !important;
+}
+
+.cfx-detail-gamification-list {
+  display: grid !important;
+  gap: 12px !important;
+}
+
+.cfx-detail-gamification-list header strong {
+  align-items: center !important;
+  color: #fff !important;
+  display: flex !important;
+  gap: 8px !important;
+}
+
+.cfx-detail-gamification-list header svg {
+  color: #f6b21f !important;
+}
+
+.cfx-detail-gamification-list > div {
+  display: grid !important;
+  gap: 8px !important;
+}
+
+.cfx-detail-gamification-list article {
+  align-items: center !important;
+  border: 1px solid rgba(246, 178, 31, .16) !important;
+  border-radius: 16px !important;
+  background: #050505 !important;
+  display: flex !important;
+  gap: 12px !important;
+  min-height: 58px !important;
+  padding: 10px 12px !important;
+}
+
+.cfx-detail-gamification-list article > span {
+  align-items: center !important;
+  border: 1px solid rgba(246, 178, 31, .24) !important;
+  border-radius: 14px !important;
+  background: rgba(246, 178, 31, .1) !important;
+  color: #f6b21f !important;
+  display: grid !important;
+  height: 38px !important;
+  place-items: center !important;
+  width: 38px !important;
+}
+
+.cfx-detail-gamification-list article p {
+  display: grid !important;
+  gap: 2px !important;
+  margin: 0 !important;
+}
+
+.cfx-detail-gamification-list article strong {
+  color: #fff !important;
+  font-size: .9rem !important;
+}
+
+.cfx-detail-gamification-list article small {
+  color: rgba(255, 255, 255, .6) !important;
+  font-size: .76rem !important;
+}
+
+@media (max-width: 640px) {
+  .cfx-detail-title h1 {
+    font-size: clamp(1.7rem, 9vw, 2.45rem) !important;
+  }
+
+  .cfx-detail-title p {
+    font-size: .78rem !important;
+  }
+
+  .cfx-detail-rankings-combo .cfx-detail-rankings-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* PURCHASE PAGE SPACING POLISH - visual only */
+.cfx-detail-main {
+  gap: 6px !important;
+}
+
+.cfx-detail-banner {
+  margin-top: 26px !important;
+}
+
+.cfx-detail-title {
+  margin-top: 2px !important;
+  padding: 8px 14px !important;
+  gap: 5px !important;
+}
+
+.cfx-detail-title p {
+  font-size: .68rem !important;
+  line-height: 1.12 !important;
+}
+
+.cfx-detail-buybox {
+  margin-top: 0 !important;
+  padding: 9px !important;
+}
+
+.cfx-detail-buybox h2 {
+  margin-bottom: 6px !important;
+  font-size: .78rem !important;
+}
+
+.cfx-detail-buybox .cfx-quick-amounts {
+  gap: 6px !important;
+  margin-bottom: 7px !important;
+}
+
+.cfx-detail-buybox .cfx-quick-amounts button {
+  min-height: 40px !important;
+  padding-block: 6px !important;
+}
+
+.cfx-detail-buybox .cfx-quantity-control {
+  margin-top: 0 !important;
+  min-height: 48px !important;
+}
+
+.cfx-detail-buybox .cfx-quantity-control button,
+.cfx-detail-buybox .cfx-quantity-control input {
+  min-height: 48px !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row {
+  gap: 6px !important;
+  margin-top: 7px !important;
+}
+
+@media (max-width: 640px) {
+  .cfx-detail-main {
+    gap: 5px !important;
+  }
+
+  .cfx-detail-banner {
+    margin-top: 22px !important;
+  }
+
+  .cfx-detail-title {
+    padding: 7px 10px !important;
+    gap: 4px !important;
+  }
+
+  .cfx-detail-title p {
+    font-size: .64rem !important;
+  }
+
+  .cfx-detail-buybox {
+    padding: 8px !important;
+  }
+
+  .cfx-detail-buybox .cfx-quick-amounts {
+    gap: 6px !important;
+  }
+
+  .cfx-detail-buybox .cfx-quick-amounts button {
+    min-height: 38px !important;
+  }
+}

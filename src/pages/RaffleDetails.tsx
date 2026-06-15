@@ -549,6 +549,7 @@ export function RaffleDetails() {
           topSellers={topSellers}
           latestWinners={latestWinners}
           prizes={instantPrizeNumbers}
+          gamification={gamification}
         />
         {salesDeadline && <CountdownStrip countdown={countdown} expired={Boolean((raffle as any).salesExpired)} />}
         <PublicConversionWidgets raffleId={id} className="cfx-conversion-widgets" />
@@ -667,7 +668,8 @@ function RafflePremiumPage({
   ranking,
   topSellers,
   latestWinners,
-  prizes
+  prizes,
+  gamification
 }: {
   raffle: Raffle;
   mediaUrl: string;
@@ -685,6 +687,7 @@ function RafflePremiumPage({
   topSellers: TopSellerRankingItem[];
   latestWinners: Winner[];
   prizes: Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }>;
+  gamification: any;
 }) {
   const totalTickets = Math.max(1, Number(raffle.totalTickets || 1));
   const soldTickets = Math.max(0, Number(raffle.soldTickets || 0));
@@ -698,6 +701,7 @@ function RafflePremiumPage({
           <RafflePremiumHero raffle={raffle} mediaUrl={mediaUrl} mediaType={mediaType} />
           <RaffleTitleBlock
             raffle={raffle}
+            unitPrice={unitPrice}
           />
           <NumberSelectionPanel
             tickets={tickets}
@@ -710,11 +714,10 @@ function RafflePremiumPage({
             onParticipate={onParticipate}
             isSubmitting={isSubmitting}
           />
-          {raffle.showHomePrice !== false && <RaffleMetricCard icon={<Ticket />} label="POR APENAS" value={formatCurrency(unitPrice)} tone="gold" />}
-          <RaffleTopBuyersPanel ranking={ranking} />
-          <RaffleTopSellersPanel ranking={topSellers} />
+          <RaffleRankingsPanel buyers={ranking} sellers={topSellers} />
           <LatestWinnersPanel winners={latestWinners} />
           <SuperCotasPanel prizes={prizes} />
+          <RaffleGamificationListPanel data={gamification || (raffle as any).gamificationConfig || (raffle as any).gamification || null} />
         </section>
       </div>
       <div className="cfx-compat" aria-hidden="true">
@@ -782,13 +785,15 @@ function RafflePremiumHero({ raffle, mediaUrl, mediaType }: { raffle: Raffle; me
 }
 
 function RaffleTitleBlock({
-  raffle
+  raffle,
+  unitPrice
 }: {
   raffle: Raffle;
+  unitPrice: number;
 }) {
   return (
     <section className="cfx-title-row cfx-detail-title">
-      <span className="cfx-detail-kicker"><Trophy /> Prêmio principal</span>
+      <span className="cfx-detail-kicker cfx-detail-price-kicker"><Ticket /> Por apenas <strong>{formatCurrency(unitPrice)}</strong></span>
       <h1>{raffle.title}</h1>
       <p><Clock3 /> {formatDate(raffle.drawDate)} <span /> <ShieldCheck /> Compra via PIX seguro</p>
     </section>
@@ -893,6 +898,59 @@ function RaffleTopSellersPanel({ ranking }: { ranking: TopSellerRankingItem[] })
   );
 }
 
+function RaffleRankingsPanel({
+  buyers,
+  sellers
+}: {
+  buyers: Array<{ name: string; tickets: number; phone: string }>;
+  sellers: TopSellerRankingItem[];
+}) {
+  const buyerRows = buyers.slice(0, 3);
+  const sellerRows = sellers.slice(0, 3);
+  if (!buyerRows.length && !sellerRows.length) {
+    return (
+      <section className="cfx-panel cfx-detail-ranking cfx-detail-rankings-combo">
+        <header>
+          <strong><Trophy /> Rankings</strong>
+          <Link to="/ganhadores">Ver ranking</Link>
+        </header>
+        <p>Rankings em apuração com dados reais da campanha.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="cfx-panel cfx-detail-ranking cfx-detail-rankings-combo">
+      <header>
+        <strong><Trophy /> Rankings</strong>
+        <Link to="/ganhadores">Ver ranking</Link>
+      </header>
+      <div className="cfx-detail-rankings-grid">
+        <div>
+          <h3>Top compradores</h3>
+          {buyerRows.length ? buyerRows.map((buyer, index) => (
+            <article key={`${buyer.phone}-${index}`}>
+              <span>{index + 1}</span>
+              <b>{maskName(buyer.name)}</b>
+              <small>{Number(buyer.tickets || 0).toLocaleString("pt-BR")} cotas</small>
+            </article>
+          )) : <p>Em formação.</p>}
+        </div>
+        <div>
+          <h3>Top vendedores</h3>
+          {sellerRows.length ? sellerRows.map((seller, index) => (
+            <article key={`${seller.refCode}-${index}`}>
+              <span>{seller.position || index + 1}</span>
+              <b>{seller.affiliateName || seller.affiliate || seller.refCode}</b>
+              <small>{seller.prizeLabel || `${Number(seller.paidPurchasesCount ?? seller.sales ?? 0).toLocaleString("pt-BR")} vendas diretas`}</small>
+            </article>
+          )) : <p>Em formação.</p>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function LatestWinnersPanel({ winners }: { winners: Winner[] }) {
   const rows = winners.slice(0, 3);
   if (!rows.length) return null;
@@ -966,7 +1024,9 @@ function ProgressPanel({ progress, soldTickets, totalTickets, remaining }: { pro
 }
 
 function SuperCotasPanel({ prizes }: { prizes: Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }> }) {
-  const publicPrizes = prizes.filter(prize => Number.isFinite(Number(prize.numeroPremiado))).slice(0, 8);
+  const [expanded, setExpanded] = useState(false);
+  const allPublicPrizes = prizes.filter(prize => Number.isFinite(Number(prize.numeroPremiado)));
+  const publicPrizes = expanded ? allPublicPrizes : allPublicPrizes.slice(0, 3);
   if (!publicPrizes.length) return null;
   return (
     <section className="cfx-panel cfx-super-cotas cfx-detail-super-cotas" data-public-super-cotas="visible">
@@ -988,6 +1048,40 @@ function SuperCotasPanel({ prizes }: { prizes: Array<{ id: string; numeroPremiad
           </article>
           );
         })}
+      </div>
+      {allPublicPrizes.length > 3 && (
+        <button type="button" className="cfx-super-cotas-more" onClick={() => setExpanded(value => !value)}>
+          {expanded ? "Ver menos" : "Ver mais"}
+        </button>
+      )}
+    </section>
+  );
+}
+
+function RaffleGamificationListPanel({ data }: { data: any }) {
+  const activeItems = [
+    data?.winningTicket?.enabled || data?.superCotas?.length || data?.autoPrizes?.length ? { icon: <Gift />, label: "Super Cotas", detail: "Números premiados da campanha" } : null,
+    data?.wheel?.enabled || data?.roulette?.enabled || data?.lootbox?.type === "wheel" ? { icon: <Trophy />, label: "Roleta Premiada", detail: "Giros liberados conforme regra ativa" } : null,
+    data?.mysteryBox?.enabled || data?.box?.enabled || data?.lootbox?.type === "box" ? { icon: <Gift />, label: "Caixinha Premiada", detail: "Prêmios surpresa após confirmação" } : null,
+    data?.scratchcard?.enabled || data?.scratchcards?.enabled ? { icon: <Ticket />, label: "Raspadinha", detail: "Raspadinha liberada conforme regra ativa" } : null,
+    data?.luckyHour?.active ? { icon: <Clock3 />, label: "Hora Premiada", detail: "Benefício ativo por tempo limitado" } : null,
+    data?.doubleChance?.active ? { icon: <Crown />, label: "Chance em dobro", detail: "Cotas qualificadas recebem peso extra" } : null
+  ].filter(Boolean) as Array<{ icon: React.ReactNode; label: string; detail: string }>;
+
+  if (!activeItems.length) return null;
+
+  return (
+    <section className="cfx-panel cfx-detail-gamification-list">
+      <header>
+        <strong><Gift /> Muitas chances de ganhar</strong>
+      </header>
+      <div>
+        {activeItems.map(item => (
+          <article key={item.label}>
+            <span>{item.icon}</span>
+            <p><strong>{item.label}</strong><small>{item.detail}</small></p>
+          </article>
+        ))}
       </div>
     </section>
   );
