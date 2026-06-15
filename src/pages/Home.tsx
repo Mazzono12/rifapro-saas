@@ -24,7 +24,7 @@ import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import type { Raffle, Winner } from "../types";
 import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
 import { cn } from "../lib/utils";
-import type { ResponsiveMediaAspectMode, ResponsiveMediaFit } from "../utils/mediaAspect";
+import type { ResponsiveMediaAspectMode } from "../utils/mediaAspect";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
 
 /* public-home-premium-v1 contract: cfx-home-premium-v1 HomeV1Hero StandardRaffleMediaBlock className="cfx-home-media-block" */
@@ -188,10 +188,6 @@ function resolveHomeMediaAspect(raffle: Pick<Raffle, "mediaAspect" | "mediaType"
   return isVideo ? "horizontal" : "portrait";
 }
 
-function resolveHomeMediaFit(fit: unknown): ResponsiveMediaFit {
-  return String(fit || "").trim().toLowerCase() === "contain" ? "contain" : "cover";
-}
-
 function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raffle | null {
   if (!raffle || !raffle.id) return null;
   const rawRaffle = raffle as Partial<Raffle> & {
@@ -226,8 +222,8 @@ function normalizePublicRaffle(raffle: Partial<Raffle> | null | undefined): Raff
     homeTitle: safeText(rawRaffle.homeTitle, ""),
     homeSubtitle: safeText(rawRaffle.homeSubtitle, ""),
     homeHighlightText: safeText(rawRaffle.homeHighlightText, ""),
-    editionLabel: safeText(rawRaffle.editionLabel || rawRaffle.homeEditionLabel || rawRaffle.heroEyebrow, "1ª EDIÇÃO"),
-    homeEditionLabel: safeText(rawRaffle.homeEditionLabel || rawRaffle.editionLabel || rawRaffle.heroEyebrow, "1ª EDIÇÃO"),
+    editionLabel: safeText(rawRaffle.editionLabel || rawRaffle.homeEditionLabel, "1ª EDIÇÃO"),
+    homeEditionLabel: safeText(rawRaffle.homeEditionLabel || rawRaffle.editionLabel, "1ª EDIÇÃO"),
     heroPrimaryButton: safeText(rawRaffle.heroPrimaryButton, "Participar agora"),
     drawDate: safeText(rawRaffle.drawDate, new Date().toISOString()),
     countdownEnabled: rawRaffle.countdownEnabled === true,
@@ -460,11 +456,10 @@ function HomeV1Hero({ raffle }: { raffle: Raffle }) {
             mediaUrl={heroMedia.mediaUrl}
             mediaType={heroMedia.mediaType}
             title={title}
-            href={`/raffle/${raffle.id}`}
             fallbackImageUrl=""
             priority
             showDescriptionBelow={false}
-            preferredFit={isVideo ? "contain" : resolveHomeMediaFit(raffle.mediaFit)}
+            preferredFit="cover"
             aspectMode={homeMediaAspect}
             className="cfx-v1-media-block cfx-home-media-block"
             hideInfo
@@ -472,20 +467,22 @@ function HomeV1Hero({ raffle }: { raffle: Raffle }) {
         ) : (
           <div className="cfx-v1-media-empty">
             <Sparkles />
-            <span>{title}</span>
+            <span>Mídia da campanha</span>
           </div>
         )}
+      </Link>
+
+      <div className="cfx-v1-hero-info">
         <span className="cfx-v1-edition"><Crown /> {editionLabel}</span>
-      </Link>
+        <div className="cfx-v1-hero-copy">
+          <h1>{title}</h1>
+          <p>{subtitle}</p>
+        </div>
 
-      <div className="cfx-v1-hero-copy">
-        <h1>{title}</h1>
-        <p>{subtitle}</p>
+        <Link to={`/raffle/${raffle.id}`} className="cfx-v1-primary-cta">
+          <Ticket /> Participar Agora
+        </Link>
       </div>
-
-      <Link to={`/raffle/${raffle.id}`} className="cfx-v1-primary-cta">
-        <Ticket /> Participar Agora
-      </Link>
     </section>
   );
 }
@@ -593,7 +590,7 @@ function HomeV1Winners({ winners }: { winners: Winner[] }) {
   return (
     <section className="cfx-v1-card cfx-v1-winners HomeV1Winners">
       <header>
-        <h2><Trophy /> Ganhadores reais</h2>
+        <h2><Trophy /> Ganhadores</h2>
         {winners.length > 0 && <Link to="/ganhadores">Ver todos <ChevronRight /></Link>}
       </header>
       {winners.length ? (
@@ -626,9 +623,7 @@ function HomeV1FeaturedDraws({ raffles }: { raffles: Raffle[] }) {
       </header>
       {raffles.length ? (
         <div className="cfx-v1-draw-list">
-          {raffles.slice(0, 3).map(raffle => {
-            const drawIsVideo = isVideoMediaType(raffle.mediaType);
-            return (
+          {raffles.slice(0, 3).map(raffle => (
             <article key={raffle.id}>
               <Link to={`/raffle/${raffle.id}`} className="cfx-v1-draw-media">
                 <StandardRaffleMediaBlock
@@ -637,7 +632,7 @@ function HomeV1FeaturedDraws({ raffles }: { raffles: Raffle[] }) {
                   fallbackImageUrl=""
                   title={raffle.title}
                   showDescriptionBelow={false}
-                  preferredFit={drawIsVideo ? "contain" : resolveHomeMediaFit(raffle.mediaFit)}
+                  preferredFit="cover"
                   aspectMode="square"
                   className="cfx-v1-draw-media-block"
                   hideInfo
@@ -648,8 +643,7 @@ function HomeV1FeaturedDraws({ raffles }: { raffles: Raffle[] }) {
                 <Link to={`/raffle/${raffle.id}`}>Participar</Link>
               </div>
             </article>
-            );
-          })}
+          ))}
         </div>
       ) : (
         <div className="cfx-v1-empty">

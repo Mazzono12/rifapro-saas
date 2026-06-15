@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 import { Toaster } from "sonner";
 import { Navbar } from "./components/Navbar";
 import { PublicBottomNav } from "./components/PublicBottomNav";
-import { SupportChat } from "./components/SupportChat";
 import { PremiumAtmosphere } from "./components/PremiumAtmosphere";
 import { ThemeProvider } from "./context/theme/ThemeContext";
 import { AuthProvider } from "./context/auth/AuthContext";
@@ -181,7 +180,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         <TenantOperationalGate>{children}</TenantOperationalGate>
       </main>
       {isRaffleRoute && <PublicBottomNav />}
-      <SupportChat />
     </div>
   );
 }

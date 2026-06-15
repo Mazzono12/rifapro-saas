@@ -84,7 +84,7 @@ includesAll(home, [
   "StandardRaffleMediaBlock",
   "className=\"cfx-home-media-block\"",
   "showDescriptionBelow={false}",
-  "preferredFit={isVideo ? \"contain\" : resolveHomeMediaFit(raffle.mediaFit)}",
+  "preferredFit=\"cover\"",
   "hideInfo"
 ], "Home usa blocos padronizados");
 excludesAll(home, ["absolute inset-x-0 bottom-0 h-44", "absolute right-4 top-4"], "Home sem mascara/badge dentro da midia dos cards");

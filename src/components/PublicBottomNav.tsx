@@ -8,9 +8,10 @@ export function PublicBottomNav({ hidden = false }: { hidden?: boolean }) {
 
   const items = [
     { label: "Início", to: "/", icon: Home, active: location.pathname === "/" && !location.hash },
-    { label: "Sorteios", to: "/sorteios", icon: Gift, active: location.pathname.startsWith("/raffle") || location.pathname === "/sorteios" },
+    { label: "Sorteios", to: "/sorteios", icon: Gift, active: location.pathname.startsWith("/raffle") || location.pathname === "/sorteios", hard: true },
     { label: "Ganhadores", to: "/ganhadores", icon: Trophy, active: location.pathname === "/ganhadores" || location.hash === "#ganhadores" },
-    { label: "Perfil", to: "/perfil", icon: User, badgeIcon: Bell, active: location.pathname === "/perfil" }
+    { label: "Perfil", to: "/perfil", icon: User, active: location.pathname === "/perfil" },
+    { label: "Notific.", to: "/mensagens", icon: Bell, active: location.pathname === "/mensagens" || location.pathname === "/contato" }
   ];
 
   return (
@@ -18,13 +19,25 @@ export function PublicBottomNav({ hidden = false }: { hidden?: boolean }) {
       <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
         {items.map(item => {
           const Icon = item.icon;
-          const BadgeIcon = item.badgeIcon;
           const className = `relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-black transition ${item.active ? "border border-violet-300/35 bg-violet-500/20 text-violet-100 shadow-[0_10px_30px_rgba(168,85,247,0.28)]" : "text-[#A1A1AA] hover:bg-white/5 hover:text-white"}`;
+          const content = (
+            <>
+              <span className="flex h-5 items-center justify-center">
+                <Icon className="h-5 w-5" />
+              </span>
+              <span className="max-w-full truncate">{item.label}</span>
+            </>
+          );
+          if ("hard" in item && item.hard) {
+            return (
+              <a key={item.label} href={item.to} className={className}>
+                {content}
+              </a>
+            );
+          }
           return (
             <Link key={item.label} to={item.to} className={className}>
-              <Icon className="h-5 w-5" />
-              {BadgeIcon && <BadgeIcon className="absolute right-4 top-2 h-3.5 w-3.5 text-amber-300" />}
-              <span className="max-w-full truncate">{item.label}</span>
+              {content}
             </Link>
           );
         })}
