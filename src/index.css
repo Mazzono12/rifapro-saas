@@ -21177,3 +21177,221 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
     min-height: 38px !important;
   }
 }
+
+/* DRAWS PAGE PREMIUM BLACK/GOLD IDENTITY - visual only */
+.public-shell:has(.cfx-draws-page),
+.public-shell:has(.cfx-draws-page) main,
+.cfx-draws-page {
+  background: #000 !important;
+  color: #fff !important;
+}
+
+.public-shell:has(.cfx-draws-page) .premium-site-header {
+  background: #000 !important;
+  border-bottom-color: rgba(246, 178, 31, .12) !important;
+}
+
+.cfx-draws-page {
+  max-width: 920px !important;
+  padding-top: 18px !important;
+}
+
+.cfx-draws-hero {
+  border: 1px solid rgba(246, 178, 31, .16) !important;
+  border-radius: 22px !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(246, 178, 31, .16), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .015)),
+    #000 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055), 0 18px 60px rgba(0, 0, 0, .44) !important;
+  padding: 18px 16px !important;
+}
+
+.cfx-draws-hero.is-compact h1 {
+  color: #fff !important;
+  font-size: clamp(2.2rem, 11vw, 4.25rem) !important;
+  line-height: .9 !important;
+  text-shadow: none !important;
+}
+
+.cfx-draw-tabs {
+  border: 1px solid rgba(246, 178, 31, .16) !important;
+  border-radius: 20px !important;
+  background: #050505 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05) !important;
+}
+
+.cfx-draw-tabs a {
+  color: rgba(255, 255, 255, .62) !important;
+}
+
+.cfx-draw-tabs a.is-active {
+  background: linear-gradient(180deg, rgba(246, 178, 31, .18), rgba(246, 178, 31, .06)) !important;
+  color: #f6b21f !important;
+  box-shadow: inset 0 -2px 0 #f6b21f !important;
+}
+
+.cfx-draw-tabs svg,
+.cfx-draw-section > header svg {
+  color: #f6b21f !important;
+}
+
+.cfx-draw-section {
+  margin-top: 18px !important;
+}
+
+.cfx-draw-section > header {
+  background: transparent !important;
+  padding: 0 2px 8px !important;
+}
+
+.cfx-draw-section h2 {
+  color: #fff !important;
+  font-size: clamp(1.25rem, 5.5vw, 2rem) !important;
+  line-height: 1 !important;
+}
+
+.cfx-draw-section p {
+  color: rgba(255, 255, 255, .62) !important;
+}
+
+.cfx-draw-list {
+  gap: 12px !important;
+}
+
+.cfx-draw-card {
+  border-color: rgba(246, 178, 31, .22) !important;
+  border-radius: 22px !important;
+  background:
+    radial-gradient(circle at 84% 12%, rgba(246, 178, 31, .12), transparent 24%),
+    linear-gradient(145deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .01)),
+    #000 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055), 0 22px 70px rgba(0, 0, 0, .5) !important;
+}
+
+.cfx-draw-card.is-completed {
+  border-color: rgba(255, 255, 255, .12) !important;
+  background:
+    radial-gradient(circle at 82% 14%, rgba(255, 255, 255, .08), transparent 20%),
+    linear-gradient(145deg, rgba(255, 255, 255, .032), rgba(255, 255, 255, .008)),
+    #000 !important;
+}
+
+.cfx-draw-media {
+  border-color: rgba(246, 178, 31, .22) !important;
+  background: #050505 !important;
+}
+
+.cfx-draw-media::after {
+  background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, .54) 100%) !important;
+}
+
+.cfx-draw-badge {
+  border-color: rgba(246, 178, 31, .36) !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #120900 !important;
+}
+
+.cfx-draw-card.is-completed .cfx-draw-badge {
+  border-color: rgba(255, 255, 255, .18) !important;
+  background: rgba(255, 255, 255, .12) !important;
+  color: #fff !important;
+}
+
+.cfx-draw-title h3 {
+  color: #fff !important;
+  font-size: clamp(1.45rem, 6vw, 2.15rem) !important;
+  line-height: .98 !important;
+  text-shadow: none !important;
+}
+
+.cfx-draw-title p {
+  color: rgba(255, 255, 255, .62) !important;
+  font-size: .82rem !important;
+  line-height: 1.22 !important;
+}
+
+.cfx-draw-meta {
+  gap: 8px !important;
+}
+
+.cfx-draw-meta span {
+  border: 1px solid rgba(246, 178, 31, .14) !important;
+  background: #050505 !important;
+}
+
+.cfx-draw-meta small {
+  color: #f6b21f !important;
+}
+
+.cfx-draw-meta strong {
+  color: #fff !important;
+}
+
+.cfx-draw-progress span {
+  background: rgba(255, 255, 255, .12) !important;
+}
+
+.cfx-draw-progress i {
+  background: linear-gradient(90deg, #f6b21f, #ffd15b) !important;
+}
+
+.cfx-draw-progress strong {
+  color: #f6b21f !important;
+}
+
+.cfx-draw-participate-button {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #120900 !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+}
+
+.cfx-draw-result-button {
+  border: 1px solid rgba(246, 178, 31, .22) !important;
+  background: #050505 !important;
+  color: #f6b21f !important;
+}
+
+.cfx-draw-empty,
+.cfx-draw-skeleton {
+  border-color: rgba(246, 178, 31, .14) !important;
+  background: #050505 !important;
+  color: rgba(255, 255, 255, .62) !important;
+}
+
+@media (max-width: 640px) {
+  .cfx-draws-page {
+    padding-inline: 12px !important;
+    padding-top: 14px !important;
+  }
+
+  .cfx-draws-hero {
+    padding: 14px !important;
+  }
+
+  .cfx-draw-tabs {
+    margin-top: 10px !important;
+  }
+
+  .cfx-draw-card {
+    padding: 8px !important;
+  }
+
+  .cfx-draw-body {
+    gap: 10px !important;
+    padding: 12px 2px 2px !important;
+  }
+
+  .cfx-draw-title h3 {
+    font-size: clamp(1.35rem, 7vw, 1.9rem) !important;
+  }
+
+  .cfx-draw-meta span {
+    padding: 8px !important;
+  }
+
+  .cfx-draw-participate-button,
+  .cfx-draw-result-button {
+    min-height: 52px !important;
+  }
+}

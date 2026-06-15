@@ -295,9 +295,11 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/raffle/:id" element={<RaffleDetails />} />
               <Route path="/rifa/:id" element={<RaffleDetails />} />
+              <Route path="/sorteio" element={<Navigate to="/sorteios" replace />} />
               <Route path="/sorteio/:id" element={<RaffleDetails />} />
               <Route path="/checkout/orders/:orderId" element={<CheckoutOrderResume />} />
-              <Route path="/campanhas" element={<Navigate to="/" replace />} />
+              <Route path="/campanhas" element={<Navigate to="/sorteios" replace />} />
+              <Route path="/rifas" element={<Navigate to="/sorteios" replace />} />
               <Route path="/sorteios" element={<Sorteios />} />
               <Route path="/fazendinha" element={<Fazendinha />} />
               <Route path="/auth" element={<Navigate to="/login" replace />} />

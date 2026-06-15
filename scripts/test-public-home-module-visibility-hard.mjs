@@ -129,17 +129,33 @@ hasAll(adminRaffles, [
 hasAll(publicBottomNav, [
   "label: \"Início\"",
   "label: \"Sorteios\"",
+  "to: \"/sorteios\"",
   "label: \"Ganhadores\"",
   "label: \"Perfil\"",
   "to: \"/perfil\""
 ], "Menu inferior publico deve manter os quatro itens solicitados");
 hasNone(publicBottomNav, ["label: \"WhatsApp\"", "label: \"Instagram\""], "Menu inferior publico nao deve ter links sociais");
+hasAll(navbar, [
+  "label: \"Sorteios\"",
+  "to: \"/sorteios\""
+], "Menu inferior da Home/Navbar deve apontar Sorteios para a rota oficial");
 hasNone(navbar, ["label: \"WhatsApp\"", "label: \"Instagram\""], "Menu inferior global da Navbar nao deve ter links sociais");
 
 hasAll(app, [
   "<Route path=\"/\" element={<Home />} />",
+  "<Route path=\"/sorteio\" element={<Navigate to=\"/sorteios\" replace />} />",
+  "<Route path=\"/campanhas\" element={<Navigate to=\"/sorteios\" replace />} />",
+  "<Route path=\"/rifas\" element={<Navigate to=\"/sorteios\" replace />} />",
   "<Route path=\"/sorteios\" element={<Sorteios />} />",
   "<Route path=\"/ganhadores\" element={<Winners />} />"
 ], "Rotas publicas principais devem continuar registradas");
+assert.ok(
+  app.indexOf("<Route path=\"/sorteio\" element={<Navigate to=\"/sorteios\" replace />} />") < app.indexOf("<Route path=\"/:mode\" element={<NumberModePage />} />"),
+  "Rota /sorteio deve redirecionar para /sorteios antes da rota dinamica /:mode."
+);
+assert.ok(
+  app.indexOf("<Route path=\"/sorteios\" element={<Sorteios />} />") < app.indexOf("<Route path=\"/:mode\" element={<NumberModePage />} />"),
+  "Rota /sorteios deve renderizar a listagem antes da rota dinamica /:mode."
+);
 
 console.log("PASS: Home Premium V1 mobile, branding e menu inferior validados.");
