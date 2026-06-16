@@ -326,13 +326,13 @@ export default function App() {
               <Route path="/caixinhas" element={<Navigate to="/" replace />} />
               <Route path="/:mode" element={<NumberModePage />} />
             
-              <Route path="/admin/whatsapp-center" element={<ProtectedRoute roles={["superadmin", "admin", "operador"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
+              <Route path="/admin/whatsapp-center" element={<ProtectedRoute roles={["admin", "operador"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={adminSection("Central WhatsApp", <AdminWhatsAppCenter />)} />
               </Route>
-              <Route path="/admin/notificacoes" element={<ProtectedRoute roles={["superadmin", "admin", "operador"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
+              <Route path="/admin/notificacoes" element={<ProtectedRoute roles={["admin", "operador"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={adminSection("Notificações", <AdminNotifications />)} />
               </Route>
-              <Route path="/admin" element={<ProtectedRoute roles={["superadmin", "admin"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
+              <Route path="/admin" element={<ProtectedRoute roles={["admin"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={adminSection("Dashboard", <AdminDashboard />)} />
                 <Route path="crm" element={adminSection("CRM", <AdminCRM />)} />
                 <Route path="crm/:contactId" element={adminSection("CRM", <AdminCRM />)} />
@@ -373,6 +373,7 @@ export default function App() {
               </Route>
               <Route path="/superadmin" element={<ProtectedRoute roles={["superadmin"]}><Suspense fallback={<AdminRouteFallback />}><SuperAdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={<SuperAdminDashboard />} />
+                <Route path="dashboard" element={<SuperAdminDashboard />} />
                 <Route path="clientes" element={<SuperAdminClients />} />
                 <Route path="integracoes" element={<SuperAdminIntegrations />} />
                 <Route path="whatsapp-enterprise" element={<SuperAdminWhatsAppNumbers />} />

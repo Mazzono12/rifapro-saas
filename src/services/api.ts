@@ -1,6 +1,7 @@
 // /src/services/api.ts
 // Arquitetura Clean: Todo o acesso externo passa por services estruturados
 import { FazendinhaGroup, FazendinhaHomeMediaSettings, FazendinhaMediaSettings, FazendinhaPurchase, FazendinhaState, ModalidadesState, NumberModeId, NumberModeState, PromotionRule, PromotionSummary, Raffle } from '../types';
+import { getFriendlyErrorMessage, readJsonSafely } from '../utils/friendlyError';
 
 type CheckoutCustomerPayload = {
   name: string;
@@ -57,8 +58,8 @@ export const checkoutService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Nao foi possivel calcular o resumo da compra");
+    const data = await readJsonSafely(res);
+    if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Nao foi possivel calcular o resumo da compra. Tente novamente."));
     return data as Promise<{
       quantity: number;
       total: number;
@@ -85,8 +86,8 @@ export const checkoutService = {
 
   async checkPixPaymentStatus(orderId: string) {
     const res = await fetch(`/api/checkout/orders/${orderId}/status`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Nao foi possivel verificar o pagamento");
+    const data = await readJsonSafely(res);
+    if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Nao foi possivel verificar o pagamento. Tente novamente."));
     return data as Promise<{
       orderId: string;
       type: "raffle" | "fazendinha" | "modalidade";
@@ -159,8 +160,8 @@ export const fazendinhaService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ customer, simulatePayment })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Falha ao reservar bichinho");
+    const data = await readJsonSafely(res);
+    if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Falha ao reservar. Tente novamente."));
     return data as { purchase: FazendinhaPurchase; group: FazendinhaGroup; pixPayload: string; earnedLootboxes: number };
   },
 
@@ -170,8 +171,8 @@ export const fazendinhaService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ groupIds, customer, simulatePayment, addon })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Falha ao comprar bichinhos");
+    const data = await readJsonSafely(res);
+    if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Falha ao gerar PIX. Tente novamente."));
     return data as { purchase: FazendinhaPurchase; groups: FazendinhaGroup[]; pixPayload: string; earnedLootboxes: number };
   },
 
@@ -180,8 +181,8 @@ export const fazendinhaService = {
       method: "POST",
       headers: { "Content-Type": "application/json" }
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Falha ao confirmar pagamento");
+    const data = await readJsonSafely(res);
+    if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Falha ao confirmar pagamento. Tente novamente."));
     return data as { purchase: FazendinhaPurchase; groups: FazendinhaGroup[]; pixPayload: string; earnedLootboxes: number };
   },
 
@@ -293,8 +294,8 @@ export const modalidadesService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ numbers, customer, simulatePayment })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Falha ao comprar numeros");
+    const data = await readJsonSafely(res);
+    if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Falha ao gerar PIX. Tente novamente."));
     return data;
   },
 
@@ -303,8 +304,8 @@ export const modalidadesService = {
       method: "POST",
       headers: { "Content-Type": "application/json" }
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Falha ao confirmar pagamento da modalidade");
+    const data = await readJsonSafely(res);
+    if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Falha ao confirmar pagamento. Tente novamente."));
     return data;
   },
 

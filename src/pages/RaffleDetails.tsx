@@ -33,6 +33,7 @@ import { CheckoutCampaignMedia } from "../components/checkout/CheckoutCampaignMe
 import { PrePaymentReceiptModal, type CheckoutPreview } from "../components/checkout/PrePaymentReceiptModal";
 import { CheckoutModalShell, CheckoutPrimaryActionButton } from "../components/premium/PremiumUI";
 import { checkoutService } from "../services/api";
+import { getFriendlyErrorMessage, readJsonSafely } from "../utils/friendlyError";
 import { GeoPrefillService } from "../services/GeoPrefillService";
 import { useCityDetection } from "../hooks/useCityDetection";
 import { finishMetric, markPageLoaded, startMetric } from "../lib/performanceMetrics";
@@ -395,10 +396,11 @@ export function RaffleDetails() {
         orderBumpAccepted: acceptOrderBump
       });
       setCheckoutPreview(preview);
+      setCheckoutOpen(false);
       setReceiptOpen(true);
       finishMetric("checkout_modal_open", { raffleId: id });
     } catch (err: any) {
-      toast.error("Revise sua compra", { description: err.message || "Nao foi possivel calcular o resumo." });
+      toast.error("Revise sua compra", { description: getFriendlyErrorMessage(err, "Nao foi possivel calcular o resumo. Tente novamente.") });
     } finally {
       setIsSubmitting(false);
     }
@@ -425,8 +427,8 @@ export function RaffleDetails() {
           orderBumpAccepted: acceptOrderBump
         })
       });
-      const data = normalizePixPurchase(await res.json());
-      if (!res.ok) throw new Error(data.error || "Nao foi possivel gerar PIX");
+      const data = normalizePixPurchase(await readJsonSafely(res));
+      if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Nao foi possivel gerar PIX. Tente novamente."));
       if (data.status !== "paid" && !getPixPayload(data) && !getPixQrCodeBase64(data)) {
         throw new Error("Pedido criado, mas o gateway nao retornou QR Code nem codigo PIX. Tente novamente em instantes.");
       }
@@ -442,7 +444,7 @@ export function RaffleDetails() {
         setRequireIdentity(true);
         setCustomerMode("login");
       }
-      toast.error("Erro no checkout", { description: err.message });
+      toast.error("Erro no checkout", { description: getFriendlyErrorMessage(err, "Nao foi possivel gerar PIX. Tente novamente.") });
     } finally {
       setIsSubmitting(false);
     }
@@ -506,7 +508,7 @@ export function RaffleDetails() {
 
   const switchCheckoutCustomer = () => {
     clearCustomer();
-    setRequireIdentity(true);
+    setRequireIdentity(false);
     setCustomerMode("register");
     setCustomerForm(current => ({
       name: "",
@@ -517,10 +519,25 @@ export function RaffleDetails() {
       accessPassword: "",
       knownCustomer: false
     }));
+    setReceiptOpen(false);
+    setCheckoutStep("review");
+    setCheckoutOpen(true);
     toast.info("Informe os dados do novo comprador");
   };
 
   const openCheckout = () => {
+    if (recognizedCustomer && !requireIdentity && !purchase) {
+      void openPrePaymentReceipt(undefined, {
+        name: recognizedCustomer.name || "",
+        phone: recognizedCustomer.phone || "",
+        cpf: recognizedCustomer.cpf || "",
+        city: (recognizedCustomer as any).city || customerForm.city,
+        state: (recognizedCustomer as any).state || customerForm.state,
+        accessPassword: "",
+        knownCustomer: true
+      });
+      return;
+    }
     setCheckoutOpen(true);
     setCheckoutStep(purchase ? (purchase.status === "paid" ? "ticket" : "payment") : "review");
   };
@@ -1350,28 +1367,15 @@ function CheckoutModal(props: {
 }
 
 function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
-  const [needsAccessPassword, setNeedsAccessPassword] = useState(false);
   const buyer = props.customer || {};
-  const buyerName = buyer.name || props.customerForm.name || "";
   const buyerPhone = buyer.phone || props.customerForm.phone || "";
-  const buyerEmail = (buyer as any).email || props.customerForm.email || "";
   const buyerCpf = buyer.cpf || props.customerForm.cpf || "";
-  const discount = Number(props.couponPreview?.discount || 0);
   const needsCustomerData = !props.customer || props.requireIdentity;
   const cpfDigits = String(props.customerForm.cpf || buyerCpf || "").replace(/\D/g, "");
   const phoneDigits = String(props.customerForm.phone || buyerPhone || "").replace(/\D/g, "");
-  const checkoutMedia = getRaffleCheckoutMedia(props.raffle);
-  const rawPixPrize = (props.raffle as any).pixPrizeValue ?? (props.raffle as any).pixPrize ?? (props.raffle as any).cashPrize ?? "";
-  const pixPrize = typeof rawPixPrize === "number" && rawPixPrize > 0
-    ? formatCurrency(rawPixPrize)
-    : String(rawPixPrize || "").trim();
   const handleReviewSubmit = async (event: React.FormEvent) => {
     if (needsCustomerData) {
       event.preventDefault();
-      if (cpfDigits.length !== 11) {
-        toast.error("Informe seu CPF para continuar");
-        return;
-      }
       try {
         const response = await fetch("/api/customers/checkout-lookup", {
           method: "POST",
@@ -1408,8 +1412,11 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         toast.error("Informe seu WhatsApp");
         return;
       }
+      if (cpfDigits.length !== 11) {
+        toast.error("Informe seu CPF para continuar");
+        return;
+      }
       if (!props.customerForm.knownCustomer && !/^\d{6}$/.test(String(props.customerForm.accessPassword || ""))) {
-        setNeedsAccessPassword(true);
         toast.error("Crie uma senha de acesso com 6 digitos");
         return;
       }
@@ -1423,82 +1430,28 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         <button type="button" onClick={props.onClose} aria-label="Voltar para o sorteio">
           <ChevronLeft />
         </button>
-        <h2>Pagamento PIX</h2>
-        <p>Preencha os dados e gere o PIX.</p>
+        <h2>Dados para o PIX</h2>
+        <p>Depois voce confere o recibo antes de gerar o PIX.</p>
       </header>
 
       <section className="cfx-review-panel cfx-review-buyer">
         <div className="cfx-review-panel-head">
           <span><WalletCards /></span>
-          <h3>DADOS PARA GERAR PIX</h3>
+          <h3>Nome, WhatsApp, CPF e senha</h3>
         </div>
 
-        {props.customer && !props.requireIdentity ? (
-          <div className="cfx-review-buyer-readonly cfx-recognized-buyer" data-checkout-recognized-buyer="true">
-            <strong>Comprador reconhecido</strong>
-            <p>Finalizar como {buyerName || "cliente"}</p>
-            <small>{maskPhone(buyerPhone) || maskCpf(buyerCpf)}</small>
-            <button type="button" className="cfx-switch-buyer-link" onClick={props.onSwitchCustomer}>
-              Nao e voce? Trocar comprador
-            </button>
-          </div>
-        ) : (
-          <div className="cfx-review-buyer-form">
-            <Field label="Nome completo" value={props.customerForm.name} onChange={value => props.setCustomerForm((current: any) => ({ ...current, name: value }))} autoComplete="name" />
-            <Field label="WhatsApp" value={props.customerForm.phone} onChange={value => props.setCustomerForm((current: any) => ({ ...current, phone: value, knownCustomer: false }))} inputMode="tel" autoComplete="tel" />
-            <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value.replace(/\D/g, "").slice(0, 11), knownCustomer: false }))} required inputMode="numeric" maxLength={11} />
-            {needsAccessPassword && !props.customerForm.knownCustomer && <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} inputMode="numeric" maxLength={6} autoComplete="one-time-code" />}
-            <p className="cfx-review-cpf-hint">{needsAccessPassword ? "Crie uma senha de 6 digitos para acessar seus bilhetes depois." : "Se ja comprou antes, seguimos direto para o PIX."}</p>
-          </div>
-        )}
+        <div className="cfx-review-buyer-form">
+          <Field label="Nome completo" value={props.customerForm.name} onChange={value => props.setCustomerForm((current: any) => ({ ...current, name: value }))} autoComplete="name" />
+          <Field label="WhatsApp" value={props.customerForm.phone} onChange={value => props.setCustomerForm((current: any) => ({ ...current, phone: value, knownCustomer: false }))} inputMode="tel" autoComplete="tel" />
+          <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value.replace(/\D/g, "").slice(0, 11), knownCustomer: false }))} required inputMode="numeric" maxLength={11} autoComplete="off" />
+          <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} inputMode="numeric" maxLength={6} autoComplete="one-time-code" />
+          <p className="cfx-review-cpf-hint">Se este CPF ou WhatsApp ja comprou antes, usamos seus dados salvos e seguimos para o recibo.</p>
+        </div>
       </section>
 
       <CheckoutPrimaryActionButton type="submit" disabled={props.isSubmitting} className="cfx-review-submit cfx-fast-pix-submit disabled:opacity-45">
-        <WalletCards /> {props.isSubmitting ? "GERANDO PIX..." : "Gerar PIX agora"}
+        <WalletCards /> {props.isSubmitting ? "CARREGANDO RECIBO..." : "Continuar para o recibo"}
       </CheckoutPrimaryActionButton>
-
-      {checkoutMedia.mediaUrl && (
-      <section className="cfx-review-prize-card">
-        {checkoutMedia.mediaUrl ? (
-          <CheckoutCampaignMedia
-            raffle={props.raffle}
-            mediaUrl={checkoutMedia.mediaUrl}
-            mediaType={checkoutMedia.mediaType}
-            title={props.raffle.title}
-            compact
-            showStatus={false}
-            className="cfx-review-prize-media"
-          />
-        ) : null}
-        <div className="cfx-review-prize-copy">
-          <h3>{props.raffle.title}</h3>
-          {pixPrize && (
-            <>
-              <span>ou</span>
-              <strong>{pixPrize} NO PIX</strong>
-            </>
-          )}
-          <b><Trophy /> SUPER PREMIO</b>
-        </div>
-      </section>
-      )}
-
-      <div className="cfx-review-columns cfx-review-mini-order">
-        <section className="cfx-review-panel cfx-review-summary">
-          <div className="cfx-review-panel-head">
-            <span><Ticket /></span>
-            <h3>RESUMO DO PEDIDO</h3>
-          </div>
-          <dl>
-            <div><dt>Cotas:</dt><dd>{props.tickets.toLocaleString("pt-BR")}</dd></div>
-            {discount > 0 && <div><dt>Desconto:</dt><dd>{formatCurrency(discount)}</dd></div>}
-          </dl>
-          <div className="cfx-review-total">
-            <small>TOTAL NO PIX</small>
-            <strong>{formatCurrency(props.totalValue)}</strong>
-          </div>
-        </section>
-      </div>
     </form>
   );
 }
@@ -1506,6 +1459,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
 function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
   const pixPayload = getPixPayload(props.purchase);
   const pixQrImageSrc = getPixQrImageSrc(props.purchase);
+  const unitPrice = Number(props.raffle.price || 0);
   const expiresAt = useMemo(() => {
     return props.purchase?.expiresAt || props.purchase?.expires_at || props.purchase?.pixExpiresAt || props.purchase?.reservedUntil || new Date(Date.now() + 15 * 60 * 1000).toISOString();
   }, [props.purchase?.expiresAt, props.purchase?.expires_at, props.purchase?.pixExpiresAt, props.purchase?.reservedUntil, props.purchase?.purchaseId]);
@@ -1514,8 +1468,16 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
 
   return (
     <div className="cfx-pix-screen cfx-pix-premium">
-      <header className="cfx-pix-premium-top">
-        <div className="cfx-pix-campaign-logo">
+      <header className="cfx-pix-premium-top cfx-pix-success-top">
+        <span className="cfx-pix-success-icon"><CheckCircle2 /></span>
+        <div>
+          <h2>PIX GERADO COM SUCESSO!</h2>
+          <p>Pague com PIX e garanta sua participacao.</p>
+        </div>
+      </header>
+
+      <section className="cfx-pix-card cfx-pix-order-card">
+        <div className="cfx-pix-order-media">
           {checkoutMedia.mediaUrl ? (
             <ResponsiveMediaFrame
               src={checkoutMedia.mediaUrl}
@@ -1532,35 +1494,26 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
             <Gift />
           )}
         </div>
-        <h2>Finalize seu PIX</h2>
-        <p>Copie o código PIX ou escaneie o QR Code.</p>
-        <small>Aguardando pagamento</small>
-      </header>
-
-      <section className="cfx-pix-card cfx-pix-timer-card">
-        <Clock3 />
-        <span>
-          <small>SUA RESERVA EXPIRA EM</small>
-          <strong>{String(expiresIn.minutes).padStart(2, "0")}:{String(expiresIn.seconds).padStart(2, "0")}</strong>
-        </span>
+        <div className="cfx-pix-order-copy">
+          <small>Pedido aguardando pagamento</small>
+          <strong>{props.raffle.title}</strong>
+          <dl>
+            <div><dt>Quantidade escolhida</dt><dd>{props.tickets.toLocaleString("pt-BR")}</dd></div>
+            {unitPrice > 0 && <div><dt>Valor da cota</dt><dd>{formatCurrency(unitPrice)}</dd></div>}
+          </dl>
+          <div className="cfx-pix-order-total">
+            <span>Total</span>
+            <b>{formatCurrency(props.totalValue)}</b>
+          </div>
+        </div>
       </section>
-
-      {pixPayload && (
-        <section className="cfx-pix-card cfx-pix-code">
-          <p>Código copia e cola</p>
-          <code>{pixPayload}</code>
-          <button type="button" onClick={props.onCopyPix} title="Copiar PIX copia e cola" aria-label={props.copied ? "PIX copiado" : "Copiar código PIX"} className={cn("cfx-copy-pix-button checkout-primary-button", props.copied && "is-copied")}>
-            <Copy /> {props.copied ? "PIX copiado" : "Copiar código PIX"}
-          </button>
-        </section>
-      )}
 
       <section className="cfx-pix-card cfx-pix-qr-card">
         <div className="cfx-pix-card-head is-centered">
           <span><QrCode /></span>
           <div>
-            <small>Abra o app do seu banco</small>
-            <strong>QR Code PIX</strong>
+            <small>ESCANEIE O QR CODE</small>
+            <strong>Pague com o app do seu banco</strong>
           </div>
         </div>
       {pixQrImageSrc ? (
@@ -1576,32 +1529,46 @@ function PaymentPix(props: Parameters<typeof CheckoutModal>[0]) {
       )}
       </section>
 
-      <section className="cfx-pix-card cfx-pix-summary-card cfx-pix-summary-compact">
-        <div className="cfx-pix-campaign">
-          {checkoutMedia.mediaUrl ? (
-            <ResponsiveMediaFrame
-              src={checkoutMedia.mediaUrl}
-              type={checkoutMedia.mediaType}
-              alt={props.raffle.title}
-              preferredFit="cover"
-              aspectMode="square"
-              controls={false}
-              interactive={false}
-              className="h-full w-full rounded-[inherit]"
-              mediaClassName="h-full w-full"
-            />
-          ) : (
-            <div><Gift /></div>
-          )}
+      {pixPayload && (
+        <section className="cfx-pix-card cfx-pix-code">
+          <p>COPIA E COLA</p>
+          <code>{pixPayload}</code>
+          <button type="button" onClick={props.onCopyPix} title="Copiar PIX copia e cola" aria-label={props.copied ? "PIX copiado" : "Copiar código PIX"} className={cn("cfx-copy-pix-button checkout-primary-button", props.copied && "is-copied")}>
+            <Copy /> {props.copied ? "PIX copiado" : "Copiar código PIX"}
+          </button>
+        </section>
+      )}
+
+      <div className="cfx-pix-status-grid">
+        <section className="cfx-pix-card cfx-pix-timer-card">
+          <Clock3 />
           <span>
-            <small>Prêmio</small>
-            <strong>{props.raffle.title}</strong>
+            <small>RESERVA VALIDA POR</small>
+            <strong>{String(expiresIn.minutes).padStart(2, "0")}:{String(expiresIn.seconds).padStart(2, "0")}</strong>
+            <em>Apos esse tempo, o PIX expira e a reserva e liberada.</em>
           </span>
+        </section>
+
+        <section className="cfx-pix-card cfx-pix-safe-card">
+          <ShieldCheck />
+          <strong>AMBIENTE SEGURO</strong>
+          <span>Pagamento 100% seguro</span>
+          <span>Dados protegidos</span>
+          <span>PIX processado pelo gateway configurado</span>
+        </section>
+      </div>
+
+      <section className="cfx-pix-card cfx-pix-reserved-notice">
+        <Ticket />
+        <div>
+          <strong>Cotas aguardando confirmacao</strong>
+          <p>Os numeros da sorte aparecem somente depois que o pagamento for aprovado.</p>
         </div>
-        <div className="cfx-pix-summary-columns">
-          <InfoCard label="Quantidade" value={props.tickets.toLocaleString("pt-BR")} />
-          <InfoCard label="Valor total" value={formatCurrency(props.totalValue)} />
-        </div>
+      </section>
+
+      <section className="cfx-pix-card cfx-pix-important">
+        <ShieldCheck />
+        <p>O status do pagamento sera atualizado automaticamente. Se ja pagou, toque em verificar.</p>
       </section>
 
       <div className="cfx-actions-row checkout-actions cfx-pix-actions">

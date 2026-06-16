@@ -17,7 +17,7 @@ async function findAvailablePort() {
 
 const port = await findAvailablePort();
 const baseUrl = `http://127.0.0.1:${port}`;
-const env = { ...process.env, PORT: String(port), NODE_ENV: "production", SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", SUPERADMIN_EMAIL: "superadmin.finance@test.local", SUPERADMIN_PASSWORD: "SenhaSuper123!", JWT_SECRET: "test-superadmin-finance-secret", GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-superadmin-finance-gateway-key" };
+const env = { ...process.env, PORT: String(port), NODE_ENV: "production", RIFAPRO_TEST_MODE: "hard", SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "", SUPERADMIN_EMAIL: "superadmin.finance@test.local", SUPERADMIN_PASSWORD: "SenhaSuper123!", JWT_SECRET: "test-superadmin-finance-secret", GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-superadmin-finance-gateway-key" };
 const server = spawn(process.execPath, ["dist/server.js"], { cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"] });
 
 async function wait() {
@@ -51,7 +51,23 @@ async function createPaidOrder(headers, host) {
       mercadopago: { environment: "sandbox" }
     })
   });
-  const raffle = await json("/api/admin/raffles", { method: "POST", headers, body: JSON.stringify({ title: `Finance ${host}`, price: 5, totalTickets: 100, drawDate: "2026-12-31T20:00:00Z", status: "active" }) });
+  const raffle = await json("/api/admin/raffles", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      title: `Finance ${host}`,
+      price: 5,
+      totalTickets: 100,
+      drawDate: "2026-12-31T20:00:00Z",
+      status: "active",
+      pixConfig: {
+        inheritGlobal: false,
+        enabled: true,
+        gateway: "mock",
+        sandbox: true
+      }
+    })
+  });
   assert.equal(raffle.response.status, 200);
   const buy = await json(`/api/raffles/${raffle.body.id}/buy`, { method: "POST", headers: { "x-forwarded-host": host }, body: JSON.stringify({ tickets: 2, contact: "11911110000", customer: { name: "Cliente Finance", phone: "11911110000", cpf: "11111111111", accessPassword: "123456" } }) });
   assert.equal(buy.response.status, 200, `compra falhou: ${JSON.stringify(buy.body)}`);
@@ -69,9 +85,9 @@ try {
   assert.equal(overview.response.status, 200);
   assert.ok(overview.body.metrics.paidRevenue >= 10, "superadmin ve faturamento global");
   assert.ok("revenueToday" in overview.body.metrics, "metricas financeiras avancadas existem");
-  const report = await json("/api/superadmin/reports/revenue?gateway=mercadopago", { headers: superHeaders });
+  const report = await json("/api/superadmin/reports/revenue?gateway=mock", { headers: superHeaders });
   assert.equal(report.response.status, 200);
-  assert.ok(report.body.rows.every(row => row.gateway === "mercadopago"), "filtro por gateway funciona");
+  assert.ok(report.body.rows.every(row => row.gateway === "mock"), "filtro por gateway funciona");
   const tenantToken = tokenA;
   const forbidden = await json("/api/superadmin/overview", { headers: { Authorization: `Bearer ${tenantToken}` } });
   assert.equal(forbidden.response.status, 403, "tenant admin nao ve faturamento global");

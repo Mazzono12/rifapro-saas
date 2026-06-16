@@ -6347,8 +6347,8 @@ async function startServer() {
           tenant_id: tenant.id,
           tenant: tenant.nome,
           enabled: Boolean(config?.enabled),
-          provider: config?.provider || "mock",
-          environment: config?.environment || "sandbox",
+          provider: config?.provider || "meta_cloud",
+          environment: config?.environment || "production",
           sent: messages.filter(message => message.status === "sent").length,
           failed: messages.filter(message => message.status === "failed").length,
           pending: messages.filter(message => ["pending", "retrying"].includes(message.status)).length
@@ -7585,7 +7585,7 @@ async function startServer() {
         messageId: message.id,
         to: contact.phone,
         body
-      }, selectedNumber.decryptedConfig || { enabled: false, environment: "sandbox" });
+      }, selectedNumber.decryptedConfig || { enabled: false, environment: "production" });
       const sentAt = new Date().toISOString();
       message.status = "sent";
       message.metaMessageId = result.providerMessageId || "";
@@ -10185,7 +10185,7 @@ async function startServer() {
 
   function hasPixGatewayCredentials(gateway: string, credentials: Record<string, string>) {
     const normalizedGateway = normalizePaymentProvider(gateway);
-    if (isInternalPixGateway(normalizedGateway)) return true;
+    if (isInternalPixGateway(normalizedGateway)) return false;
     if (normalizedGateway === "asaas") return Boolean(credentials.apiKey);
     if (normalizedGateway === "mercadopago") return Boolean(credentials.accessToken || credentials.apiKey);
     if (normalizedGateway === "pay2m") return Boolean(credentials.clientId && credentials.clientSecret);
@@ -10202,31 +10202,7 @@ async function startServer() {
     clientId?: string;
     clientSecret?: string;
   }>(pixConfig: T): T {
-    if (isProductionRuntime || process.env.DISABLE_LOCAL_PIX_MOCK_FALLBACK === "true") return pixConfig;
-    const configuredGateway = normalizePaymentProvider(pixConfig.gateway);
-    if (isInternalPixGateway(configuredGateway) || (configuredGateway !== "asaas" && Boolean(pixConfig.sandbox))) return pixConfig;
-    const credentials = {
-      apiKey: pixConfig.apiKey || pixConfig.pixKey || "",
-      accessToken: pixConfig.accessToken || pixConfig.apiKey || "",
-      token: (pixConfig as any).token || pixConfig.accessToken || pixConfig.apiKey || "",
-      clientId: pixConfig.clientId || "",
-      clientSecret: pixConfig.clientSecret || ""
-    };
-    if (hasPixGatewayCredentials(configuredGateway, credentials)) return pixConfig;
-    return {
-      ...pixConfig,
-      inheritGlobal: false,
-      gateway: "mock" as PixGatewayId,
-      sandbox: true,
-      apiKey: "mock-only",
-      accessToken: "",
-      publicKey: "",
-      clientId: "",
-      clientSecret: "",
-      pixKey: "mock-only",
-      webhookUrl: "/api/webhooks/payment/mock",
-      webhookSecret: ""
-    };
+    return pixConfig;
   }
 
   function getRafflePixConfig(raffle?: { id?: string; tenant_id?: string; pixConfig?: Partial<RafflePixConfig> }, tenantId = raffle?.tenant_id || legacyTenantId) {
@@ -10259,13 +10235,6 @@ async function startServer() {
 
   function isInternalPixGateway(gateway?: unknown) {
     return ["mock", "sandbox", "fakeprocessor"].includes(normalizePaymentProvider(gateway));
-  }
-
-  function shouldUseInternalPixPayload(pixConfig?: ResolvedRafflePixConfig) {
-    if (!pixConfig) return false;
-    const gateway = normalizePaymentProvider(pixConfig.gateway);
-    if (isInternalPixGateway(gateway)) return true;
-    return gateway !== "asaas" && Boolean(pixConfig.sandbox);
   }
 
   function buildGatewayConfigFromRafflePixConfig(tenantId: string, pixConfig?: ResolvedRafflePixConfig): PaymentGatewayConfigRecord | null {
@@ -11081,8 +11050,44 @@ async function startServer() {
 
   async function attachActiveGatewayPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string; pixConfig?: ResolvedRafflePixConfig }) {
     if (input.amount <= 0) return null;
-    if (input.pixConfig && shouldUseInternalPixPayload(input.pixConfig)) return null;
     const selectedGateway = normalizePaymentProvider(input.pixConfig?.gateway || getDefaultPaymentGatewayConfig(input.tenantId).provider);
+    if (isInternalPixGateway(selectedGateway)) {
+      if (process.env.RIFAPRO_TEST_MODE) {
+        const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
+        const pixExpiresAt = input.pixExpiresAt || new Date(Date.now() + 15 * 60_000).toISOString();
+        const pixPayload = buildPixPayload(input.amount, { id: orderId, tenant_id: input.tenantId, pixConfig: input.pixConfig }, orderId, input.tenantId);
+        Object.assign(input.purchase, {
+          pixPayload,
+          pixGateway: selectedGateway,
+          pixWebhookUrl: `/api/webhooks/payment/${selectedGateway}`,
+          externalReference: orderId,
+          externalPaymentId: `TEST_${orderId}`,
+          pixExpiresAt
+        });
+        upsertPaymentRecord({
+          id: createPublicId("PAY_"),
+          tenant_id: input.tenantId,
+          order_id: orderId,
+          provider: selectedGateway,
+          provider_payment_id: `TEST_${orderId}`,
+          provider_reference: orderId,
+          billing_type: "PIX",
+          status: "pending",
+          pix_payload: pixPayload,
+          pix_copy_paste: pixPayload,
+          expiration_date: pixExpiresAt,
+          raw_response: { testMode: true, gateway: selectedGateway },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+        recordPaymentWebhookLog({ tenant_id: input.tenantId, gateway: selectedGateway, purchaseId: orderId, status: "received", message: "PIX interno gerado somente em RIFAPRO_TEST_MODE", statusCode: 201, eventStatus: "TEST_PIX_CREATED" });
+        return { id: `TEST_${orderId}`, status: "pending", pixPayload };
+      }
+      throw new Error("Gateway PIX mock/teste nao permitido no checkout publico. Configure um gateway de producao.");
+    }
+    if (input.pixConfig?.sandbox && !process.env.RIFAPRO_TEST_MODE) {
+      throw new Error("Gateway PIX em sandbox/teste nao permitido no checkout publico. Configure ambiente production.");
+    }
     if (selectedGateway === "asaas") {
       if (!getAsaasGatewayConfig(input.tenantId, input.pixConfig)) {
         throw new Error("Configuração Asaas incompleta. Informe a chave API.");
@@ -11141,7 +11146,7 @@ async function startServer() {
       if (!getCoraGatewayConfig(input.tenantId, input.pixConfig)) throw new Error("ConfiguraÃ§Ã£o Cora incompleta. Informe as credenciais.");
       return attachCoraPixToOrder(input);
     }
-    return null;
+    throw new Error(`Gateway PIX ${selectedGateway} nao suportado no checkout publico.`);
   }
 
   function normalizeFazendinhaNumber(input: unknown) {
@@ -11692,15 +11697,24 @@ async function startServer() {
   const minutesToReservationTtl = (minutes: unknown, fallbackMinutes: number) =>
     Math.max(1, Math.min(1440, Math.floor(Number(minutes || fallbackMinutes)))) * 60 * 1000;
   function getRaffleReservationTtlMs(raffle: typeof raffles[number]) {
+    if (process.env.RIFAPRO_TEST_MODE && Number.isFinite(TRADITIONAL_RAFFLE_RESERVATION_TTL_MS) && TRADITIONAL_RAFFLE_RESERVATION_TTL_MS > 0) {
+      return TRADITIONAL_RAFFLE_RESERVATION_TTL_MS;
+    }
     const tenantSettingsRecord = getTenantSettings(raffle.tenant_id);
     return minutesToReservationTtl((raffle as any).reservationMinutes, tenantSettingsRecord.reservationSettings?.raffleMinutes || 15);
   }
   function getNumberModeReservationTtlMs(tenantId: string, mode: NumberModeId) {
+    if (process.env.RIFAPRO_TEST_MODE && Number.isFinite(FAST_MODALITY_RESERVATION_TTL_MS) && FAST_MODALITY_RESERVATION_TTL_MS > 0) {
+      return FAST_MODALITY_RESERVATION_TTL_MS;
+    }
     const config = getNumberModeConfig(tenantId, mode);
     const tenantSettingsRecord = getTenantSettings(tenantId);
     return minutesToReservationTtl((config as any)?.reservationMinutes, tenantSettingsRecord.reservationSettings?.numberModeMinutes || 5);
   }
   function getFazendinhaReservationTtlMs(tenantId: string) {
+    if (process.env.RIFAPRO_TEST_MODE && Number.isFinite(FAST_MODALITY_RESERVATION_TTL_MS) && FAST_MODALITY_RESERVATION_TTL_MS > 0) {
+      return FAST_MODALITY_RESERVATION_TTL_MS;
+    }
     const config = getFazendinhaConfig(tenantId);
     const tenantSettingsRecord = getTenantSettings(tenantId);
     return minutesToReservationTtl((config as any)?.reservationMinutes, tenantSettingsRecord.reservationSettings?.fazendinhaMinutes || 5);
@@ -14579,7 +14593,7 @@ async function startServer() {
       numeros: reservedNumbers,
       reservedUntil,
       pixExpiresAt: reservedUntil,
-      pixPayload: shouldUseInternalPixPayload(pixConfig) ? buildPixPayload(payableAmount, raffle, purchaseId) : "",
+      pixPayload: "",
       pixGateway: pixConfig.gateway,
       pixWebhookUrl: pixConfig.webhookUrl,
       createdAt: new Date().toISOString(),
@@ -15010,7 +15024,11 @@ async function startServer() {
       saleCreatedAt: purchase.createdAt
       });
     }
-    const pixPayload = (purchase as NumberModePurchase & { pixPayload?: string }).pixPayload || buildPixPayload(purchase.amount, undefined, purchase.id, tenantId);
+    const pixPayload = (purchase as NumberModePurchase & { pixPayload?: string }).pixPayload || "";
+    if (purchase.status !== "paid" && !pixPayload) {
+      res.status(502).json({ error: "Gateway PIX nao retornou codigo copia e cola. Verifique a configuracao de producao." });
+      return;
+    }
     res.json(stripSensitiveCustomerFields({ purchase, pixPayload, pixExpiresAt: purchase.pixExpiresAt, reservedUntil: purchase.reservedUntil, earnedLootboxes }));
   });
 
@@ -15165,7 +15183,11 @@ async function startServer() {
     });
     fazendinhaCompras.unshift(purchase);
     schedulePersistentStateSave("fazendinha-reservation-created", 0);
-    const pixPayload = (purchase as FazendinhaPurchase & { pixPayload?: string }).pixPayload || buildPixPayload(purchase.valorPago, undefined, purchase.id, tenantId);
+    const pixPayload = (purchase as FazendinhaPurchase & { pixPayload?: string }).pixPayload || "";
+    if (purchase.statusPagamento !== "paid" && !pixPayload) {
+      res.status(502).json({ error: "Gateway PIX nao retornou codigo copia e cola. Verifique a configuracao de producao." });
+      return null;
+    }
     purchase.linkedPurchases?.forEach(linked => {
       linked.pixPayload = pixPayload;
     });
@@ -15221,7 +15243,7 @@ async function startServer() {
       handlePurchaseConfirmedWhatsAppCloudEvent(purchase, "confirmFazendinhaPurchase");
     }
 
-    const pixPayload = buildPixPayload(purchase.valorPago, undefined, purchase.id, purchase.tenant_id);
+    const pixPayload = (purchase as FazendinhaPurchase & { pixPayload?: string }).pixPayload || "";
     return {
       purchase,
       groups,
@@ -15634,9 +15656,9 @@ async function startServer() {
   function sanitizeWhatsAppConfig(config: WhatsAppProviderConfigRecord | null) {
     if (!config) {
       return {
-        provider: "mock",
+        provider: "meta_cloud",
         enabled: false,
-        environment: "sandbox",
+        environment: "production",
         phone_number_id: "",
         business_account_id: "",
         access_token: "",
@@ -15678,7 +15700,7 @@ async function startServer() {
         app_secret: "",
         webhook_verify_token: "",
         webhook_url: "/api/webhooks/meta/whatsapp",
-        environment: "sandbox",
+        environment: "production",
         created_at: "",
         updated_at: ""
       };
@@ -16279,7 +16301,7 @@ async function startServer() {
       phone,
       message_type: String(payload.messageType || job.job_type || "ticket_confirmation"),
       message_body: String(payload.messageBody || ""),
-      provider: String(payload.provider || "mock"),
+      provider: String(payload.provider || "meta_cloud"),
       status: "claimed",
       attempts: Number(job.attempts || 0),
       max_attempts: Number(job.max_attempts || whatsappQueueMaxAttempts),
@@ -17595,7 +17617,7 @@ async function startServer() {
 
   function createMetaWhatsAppCloudProvider(tenantId: string, selectedNumber?: WhatsAppSelectedSendingNumber | null) {
     const config = getWhatsAppCloudConfig(tenantId);
-    return new MetaWhatsAppCloudProvider(selectedNumber?.decryptedConfig || decryptWhatsAppCloudConfig(config) || { enabled: false, environment: "sandbox" }, {
+    return new MetaWhatsAppCloudProvider(selectedNumber?.decryptedConfig || decryptWhatsAppCloudConfig(config) || { enabled: false, environment: "production" }, {
       log: entry => recordWhatsAppCloudLog(tenantId, {
         action: entry.action === "phone_info" ? "phone_info" : entry.action === "list_templates" ? "list_templates" : entry.action === "webhook_validate" ? "webhook_validate" : entry.action === "webhook_received" ? "webhook_received" : entry.action === "template_test_sent" ? "template_test_sent" : entry.action === "template_sent" ? "template_sent" : "test_connection",
         status: entry.status,
@@ -18381,7 +18403,7 @@ async function startServer() {
       app_secret_encrypted: mergeSecret(req.body.app_secret ?? req.body.appSecret, existing?.app_secret_encrypted),
       webhook_verify_token_encrypted: mergeSecret(req.body.webhook_verify_token, existing?.webhook_verify_token_encrypted),
       webhook_url: String(req.body.webhook_url || existing?.webhook_url || "/api/webhooks/meta/whatsapp").trim().slice(0, 500),
-      environment: String(req.body.environment || existing?.environment || "sandbox") === "production" ? "production" : "sandbox",
+      environment: String(req.body.environment || existing?.environment || "production") === "production" ? "production" : "sandbox",
       created_at: existing?.created_at || now,
       updated_at: now
     };
@@ -18532,7 +18554,7 @@ async function startServer() {
       phone,
       message_type: `automation:${template}`,
       message_body: buildAutomationMessage(template, purchase, customer),
-      provider: config.provider || "mock",
+      provider: config.provider || "meta_cloud",
       status: "pending",
       attempts: 0,
       max_attempts: 3,
@@ -18679,7 +18701,7 @@ async function startServer() {
       phone,
       message_type: "ticket_confirmation",
       message_body: buildTicketConfirmationMessage(order),
-      provider: config.provider || "mock",
+      provider: config.provider || "meta_cloud",
       status: isValidBrazilianWhatsAppPhone(phone) ? "pending" : "failed",
       attempts: 0,
       max_attempts: 3,
@@ -22045,7 +22067,7 @@ async function startServer() {
         paymentStatus: modePurchase.status === "paid" ? "paid" : expired ? "expired" : "pending",
         paid: modePurchase.status === "paid",
         expired,
-        pixPayload: modePurchase.status === "reserved" && !expired ? ((modePurchase as NumberModePurchase & { pixPayload?: string }).pixPayload || buildPixPayload(modePurchase.amount, undefined, modePurchase.id, tenantId)) : "",
+        pixPayload: modePurchase.status === "reserved" && !expired ? ((modePurchase as NumberModePurchase & { pixPayload?: string }).pixPayload || "") : "",
         pixExpiresAt: modePurchase.pixExpiresAt || modePurchase.reservedUntil,
         reservedUntil: modePurchase.reservedUntil,
         purchase: modePurchase,
@@ -22064,7 +22086,7 @@ async function startServer() {
         paymentStatus: farmPurchase.statusPagamento === "paid" ? "paid" : expired ? "expired" : "pending",
         paid: farmPurchase.statusPagamento === "paid",
         expired,
-        pixPayload: farmPurchase.statusPagamento === "reserved" && !expired ? ((farmPurchase as FazendinhaPurchase & { pixPayload?: string }).pixPayload || buildPixPayload(farmPurchase.valorPago, undefined, farmPurchase.id, tenantId)) : "",
+        pixPayload: farmPurchase.statusPagamento === "reserved" && !expired ? ((farmPurchase as FazendinhaPurchase & { pixPayload?: string }).pixPayload || "") : "",
         pixExpiresAt: farmPurchase.pixExpiresAt || farmPurchase.reservedUntil,
         reservedUntil: farmPurchase.reservedUntil,
         purchase: farmPurchase,
@@ -22226,7 +22248,7 @@ async function startServer() {
           phone,
           message_type: "abandoned_pix_recovery",
           message_body: message.message,
-          provider: config?.provider || "mock",
+          provider: config?.provider || "meta_cloud",
           status: isValidBrazilianWhatsAppPhone(phone) ? "pending" : "failed",
           attempts: 0,
           max_attempts: 3,
@@ -22606,7 +22628,7 @@ async function startServer() {
     const token = String(req.query["hub.verify_token"] || "");
     const config = findWhatsAppCloudConfigByVerifyToken(token);
     if (!config) return res.status(403).send("Token de verificação inválido");
-    const result = new MetaWhatsAppCloudProvider(decryptWhatsAppCloudConfig(config) || { enabled: false, environment: "sandbox" }, {
+    const result = new MetaWhatsAppCloudProvider(decryptWhatsAppCloudConfig(config) || { enabled: false, environment: "production" }, {
       log: entry => recordWhatsAppCloudLog(config.tenant_id, {
         action: "webhook_validate",
         status: entry.status,
@@ -22758,8 +22780,8 @@ async function startServer() {
     const tenantId = resolveRequestTenantId(req);
     const now = new Date().toISOString();
     const existing = getWhatsAppConfig(tenantId);
-    const provider = String(req.body.provider || existing?.provider || "mock") === "meta_cloud" ? "meta_cloud" : "mock";
-    const environment = String(req.body.environment || existing?.environment || "sandbox") === "production" ? "production" : "sandbox";
+    const provider = String(req.body.provider || existing?.provider || "meta_cloud") === "mock" ? "mock" : "meta_cloud";
+    const environment = String(req.body.environment || existing?.environment || "production") === "sandbox" ? "sandbox" : "production";
     const mergeSecret = (incoming: unknown, current?: string) => {
       const value = String(incoming || "").trim();
       if (!value || isMaskedGatewaySecret(value)) return current || "";
@@ -23843,7 +23865,7 @@ async function startServer() {
         amount: raffle.price,
         status,
         numeros: [number],
-        pixPayload: status === "paid" ? "ADMIN_PAID" : buildPixPayload(raffle.price, raffle, createPublicId("ADMPIX_")),
+        pixPayload: status === "paid" ? "ADMIN_PAID" : "",
         pixGateway: pixConfig.gateway,
         pixWebhookUrl: pixConfig.webhookUrl,
         createdAt: new Date().toISOString(),
@@ -24924,15 +24946,7 @@ async function startServer() {
       webhookUrl,
       credentials: presentCredentials,
       issues,
-      pixPayloadPreview: defaultGatewayConfig.enabled && isInternalPixGateway(gateway) ? buildPixPayload(1, {
-        tenant_id: resolveRequestTenantId(req),
-        pixConfig: {
-          inheritGlobal: true,
-          enabled: Boolean(defaultGatewayConfig.enabled),
-          gateway,
-          sandbox: defaultGatewayConfig.environment !== "production"
-        }
-      }) : ""
+      pixPayloadPreview: ""
     });
   });
   app.put("/api/admin/gateways", (req, res) => {

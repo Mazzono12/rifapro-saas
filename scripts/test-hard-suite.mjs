@@ -143,9 +143,10 @@ async function gatewaysHard() {
       "PIX_GATEWAY_CHANGED",
       "purchase.pixGateway",
       "normalizeLocalPixGatewayForCheckout",
-      "DISABLE_LOCAL_PIX_MOCK_FALLBACK",
-      "isProductionRuntime || process.env.DISABLE_LOCAL_PIX_MOCK_FALLBACK",
-      "gateway: \"mock\" as PixGatewayId",
+      "isInternalPixGateway",
+      "process.env.RIFAPRO_TEST_MODE",
+      "Gateway PIX mock/teste nao permitido no checkout publico",
+      "Gateway PIX em sandbox/teste nao permitido no checkout publico",
       "PIX temporariamente indisponivel. Tente novamente em instantes.",
       "app.post(\"/api/webhooks/payment/:gateway\""
     ]);

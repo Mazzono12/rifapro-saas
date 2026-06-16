@@ -21,6 +21,7 @@ const env = {
   ...process.env,
   PORT: String(port),
   NODE_ENV: "production",
+  RIFAPRO_TEST_MODE: "hard",
   STORAGE_DRIVER: "persistent",
   PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
   ADMIN_BASE_URL: `http://127.0.0.1:${port}/admin`,
@@ -85,7 +86,21 @@ async function createRaffle(headers, title) {
   return json("/api/admin/raffles", {
     method: "POST",
     headers,
-    body: JSON.stringify({ title, description: title, price: 2, totalTickets: 100, drawDate: "2026-12-31T20:00:00Z", image: "", status: "active" })
+    body: JSON.stringify({
+      title,
+      description: title,
+      price: 2,
+      totalTickets: 100,
+      drawDate: "2026-12-31T20:00:00Z",
+      image: "",
+      status: "active",
+      pixConfig: {
+        inheritGlobal: false,
+        enabled: true,
+        gateway: "mock",
+        sandbox: true
+      }
+    })
   });
 }
 

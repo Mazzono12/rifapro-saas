@@ -43,7 +43,7 @@ export function AdminIntegrations() {
   const [providers, setProviders] = useState<ProviderCatalogEntry[]>([]);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
-  const [cloudConfig, setCloudConfig] = useState<any>({ enabled: false, environment: "sandbox", webhook_url: "/api/webhooks/meta/whatsapp" });
+  const [cloudConfig, setCloudConfig] = useState<any>({ enabled: false, environment: "production", webhook_url: "/api/webhooks/meta/whatsapp" });
   const [cloudLogs, setCloudLogs] = useState<any[]>([]);
   const [cloudTemplates, setCloudTemplates] = useState<any[]>([]);
   const [savedCloudTemplates, setSavedCloudTemplates] = useState<any[]>([]);
@@ -74,12 +74,12 @@ export function AdminIntegrations() {
   });
   const [purchaseConfirmationQueue, setPurchaseConfirmationQueue] = useState<any[]>([]);
   const [purchaseConfirmationLogs, setPurchaseConfirmationLogs] = useState<any[]>([]);
-  const [whatsappConfig, setWhatsappConfig] = useState<any>({ provider: "mock", enabled: false, environment: "sandbox", default_language: "pt_BR" });
+  const [whatsappConfig, setWhatsappConfig] = useState<any>({ provider: "meta_cloud", enabled: false, environment: "production", default_language: "pt_BR" });
   const [whatsappMessages, setWhatsappMessages] = useState<any[]>([]);
   const [testPhone, setTestPhone] = useState("");
   const [selected, setSelected] = useState("primepag");
   const [credentials, setCredentials] = useState("{}");
-  const [settings, setSettings] = useState("{\"sandbox\":true,\"mock\":true}");
+  const [settings, setSettings] = useState("{\"sandbox\":false,\"mock\":false}");
   const [status, setStatus] = useState<Integration["status"]>("inactive");
 
   const selectedProvider = useMemo(() => providers.find(item => item.provider === selected), [providers, selected]);
@@ -106,7 +106,7 @@ export function AdminIntegrations() {
     setIntegrations(data.integrations || []);
     setLogs(await logsRes.json());
     const cloudData = await whatsappCloudRes.json();
-    setCloudConfig(cloudData.settings || { enabled: false, environment: "sandbox", webhook_url: "/api/webhooks/meta/whatsapp" });
+    setCloudConfig(cloudData.settings || { enabled: false, environment: "production", webhook_url: "/api/webhooks/meta/whatsapp" });
     setCloudLogs(cloudData.logs || []);
     const savedTemplatesData = await whatsappCloudTemplatesRes.json();
     setSavedCloudTemplates(savedTemplatesData.templates || []);
@@ -555,7 +555,7 @@ export function AdminIntegrations() {
           <GatewayField label="URL do Webhook" help="Endereço informado no painel da Meta para receber eventos." value={cloudConfig.webhook_url || "/api/webhooks/meta/whatsapp"} onChange={value => setCloudConfig((current: any) => ({ ...current, webhook_url: value }))} />
           <label className="block text-sm font-medium text-[var(--admin-muted)]">
             Ambiente
-            <select value={cloudConfig.environment || "sandbox"} onChange={event => setCloudConfig((current: any) => ({ ...current, environment: event.target.value }))} className="admin-input mt-1 w-full">
+            <select value={cloudConfig.environment || "production"} onChange={event => setCloudConfig((current: any) => ({ ...current, environment: event.target.value }))} className="admin-input mt-1 w-full">
               <option value="sandbox">Teste</option>
               <option value="production">Produção</option>
             </select>
@@ -975,14 +975,14 @@ export function AdminIntegrations() {
           </label>
           <label className="block text-sm font-medium text-[var(--admin-muted)]">
             Serviço de envio
-            <select value={whatsappConfig.provider || "mock"} onChange={event => setWhatsappConfig((current: any) => ({ ...current, provider: event.target.value }))} className="admin-input mt-1 w-full">
+            <select value={whatsappConfig.provider || "meta_cloud"} onChange={event => setWhatsappConfig((current: any) => ({ ...current, provider: event.target.value }))} className="admin-input mt-1 w-full">
               <option value="mock">Validação interna</option>
               <option value="meta_cloud">WhatsApp oficial</option>
             </select>
           </label>
           <label className="block text-sm font-medium text-[var(--admin-muted)]">
             Situação do ambiente
-            <select value={whatsappConfig.environment || "sandbox"} onChange={event => setWhatsappConfig((current: any) => ({ ...current, environment: event.target.value }))} className="admin-input mt-1 w-full">
+            <select value={whatsappConfig.environment || "production"} onChange={event => setWhatsappConfig((current: any) => ({ ...current, environment: event.target.value }))} className="admin-input mt-1 w-full">
               <option value="sandbox">Validação interna</option>
               <option value="production">Produção</option>
             </select>

@@ -22,7 +22,8 @@ const env = {
   JWT_SECRET: "test-all-modalidades-active-hard-jwt-secret",
   GATEWAY_CREDENTIALS_ENCRYPTION_KEY: "test-all-modalidades-active-hard-gateway-key",
   PURCHASE_RESERVATION_TTL_MS: "900",
-  FAST_MODALITY_RESERVATION_TTL_MS: "900"
+  FAST_MODALITY_RESERVATION_TTL_MS: "900",
+  TEST_RESERVATION_WAIT_MS: "1800"
 };
 
 const server = spawn(process.execPath, ["--import", "tsx", "server.ts"], {
@@ -130,7 +131,7 @@ async function setupScenario(headers) {
       description: "Rifa tradicional controlada para bateria hard",
       price: 1,
       totalTickets: 4,
-      reservationMinutes: 1,
+      reservationMinutes: 0.02,
       drawDate: "2026-12-31T20:00:00Z",
       image: "",
       status: "active"
@@ -143,7 +144,7 @@ async function setupScenario(headers) {
   const farmConfig = await json("/api/admin/fazendinha/config", {
     method: "PUT",
     headers,
-    body: JSON.stringify({ ...farmReset.body.config, reservationMinutes: 1 })
+    body: JSON.stringify({ ...farmReset.body.config, reservationMinutes: 0.02 })
   });
   assert.equal(farmConfig.response.status, 200, `Fazendinha deve aceitar reserva minima de teste: ${JSON.stringify(farmConfig.body)}`);
 
@@ -157,7 +158,7 @@ async function setupScenario(headers) {
         price: mode === "dezena" ? 1 : mode === "centena" ? 2 : 3,
         prize: `Premio ${mode}`,
         drawDate: "2026-12-31T20:00:00Z",
-        reservationMinutes: 1,
+        reservationMinutes: 0.02,
         lootboxEnabled: false
       })
     });
@@ -242,7 +243,7 @@ async function assertWebhookConfirms(orderId, expectedType) {
 }
 
 async function assertLatePaymentBlocked(orderId, expectedType) {
-  await wait(62_000);
+  await wait(Number(env.TEST_RESERVATION_WAIT_MS || 62_000));
   const expired = await status(orderId);
   assert.equal(expired.response.status, 200, `${expectedType}: status de expiracao deve responder.`);
   assert.equal(expired.body.expired, true, `${expectedType}: reserva deve expirar.`);

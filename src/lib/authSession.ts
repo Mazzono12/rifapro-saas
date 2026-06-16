@@ -45,7 +45,7 @@ export function normalizeRole(role?: string | null): AuthRole {
 export function roleHome(role?: string | null) {
   const normalized = normalizeRole(role);
   if (normalized === "superadmin") return "/superadmin";
-  if (normalized === "admin") return "/dashboard";
+  if (normalized === "admin") return "/admin";
   if (normalized === "operador") return "/painel";
   return "/afiliados";
 }

@@ -1,5 +1,5 @@
 import type React from "react";
-import { CreditCard, Gift, ShieldCheck, UserRound } from "lucide-react";
+import { CreditCard, Gift, Lock, ShieldCheck, UserRound, Zap } from "lucide-react";
 import { CheckoutModalShell, CheckoutPrimaryButton } from "../premium/PremiumUI";
 import { CheckoutCampaignMedia } from "./CheckoutCampaignMedia";
 import { FazendinhaCheckoutMedia } from "../FazendinhaCheckoutMedia";
@@ -119,20 +119,12 @@ export function PrePaymentReceiptModal({
       shellClassName="checkout-receipt-shell"
       contentClassName={cn("checkout-receipt-body cfx-prepix-receipt space-y-4 p-3 sm:p-5", !hasCheckoutMedia && "pt-3 sm:pt-4")}
     >
-      <div className="max-h-[100dvh] space-y-4 overflow-y-auto" data-media-aware={hasCheckoutMedia ? "with-media" : "compact-no-media"}>
-          <CheckoutReceiptSummary
-            campaign={campaign}
-            raffle={raffle}
-            quantity={quantity}
-            total={total}
-            selectedPackage={preview?.packageLabel || selectedPackage}
-            pixAmount={pixAmount}
-            gateway={gateway}
-            walletUsage={mergedWallet}
-            affiliateInfo={mergedAffiliate}
-          />
-
-          <CustomerDataSummary customerData={customerData} />
+      <div className="cfx-prepix-confirm max-h-[100dvh] space-y-4 overflow-y-auto" data-media-aware={hasCheckoutMedia ? "with-media" : "compact-no-media"}>
+          <header className="cfx-prepix-confirm-head">
+            <span className="cfx-prepix-safe-badge"><ShieldCheck /> Ambiente 100% seguro</span>
+            <h2>CONFIRME SUA COMPRA</h2>
+            <p>Revise seus dados antes de gerar o PIX.</p>
+          </header>
 
           {fazendinhaCheckoutMedia?.enabled ? (
             <FazendinhaCheckoutMedia {...fazendinhaCheckoutMedia} />
@@ -147,26 +139,46 @@ export function PrePaymentReceiptModal({
               showStatus
               showPrice
               priceLabel={`${quantity.toLocaleString("pt-BR")} cotas - ${currency.format(total)}`}
+              className="cfx-prepix-campaign-card"
             />
           )}
+
+          <CheckoutReceiptSummary
+            campaign={campaign}
+            raffle={raffle}
+            quantity={quantity}
+            total={total}
+            selectedPackage={preview?.packageLabel || selectedPackage}
+            pixAmount={pixAmount}
+            gateway={gateway}
+            walletUsage={mergedWallet}
+            affiliateInfo={mergedAffiliate}
+          />
+
+          <CustomerDataSummary customerData={customerData} onEdit={onEdit} />
 
           <PurchaseBonusesSummary bonuses={mergedBonuses} promotionSummary={preview?.promotionSummary} warnings={preview?.warnings || []} />
 
           <p className="sr-only">Revise e gere seu PIX. Seus Dados. Gerar PIX agora. Alterar Dados.</p>
 
-          <div className="checkout-actions grid gap-3 sm:grid-cols-2">
-            <button type="button" onClick={onEdit} aria-label="Alterar Dados" className="checkout-action-button min-h-14 rounded-2xl border border-white/10 bg-white/10 px-5 text-base font-black text-slate-100 transition hover:bg-white/15">
-              Corrigir dados
-            </button>
-            <CheckoutPrimaryButton onClick={onConfirm} disabled={loading} aria-label="Gerar PIX agora" className="checkout-action-button min-h-14 rounded-2xl px-5 text-base font-black disabled:opacity-60">
-              {loading ? "Gerando PIX..." : "Confirmar e gerar PIX"}
+          <div className="cfx-prepix-secure-note">
+            <ShieldCheck />
+            <span>Ao gerar o PIX, sua reserva fica ativa enquanto voce conclui o pagamento.</span>
+          </div>
+
+          <div className="checkout-actions cfx-prepix-actions">
+            <CheckoutPrimaryButton onClick={() => onConfirm()} disabled={loading} aria-label="Gerar PIX agora" className="checkout-action-button cfx-prepix-main-cta min-h-14 rounded-2xl px-5 text-base font-black disabled:opacity-60">
+              <Zap className="h-5 w-5" />
+              <span>{loading ? "Gerando PIX..." : "GERAR PIX"}</span>
+              <small>Pagamento via PIX a vista</small>
             </CheckoutPrimaryButton>
           </div>
 
-          <p className="checkout-receipt-note flex items-center justify-center gap-2 text-center text-xs font-semibold text-slate-400">
-            <ShieldCheck className="h-4 w-4 text-emerald-500" />
-            Seu PIX aparece na proxima tela. As cotas ficam reservadas enquanto voce paga.
-          </p>
+          <div className="cfx-prepix-safe-strip" aria-label="Compra segura">
+            <span><Lock /> Dados protegidos</span>
+            <span><Zap /> PIX instantaneo</span>
+            <span><ShieldCheck /> Sorteio auditavel</span>
+          </div>
       </div>
     </CheckoutModalShell>
   );
@@ -211,13 +223,20 @@ export function CheckoutReceiptSummary({
   );
 }
 
-export function CustomerDataSummary({ customerData }: { customerData?: CustomerData }) {
+export function CustomerDataSummary({ customerData, onEdit }: { customerData?: CustomerData; onEdit?: () => void }) {
   const now = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
   return (
     <CheckoutCard tone="customer">
-      <div className="mb-3 flex min-w-0 items-center gap-2">
-        <UserRound className="h-4 w-4 text-emerald-200" />
-        <h3 className="font-black">Dados do Comprador</h3>
+      <div className="mb-3 flex min-w-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <UserRound className="h-4 w-4 text-emerald-200" />
+          <h3 className="font-black">Seus dados</h3>
+        </div>
+        {onEdit && (
+          <button type="button" onClick={onEdit} className="cfx-prepix-edit-button">
+            Editar
+          </button>
+        )}
       </div>
       <SummaryRow label="Nome" value={customerData?.name || "Nao informado"} />
       <SummaryRow label="Telefone" value={customerData?.phone || "Nao informado"} />

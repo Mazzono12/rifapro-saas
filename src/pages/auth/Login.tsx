@@ -6,6 +6,14 @@ import { AuthShell } from "./AuthShell";
 import { useAuth } from "../../context/auth/AuthContext";
 import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
 
+function resolvePostLoginDestination(from: string | undefined, fallback: string) {
+  const target = typeof from === "string" ? from : "";
+  if (!target || target.startsWith("/login")) return fallback;
+  if (fallback.startsWith("/superadmin") && target.startsWith("/admin")) return fallback;
+  if (fallback.startsWith("/admin") && target.startsWith("/superadmin")) return fallback;
+  return target;
+}
+
 export function Login() {
   const auth = useAuth();
   const { branding } = useTenantBranding();
@@ -22,7 +30,7 @@ export function Login() {
       const fallback = await auth.login(email, password);
       const from = (location.state as { from?: string } | null)?.from;
       toast.success("Acesso confirmado", { description: "Bem-vindo ao painel de gestão." });
-      navigate(from || fallback, { replace: true });
+      navigate(resolvePostLoginDestination(from, fallback), { replace: true });
     } catch (error) {
       toast.error("Acesso nao autorizado", { description: error instanceof Error ? error.message : "Confira seus dados e tente novamente." });
     }
