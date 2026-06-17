@@ -475,8 +475,8 @@ export function normalizePixQrImage(value?: string | null) {
 export function PixPaymentCard({ payload, qrImage, copied, onCopy }: { payload?: string; qrImage?: string; copied?: boolean; onCopy: () => void }) {
   const pixQrImage = normalizePixQrImage(qrImage);
   return (
-    <div className="checkout-pix-card space-y-4 text-center">
-      <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-cyan-300/10 text-cyan-100">
+    <div className="checkout-pix-card space-y-4 text-center" style={{ background: "#000", backgroundColor: "#000", backgroundImage: "none" }}>
+      <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-cyan-300/10 text-cyan-100" style={{ background: "#000", backgroundColor: "#000", backgroundImage: "none" }}>
         <QrCode className="h-8 w-8" />
       </div>
       {pixQrImage || payload ? (
@@ -489,7 +489,7 @@ export function PixPaymentCard({ payload, qrImage, copied, onCopy }: { payload?:
             )}
           </div>
           {payload && (
-            <div className="checkout-pix-code-box">
+            <div className="checkout-pix-code-box" style={{ background: "#000", backgroundColor: "#000", backgroundImage: "none" }}>
               <span>PIX copia e cola</span>
               <code>{payload}</code>
             </div>

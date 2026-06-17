@@ -20933,10 +20933,156 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
     font-size: 10px;
   }
 
-  .checkout-resume-page .checkout-pix-card {
+.checkout-resume-page .checkout-pix-card {
     padding: 14px;
     border-radius: 16px;
   }
+}
+
+/* Checkout order resume final polish: match the black/gold public checkout theme. */
+.checkout-resume-page {
+  --checkout-gold: #f6b21f;
+  --checkout-gold-soft: rgba(246, 178, 31, .18);
+  --checkout-gold-border: rgba(246, 178, 31, .26);
+  --checkout-surface: #000;
+  --checkout-surface-raised: #050505;
+  min-height: 100dvh;
+  background: #000 !important;
+  color: #fff !important;
+}
+
+.checkout-resume-page::before {
+  background:
+    linear-gradient(90deg, rgba(246, 178, 31, .04) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(246, 178, 31, .035) 1px, transparent 1px) !important;
+  background-size: 42px 42px !important;
+  opacity: .32 !important;
+}
+
+.checkout-resume-shell {
+  max-width: 70rem !important;
+}
+
+.checkout-resume-page .premium-card,
+.checkout-resume-page .checkout-pix-card {
+  border-color: var(--checkout-gold-border) !important;
+  background: #000 !important;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, .58), inset 0 1px 0 rgba(255, 255, 255, .06) !important;
+}
+
+.checkout-resume-summary-card {
+  border-color: var(--checkout-gold-border) !important;
+  background: #000 !important;
+}
+
+.checkout-resume-summary-card::before {
+  background:
+    radial-gradient(circle at 92% 0%, rgba(246, 178, 31, .15), transparent 34%),
+    linear-gradient(180deg, rgba(246, 178, 31, .05), transparent 58%) !important;
+  opacity: .78 !important;
+}
+
+.checkout-resume-page .premium-eyebrow {
+  display: block !important;
+  margin: 0 0 12px !important;
+  color: rgba(255, 255, 255, .7) !important;
+  font-size: .78rem !important;
+  font-weight: 900 !important;
+  letter-spacing: .08em !important;
+  line-height: 1.2 !important;
+}
+
+.checkout-resume-secure-badge {
+  border-color: rgba(246, 178, 31, .38) !important;
+  background: rgba(246, 178, 31, .1) !important;
+  color: var(--checkout-gold) !important;
+}
+
+.checkout-resume-secure-badge svg,
+.checkout-resume-page .premium-card svg {
+  color: var(--checkout-gold) !important;
+}
+
+.checkout-resume-info-card,
+.checkout-resume-page .rounded-2xl {
+  border-color: rgba(246, 178, 31, .22) !important;
+  background: var(--checkout-surface-raised) !important;
+}
+
+.checkout-resume-info-card {
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px !important;
+}
+
+.checkout-resume-info-label {
+  margin: 0 !important;
+  color: rgba(255, 255, 255, .64) !important;
+  font-size: .78rem !important;
+  letter-spacing: .08em !important;
+  line-height: 1.2 !important;
+}
+
+.checkout-resume-info-value {
+  margin: 0 !important;
+  color: #fff !important;
+  font-size: 1.12rem !important;
+  line-height: 1.2 !important;
+}
+
+.checkout-resume-page .checkout-resume-timer-card {
+  border-color: rgba(246, 178, 31, .24) !important;
+  background: #000 !important;
+}
+
+.checkout-resume-page .checkout-resume-timer-card p:first-child {
+  color: var(--checkout-gold) !important;
+}
+
+.checkout-resume-page .checkout-pix-card {
+  border-radius: 18px !important;
+  background: #000 !important;
+}
+
+.checkout-resume-page .checkout-pix-card > div:first-child {
+  border-color: rgba(246, 178, 31, .38) !important;
+  background: rgba(246, 178, 31, .1) !important;
+  color: var(--checkout-gold) !important;
+}
+
+.checkout-resume-page .checkout-pix-code-box {
+  border-color: rgba(246, 178, 31, .24) !important;
+  background: #050505 !important;
+}
+
+.checkout-resume-page .checkout-pix-code-box span {
+  color: var(--checkout-gold) !important;
+}
+
+.checkout-resume-page .premium-button,
+.checkout-resume-page .checkout-pix-copy-button {
+  border: 0 !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #120900 !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+}
+
+.checkout-resume-page .premium-button svg,
+.checkout-resume-page .checkout-pix-copy-button svg {
+  color: #120900 !important;
+}
+
+.checkout-resume-page .premium-button-secondary {
+  border: 1px solid rgba(246, 178, 31, .22) !important;
+  background: #050505 !important;
+  color: #fff !important;
+}
+
+.checkout-resume-page .premium-button-secondary svg {
+  color: var(--checkout-gold) !important;
 }
 
 @media (max-width: 640px) {
@@ -22524,4 +22670,503 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
     padding: 14px;
     border-radius: 16px;
   }
+}
+
+/* PIX order page - final black/gold visual reset. Keep this block last. */
+.checkout-resume-page,
+.checkout-resume-page * {
+  --pix-gold: #f6b21f;
+  --pix-gold-strong: #ffd15b;
+  --pix-bg: #000;
+  --pix-panel: #050505;
+  --pix-border: rgba(246, 178, 31, .28);
+  --pix-muted: rgba(255, 255, 255, .66);
+  --pix-copy: #120900;
+}
+
+.checkout-resume-page {
+  min-height: 100dvh !important;
+  background: #000 !important;
+  color: #fff !important;
+}
+
+.checkout-resume-page::before {
+  background:
+    linear-gradient(90deg, rgba(246, 178, 31, .035) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(246, 178, 31, .03) 1px, transparent 1px) !important;
+  background-size: 42px 42px !important;
+  opacity: .28 !important;
+}
+
+.checkout-resume-shell {
+  max-width: 70rem !important;
+  gap: 10px !important;
+  padding-top: 8px !important;
+}
+
+.checkout-resume-page section.grid {
+  gap: 10px !important;
+}
+
+.checkout-resume-page .premium-card,
+.checkout-resume-page .checkout-pix-card,
+.checkout-resume-page .checkout-resume-summary-card,
+.checkout-resume-page .checkout-resume-timer-card {
+  border-color: var(--pix-border) !important;
+  background: #000 !important;
+  box-shadow: 0 20px 62px rgba(0, 0, 0, .62), inset 0 1px 0 rgba(255, 255, 255, .055) !important;
+}
+
+.checkout-resume-summary-card {
+  padding: 14px !important;
+}
+
+.checkout-resume-summary-card::before {
+  background:
+    radial-gradient(circle at 94% 0%, rgba(246, 178, 31, .13), transparent 32%),
+    linear-gradient(180deg, rgba(246, 178, 31, .055), transparent 58%) !important;
+  opacity: .84 !important;
+}
+
+.checkout-resume-page .premium-eyebrow {
+  margin: 0 0 10px !important;
+  color: rgba(255, 255, 255, .68) !important;
+  font-size: .72rem !important;
+  letter-spacing: .08em !important;
+  line-height: 1.15 !important;
+}
+
+.checkout-resume-summary-card h2 {
+  margin-top: 0 !important;
+  font-size: clamp(1.42rem, 6.4vw, 2.25rem) !important;
+  line-height: 1 !important;
+}
+
+.checkout-resume-summary-card h2 + p {
+  margin-top: 8px !important;
+  color: rgba(255, 255, 255, .78) !important;
+  line-height: 1.35 !important;
+}
+
+.checkout-resume-secure-badge {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 3 !important;
+  min-height: 36px !important;
+  border-color: rgba(246, 178, 31, .42) !important;
+  background: rgba(246, 178, 31, .1) !important;
+  color: var(--pix-gold) !important;
+}
+
+.checkout-resume-secure-badge svg,
+.checkout-resume-page .premium-card svg,
+.checkout-resume-page .checkout-pix-card > div:first-child svg {
+  color: var(--pix-gold) !important;
+}
+
+.checkout-resume-meta-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.checkout-resume-info-card,
+.checkout-resume-page .rounded-2xl {
+  border-color: rgba(246, 178, 31, .24) !important;
+  background: var(--pix-panel) !important;
+}
+
+.checkout-resume-info-card {
+  min-height: 74px !important;
+  padding: 10px !important;
+  gap: 6px !important;
+  justify-content: center !important;
+}
+
+.checkout-resume-info-label {
+  margin: 0 !important;
+  color: var(--pix-muted) !important;
+  font-size: clamp(.58rem, 2.45vw, .74rem) !important;
+  letter-spacing: .05em !important;
+  line-height: 1.1 !important;
+}
+
+.checkout-resume-info-value {
+  margin: 0 !important;
+  color: #fff !important;
+  font-size: clamp(.86rem, 3.35vw, 1.18rem) !important;
+  line-height: 1.05 !important;
+}
+
+.checkout-resume-page .checkout-resume-timer-card {
+  min-height: 60px !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 10px !important;
+  padding: 9px 14px !important;
+}
+
+.checkout-resume-page .checkout-resume-timer-card p:first-child {
+  color: var(--pix-gold) !important;
+  font-size: clamp(.9rem, 3.5vw, 1.2rem) !important;
+  line-height: 1.1 !important;
+}
+
+.checkout-resume-page .checkout-resume-timer-card p:last-child {
+  color: #fff !important;
+  font-size: clamp(1.75rem, 7vw, 2.35rem) !important;
+  line-height: .92 !important;
+}
+
+.checkout-resume-pix-wrap {
+  position: relative;
+}
+
+.checkout-resume-page .checkout-pix-card {
+  margin-top: 0 !important;
+  border-radius: 18px !important;
+  padding: 12px !important;
+  background: #000 !important;
+}
+
+.checkout-resume-page .checkout-pix-card > div:first-child {
+  width: 52px !important;
+  height: 52px !important;
+  border: 1px solid rgba(246, 178, 31, .38) !important;
+  border-radius: 18px !important;
+  background: rgba(246, 178, 31, .1) !important;
+  color: var(--pix-gold) !important;
+}
+
+.checkout-resume-page .checkout-pix-card .mx-auto.w-full {
+  max-width: min(15.5rem, calc(100vw - 4rem)) !important;
+  padding: 10px !important;
+  border: 1px solid rgba(255, 255, 255, .82) !important;
+  background: #fff !important;
+}
+
+.checkout-resume-page .checkout-pix-code-box {
+  border-color: rgba(246, 178, 31, .24) !important;
+  background: var(--pix-panel) !important;
+}
+
+.checkout-resume-page .checkout-pix-code-box span {
+  color: var(--pix-gold) !important;
+}
+
+.checkout-resume-page .checkout-pix-help {
+  color: rgba(255, 255, 255, .62) !important;
+}
+
+.checkout-resume-page .premium-button,
+.checkout-resume-page .checkout-pix-copy-button {
+  border: 0 !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: var(--pix-copy) !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+}
+
+.checkout-resume-page .premium-button svg,
+.checkout-resume-page .checkout-pix-copy-button svg {
+  color: var(--pix-copy) !important;
+}
+
+.checkout-resume-page .premium-button-secondary {
+  border: 1px solid rgba(246, 178, 31, .22) !important;
+  background: var(--pix-panel) !important;
+  color: #fff !important;
+}
+
+@media (max-width: 640px) {
+  .checkout-resume-shell {
+    padding-inline: 10px !important;
+    padding-top: 6px !important;
+  }
+
+  .checkout-resume-summary-card {
+    padding: 12px !important;
+    border-radius: 18px !important;
+  }
+
+  .checkout-resume-summary-card > div:first-child {
+    gap: 6px !important;
+  }
+
+  .checkout-resume-page .premium-eyebrow {
+    margin-bottom: 7px !important;
+    font-size: .66rem !important;
+  }
+
+  .checkout-resume-summary-card h2 + p {
+    margin-top: 7px !important;
+    font-size: .86rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .checkout-resume-secure-badge {
+    top: 8px !important;
+    right: 8px !important;
+    min-height: 30px !important;
+    padding-inline: 10px !important;
+    font-size: .62rem !important;
+  }
+
+  .checkout-resume-info-card {
+    min-height: 56px !important;
+    border-radius: 14px !important;
+    padding: 7px !important;
+  }
+
+  .checkout-resume-page .checkout-resume-timer-card {
+    min-height: 54px !important;
+    padding-block: 7px !important;
+  }
+
+  .checkout-resume-page .checkout-pix-card {
+    padding: 8px !important;
+    gap: 10px !important;
+  }
+
+  .checkout-resume-page .checkout-pix-card > div:first-child {
+    display: none !important;
+  }
+
+  .checkout-resume-page .checkout-pix-card .mx-auto.w-full {
+    max-width: min(11.75rem, calc(100vw - 5rem)) !important;
+    padding: 8px !important;
+  }
+
+  .checkout-resume-page .checkout-pix-code-box {
+    gap: 5px !important;
+    padding: 8px !important;
+  }
+
+  .checkout-resume-page .checkout-pix-code-box code {
+    max-height: 42px !important;
+    font-size: 10px !important;
+    line-height: 1.3 !important;
+  }
+
+  .checkout-resume-page .checkout-pix-copy-button,
+  .checkout-resume-page .premium-button {
+    min-height: 46px !important;
+  }
+}
+
+/* PIX order page absolute dark reset. */
+html:has(.checkout-resume-page),
+body:has(.checkout-resume-page),
+.public-shell:has(.checkout-resume-page),
+.checkout-resume-page,
+.checkout-resume-page > * {
+  background: #000 !important;
+  background-color: #000 !important;
+}
+
+.checkout-resume-page::before {
+  opacity: 0 !important;
+}
+
+.checkout-resume-page .checkout-resume-meta-grid,
+.checkout-resume-page .checkout-resume-meta-grid *,
+.checkout-resume-page .checkout-resume-info-card,
+.checkout-resume-page .checkout-resume-info-card::before,
+.checkout-resume-page .checkout-resume-info-card::after {
+  background: #000 !important;
+  background-color: #000 !important;
+  background-image: none !important;
+}
+
+.checkout-resume-page .checkout-resume-info-card {
+  border-color: rgba(246, 178, 31, .28) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .045) !important;
+}
+
+/* PIX order page: definitive black theme. This intentionally overrides older green/gold variants. */
+html:has(.checkout-resume-page),
+body:has(.checkout-resume-page),
+.public-shell:has(.checkout-resume-page),
+.checkout-resume-page,
+.checkout-resume-page *,
+.checkout-resume-page *::before,
+.checkout-resume-page *::after {
+  --pix-black: #000;
+  --pix-panel-black: #030303;
+  --pix-panel-soft: #080808;
+  --pix-border-black: rgba(255, 255, 255, .14);
+  --pix-border-strong: rgba(255, 255, 255, .22);
+  --pix-text: #fff;
+  --pix-muted-text: rgba(255, 255, 255, .64);
+  --pix-dim-text: rgba(255, 255, 255, .42);
+}
+
+html:has(.checkout-resume-page),
+body:has(.checkout-resume-page),
+.public-shell:has(.checkout-resume-page),
+.checkout-resume-page {
+  background: #000 !important;
+  background-color: #000 !important;
+  background-image: none !important;
+  color: var(--pix-text) !important;
+}
+
+.checkout-resume-page::before,
+.checkout-resume-summary-card::before {
+  content: none !important;
+  display: none !important;
+  opacity: 0 !important;
+  background: none !important;
+}
+
+.checkout-resume-page .premium-card,
+.checkout-resume-page .checkout-resume-summary-card,
+.checkout-resume-page .checkout-resume-timer-card,
+.checkout-resume-page .checkout-pix-card,
+.checkout-resume-page .checkout-resume-info-card,
+.checkout-resume-page .checkout-pix-code-box,
+.checkout-resume-page .rounded-2xl {
+  border-color: var(--pix-border-black) !important;
+  background: #000 !important;
+  background-color: #000 !important;
+  background-image: none !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .045) !important;
+}
+
+.checkout-resume-page .checkout-resume-summary-card,
+.checkout-resume-page .checkout-resume-summary-card *,
+.checkout-resume-page .checkout-resume-summary-card::before,
+.checkout-resume-page .checkout-resume-summary-card::after {
+  background: #000 !important;
+  background-color: #000 !important;
+  background-image: none !important;
+}
+
+.checkout-resume-page .checkout-resume-summary-card {
+  border-color: rgba(255, 255, 255, .14) !important;
+  background: #000 !important;
+  background-color: #000 !important;
+  background-image: none !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .045) !important;
+}
+
+.checkout-resume-page .checkout-resume-info-card,
+.checkout-resume-page .checkout-pix-code-box {
+  background: var(--pix-panel-black) !important;
+}
+
+.checkout-resume-page .premium-eyebrow,
+.checkout-resume-info-label,
+.checkout-resume-page .checkout-pix-code-box span,
+.checkout-resume-page .checkout-resume-timer-card p:first-child {
+  color: var(--pix-muted-text) !important;
+}
+
+.checkout-resume-page h1,
+.checkout-resume-page h2,
+.checkout-resume-page h3,
+.checkout-resume-info-value,
+.checkout-resume-page .checkout-resume-timer-card p:last-child,
+.checkout-resume-page .checkout-pix-code-box code {
+  color: var(--pix-text) !important;
+}
+
+.checkout-resume-page p,
+.checkout-resume-page span,
+.checkout-resume-page label,
+.checkout-resume-page .checkout-pix-help {
+  color: var(--pix-muted-text) !important;
+}
+
+.checkout-resume-page svg,
+.checkout-resume-page .premium-card svg,
+.checkout-resume-page .checkout-pix-card > div:first-child svg {
+  color: var(--pix-text) !important;
+}
+
+.checkout-resume-page .checkout-pix-card > div:first-child {
+  border-color: var(--pix-border-black) !important;
+  background: var(--pix-panel-soft) !important;
+  color: var(--pix-text) !important;
+}
+
+.checkout-resume-page .checkout-pix-card .mx-auto.w-full {
+  border-color: rgba(255, 255, 255, .72) !important;
+  background: #fff !important;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, .54) !important;
+}
+
+.checkout-resume-page .premium-button,
+.checkout-resume-page .checkout-pix-copy-button,
+.checkout-resume-page .checkout-pix-copy-button.bg-emerald-200 {
+  border: 0 !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6a90f !important;
+  color: #120900 !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+}
+
+.checkout-resume-page .premium-button svg,
+.checkout-resume-page .checkout-pix-copy-button svg {
+  color: #120900 !important;
+}
+
+.checkout-resume-page .premium-button-secondary {
+  border: 0 !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6a90f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #120900 !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+}
+
+.checkout-resume-page .premium-button-secondary svg {
+  color: #120900 !important;
+}
+
+.checkout-resume-page .checkout-resume-meta-grid,
+.checkout-resume-page .checkout-resume-meta-grid * {
+  background-image: none !important;
+}
+
+.checkout-resume-page .checkout-resume-timer-card,
+.checkout-resume-page .checkout-resume-timer-card *,
+.checkout-resume-page .checkout-resume-pix-wrap,
+.checkout-resume-page .checkout-resume-pix-wrap *,
+.checkout-resume-page .checkout-pix-card,
+.checkout-resume-page .checkout-pix-card *,
+.checkout-resume-page .checkout-pix-code-box,
+.checkout-resume-page .checkout-pix-code-box *,
+.checkout-resume-page .checkout-resume-note,
+.checkout-resume-page .checkout-resume-note * {
+  background-color: #000 !important;
+  background-image: none !important;
+}
+
+.checkout-resume-page .checkout-pix-card .mx-auto.w-full,
+.checkout-resume-page .checkout-pix-card .mx-auto.w-full *,
+.checkout-resume-page .checkout-pix-card img,
+.checkout-resume-page .checkout-pix-card .mx-auto.w-full svg[viewBox] {
+  background-color: #fff !important;
+}
+
+.checkout-resume-page .checkout-resume-timer-card,
+.checkout-resume-page .checkout-pix-card,
+.checkout-resume-page .checkout-pix-code-box,
+.checkout-resume-page .checkout-resume-note {
+  border-color: rgba(255, 255, 255, .14) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .045) !important;
+}
+
+.checkout-resume-page .checkout-pix-copy-button,
+.checkout-resume-page .checkout-pix-copy-button.bg-emerald-200 {
+  border: 0 !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6a90f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #120900 !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+}
+
+.checkout-resume-page .checkout-pix-copy-button svg {
+  color: #120900 !important;
 }

@@ -118,16 +118,15 @@ export function CheckoutOrderResume() {
           />
         ) : (
           <section className="grid gap-4">
-            <div className="premium-card checkout-resume-summary-card">
+            <div className="checkout-resume-summary-card rounded-2xl border" style={{ background: "#000", backgroundColor: "#000", backgroundImage: "none" }}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="premium-eyebrow">Finalize seu PIX</p>
                   <h2 className="mt-2 break-words text-2xl font-black text-white sm:text-3xl">{campaignName}</h2>
-                  <p className="mt-2 text-sm font-semibold text-slate-300">Sua reserva ainda esta ativa. Copie o codigo PIX abaixo.</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-300">Sua reserva ainda está ativa. Copie o código PIX abaixo.</p>
                 </div>
-                <span className="checkout-resume-secure-badge"><ShieldCheck className="h-4 w-4" /> Checkout seguro</span>
               </div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <div className="checkout-resume-meta-grid mt-4 grid gap-2 sm:grid-cols-3">
                 <Info label="Status" value="Pendente" />
                 <Info label="Valor" value={amount > 0 ? money.format(amount) : "Aguardando"} />
                 <Info label="Pedido" value={status?.orderId || orderId} />
@@ -135,7 +134,7 @@ export function CheckoutOrderResume() {
             </div>
 
             {expiresAt && (
-              <div className="premium-card checkout-resume-timer-card flex items-center gap-3">
+              <div className="checkout-resume-timer-card flex items-center gap-3 rounded-2xl border" style={{ background: "#000", backgroundColor: "#000", backgroundImage: "none" }}>
                 <Clock3 className="h-6 w-6 shrink-0" />
                 <div>
                   <p className="text-sm font-black">Tempo restante da reserva</p>
@@ -145,13 +144,15 @@ export function CheckoutOrderResume() {
             )}
 
             {pixPayload || pixQrCode ? (
-              <PixPaymentCard payload={pixPayload} qrImage={pixQrCode} copied={copied} onCopy={copyPix} />
+              <div className="checkout-resume-pix-wrap">
+                <PixPaymentCard payload={pixPayload} qrImage={pixQrCode} copied={copied} onCopy={copyPix} />
+              </div>
             ) : (
-              <StateCard icon={<XCircle className="h-7 w-7" />} title="PIX indisponivel" description="Não foi possível gerar o PIX. Tente novamente ou fale com o suporte." />
+              <StateCard icon={<XCircle className="h-7 w-7" />} title="PIX indisponível" description="Não foi possível gerar o PIX. Tente novamente ou fale com o suporte." />
             )}
 
             <button type="button" onClick={() => loadStatus(true)} disabled={checking} className="premium-button w-full disabled:opacity-60">
-              <RefreshCw className={`h-5 w-5 ${checking ? "animate-spin" : ""}`} /> {checking ? "Verificando..." : "Ja paguei, verificar"}
+              <RefreshCw className={`h-5 w-5 ${checking ? "animate-spin" : ""}`} /> {checking ? "Verificando..." : "Já paguei, verificar"}
             </button>
 
             {supportUrl && (
@@ -160,7 +161,7 @@ export function CheckoutOrderResume() {
               </a>
             )}
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm font-semibold leading-6 text-slate-300">
+            <div className="checkout-resume-note rounded-2xl border border-white/10 p-4 text-sm font-semibold leading-6 text-slate-300" style={{ background: "#000", backgroundColor: "#000", backgroundImage: "none" }}>
               <p className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-200" /> Nao alteramos sua compra, cotas ou pagamento nesta tela.</p>
               <p className="mt-2 flex items-start gap-2"><Ticket className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" /> Ao confirmar o PIX, suas cotas serao liberadas automaticamente.</p>
             </div>
@@ -173,9 +174,9 @@ export function CheckoutOrderResume() {
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{label}</p>
-      <p className="mt-1 break-words text-sm font-black text-white">{value}</p>
+    <div className="checkout-resume-info-card rounded-2xl border border-white/10 bg-black/20 p-3">
+      <p className="checkout-resume-info-label text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{label}</p>
+      <p className="checkout-resume-info-value mt-1 break-words text-sm font-black text-white">{value}</p>
     </div>
   );
 }
