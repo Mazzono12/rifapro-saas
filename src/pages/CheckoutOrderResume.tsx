@@ -4,7 +4,6 @@ import { Link, useParams } from "react-router-dom";
 import { CheckCircle2, Clock3, MessageCircle, RefreshCw, ShieldCheck, Ticket, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PixPaymentCard, PremiumPageLayout } from "../components/premium/PremiumUI";
-import { PublicBrandMark } from "../components/branding/PublicBrandMark";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
 
 type ResumeStatus = {
@@ -91,17 +90,7 @@ export function CheckoutOrderResume() {
 
   return (
     <PremiumPageLayout className="checkout-resume-page">
-      <main className="checkout-resume-shell mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-3xl flex-col px-4 pb-28 pt-5 sm:pb-12 sm:pt-8">
-        <header className="checkout-resume-header">
-          <PublicBrandMark
-            className="checkout-resume-brand-mark"
-            logoClassName="checkout-resume-brand-logo"
-            nameClassName="checkout-resume-brand-name"
-            eager
-          />
-          <span className="checkout-resume-secure-badge"><ShieldCheck className="h-4 w-4" /> Checkout seguro</span>
-        </header>
-
+      <main className="checkout-resume-shell mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 pb-8 pt-5 sm:pb-12 sm:pt-8">
         {loading ? (
           <StateCard icon={<RefreshCw className="h-7 w-7 animate-spin" />} title="Carregando pedido" description="Estamos buscando o PIX salvo para este pedido." />
         ) : error ? (
@@ -129,10 +118,15 @@ export function CheckoutOrderResume() {
           />
         ) : (
           <section className="grid gap-4">
-            <div className="premium-card border-emerald-300/20 bg-emerald-300/[0.07]">
-              <p className="premium-eyebrow text-emerald-100">Finalize seu PIX</p>
-              <h2 className="mt-2 text-3xl font-black text-white">{campaignName}</h2>
-              <p className="mt-2 text-sm font-semibold text-slate-300">Sua reserva ainda esta ativa. Copie o codigo PIX abaixo.</p>
+            <div className="premium-card checkout-resume-summary-card">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="premium-eyebrow">Finalize seu PIX</p>
+                  <h2 className="mt-2 break-words text-2xl font-black text-white sm:text-3xl">{campaignName}</h2>
+                  <p className="mt-2 text-sm font-semibold text-slate-300">Sua reserva ainda esta ativa. Copie o codigo PIX abaixo.</p>
+                </div>
+                <span className="checkout-resume-secure-badge"><ShieldCheck className="h-4 w-4" /> Checkout seguro</span>
+              </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-3">
                 <Info label="Status" value="Pendente" />
                 <Info label="Valor" value={amount > 0 ? money.format(amount) : "Aguardando"} />
@@ -141,10 +135,10 @@ export function CheckoutOrderResume() {
             </div>
 
             {expiresAt && (
-              <div className="premium-card flex items-center gap-3 border-amber-300/20 bg-amber-300/[0.09]">
-                <Clock3 className="h-6 w-6 shrink-0 text-amber-200" />
+              <div className="premium-card checkout-resume-timer-card flex items-center gap-3">
+                <Clock3 className="h-6 w-6 shrink-0" />
                 <div>
-                  <p className="text-sm font-black text-amber-100">Tempo restante da reserva</p>
+                  <p className="text-sm font-black">Tempo restante da reserva</p>
                   <p className="text-2xl font-black text-white">{remaining}</p>
                 </div>
               </div>

@@ -18,6 +18,9 @@ const server = read("server.ts");
 
 includesAll(app, [
   "CheckoutOrderResume",
+  'const isCheckoutRoute = location.pathname.startsWith("/checkout/")',
+  "!isCheckoutRoute && <Navbar />",
+  "!isCheckoutRoute && <PublicBottomNav />",
   'path="/checkout/orders/:orderId"',
   'path="/:mode"'
 ], "rota publica de retomada PIX");
@@ -27,6 +30,9 @@ includesAll(page, [
   "Finalize seu PIX",
   "Sua reserva ainda esta ativa",
   "Copie o codigo PIX abaixo",
+  "checkout-resume-summary-card",
+  "checkout-resume-secure-badge",
+  "checkout-resume-timer-card",
   "Pagamento confirmado",
   "Reserva expirada",
   "Ja paguei, verificar",
@@ -35,6 +41,8 @@ includesAll(page, [
   "orderId"
 ], "pagina publica de retomada PIX");
 assert((page + premiumUi).includes("Copiar código PIX"), "pagina deve expor CTA Copiar código PIX via componente PIX");
+assert(!page.includes("checkout-resume-header"), "pagina PIX nao deve renderizar cabecalho proprio duplicado");
+assert(!page.includes("PublicBrandMark"), "pagina PIX deve usar apenas identidade visual global, sem duplicar logo no conteudo");
 
 includesAll(pwaInstallPrompt, [
   "isCheckoutSurfaceBlocked",
@@ -47,7 +55,13 @@ includesAll(pwaInstallPrompt, [
 includesAll(css, [
   "body[data-checkout-open=\"true\"] .pwa-install-prompt",
   "body[data-checkout-open=\"true\"] [data-pwa-install-prompt]",
-  "display: none !important"
+  "display: none !important",
+  "Checkout order resume: dark public theme, visual only",
+  ".checkout-resume-summary-card",
+  ".checkout-resume-timer-card",
+  ".checkout-resume-page .checkout-pix-card",
+  "var(--theme-surface",
+  "var(--theme-primary"
 ], "CSS deve proteger checkout aberto contra banner PWA");
 
 assert(page.includes('fetch(`/api/checkout/orders/${orderId}/status`)'), "pagina deve consultar status pelo endpoint publico existente");
@@ -73,7 +87,7 @@ for (const token of forbidden) {
 
 includesAll(server, [
   'app.get("/api/checkout/orders/:orderId/status"',
-  "pixPayload: purchase.status === \"pending\" && !expired ? purchase.pixPayload : \"\"",
+  "const pixPayload = purchase.status === \"pending\" && !expired ? String(publicPurchase.pixPayload || publicPurchase.pix_payload || publicPurchase.copyPaste || publicPurchase.paymentCode || \"\") : \"\"",
   "pixPayload: modePurchase.status === \"reserved\" && !expired ?",
   "pixPayload: farmPurchase.statusPagamento === \"reserved\" && !expired ?"
 ], "backend reaproveita pixPayload existente por status");

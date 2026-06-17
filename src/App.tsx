@@ -169,6 +169,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const isAdminRoute = isAuthRoute || location.pathname.startsWith('/admin') || location.pathname.startsWith('/superadmin') || location.pathname.startsWith('/perfil-saas');
   const isRaffleRoute = /^\/(raffle|rifa|sorteio)\/[^/]+\/?$/.test(location.pathname);
   const isHomeRoute = location.pathname === "/";
+  const isCheckoutRoute = location.pathname.startsWith("/checkout/");
   const [heroVideoCinema, setHeroVideoCinema] = React.useState(false);
 
   useEffect(() => {
@@ -190,11 +191,11 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="public-shell min-h-screen flex flex-col">
-      {!isHomeRoute && !isRaffleRoute && <Navbar />}
+      {!isHomeRoute && !isRaffleRoute && !isCheckoutRoute && <Navbar />}
       <main className="flex-1 w-full relative z-10">
         <TenantOperationalGate>{children}</TenantOperationalGate>
       </main>
-      {(isHomeRoute || isRaffleRoute) && <PublicBottomNav />}
+      {(isHomeRoute || isRaffleRoute) && !isCheckoutRoute && <PublicBottomNav />}
     </div>
   );
 }

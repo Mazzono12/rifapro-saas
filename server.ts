@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from "crypto";
 import { existsSync } from "fs";
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { config as loadEnv } from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -219,13 +219,13 @@ async function startServer() {
     "SESSION_SECRET"
   ];
   const configuredStorageDriver = String(process.env.STORAGE_DRIVER || "").toLowerCase();
-  const validStorageDriver = configuredStorageDriver === "postgres" || configuredStorageDriver === "persistent";
+  const validStorageDriver = configuredStorageDriver === "postgres" || (!isProductionRuntime && configuredStorageDriver === "persistent");
   const strongSecret = (value: unknown) => typeof value === "string" && value.length >= 32 && !/(troque|change|example|secret|senha|password|default)/i.test(value);
   const productionValidationErrors = isProductionRuntime
     ? [
         ...productionRequiredEnv.filter(key => !String(process.env[key] || "").trim()).map(key => `${key} obrigatoria`),
         process.env.NODE_ENV !== "production" ? "NODE_ENV deve ser production" : "",
-        !validStorageDriver ? "STORAGE_DRIVER deve ser postgres ou persistent" : "",
+        configuredStorageDriver !== "postgres" ? "STORAGE_DRIVER deve ser postgres em producao; persistent e apenas local/dev" : "",
         publicDebugEnabled ? "ENABLE_PUBLIC_DEBUG deve ser false em producao" : "",
         !strongSecret(process.env.JWT_SECRET) ? "JWT_SECRET deve ser forte (32+ caracteres, sem placeholder)" : "",
         !strongSecret(process.env.SESSION_SECRET) ? "SESSION_SECRET deve ser forte (32+ caracteres, sem placeholder)" : ""
@@ -336,9 +336,11 @@ async function startServer() {
   const supabaseAdmin: SupabaseClient | null = supabaseUrl && supabaseServiceKey
     ? createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false, autoRefreshToken: false } })
     : null;
-  const persistenceMode = String(process.env.STORAGE_DRIVER || (supabaseAdmin ? "postgres" : "memory")).toLowerCase();
+  const persistenceMode = String(process.env.STORAGE_DRIVER || (supabaseAdmin ? "postgres" : "persistent")).toLowerCase();
   const persistentStorageDrivers = new Set(["postgres", "persistent"]);
   const memoryStateRisk = !persistentStorageDrivers.has(persistenceMode);
+  const localPersistentStateFile = path.resolve(process.env.PERSISTENT_STATE_FILE || path.join(process.cwd(), "data", "persistent-state.json"));
+  const useLocalPersistentState = persistenceMode === "persistent" || !supabaseAdmin;
   const productionSafe = !memoryStateRisk || !isNodeProduction || Boolean(process.env.RIFAPRO_TEST_MODE);
   let persistentStateReady = false;
   let persistentStateTimer: ReturnType<typeof setTimeout> | null = null;
@@ -24866,9 +24868,277 @@ async function startServer() {
     });
   }
 
+  async function hydrateLocalPersistentState() {
+    if (!existsSync(localPersistentStateFile)) return false;
+    try {
+      const raw = await readFile(localPersistentStateFile, "utf8");
+      const snapshot = JSON.parse(raw);
+      const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
+      if (!rows.length) return false;
+      rows.forEach((row: any) => {
+        const collection = normalizePersistentCollection(row.state_key || row.collection);
+        const value = row.state_value !== undefined ? row.state_value : row.data;
+        assignPersistentCollection(collection, value);
+      });
+      console.log(`Estado persistente carregado de ${localPersistentStateFile} (${rows.length} colecoes).`);
+      return true;
+    } catch (error) {
+      console.warn("Falha ao hidratar estado persistente local:", error instanceof Error ? error.message : error);
+      return false;
+    }
+  }
+
+  async function persistLocalState(reason: string) {
+    const rows = buildPersistentRows();
+    const dir = path.dirname(localPersistentStateFile);
+    const tmpFile = `${localPersistentStateFile}.tmp`;
+    await mkdir(dir, { recursive: true });
+    await writeFile(tmpFile, JSON.stringify({
+      kind: "rifapro-persistent-state",
+      version: 1,
+      reason,
+      updated_at: new Date().toISOString(),
+      rows
+    }, null, 2), "utf8");
+    await rename(tmpFile, localPersistentStateFile);
+  }
+
+  function phase1PostgresEnabled() {
+    return Boolean(supabaseAdmin && persistenceMode === "postgres");
+  }
+
+  function phase1TenantRow(tenant: TenantRecord) {
+    const payload = serializePersistentValue(tenant) as Record<string, unknown>;
+    return {
+      id: tenant.id,
+      nome: tenant.nome || "",
+      slug: tenant.slug || tenant.id,
+      dominio: tenant.dominio || null,
+      dominio_customizado: tenant.dominio_customizado || "",
+      status: tenant.status || "active",
+      plano: tenant.plano || "starter",
+      logo_url: tenant.logo_url || "",
+      cor_primaria: tenant.cor_primaria || "#00d66b",
+      payload,
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  function phase1TenantFromRow(row: Record<string, any>): TenantRecord {
+    const payload = row.payload && typeof row.payload === "object" ? row.payload : {};
+    return {
+      ...payload,
+      id: String(row.id || payload.id || legacyTenantId),
+      nome: String(row.nome || payload.nome || ""),
+      slug: String(row.slug || payload.slug || row.id || ""),
+      dominio: row.dominio || payload.dominio || "",
+      dominio_customizado: String(row.dominio_customizado || payload.dominio_customizado || ""),
+      status: String(row.status || payload.status || "active") as TenantRecord["status"],
+      logo_url: String(row.logo_url || payload.logo_url || ""),
+      cor_primaria: String(row.cor_primaria || payload.cor_primaria || "#00d66b"),
+      plano: String(row.plano || payload.plano || "starter"),
+      percentual_plataforma: Number(payload.percentual_plataforma || 0),
+      criado_em: String(payload.criado_em || row.created_at || new Date().toISOString()),
+      atualizado_em: String(payload.atualizado_em || row.updated_at || new Date().toISOString())
+    };
+  }
+
+  function phase1RaffleRow(raffle: Record<string, any>) {
+    const payload = serializePersistentValue(raffle) as Record<string, unknown>;
+    const soldNumbers = raffle.soldNumbers instanceof Set ? raffle.soldNumbers.size : Array.isArray(raffle.soldNumbers) ? raffle.soldNumbers.length : Number(raffle.soldTickets || 0);
+    return {
+      id: String(raffle.id),
+      tenant_id: String(raffle.tenant_id || raffle.tenantId || legacyTenantId),
+      title: String(raffle.title || raffle.name || ""),
+      status: String(raffle.status || "draft"),
+      total_tickets: Number(raffle.totalTickets || raffle.total_tickets || raffle.numbers || 0),
+      ticket_price: Number(raffle.ticketPrice || raffle.ticket_price || raffle.price || 0),
+      sold_tickets: soldNumbers,
+      draw_date: raffle.drawDate || raffle.draw_date || null,
+      payload,
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  function phase1RaffleFromRow(row: Record<string, any>) {
+    const payload = row.payload && typeof row.payload === "object" ? row.payload : {};
+    const revived = revivePersistentValue({
+      ...payload,
+      id: String(row.id || payload.id || ""),
+      tenant_id: String(row.tenant_id || payload.tenant_id || payload.tenantId || legacyTenantId),
+      title: String(row.title || payload.title || payload.name || ""),
+      status: String(row.status || payload.status || "draft")
+    }) as Record<string, any>;
+    if (!(revived.soldNumbers instanceof Set)) {
+      revived.soldNumbers = new Set(revived.soldNumbers?.values || revived.soldNumbers || []);
+    }
+    return revived;
+  }
+
+  function phase1GatewayRow(config: PaymentGatewayConfigRecord) {
+    return {
+      id: String(config.id),
+      tenant_id: String(config.tenant_id || legacyTenantId),
+      provider: String(config.provider || "asaas"),
+      display_name: String(config.display_name || config.provider || "asaas"),
+      enabled: config.enabled !== false,
+      is_default: Boolean(config.is_default),
+      priority: Number(config.priority || 0),
+      environment: String(config.environment || "production"),
+      credentials: serializePersistentValue(config.credentials || {}),
+      webhook_secret: String(config.webhook_secret || ""),
+      pix_key: String(config.pix_key || ""),
+      config_json: serializePersistentValue(config.config_json || {}),
+      payload: serializePersistentValue(config),
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  function phase1GatewayFromRow(row: Record<string, any>): PaymentGatewayConfigRecord {
+    const payload = row.payload && typeof row.payload === "object" ? row.payload : {};
+    return {
+      ...payload,
+      id: String(row.id || payload.id || `${row.tenant_id || legacyTenantId}-${row.provider || "asaas"}`),
+      tenant_id: String(row.tenant_id || payload.tenant_id || legacyTenantId),
+      provider: normalizePaymentProvider(row.provider || payload.provider || "asaas"),
+      display_name: String(row.display_name || payload.display_name || row.provider || "asaas"),
+      enabled: row.enabled !== false,
+      environment: String(row.environment || payload.environment || "production"),
+      credentials: revivePersistentValue(row.credentials || payload.credentials || {}),
+      webhook_secret: String(row.webhook_secret || payload.webhook_secret || ""),
+      pix_key: String(row.pix_key || payload.pix_key || ""),
+      priority: Number(row.priority || payload.priority || 0),
+      is_default: Boolean(row.is_default || payload.is_default),
+      config_json: revivePersistentValue(row.config_json || payload.config_json || {}),
+      created_at: String(payload.created_at || row.created_at || new Date().toISOString()),
+      updated_at: String(payload.updated_at || row.updated_at || new Date().toISOString())
+    };
+  }
+
+  async function phase1Upsert(table: string, rows: Record<string, unknown>[], onConflict: string) {
+    if (!phase1PostgresEnabled() || !supabaseAdmin || !rows.length) return;
+    const { error } = await supabaseAdmin.from(table).upsert(rows, { onConflict });
+    if (error) console.warn(`Falha ao persistir ${table} da Fase 1:`, error.message);
+  }
+
+  async function hydratePhase1PostgresState() {
+    if (!phase1PostgresEnabled() || !supabaseAdmin) return false;
+    let hydrated = false;
+    try {
+      const tenantResult = await supabaseAdmin.from("app_tenants").select("*");
+      if (!tenantResult.error && tenantResult.data?.length) {
+        replaceArray(tenants, tenantResult.data.map(row => phase1TenantFromRow(row)));
+        hydrated = true;
+      } else if (tenantResult.error) {
+        console.warn("Falha ao hidratar app_tenants da Fase 1:", tenantResult.error.message);
+      }
+
+      const settingsResult = await supabaseAdmin.from("tenant_settings").select("tenant_id,settings");
+      if (!settingsResult.error && settingsResult.data?.length) {
+        replaceObject(tenantSettings, Object.fromEntries(settingsResult.data.map(row => [row.tenant_id, revivePersistentValue(row.settings)])));
+        if (tenantSettings[legacyTenantId]) settings = tenantSettings[legacyTenantId];
+        hydrated = true;
+      } else if (settingsResult.error) {
+        console.warn("Falha ao hidratar tenant_settings da Fase 1:", settingsResult.error.message);
+      }
+
+      const brandingResult = await supabaseAdmin.from("tenant_branding_settings").select("tenant_id,branding");
+      if (!brandingResult.error && brandingResult.data?.length) {
+        replaceObject(tenantBrandingSettings, Object.fromEntries(brandingResult.data.map(row => [row.tenant_id, revivePersistentValue(row.branding)])));
+        hydrated = true;
+      } else if (brandingResult.error) {
+        console.warn("Falha ao hidratar tenant_branding_settings da Fase 1:", brandingResult.error.message);
+      }
+
+      const raffleResult = await supabaseAdmin.from("app_raffles").select("*");
+      if (!raffleResult.error && raffleResult.data?.length) {
+        raffles = raffleResult.data.map(row => phase1RaffleFromRow(row)) as typeof raffles;
+        hydrated = true;
+      } else if (raffleResult.error) {
+        console.warn("Falha ao hidratar app_raffles da Fase 1:", raffleResult.error.message);
+      }
+
+      const gatewayResult = await supabaseAdmin.from("app_payment_gateway_configs").select("*");
+      if (!gatewayResult.error && gatewayResult.data?.length) {
+        const grouped = gatewayResult.data.reduce((acc: Record<string, PaymentGatewayConfigRecord[]>, row) => {
+          const config = phase1GatewayFromRow(row);
+          acc[config.tenant_id] ||= [];
+          acc[config.tenant_id].push(config);
+          return acc;
+        }, {});
+        replaceObject(paymentGatewayConfigs, grouped);
+        Object.keys(grouped).forEach(tenantId => syncLegacyGatewaysFromConfigs(tenantId));
+        hydrated = true;
+      } else if (gatewayResult.error) {
+        console.warn("Falha ao hidratar app_payment_gateway_configs da Fase 1:", gatewayResult.error.message);
+      }
+    } catch (error) {
+      console.warn("Falha ao hidratar tabelas PostgreSQL da Fase 1:", error instanceof Error ? error.message : error);
+    }
+    return hydrated;
+  }
+
+  async function persistPhase1PostgresState(_reason: string) {
+    if (!phase1PostgresEnabled() || !supabaseAdmin) return;
+    const knownTenantIds = new Set<string>(tenants.map(tenant => tenant.id));
+    Object.keys(tenantSettings).forEach(tenantId => knownTenantIds.add(tenantId));
+    Object.keys(tenantBrandingSettings).forEach(tenantId => knownTenantIds.add(tenantId));
+    Object.keys(paymentGatewayConfigs).forEach(tenantId => knownTenantIds.add(tenantId));
+    raffles.forEach((raffle: any) => knownTenantIds.add(String(raffle.tenant_id || raffle.tenantId || legacyTenantId)));
+
+    const tenantRows = [...knownTenantIds].map(tenantId => {
+      const tenant = tenants.find(item => item.id === tenantId) || {
+        id: tenantId,
+        nome: tenantId === legacyTenantId ? "CIFHER" : tenantId,
+        slug: tenantId,
+        dominio_customizado: "",
+        status: "active",
+        logo_url: "",
+        cor_primaria: "#00d66b",
+        plano: "starter",
+        percentual_plataforma: 0,
+        criado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString()
+      } as TenantRecord;
+      return phase1TenantRow(tenant);
+    });
+    await phase1Upsert("app_tenants", tenantRows, "id");
+
+    const settingsRows = [...knownTenantIds].map(tenantId => ({
+      tenant_id: tenantId,
+      settings: serializePersistentValue(tenantSettings[tenantId] || (tenantId === legacyTenantId ? settings : getTenantSettings(tenantId))),
+      updated_at: new Date().toISOString()
+    }));
+    await phase1Upsert("tenant_settings", settingsRows, "tenant_id");
+
+    const brandingRows = [...knownTenantIds].map(tenantId => {
+      const branding = tenantBrandingSettings[tenantId] || getTenantBranding(tenantId);
+      return {
+        tenant_id: tenantId,
+        company_name: String((branding as any).companyName || (branding as any).company_name || ""),
+        display_name: String((branding as any).displayName || (branding as any).display_name || ""),
+        header_name: String((branding as any).headerName || (branding as any).header_name || ""),
+        logo_url: String((branding as any).logoUrl || (branding as any).logo_url || ""),
+        favicon_url: String((branding as any).faviconUrl || (branding as any).favicon_url || ""),
+        primary_color: String((branding as any).primaryColor || (branding as any).primary_color || "#00d66b"),
+        secondary_color: String((branding as any).secondaryColor || (branding as any).secondary_color || "#0f2d1d"),
+        cta_color: String((branding as any).ctaColor || (branding as any).cta_color || "#00d66b"),
+        branding: serializePersistentValue(branding),
+        updated_at: new Date().toISOString()
+      };
+    });
+    await phase1Upsert("tenant_branding_settings", brandingRows, "tenant_id");
+
+    await phase1Upsert("app_raffles", raffles.map((raffle: any) => phase1RaffleRow(raffle)), "id");
+
+    const gatewayRows = [...knownTenantIds].flatMap(tenantId => getPaymentGatewayConfigs(tenantId).map(config => phase1GatewayRow(config)));
+    await phase1Upsert("app_payment_gateway_configs", gatewayRows, "id");
+  }
+
   async function hydratePersistentState() {
-    if (!supabaseAdmin) {
-      console.warn("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY ausentes; usando seed em memoria sem persistencia Postgres.");
+    if (useLocalPersistentState) {
+      const hydrated = await hydrateLocalPersistentState();
+      if (!hydrated) await persistLocalState("initial-seed-local");
       persistentStateReady = true;
       return;
     }
@@ -24876,10 +25146,10 @@ async function startServer() {
       .from("persistent_state_records")
       .select("state_key,state_value")
       .eq("scope", "platform");
+    let snapshotHydrated = false;
     if (!error && data?.length) {
       data.forEach(row => assignPersistentCollection(normalizePersistentCollection(row.state_key), row.state_value));
-      persistentStateReady = true;
-      return;
+      snapshotHydrated = true;
     }
     if (error) {
       const fallback = await supabaseAdmin
@@ -24889,21 +25159,23 @@ async function startServer() {
         .eq("record_key", "singleton");
       if (fallback.error) {
         console.warn("Falha ao hidratar estado persistente do Supabase:", fallback.error.message);
-        persistentStateReady = true;
-        return;
-      }
-      if (fallback.data?.length) {
+        snapshotHydrated = await hydrateLocalPersistentState();
+      } else if (fallback.data?.length) {
         fallback.data.forEach(row => assignPersistentCollection(normalizePersistentCollection(row.collection), row.data));
-        persistentStateReady = true;
-        return;
+        snapshotHydrated = true;
       }
+    }
+    const phase1Hydrated = await hydratePhase1PostgresState();
+    if (snapshotHydrated || phase1Hydrated) {
+      persistentStateReady = true;
+      return;
     }
     await persistAllState("initial-seed");
     persistentStateReady = true;
   }
 
   function schedulePersistentStateSave(reason: string, delayMs = 50) {
-    if (!persistentStateReady || !supabaseAdmin) return;
+    if (!persistentStateReady) return;
     if (persistentStateSaving) {
       persistentStateDirty = true;
       persistentStateDirtyReason = reason;
@@ -24916,6 +25188,30 @@ async function startServer() {
   }
 
   async function persistAllState(reason: string) {
+    if (useLocalPersistentState) {
+      if (persistentStateSaving) {
+        persistentStateDirty = true;
+        persistentStateDirtyReason = reason;
+        return;
+      }
+      persistentStateSaving = true;
+      persistentStateDirty = false;
+      persistentStateDirtyReason = "";
+      try {
+        await persistLocalState(reason);
+      } catch (error) {
+        console.warn(`Falha ao persistir estado local (${reason}):`, error instanceof Error ? error.message : error);
+      } finally {
+        persistentStateSaving = false;
+        if (persistentStateDirty) {
+          const dirtyReason = persistentStateDirtyReason || `${reason}:dirty`;
+          persistentStateDirty = false;
+          persistentStateDirtyReason = "";
+          schedulePersistentStateSave(dirtyReason, 0);
+        }
+      }
+      return;
+    }
     if (!supabaseAdmin) return;
     if (persistentStateSaving) {
       persistentStateDirty = true;
@@ -24943,6 +25239,7 @@ async function startServer() {
           .upsert(fallbackRows, { onConflict: "tenant_id,collection,record_key" });
         if (fallback.error) console.warn(`Falha ao persistir estado (${reason}):`, fallback.error.message);
       }
+      await persistPhase1PostgresState(reason);
     } finally {
       persistentStateSaving = false;
       if (persistentStateDirty) {
