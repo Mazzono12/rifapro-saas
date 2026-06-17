@@ -1051,11 +1051,9 @@ async function startServer() {
   function getTenantBranding(tenantId: string) {
     tenantBrandingSettings[tenantId] ||= defaultTenantBranding(tenantId);
     const current = tenantBrandingSettings[tenantId];
-    current.company_name ||= current.header_name;
-    current.display_name ||= current.header_name;
-    current.header_name = normalizeLegacyBrandText(current.header_name);
-    current.company_name = normalizeLegacyBrandText(current.company_name, current.header_name);
-    current.display_name = normalizeLegacyBrandText(current.display_name, current.header_name);
+    current.header_name = legacyBrandNames.has(String(current.header_name || "").trim()) ? "" : String(current.header_name || "").trim().slice(0, 80);
+    current.company_name = legacyBrandNames.has(String(current.company_name || "").trim()) ? "" : String(current.company_name || "").trim().slice(0, 120);
+    current.display_name = legacyBrandNames.has(String(current.display_name || "").trim()) ? "" : String(current.display_name || "").trim().slice(0, 80);
     current.footer_text = normalizeLegacyFooterText(current.footer_text);
     if (!String(current.slogan || "").trim() || current.slogan === "Sorteios premium com PIX automatico") current.slogan = defaultPrimeSlogan;
     current.login_logo_url ||= current.logo_url || "";
@@ -1216,6 +1214,7 @@ async function startServer() {
     const brandLayout = String(source.brandLayout ?? fallback.brandLayout ?? "centered").trim();
     return {
       brandLayout: brandLayout === "inline" ? "inline" : "centered",
+      showName: source.showName !== undefined ? source.showName !== false : fallback.showName !== false,
       whatsapp: sanitizeWhiteLabelUrl(source.whatsapp ?? fallback.whatsapp),
       instagram: sanitizeWhiteLabelUrl(source.instagram ?? fallback.instagram),
       officialGroup: sanitizeWhiteLabelUrl(source.officialGroup ?? source.group ?? fallback.officialGroup ?? fallback.group)
@@ -1341,8 +1340,13 @@ async function startServer() {
 
   function normalizeTenantBranding(tenantId: string, incoming: Record<string, unknown>, current = getTenantBranding(tenantId)) {
     const themeMode = String(incoming.theme_mode || current.theme_mode || "vimeu_dark");
-    const displayName = sanitizeWhiteLabelText(incoming.display_name ?? incoming.header_name ?? current.display_name ?? current.header_name, 80);
-    const companyName = sanitizeWhiteLabelText(incoming.company_name ?? current.company_name ?? displayName, 120);
+    const hasHeaderName = Object.prototype.hasOwnProperty.call(incoming, "header_name");
+    const hasDisplayName = Object.prototype.hasOwnProperty.call(incoming, "display_name");
+    const hasCompanyName = Object.prototype.hasOwnProperty.call(incoming, "company_name");
+    const headerName = sanitizeWhiteLabelText(hasHeaderName ? incoming.header_name : current.header_name ?? "", 80);
+    const clearNamesFromHeader = hasHeaderName && !headerName && !hasDisplayName && !hasCompanyName;
+    const displayName = sanitizeWhiteLabelText(hasDisplayName ? incoming.display_name : clearNamesFromHeader ? "" : current.display_name ?? "", 80);
+    const companyName = sanitizeWhiteLabelText(hasCompanyName ? incoming.company_name : clearNamesFromHeader ? "" : current.company_name ?? "", 120);
     const incomingMetadata = incoming.metadata && typeof incoming.metadata === "object" && !Array.isArray(incoming.metadata) ? incoming.metadata as Record<string, unknown> : {};
     const currentMetadata = current.metadata && typeof current.metadata === "object" && !Array.isArray(current.metadata) ? current.metadata : {};
     const homeBranding = sanitizeHomeBranding(
@@ -1351,9 +1355,9 @@ async function startServer() {
     );
     const next: TenantBrandingSettings = {
       ...current,
-      company_name: companyName || displayName || defaultTenantBranding(tenantId).header_name,
-      display_name: displayName || companyName || defaultTenantBranding(tenantId).header_name,
-      header_name: displayName || String(incoming.header_name ?? current.header_name ?? "").trim().slice(0, 80) || defaultTenantBranding(tenantId).header_name,
+      company_name: companyName,
+      display_name: displayName,
+      header_name: headerName,
       logo_url: String(incoming.logo_url ?? current.logo_url ?? "").trim(),
       logo_mime_type: String(incoming.logo_mime_type ?? current.logo_mime_type ?? "").trim(),
       favicon_url: String(incoming.favicon_url ?? current.favicon_url ?? "").trim(),
@@ -1387,7 +1391,7 @@ async function startServer() {
     };
     tenantBrandingSettings[tenantId] = next;
     const scopedSettings = getTenantSettings(tenantId);
-    scopedSettings.branding = { ...scopedSettings.branding, companyName: next.header_name, logoUrl: next.logo_url, logoAlt: next.header_name };
+    scopedSettings.branding = { ...scopedSettings.branding, companyName: next.header_name, logoUrl: next.logo_url, logoAlt: next.header_name || "Logo da marca" };
     scopedSettings.socialLinks = { ...scopedSettings.socialLinks, whatsapp: next.support_whatsapp };
     scopedSettings.footer = { ...scopedSettings.footer, companyName: next.header_name, mission: next.footer_text };
     return next;
@@ -1396,8 +1400,8 @@ async function startServer() {
   function publicTenantBranding(branding: TenantBrandingSettings) {
     return {
       tenant_id: branding.tenant_id,
-      company_name: branding.company_name || branding.header_name,
-      display_name: branding.display_name || branding.header_name,
+      company_name: branding.company_name || "",
+      display_name: branding.display_name || "",
       header_name: branding.header_name,
       logo_url: branding.logo_url,
       logo_mime_type: branding.logo_mime_type,
@@ -2375,6 +2379,8 @@ async function startServer() {
     webhookUrl?: string;
     webhookSecret?: string;
     webhookEvents?: string;
+    releaseMode?: "PAYMENT_RECEIVED" | "PAYMENT_CONFIRMED" | string;
+    orderExpirationMinutes?: number | string;
   };
   type PaymentGatewayConfigRecord = {
     id: string;
@@ -2485,7 +2491,11 @@ async function startServer() {
   function mergeGatewaySectionPreservingSecrets(current: Record<string, unknown>, incoming: Record<string, unknown> = {}) {
     const merged = { ...current };
     for (const [key, value] of Object.entries(incoming)) {
-      merged[key] = gatewaySensitiveFieldPattern.test(key) && isMaskedGatewaySecret(value) ? current[key] : value;
+      const shouldPreserveSecret = gatewaySensitiveFieldPattern.test(key) && (
+        isMaskedGatewaySecret(value) ||
+        (typeof value === "string" && !value.trim())
+      );
+      merged[key] = shouldPreserveSecret ? current[key] : value;
     }
     return merged;
   }
@@ -8918,18 +8928,28 @@ async function startServer() {
       linkedPurchases: purchase.linkedPurchases?.map(linked => sanitizePublicPurchase(linked))
     });
     const safePix = safe as PurchaseRecord & Record<string, any>;
-    const pixPayload = String(safePix.pixPayload || safePix.pix_payload || safePix.pix_copy_paste || "");
-    const pixQrCodeBase64 = String(safePix.pixQrCodeBase64 || safePix.qrCodeBase64 || safePix.qr_code_base64 || "");
+    const pixPayload = String(safePix.pixPayload || safePix.pix_payload || safePix.pix_copy_paste || safePix.pixCopyPaste || safePix.copyPaste || safePix.paymentCode || safePix.payload || "");
+    const pixQrCodeBase64 = String(safePix.pixQrCodeBase64 || safePix.qrCodeBase64 || safePix.qr_code_base64 || safePix.encodedImage || safePix.encoded_image || safePix.pixQrCode || safePix.qrCode || "");
     if (pixPayload) {
       safePix.pixPayload = pixPayload;
       safePix.pix_payload = pixPayload;
       safePix.pix_copy_paste = pixPayload;
+      safePix.copyPaste = pixPayload;
+      safePix.paymentCode = pixPayload;
     }
     if (pixQrCodeBase64) {
       safePix.pixQrCodeBase64 = pixQrCodeBase64;
       safePix.qrCodeBase64 = pixQrCodeBase64;
       safePix.qr_code_base64 = pixQrCodeBase64;
+      safePix.pixQrCode = /^(data:image\/|https?:\/\/)/i.test(pixQrCodeBase64) ? pixQrCodeBase64 : `data:image/png;base64,${pixQrCodeBase64}`;
+      safePix.qrCode = safePix.pixQrCode;
+      safePix.encodedImage = pixQrCodeBase64;
     }
+    safePix.success = true;
+    safePix.orderId = safePix.purchaseId || safePix.id;
+    safePix.gateway = safePix.pixGateway || "asaas";
+    safePix.pixGateway = safePix.pixGateway || "asaas";
+    safePix.paymentProvider = safePix.paymentProvider || safePix.pixGateway || "asaas";
     if (safe.status !== "paid") {
       safe.numeros = [];
       safe.premiosInstantaneos = [];
@@ -10172,14 +10192,40 @@ async function startServer() {
 
   function getDefaultRafflePixConfig(): RafflePixConfig {
     return {
-      inheritGlobal: true,
+      inheritGlobal: false,
       enabled: true,
-      gateway: "mercadopago",
+      gateway: "asaas",
       sandbox: false,
       apiKey: "",
-      webhookUrl: "",
+      webhookUrl: "/api/webhooks/asaas",
       webhookSecret: "",
-      webhookEvents: "payment.created,payment.updated,payment.paid"
+      webhookEvents: "PAYMENT_RECEIVED,PAYMENT_CONFIRMED,PAYMENT_OVERDUE,PAYMENT_DELETED,PAYMENT_REFUNDED",
+      releaseMode: "PAYMENT_RECEIVED",
+      orderExpirationMinutes: 15
+    };
+  }
+
+  function normalizeRafflePixConfigForStorage(input?: Partial<RafflePixConfig>, current?: Partial<RafflePixConfig>): RafflePixConfig {
+    const merged: Record<string, unknown> = {
+      ...getDefaultRafflePixConfig(),
+      ...(current || {})
+    };
+    for (const [key, value] of Object.entries(input || {})) {
+      const shouldPreserveSecret = gatewaySensitiveFieldPattern.test(key) && (
+        isMaskedGatewaySecret(value) ||
+        (typeof value === "string" && !value.trim() && Boolean((merged as Record<string, unknown>)[key]))
+      );
+      merged[key] = shouldPreserveSecret ? merged[key] : value;
+    }
+    return {
+      ...(merged as RafflePixConfig),
+      inheritGlobal: false,
+      gateway: "asaas",
+      sandbox: false,
+      webhookUrl: "/api/webhooks/asaas",
+      webhookEvents: String(merged.webhookEvents || "PAYMENT_RECEIVED,PAYMENT_CONFIRMED,PAYMENT_OVERDUE,PAYMENT_DELETED,PAYMENT_REFUNDED"),
+      releaseMode: String(merged.releaseMode || "PAYMENT_RECEIVED") === "PAYMENT_CONFIRMED" ? "PAYMENT_CONFIRMED" : "PAYMENT_RECEIVED",
+      orderExpirationMinutes: Math.max(1, Number(merged.orderExpirationMinutes || 15))
     };
   }
 
@@ -10206,28 +10252,55 @@ async function startServer() {
   }
 
   function getRafflePixConfig(raffle?: { id?: string; tenant_id?: string; pixConfig?: Partial<RafflePixConfig> }, tenantId = raffle?.tenant_id || legacyTenantId) {
-    const local = { ...getDefaultRafflePixConfig(), ...(raffle?.pixConfig || {}) };
+    const defaults = getDefaultRafflePixConfig();
+    const localPixConfig = {
+      ...defaults,
+      ...(raffle?.pixConfig || {}),
+      inheritGlobal: false,
+      gateway: "asaas" as PixGatewayId,
+      sandbox: false,
+      webhookUrl: "/api/webhooks/asaas"
+    };
+    const localCredentials = {
+      apiKey: String(localPixConfig.apiKey || localPixConfig.pixKey || ""),
+      accessToken: String(localPixConfig.accessToken || localPixConfig.apiKey || localPixConfig.pixKey || ""),
+      clientId: String(localPixConfig.clientId || ""),
+      clientSecret: String(localPixConfig.clientSecret || ""),
+      token: String(localPixConfig.accessToken || localPixConfig.apiKey || localPixConfig.pixKey || "")
+    };
+    if (hasPixGatewayCredentials("asaas", localCredentials)) {
+      return normalizeLocalPixGatewayForCheckout(localPixConfig);
+    }
     const tenantPixGateways = getTenantGateways(tenantId);
     const defaultGatewayConfig = getDefaultPaymentGatewayConfig(tenantId);
-    const gateway = normalizePaymentProvider((local.inheritGlobal ? defaultGatewayConfig.provider : local.gateway) || "mercadopago");
+    const gateway = "asaas";
     const gatewayConfig = (tenantPixGateways[gateway as PixGatewayId] || {}) as Record<string, string>;
     const normalizedCredentials = (defaultGatewayConfig.credentials || {}) as Record<string, string>;
+    const globalCredentials = {
+      apiKey: String(normalizedCredentials.apiKey || defaultGatewayConfig.pix_key || tenantPixGateways.pix?.apiKey || gatewayConfig.apiKey || gatewayConfig.accessToken || gatewayConfig.token || ""),
+      accessToken: String(normalizedCredentials.accessToken || gatewayConfig.accessToken || gatewayConfig.token || ""),
+      clientId: String(normalizedCredentials.clientId || gatewayConfig.clientId || ""),
+      clientSecret: String(normalizedCredentials.clientSecret || gatewayConfig.clientSecret || ""),
+      token: String(gatewayConfig.token || normalizedCredentials.apiKey || defaultGatewayConfig.pix_key || "")
+    };
+    const hasGlobalAsaasCredentials = defaultGatewayConfig.enabled && hasPixGatewayCredentials("asaas", globalCredentials);
     return normalizeLocalPixGatewayForCheckout({
-      ...local,
-      enabled: local.inheritGlobal ? Boolean(defaultGatewayConfig.enabled) : Boolean(local.enabled),
-      sandbox: local.inheritGlobal ? defaultGatewayConfig.environment === "sandbox" : Boolean(local.sandbox),
+      ...localPixConfig,
+      inheritGlobal: true,
+      enabled: Boolean(hasGlobalAsaasCredentials),
+      sandbox: false,
       gateway,
-      pixKey: local.inheritGlobal ? (defaultGatewayConfig.pix_key || tenantPixGateways.pix?.pixKey || gatewayConfig.pixKey || "") : (local.pixKey || ""),
-      apiKey: local.inheritGlobal ? (normalizedCredentials.apiKey || tenantPixGateways.pix?.apiKey || gatewayConfig.apiKey || gatewayConfig.accessToken || gatewayConfig.token || "") : (local.apiKey || ""),
-      accessToken: local.inheritGlobal ? (normalizedCredentials.accessToken || gatewayConfig.accessToken || gatewayConfig.token || "") : (local.accessToken || ""),
-      publicKey: local.inheritGlobal ? (normalizedCredentials.publicKey || gatewayConfig.publicKey || "") : (local.publicKey || ""),
-      clientId: local.inheritGlobal ? (normalizedCredentials.clientId || gatewayConfig.clientId || "") : (local.clientId || ""),
-      clientSecret: local.inheritGlobal ? (normalizedCredentials.clientSecret || gatewayConfig.clientSecret || "") : (local.clientSecret || ""),
-      webhookUrl: local.inheritGlobal
-        ? (tenantPixGateways.pix?.webhookUrl || gatewayConfig.webhookUrl || `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`)
-        : (local.webhookUrl || `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`),
-      webhookSecret: local.inheritGlobal ? (defaultGatewayConfig.webhook_secret || tenantPixGateways.pix?.webhookSecret || gatewayConfig.webhookSecret || "") : (local.webhookSecret || ""),
-      webhookEvents: local.inheritGlobal ? (tenantPixGateways.pix?.webhookEvents || local.webhookEvents || "") : (local.webhookEvents || "")
+      pixKey: defaultGatewayConfig.pix_key || tenantPixGateways.pix?.pixKey || gatewayConfig.pixKey || "",
+      apiKey: globalCredentials.apiKey,
+      accessToken: normalizedCredentials.accessToken || gatewayConfig.accessToken || gatewayConfig.token || "",
+      publicKey: normalizedCredentials.publicKey || gatewayConfig.publicKey || "",
+      clientId: normalizedCredentials.clientId || gatewayConfig.clientId || "",
+      clientSecret: normalizedCredentials.clientSecret || gatewayConfig.clientSecret || "",
+      webhookUrl: "/api/webhooks/asaas",
+      webhookSecret: localPixConfig.webhookSecret || defaultGatewayConfig.webhook_secret || tenantPixGateways.pix?.webhookSecret || gatewayConfig.webhookSecret || "",
+      webhookEvents: tenantPixGateways.pix?.webhookEvents || defaults.webhookEvents || "",
+      releaseMode: String(localPixConfig.releaseMode || "PAYMENT_RECEIVED") === "PAYMENT_CONFIRMED" ? "PAYMENT_CONFIRMED" : "PAYMENT_RECEIVED",
+      orderExpirationMinutes: Math.max(1, Number(localPixConfig.orderExpirationMinutes || 15))
     });
   }
 
@@ -10265,10 +10338,10 @@ async function startServer() {
       is_default: true,
       config_json: {
         userAgent: "CIFHER Plataforma",
-        releaseMode: "PAYMENT_RECEIVED",
+        releaseMode: String(pixConfig.releaseMode || "PAYMENT_RECEIVED") === "PAYMENT_CONFIRMED" ? "PAYMENT_CONFIRMED" : "PAYMENT_RECEIVED",
         paymentMode: "pix_direct",
-        orderExpirationMinutes: 15,
-        expirationMinutes: 15,
+        orderExpirationMinutes: Math.max(1, Number(pixConfig.orderExpirationMinutes || 15)),
+        expirationMinutes: Math.max(1, Number(pixConfig.orderExpirationMinutes || 15)),
         expirationTime: 1800
       },
       created_at: now,
@@ -10280,7 +10353,10 @@ async function startServer() {
     const normalizedProvider = normalizePaymentProvider(provider);
     const localConfig = buildGatewayConfigFromRafflePixConfig(tenantId, pixConfig);
     if (localConfig && normalizePaymentProvider(localConfig.provider) === normalizedProvider) return localConfig;
-    return getDefaultPaymentGatewayConfig(tenantId);
+    const providerConfig = getPaymentGatewayConfigs(tenantId)
+      .map(config => decryptPaymentGatewayConfig(config))
+      .find(config => normalizePaymentProvider(config.provider) === normalizedProvider && config.enabled);
+    return providerConfig || getDefaultPaymentGatewayConfig(tenantId);
   }
 
   function emvField(id: string, value: string) {
@@ -10327,42 +10403,40 @@ async function startServer() {
   function detectAsaasApiKeyEnvironment(apiKey: string) {
     const normalized = String(apiKey || "").toLowerCase();
     if (normalized.includes("$aact_prod") || normalized.includes("aact_prod")) return "production";
-    if (normalized.includes("$aact_sandbox") || normalized.includes("aact_sandbox") || normalized.includes("$aact_test") || normalized.includes("aact_test")) return "sandbox";
+    if (normalized.trim()) return "production";
     return "";
   }
 
   function assertAsaasApiKeyMatchesEnvironment(apiKey: string, environment: "sandbox" | "production") {
     const keyEnvironment = detectAsaasApiKeyEnvironment(apiKey);
     if (!keyEnvironment || keyEnvironment === environment) return;
-    if (keyEnvironment === "production" && environment === "sandbox") {
-      throw new Error("Chave Asaas de produção configurada no sandbox. Desative 'Usar sandbox Asaas' neste sorteio ou informe uma chave sandbox.");
-    }
-    throw new Error("Chave Asaas sandbox configurada em produção. Ative 'Usar sandbox Asaas' neste sorteio ou informe uma chave de produção.");
+    throw new Error("Chave Asaas incompatível com produção. Informe uma chave Asaas de produção.");
   }
 
-  function resolveAsaasEnvironment(apiKey: string, configuredEnvironment: "sandbox" | "production") {
+  function resolveAsaasEnvironment(apiKey: string, configuredEnvironment: "sandbox" | "production"): "production" | "sandbox" {
     const keyEnvironment = detectAsaasApiKeyEnvironment(apiKey);
-    return keyEnvironment === "sandbox" || keyEnvironment === "production" ? keyEnvironment : configuredEnvironment;
+    return keyEnvironment === "production" ? "production" : configuredEnvironment === "production" ? "production" : "production";
   }
 
   function getAsaasGatewayConfig(tenantId: string, pixConfig?: ResolvedRafflePixConfig) {
     const config = getResolvedPaymentGatewayConfig(tenantId, "asaas", pixConfig);
     const provider = normalizePaymentProvider(config.provider);
     if (provider !== "asaas" || !config.enabled) return null;
+    const legacyAsaasConfig = (getTenantGateways(tenantId).asaas || {}) as Record<string, string>;
     const credentials = config.credentials || {};
     const configJson = config.config_json || {};
-    const apiKey = String(credentials.apiKey || config.pix_key || "");
+    const apiKey = String(credentials.apiKey || config.pix_key || legacyAsaasConfig.apiKey || process.env.ASAAS_API_KEY || "");
     if (!apiKey || isMaskedGatewaySecret(apiKey)) return null;
     const environment = resolveAsaasEnvironment(apiKey, config.environment === "sandbox" ? "sandbox" as const : "production" as const);
     assertAsaasApiKeyMatchesEnvironment(apiKey, environment);
     return {
       environment,
       apiKey,
-      webhookToken: String(config.webhook_secret || ""),
-      userAgent: String(configJson.userAgent || credentials.userAgent || "CIFHER Plataforma"),
-      releaseMode: String(configJson.releaseMode || credentials.releaseMode || "PAYMENT_RECEIVED") === "PAYMENT_CONFIRMED" ? "PAYMENT_CONFIRMED" as const : "PAYMENT_RECEIVED" as const,
-      paymentMode: String(configJson.paymentMode || credentials.paymentMode || "pix_direct"),
-      orderExpirationMinutes: Math.max(1, Number(configJson.orderExpirationMinutes || credentials.orderExpirationMinutes || 15))
+      webhookToken: String(config.webhook_secret || legacyAsaasConfig.webhookSecret || process.env.ASAAS_WEBHOOK_TOKEN || ""),
+      userAgent: String(configJson.userAgent || credentials.userAgent || legacyAsaasConfig.userAgent || "CIFHER Plataforma"),
+      releaseMode: String(configJson.releaseMode || credentials.releaseMode || legacyAsaasConfig.releaseMode || "PAYMENT_RECEIVED") === "PAYMENT_CONFIRMED" ? "PAYMENT_CONFIRMED" as const : "PAYMENT_RECEIVED" as const,
+      paymentMode: String(configJson.paymentMode || credentials.paymentMode || legacyAsaasConfig.paymentMode || "pix_direct"),
+      orderExpirationMinutes: Math.max(1, Number(configJson.orderExpirationMinutes || credentials.orderExpirationMinutes || legacyAsaasConfig.orderExpirationMinutes || 15))
     };
   }
 
@@ -10771,6 +10845,7 @@ async function startServer() {
       Object.assign(input.purchase, {
         pixPayload,
         pixGateway: "asaas",
+        paymentProvider: "asaas",
         pixWebhookUrl: "/api/webhooks/asaas",
         externalReference: asaasExternalReference,
         externalPaymentId: asaasPaymentId,
@@ -11050,7 +11125,8 @@ async function startServer() {
 
   async function attachActiveGatewayPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string; pixConfig?: ResolvedRafflePixConfig }) {
     if (input.amount <= 0) return null;
-    const selectedGateway = normalizePaymentProvider(input.pixConfig?.gateway || getDefaultPaymentGatewayConfig(input.tenantId).provider);
+    const requestedGateway = normalizePaymentProvider(input.pixConfig?.gateway || getDefaultPaymentGatewayConfig(input.tenantId).provider);
+    const selectedGateway = process.env.RIFAPRO_TEST_MODE && isInternalPixGateway(requestedGateway) ? requestedGateway : "asaas";
     if (isInternalPixGateway(selectedGateway)) {
       if (process.env.RIFAPRO_TEST_MODE) {
         const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
@@ -11085,12 +11161,9 @@ async function startServer() {
       }
       throw new Error("Gateway PIX mock/teste nao permitido no checkout publico. Configure um gateway de producao.");
     }
-    if (input.pixConfig?.sandbox && !process.env.RIFAPRO_TEST_MODE) {
-      throw new Error("Gateway PIX em sandbox/teste nao permitido no checkout publico. Configure ambiente production.");
-    }
     if (selectedGateway === "asaas") {
       if (!getAsaasGatewayConfig(input.tenantId, input.pixConfig)) {
-        throw new Error("Configuração Asaas incompleta. Informe a chave API.");
+        throw new Error("Gateway Asaas não configurado para esta campanha.");
       }
       try {
         const payment = await attachAsaasPixToOrder(input);
@@ -11098,7 +11171,7 @@ async function startServer() {
         return payment;
       } catch (error) {
         const message = error instanceof Error ? error.message : "";
-        if (message === "Configuração Asaas incompleta. Informe a chave API.") throw error;
+        if (message === "Gateway Asaas não configurado para esta campanha.") throw error;
         const providerError = error instanceof AsaasProviderError ? error : null;
         const orderId = "purchaseId" in input.purchase ? input.purchase.purchaseId : input.purchase.id;
         const payload = {
@@ -11126,27 +11199,7 @@ async function startServer() {
         throw new Error("Não foi possível gerar PIX pelo Asaas.");
       }
     }
-    if (selectedGateway === "mercadopago") {
-      if (!getMercadoPagoGatewayConfig(input.tenantId, input.pixConfig)) throw new Error("ConfiguraÃ§Ã£o Mercado Pago incompleta. Informe as credenciais.");
-      return attachMercadoPagoPixToOrder(input);
-    }
-    if (selectedGateway === "pay2m") {
-      if (!getPay2mGatewayConfig(input.tenantId, input.pixConfig)) throw new Error("ConfiguraÃ§Ã£o Pay2M incompleta. Informe as credenciais.");
-      return attachPay2mPixToOrder(input);
-    }
-    if (selectedGateway === "primepag") {
-      if (!getPrimepagGatewayConfig(input.tenantId, input.pixConfig)) throw new Error("ConfiguraÃ§Ã£o PrimePag incompleta. Informe as credenciais.");
-      return attachPrimepagPixToOrder(input);
-    }
-    if (selectedGateway === "pagbank") {
-      if (!getPagbankGatewayConfig(input.tenantId, input.pixConfig)) throw new Error("ConfiguraÃ§Ã£o PagBank incompleta. Informe as credenciais.");
-      return attachPagbankPixToOrder(input);
-    }
-    if (selectedGateway === "cora") {
-      if (!getCoraGatewayConfig(input.tenantId, input.pixConfig)) throw new Error("ConfiguraÃ§Ã£o Cora incompleta. Informe as credenciais.");
-      return attachCoraPixToOrder(input);
-    }
-    throw new Error(`Gateway PIX ${selectedGateway} nao suportado no checkout publico.`);
+    throw new Error("Gateway PIX não suportado no checkout público. Configure Asaas.");
   }
 
   function normalizeFazendinhaNumber(input: unknown) {
@@ -14272,7 +14325,7 @@ async function startServer() {
         if (tickets < minPurchaseTickets) return res.status(400).json({ error: `Quantidade mínima: ${minPurchaseTickets} cotas` });
         expirePendingReservations(tenantId, raffle.id);
         const pixConfig = getRafflePixConfig(raffle);
-        if (!pixConfig.enabled) return res.status(503).json({ error: "Gateway PIX indisponivel para este sorteio" });
+        if (!pixConfig.enabled) return res.status(503).json({ error: "Gateway Asaas não configurado para esta campanha." });
 
         const addonTickets = normalizeTickets(req.body.addon?.tickets) || 0;
         const addonRaffle = req.body.addon?.raffleId ? raffles.find(item => item.tenant_id === tenantId && item.id === req.body.addon.raffleId) : null;
@@ -14486,7 +14539,7 @@ async function startServer() {
     }
     const pixConfig = getRafflePixConfig(raffle);
     if (!pixConfig.enabled) {
-      res.status(503).json({ error: "PIX temporariamente desabilitado para este sorteio" });
+      res.status(503).json({ error: "Gateway Asaas não configurado para esta campanha." });
       return;
     }
     expirePendingReservations(tenantId, id);
@@ -21236,6 +21289,25 @@ async function startServer() {
     const terminalStatus = ["PAYMENT_OVERDUE", "PAYMENT_DELETED", "PAYMENT_REFUNDED", "OVERDUE", "DELETED", "REFUNDED"];
     if (terminalStatus.some(status => String(rawStatus || "").toUpperCase().includes(status)) && payment?.status !== "paid") {
       updatePaymentRecordStatus(tenantId, gateway, payment?.order_id || asaasPaymentId, String(rawStatus).toLowerCase(), { webhook: payload });
+      const orderToCancel = payment?.order_id || purchaseIdToConfirm || "";
+      const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === orderToCancel);
+      if (purchase && purchase.status === "pending") {
+        const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === purchase.raffleId);
+        if (raffle && purchase.numeros.length) releaseReservedNumbers(raffle, purchase.numeros);
+        purchase.status = "cancelled";
+        purchase.rejectedReason = `Asaas ${rawStatus}`;
+      }
+      const modePurchase = numberModePurchases.find(item => item.tenant_id === tenantId && item.id === orderToCancel);
+      if (modePurchase?.status === "reserved") {
+        modePurchase.status = "cancelled";
+        modePurchase.paymentStatus = "cancelled";
+      }
+      const farmPurchase = fazendinhaCompras.find(item => item.tenant_id === tenantId && item.id === orderToCancel);
+      if (farmPurchase?.statusPagamento === "reserved") {
+        farmPurchase.statusPagamento = "cancelled";
+        farmPurchase.paymentStatus = "cancelled";
+      }
+      schedulePersistentStateSave("asaas-terminal-webhook", 0);
       recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || purchaseIdToConfirm, status: "ignored", message: `Asaas ${rawStatus}`, statusCode: 200, eventStatus: rawStatus });
       const event = webhookEvents.find(item => item.id === eventKey);
       if (event) {
@@ -22032,25 +22104,69 @@ async function startServer() {
     res.json(sanitizePublicPurchase(finalPurchase));
   });
 
-  app.get("/api/checkout/orders/:orderId/status", (req, res) => {
+  async function refreshAsaasPixForPendingPurchase(tenantId: string, purchase: PurchaseRecord) {
+    if (purchase.status !== "pending") return purchase;
+    if (purchase.pixPayload && purchase.pixQrCodeBase64) return purchase;
+    if (normalizePaymentProvider(purchase.pixGateway || "") !== "asaas") return purchase;
+    const paymentId = String(purchase.externalPaymentId || payments.find(item => item.tenant_id === tenantId && item.provider === "asaas" && item.order_id === purchase.purchaseId)?.provider_payment_id || "");
+    if (!paymentId) return purchase;
+    const asaas = getAsaasProvider(tenantId);
+    if (!asaas) return purchase;
+    try {
+      const qrCode = await asaas.provider.getPixQrCode(paymentId);
+      const pixPayload = String(qrCode.payload || "");
+      const pixQrCodeBase64 = String(qrCode.encodedImage || "");
+      if (pixPayload) purchase.pixPayload = pixPayload;
+      if (pixQrCodeBase64) purchase.pixQrCodeBase64 = pixQrCodeBase64;
+      if (qrCode.expirationDate) purchase.pixExpiresAt = String(qrCode.expirationDate);
+      const payment = payments.find(item => item.tenant_id === tenantId && item.provider === "asaas" && (item.order_id === purchase.purchaseId || item.provider_payment_id === paymentId));
+      if (payment) {
+        if (pixPayload) {
+          payment.pix_payload = pixPayload;
+          payment.pix_copy_paste = pixPayload;
+        }
+        if (pixQrCodeBase64) payment.qr_code_base64 = pixQrCodeBase64;
+        if (qrCode.expirationDate) payment.expiration_date = String(qrCode.expirationDate);
+        payment.updated_at = new Date().toISOString();
+      }
+      if (pixPayload || pixQrCodeBase64) schedulePersistentStateSave("asaas-pix-recovered", 0);
+    } catch (error) {
+      recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "asaas", purchaseId: purchase.purchaseId, status: "failed", message: error instanceof Error ? error.message : "Falha ao recuperar QR Code Asaas", statusCode: 502, eventStatus: "PIX_RECOVERY_FAILED" });
+    }
+    return purchase;
+  }
+
+  app.get("/api/checkout/orders/:orderId/status", async (req, res) => {
     const orderId = String(req.params.orderId || "");
     const tenantId = resolveRequestTenantId(req);
     expireAllReservations(tenantId);
     const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === orderId);
     if (purchase) {
+      await refreshAsaasPixForPendingPurchase(tenantId, purchase);
       const expired = (purchase.status === "pending" && isPastReservationExpiry(purchase.reservedUntil || purchase.pixExpiresAt)) || (purchase.status === "cancelled" && /expirada/i.test(String(purchase.rejectedReason || "")));
       const status = expired ? "expired" : purchase.status;
+      const publicPurchase = sanitizePublicPurchase(purchase) as PurchaseRecord & Record<string, any>;
+      const pixPayload = purchase.status === "pending" && !expired ? String(publicPurchase.pixPayload || publicPurchase.pix_payload || publicPurchase.copyPaste || publicPurchase.paymentCode || "") : "";
+      const pixQrCode = purchase.status === "pending" && !expired ? String(publicPurchase.pixQrCode || publicPurchase.qrCode || "") : "";
+      const pixQrCodeBase64 = purchase.status === "pending" && !expired ? String(publicPurchase.pixQrCodeBase64 || publicPurchase.qrCodeBase64 || publicPurchase.encodedImage || "") : "";
       res.json(stripSensitiveCustomerFields({
+        success: true,
         orderId,
         type: "raffle",
         status,
         paymentStatus: status,
         paid: purchase.status === "paid",
         expired,
-        pixPayload: purchase.status === "pending" && !expired ? purchase.pixPayload : "",
+        gateway: "asaas",
+        pixGateway: "asaas",
+        paymentProvider: "asaas",
+        externalPaymentId: purchase.externalPaymentId || "",
+        pixPayload,
+        pixQrCode,
+        pixQrCodeBase64,
         pixExpiresAt: purchase.pixExpiresAt || purchase.reservedUntil,
         reservedUntil: purchase.reservedUntil,
-        purchase: sanitizePublicPurchase(purchase),
+        purchase: publicPurchase,
         ticketUrl: purchase.status === "paid" ? buildPublicTicketUrl(purchase) : "",
         message: purchase.status === "paid" ? "Pagamento confirmado" : expired ? "PIX expirado" : purchase.status === "cancelled" ? "Pedido cancelado" : "Aguardando pagamento"
       }));
@@ -22067,6 +22183,9 @@ async function startServer() {
         paymentStatus: modePurchase.status === "paid" ? "paid" : expired ? "expired" : "pending",
         paid: modePurchase.status === "paid",
         expired,
+        gateway: "asaas",
+        paymentProvider: "asaas",
+        externalPaymentId: (modePurchase as NumberModePurchase & { externalPaymentId?: string }).externalPaymentId || "",
         pixPayload: modePurchase.status === "reserved" && !expired ? ((modePurchase as NumberModePurchase & { pixPayload?: string }).pixPayload || "") : "",
         pixExpiresAt: modePurchase.pixExpiresAt || modePurchase.reservedUntil,
         reservedUntil: modePurchase.reservedUntil,
@@ -22086,6 +22205,9 @@ async function startServer() {
         paymentStatus: farmPurchase.statusPagamento === "paid" ? "paid" : expired ? "expired" : "pending",
         paid: farmPurchase.statusPagamento === "paid",
         expired,
+        gateway: "asaas",
+        paymentProvider: "asaas",
+        externalPaymentId: (farmPurchase as FazendinhaPurchase & { externalPaymentId?: string }).externalPaymentId || "",
         pixPayload: farmPurchase.statusPagamento === "reserved" && !expired ? ((farmPurchase as FazendinhaPurchase & { pixPayload?: string }).pixPayload || "") : "",
         pixExpiresAt: farmPurchase.pixExpiresAt || farmPurchase.reservedUntil,
         reservedUntil: farmPurchase.reservedUntil,
@@ -24072,7 +24194,7 @@ async function startServer() {
       ...normalizeRaffleConversionPayload(req.body),
       topSellerRewards: normalizeTopSellerRewards(req.body.topSellerRewards),
       manuallyClosedAt: req.body.status && req.body.status !== "active" ? new Date().toISOString() : "",
-      pixConfig: { ...getDefaultRafflePixConfig(), ...(req.body.pixConfig || {}) },
+      pixConfig: normalizeRafflePixConfigForStorage(req.body.pixConfig),
       videoConfig: { ...settings.mainVideoPlayer, ...(req.body.videoConfig || {}) },
       n8nEnabled: Boolean(req.body.n8nEnabled),
       lootboxEnabled: req.body.lootboxEnabled !== undefined ? Boolean(req.body.lootboxEnabled) : true,
@@ -24109,7 +24231,7 @@ async function startServer() {
         ...normalizeRaffleConversionPayload(req.body, raffles[index]),
         topSellerRewards: normalizeTopSellerRewards(req.body.topSellerRewards, (raffles[index] as any).topSellerRewards),
         manuallyClosedAt: statusChangedToActive ? "" : statusChangedToClosed ? new Date().toISOString() : raffles[index].manuallyClosedAt,
-        pixConfig: { ...getDefaultRafflePixConfig(), ...(raffles[index].pixConfig || {}), ...(req.body.pixConfig || {}) },
+        pixConfig: normalizeRafflePixConfigForStorage(req.body.pixConfig, raffles[index].pixConfig),
         videoConfig: { ...settings.mainVideoPlayer, ...(raffles[index].videoConfig || {}), ...(req.body.videoConfig || {}) },
         n8nEnabled: req.body.n8nEnabled !== undefined ? Boolean(req.body.n8nEnabled) : Boolean(raffles[index].n8nEnabled),
         lootboxEnabled: req.body.lootboxEnabled !== undefined ? Boolean(req.body.lootboxEnabled) : raffles[index].lootboxEnabled !== false,
@@ -24206,11 +24328,11 @@ async function startServer() {
       sandbox: false,
       apiKey: "",
       pixKey: "",
-      webhookUrl: "http://127.0.0.1:3000/api/webhooks/payment/mercadopago",
+      webhookUrl: "/api/webhooks/asaas",
       webhookSecret: "",
       webhookEvents: "payment.created,payment.updated,payment.paid"
     },
-    active: 'mercadopago',
+    active: 'asaas',
     mercadopago: { accessToken: '', publicKey: '', webhookUrl: '/api/webhooks/mercadopago', webhookSecret: '', environment: 'production', expirationMinutes: '15', releaseStatus: 'approved' },
     pagbank: { token: '', apiKey: '', webhookUrl: '/api/webhooks/pagbank', webhookSecret: '', environment: 'production', expirationMinutes: '15', releaseStatus: 'PAID' },
     asaas: { apiKey: '', webhookUrl: '', webhookSecret: '', environment: 'production' },
@@ -24298,7 +24420,7 @@ async function startServer() {
 
   function configFromLegacyGateway(tenantId: string): PaymentGatewayConfigRecord {
     const tenantPixGateways = getTenantGateways(tenantId);
-    const provider = normalizePaymentProvider(tenantPixGateways.active || "mercadopago");
+    const provider = "asaas";
     const gatewayConfig = (tenantPixGateways[provider] || {}) as Record<string, string>;
     const now = new Date().toISOString();
     return {
@@ -24307,7 +24429,7 @@ async function startServer() {
       provider,
       display_name: provider,
       enabled: Boolean(tenantPixGateways.pix?.enabled),
-      environment: gatewayConfig.environment === "sandbox" ? "sandbox" : gatewayConfig.environment === "mock" ? "mock" : tenantPixGateways.pix?.sandbox ? "sandbox" : "production",
+      environment: "production",
       credentials: encryptGatewayCredentialObject(gatewayCredentialsFromLegacy(provider, tenantPixGateways)),
       webhook_secret: encryptGatewaySecret(tenantPixGateways.pix?.webhookSecret || gatewayConfig.webhookSecret || ""),
       pix_key: encryptGatewaySecret(tenantPixGateways.pix?.pixKey || gatewayConfig.pixKey || tenantPixGateways.pix?.apiKey || gatewayConfig.apiKey || ""),
@@ -24329,7 +24451,11 @@ async function startServer() {
       if (value && typeof value === "object" && !Array.isArray(value)) {
         return [key, mergeCredentialObjectPreservingMasked(current[key] as Record<string, unknown>, value as Record<string, unknown>)];
       }
-      return [key, isMaskedGatewaySecret(value) ? current[key] : value];
+      const shouldPreserveSecret = gatewaySensitiveFieldPattern.test(key) && (
+        isMaskedGatewaySecret(value) ||
+        (typeof value === "string" && !value.trim())
+      );
+      return [key, shouldPreserveSecret ? current[key] : value];
     }));
   }
 
@@ -24338,16 +24464,19 @@ async function startServer() {
     const now = new Date().toISOString();
     const incomingCredentials = raw.credentials && typeof raw.credentials === "object" ? raw.credentials : {};
     const credentials = mergeCredentialObjectPreservingMasked(current?.credentials || {}, incomingCredentials);
+    const productionOnlyEnvironment = isInternalPixGateway(provider)
+      ? provider === "mock" ? "mock" : "production"
+      : "production";
     return {
       id: String(raw.id || `${tenantId}-${provider}-${createPublicId()}`),
       tenant_id: tenantId,
       provider,
       display_name: raw.display_name || provider,
       enabled: raw.enabled !== false,
-      environment: raw.environment === "sandbox" ? "sandbox" : raw.environment === "staging" ? "staging" : raw.environment === "mock" ? "mock" : "production",
+      environment: productionOnlyEnvironment,
       credentials: encryptGatewayCredentialObject(credentials),
-      webhook_secret: isMaskedGatewaySecret(raw.webhook_secret) ? (current?.webhook_secret || "") : encryptGatewaySecret(raw.webhook_secret || ""),
-      pix_key: isMaskedGatewaySecret(raw.pix_key) ? (current?.pix_key || "") : encryptGatewaySecret(raw.pix_key || ""),
+      webhook_secret: (isMaskedGatewaySecret(raw.webhook_secret) || (typeof raw.webhook_secret === "string" && !raw.webhook_secret.trim())) ? (current?.webhook_secret || "") : encryptGatewaySecret(raw.webhook_secret || ""),
+      pix_key: (isMaskedGatewaySecret(raw.pix_key) || (typeof raw.pix_key === "string" && !raw.pix_key.trim())) ? (current?.pix_key || "") : encryptGatewaySecret(raw.pix_key || ""),
       priority: Number(raw.priority || 0),
       is_default: Boolean(raw.is_default || fallbackDefault),
       config_json: { ...(current?.config_json || {}), ...(raw.config_json || {}) },
@@ -24358,14 +24487,19 @@ async function startServer() {
 
   function enforcePaymentGatewayPolicy(tenantId: string, preferredProvider?: PixGatewayId | string) {
     const configs = paymentGatewayConfigs[tenantId] || [];
-    const preferred = preferredProvider ? normalizePaymentProvider(preferredProvider) : "";
-    if (preferred) {
-      configs.forEach(config => {
-        if (normalizePaymentProvider(config.provider) === preferred) {
-          config.enabled = true;
-          config.priority = 0;
-        }
-      });
+    const preferred = "asaas";
+    configs.forEach(config => {
+      config.environment = isInternalPixGateway(config.provider) && process.env.RIFAPRO_TEST_MODE ? config.environment : "production";
+      if (normalizePaymentProvider(config.provider) === preferred) {
+        config.enabled = true;
+        config.priority = 0;
+      } else {
+        config.enabled = false;
+        config.priority = Math.max(100, Number(config.priority || 100));
+      }
+    });
+    if (!configs.some(config => normalizePaymentProvider(config.provider) === "asaas")) {
+      configs.unshift(configFromLegacyGateway(tenantId));
     }
     const enabled = configs
       .filter(config => config.enabled)
@@ -24378,6 +24512,7 @@ async function startServer() {
         return Number(a.priority || 0) - Number(b.priority || 0);
       });
     configs.forEach(config => {
+      if (!isInternalPixGateway(config.provider)) config.environment = "production";
       config.is_default = false;
       config.config_json = { ...(config.config_json || {}) };
       delete config.config_json.gatewayPolicyError;
@@ -24406,20 +24541,21 @@ async function startServer() {
 
   function getDefaultPaymentGatewayConfig(tenantId: string) {
     const configs = getPaymentGatewayConfigs(tenantId);
-    const config = configs.find(config => config.is_default && config.enabled) || configs.find(config => config.enabled) || configFromLegacyGateway(tenantId);
+    const config = configs.find(config => normalizePaymentProvider(config.provider) === "asaas" && config.enabled)
+      || configFromLegacyGateway(tenantId);
     return decryptPaymentGatewayConfig(config);
   }
 
   function syncLegacyGatewaysFromConfigs(tenantId: string) {
     const tenantPixGateways = getTenantGateways(tenantId);
     const defaultConfig = getDefaultPaymentGatewayConfig(tenantId);
-    const provider = normalizePaymentProvider(defaultConfig.provider);
-    tenantPixGateways.active = provider;
+    const provider = "asaas";
+    tenantPixGateways.active = "asaas";
     tenantPixGateways.pix = {
       ...tenantPixGateways.pix,
       enabled: defaultConfig.enabled,
-      sandbox: defaultConfig.environment !== "production",
-      webhookUrl: provider === "primepag" ? "/api/webhooks/primepag" : provider === "cora" ? "/api/webhooks/cora" : provider === "mercadopago" ? "/api/webhooks/mercadopago" : provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : provider === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`,
+      sandbox: false,
+      webhookUrl: "/api/webhooks/asaas",
       webhookSecret: defaultConfig.webhook_secret || tenantPixGateways.pix?.webhookSecret || "",
       apiKey: defaultConfig.pix_key || tenantPixGateways.pix?.apiKey || ""
     };
@@ -24428,7 +24564,7 @@ async function startServer() {
       ...Object.fromEntries(Object.entries(defaultConfig.credentials || {}).map(([key, value]) => [key, String(value || "")])),
       ...Object.fromEntries(Object.entries(defaultConfig.config_json || {}).map(([key, value]) => [key, String(value || "")])),
       webhookSecret: defaultConfig.webhook_secret || "",
-      webhookUrl: provider === "mercadopago" ? "/api/webhooks/mercadopago" : provider === "asaas" ? "/api/webhooks/asaas" : provider === "pay2m" ? "/api/webhooks/pay2m" : provider === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${provider}`
+      webhookUrl: "/api/webhooks/asaas"
     };
     if (tenantId === legacyTenantId) gateways = tenantPixGateways;
   }
@@ -24837,13 +24973,24 @@ async function startServer() {
     const tenantId = resolveRequestTenantId(req);
     const tenantPixGateways = getTenantGateways(tenantId);
     const defaultGatewayConfig = getDefaultPaymentGatewayConfig(tenantId);
-    const gateway = normalizePaymentProvider(req.body.gateway || defaultGatewayConfig.provider || tenantPixGateways.active || "mercadopago");
-    const pixConfig = (tenantPixGateways.pix || {}) as Record<string, string | boolean>;
+    const gateway = "asaas";
+    const incomingPixConfig = req.body?.pix && typeof req.body.pix === "object" && !Array.isArray(req.body.pix)
+      ? req.body.pix as Record<string, string | boolean>
+      : {};
+    const pixConfig = { ...((tenantPixGateways.pix || {}) as Record<string, string | boolean>), ...incomingPixConfig };
     const gatewayConfig = (tenantPixGateways[gateway] || {}) as Record<string, string>;
+    const incomingGatewayConfig = req.body?.config && typeof req.body.config === "object" && !Array.isArray(req.body.config)
+      ? req.body.config as Record<string, unknown>
+      : {};
+    const incomingApiKey = !isMaskedGatewaySecret(incomingGatewayConfig.apiKey)
+      ? String(incomingGatewayConfig.apiKey || "").trim()
+      : "";
+    const incomingEnvironment = resolveAsaasEnvironment(incomingApiKey, String(incomingGatewayConfig.environment || "production") === "sandbox" ? "sandbox" : "production");
     const officialGatewayConfig = getPaymentGatewayConfigs(tenantId)
       .map(config => decryptPaymentGatewayConfig(config))
-      .find(config => normalizePaymentProvider(config.provider) === gateway && config.enabled);
+      .find(config => normalizePaymentProvider(config.provider) === gateway);
     const officialAsaasApiKey = String(officialGatewayConfig?.credentials?.apiKey || officialGatewayConfig?.pix_key || "");
+    const effectiveAsaasApiKey = incomingApiKey || officialAsaasApiKey;
     const credentialFields: Record<PixGatewayId, string[]> = {
       mercadopago: ["accessToken", "publicKey"],
       pagbank: ["token"],
@@ -24866,29 +25013,32 @@ async function startServer() {
       return Boolean(value && !isMaskedGatewaySecret(value));
     }).map(field => `credentials.${field}`);
     const legacyPresentCredentials = fields.filter(field => Boolean(gatewayConfig[field] && !isMaskedGatewaySecret(gatewayConfig[field])));
-    const presentCredentials = gateway === "asaas" && officialAsaasApiKey && !isMaskedGatewaySecret(officialAsaasApiKey)
+    const presentCredentials = gateway === "asaas" && effectiveAsaasApiKey && !isMaskedGatewaySecret(effectiveAsaasApiKey)
       ? ["credentials.apiKey"]
       : officialPresentCredentials.length
         ? officialPresentCredentials
         : legacyPresentCredentials;
-    const hasGatewayCredentials = presentCredentials.length > 0 || Boolean(!officialGatewayConfig && gateway !== "asaas" && pixConfig.apiKey);
-    const webhookUrl = gateway === "asaas" ? "/api/webhooks/asaas" : gatewayConfig.webhookUrl || String(pixConfig.webhookUrl || "") || `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`;
-    const recommendedWebhookPath = gateway === "primepag" ? "/api/webhooks/primepag" : gateway === "cora" ? "/api/webhooks/cora" : gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `/api/webhooks/payment/${gateway}`;
+    const hasGatewayCredentials = presentCredentials.length > 0;
+    const effectiveEnvironment = resolveAsaasEnvironment(effectiveAsaasApiKey, officialGatewayConfig?.environment === "sandbox" ? "sandbox" : "production");
+    const webhookUrl = "/api/webhooks/asaas";
+    const recommendedWebhookPath = "/api/webhooks/asaas";
     const issues = [
-      ...(!defaultGatewayConfig.enabled ? ["PIX global está desabilitado"] : []),
-      ...(!hasGatewayCredentials ? [gateway === "asaas" ? "Nenhuma API Key Asaas configurada. Salve a Chave Privada antes de testar." : "Nenhuma credencial/API key configurada para este gateway"] : []),
+      ...(!(pixConfig.enabled !== false || defaultGatewayConfig.enabled) ? ["PIX global está desabilitado"] : []),
+      ...(!hasGatewayCredentials ? ["Nenhuma API Key Asaas configurada. Salve a Chave Privada antes de testar."] : []),
       ...(!webhookUrl.includes(recommendedWebhookPath) ? [`Webhook recomendado deve apontar para ${recommendedWebhookPath}`] : []),
     ];
-    if (gateway === "asaas" && issues.length === 0) {
+    if (issues.length === 0) {
       try {
         const officialConfigJson = officialGatewayConfig?.config_json || {};
         const officialCredentials = officialGatewayConfig?.credentials || {};
-        const asaasTestProvider = officialGatewayConfig && officialAsaasApiKey
+        const asaasTestProvider = effectiveAsaasApiKey
           ? new AsaasProvider({
-            environment: officialGatewayConfig.environment === "production" ? "production" as const : "sandbox" as const,
-            apiKey: officialAsaasApiKey,
-            userAgent: String(officialConfigJson.userAgent || officialCredentials.userAgent || "CIFHER Plataforma"),
-            timeoutMs: Math.max(1000, Number(officialConfigJson.timeoutMs || officialCredentials.timeoutMs || 15000))
+            environment: incomingApiKey
+              ? incomingEnvironment as "sandbox" | "production"
+              : effectiveEnvironment,
+            apiKey: effectiveAsaasApiKey,
+            userAgent: String(incomingGatewayConfig.userAgent || officialConfigJson.userAgent || officialCredentials.userAgent || "CIFHER Plataforma"),
+            timeoutMs: Math.max(1000, Number(incomingGatewayConfig.timeoutMs || officialConfigJson.timeoutMs || officialCredentials.timeoutMs || 15000))
           })
           : getAsaasProvider(tenantId)?.provider;
         if (!asaasTestProvider) throw new Error("Nenhuma API Key Asaas configurada. Salve a Chave Privada antes de testar.");
@@ -24898,51 +25048,14 @@ async function startServer() {
         issues.push(error instanceof Error ? error.message : "Falha ao testar conexao Asaas");
       }
     }
-    if (gateway === "pay2m" && issues.length === 0) {
-      try {
-        await getPay2mProvider(tenantId)?.provider.testConnection();
-        recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "pay2m", status: "received", message: "Conexao Pay2M testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
-      } catch (error) {
-        issues.push(error instanceof Error ? error.message : "Falha ao testar conexao Pay2M");
-      }
-    }
-    if (gateway === "primepag" && issues.length === 0) {
-      try {
-        await getPrimepagProvider(tenantId)?.provider.testConnection();
-        recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "primepag", status: "received", message: "Conexao PrimePag testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
-      } catch (error) {
-        issues.push(error instanceof Error ? error.message : "Falha ao testar conexao PrimePag");
-      }
-    }
-    if (gateway === "pagbank" && issues.length === 0) {
-      try {
-        await getPagbankProvider(tenantId)?.provider.testConnection();
-        recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "pagbank", status: "received", message: "Conexao PagBank testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
-      } catch (error) {
-        issues.push(error instanceof Error ? error.message : "Falha ao testar conexao PagBank");
-      }
-    }
-    if (gateway === "mercadopago" && issues.length === 0) {
-      try {
-        await getMercadoPagoProvider(tenantId)?.provider.testConnection();
-        recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "mercadopago", status: "received", message: "Conexao Mercado Pago testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
-      } catch (error) {
-        issues.push(error instanceof Error ? error.message : "Falha ao testar conexao Mercado Pago");
-      }
-    }
-    if (gateway === "cora" && issues.length === 0) {
-      try {
-        await getCoraProvider(tenantId)?.provider.testConnection();
-        recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "cora", status: "received", message: "Conexao Cora testada com sucesso", statusCode: 200, eventStatus: "CONNECTION_TEST" });
-      } catch (error) {
-        issues.push(error instanceof Error ? error.message : "Falha ao testar conexao Cora");
-      }
-    }
     res.json({
       gateway,
       ok: issues.length === 0,
       status: !hasGatewayCredentials ? "not_configured" : issues.length === 0 ? "configured" : "needs_attention",
-      mode: defaultGatewayConfig.environment === "production" ? "production" : "sandbox",
+      mode: "production",
+      environment: effectiveEnvironment,
+      configuredProvider: defaultGatewayConfig.provider,
+      activeProvider: tenantPixGateways.active,
       webhookUrl,
       credentials: presentCredentials,
       issues,
@@ -24957,42 +25070,8 @@ async function startServer() {
       : Array.isArray(req.body?.paymentGatewayConfigs)
         ? req.body.paymentGatewayConfigs
         : [];
-    const requestedProvider = normalizePaymentProvider(
-      req.body?.active ||
-      incomingConfigs.find((config: Partial<PaymentGatewayConfigRecord>) => config?.is_default)?.provider ||
-      incomingConfigs[0]?.provider ||
-      req.body?.pix?.gateway ||
-      currentGateways.active ||
-      "mercadopago"
-    );
-    if (incomingConfigs.length) {
-      const currentConfigs = getPaymentGatewayConfigs(tenantId);
-      paymentGatewayConfigs[tenantId] = incomingConfigs.map((config: Partial<PaymentGatewayConfigRecord>, index: number) => {
-        const provider = normalizePaymentProvider(config.provider);
-        const current = currentConfigs.find(item => item.id === config.id || normalizePaymentProvider(item.provider) === provider);
-        const isRequestedProvider = provider === requestedProvider;
-        return normalizePaymentGatewayConfig(tenantId, {
-          ...config,
-          enabled: isRequestedProvider ? true : config.enabled,
-          is_default: isRequestedProvider,
-          priority: isRequestedProvider ? 0 : config.priority
-        }, index === 0 && !requestedProvider, current);
-      });
-      if (!paymentGatewayConfigs[tenantId].some(config => normalizePaymentProvider(config.provider) === requestedProvider)) {
-        paymentGatewayConfigs[tenantId].unshift(normalizePaymentGatewayConfig(tenantId, {
-          provider: requestedProvider,
-          enabled: true,
-          environment: req.body?.pix?.sandbox ? "sandbox" : "production",
-          credentials: gatewayCredentialsFromLegacy(requestedProvider, currentGateways),
-          webhook_secret: String(req.body?.pix?.webhookSecret || currentGateways.pix?.webhookSecret || ""),
-          pix_key: String(req.body?.pix?.apiKey || currentGateways.pix?.apiKey || ""),
-          is_default: true,
-          priority: 0
-        }, true));
-      }
-      enforcePaymentGatewayPolicy(tenantId, requestedProvider);
-    }
-    const updatedGateways = {
+    const requestedProvider = "asaas";
+    const requestedGateways = {
       ...currentGateways,
       ...req.body,
       pix: mergeGatewaySectionPreservingSecrets(currentGateways.pix, req.body.pix || {}),
@@ -25009,17 +25088,62 @@ async function startServer() {
       sandbox: mergeGatewaySectionPreservingSecrets(currentGateways.sandbox, req.body.sandbox || {}),
       mock: mergeGatewaySectionPreservingSecrets(currentGateways.mock, req.body.mock || {})
     };
-    updatedGateways.active = requestedProvider;
+    if (incomingConfigs.length) {
+      const currentConfigs = getPaymentGatewayConfigs(tenantId);
+      paymentGatewayConfigs[tenantId] = incomingConfigs.map((config: Partial<PaymentGatewayConfigRecord>, index: number) => {
+        const provider = normalizePaymentProvider(config.provider);
+        const current = currentConfigs.find(item => item.id === config.id || normalizePaymentProvider(item.provider) === provider);
+        const isRequestedProvider = provider === requestedProvider;
+        const incomingAsaasKey = provider === "asaas" && !isMaskedGatewaySecret((config.credentials || {})?.apiKey)
+          ? String((config.credentials || {})?.apiKey || "")
+          : "";
+        const normalizedEnvironment = provider === "asaas" && incomingAsaasKey
+          ? resolveAsaasEnvironment(incomingAsaasKey, config.environment === "sandbox" ? "sandbox" : "production")
+          : config.environment;
+        const sectionCredentials = gatewayCredentialsFromLegacy(provider, requestedGateways);
+        return normalizePaymentGatewayConfig(tenantId, {
+          ...config,
+          credentials: {
+            ...sectionCredentials,
+            ...(config.credentials || {})
+          },
+          environment: normalizedEnvironment,
+          enabled: isRequestedProvider ? true : config.enabled,
+          is_default: isRequestedProvider,
+          priority: isRequestedProvider ? 0 : config.priority
+        }, index === 0 && !requestedProvider, current);
+      });
+      if (!paymentGatewayConfigs[tenantId].some(config => normalizePaymentProvider(config.provider) === requestedProvider)) {
+        paymentGatewayConfigs[tenantId].unshift(normalizePaymentGatewayConfig(tenantId, {
+          provider: requestedProvider,
+          enabled: true,
+          environment: requestedProvider === "asaas"
+            ? resolveAsaasEnvironment(String(req.body?.asaas?.apiKey || ""), String(req.body?.asaas?.environment || "production") === "sandbox" ? "sandbox" : "production")
+            : req.body?.pix?.sandbox ? "sandbox" : "production",
+          credentials: gatewayCredentialsFromLegacy(requestedProvider, requestedGateways),
+          webhook_secret: String(req.body?.pix?.webhookSecret || currentGateways.pix?.webhookSecret || ""),
+          pix_key: String(req.body?.pix?.apiKey || currentGateways.pix?.apiKey || ""),
+          is_default: true,
+          priority: 0
+        }, true));
+      }
+      enforcePaymentGatewayPolicy(tenantId, requestedProvider);
+    }
+    const updatedGateways = requestedGateways;
+    updatedGateways.active = "asaas";
     if (updatedGateways.active === "asaas") {
+      const asaasApiKey = String(updatedGateways.asaas?.apiKey || "");
+      const asaasEnvironment = resolveAsaasEnvironment(asaasApiKey, String(updatedGateways.asaas?.environment || "production") === "sandbox" ? "sandbox" : "production");
       updatedGateways.asaas = {
         ...(updatedGateways.asaas || {}),
+        environment: asaasEnvironment,
         webhookUrl: "/api/webhooks/asaas"
       };
     }
     updatedGateways.pix = {
       ...updatedGateways.pix,
-      sandbox: updatedGateways.active === "primepag" ? updatedGateways.primepag?.environment !== "production" : updatedGateways.active === "cora" ? updatedGateways.cora?.environment !== "production" : updatedGateways.active === "mercadopago" ? updatedGateways.mercadopago?.environment !== "production" : updatedGateways.active === "asaas" ? updatedGateways.asaas?.environment !== "production" : updatedGateways.active === "pay2m" ? updatedGateways.pay2m?.environment !== "production" : updatedGateways.active === "pagbank" ? updatedGateways.pagbank?.environment !== "production" : updatedGateways.pix?.sandbox,
-      webhookUrl: updatedGateways.active === "primepag" ? "/api/webhooks/primepag" : updatedGateways.active === "cora" ? "/api/webhooks/cora" : updatedGateways.active === "mercadopago" ? "/api/webhooks/mercadopago" : updatedGateways.active === "asaas" ? "/api/webhooks/asaas" : updatedGateways.active === "pay2m" ? "/api/webhooks/pay2m" : updatedGateways.active === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${updatedGateways.active}`
+      sandbox: false,
+      webhookUrl: "/api/webhooks/asaas"
     };
     tenantGateways[tenantId] = updatedGateways;
     if (tenantId === legacyTenantId) gateways = updatedGateways;
@@ -25027,7 +25151,7 @@ async function startServer() {
       paymentGatewayConfigs[tenantId] = [normalizePaymentGatewayConfig(tenantId, {
         provider: updatedGateways.active,
         enabled: Boolean(updatedGateways.pix?.enabled),
-        environment: updatedGateways.pix?.sandbox ? "sandbox" : "production",
+        environment: "production",
         credentials: gatewayCredentialsFromLegacy(updatedGateways.active as PixGatewayId, updatedGateways),
         webhook_secret: String(updatedGateways.pix?.webhookSecret || ""),
         pix_key: String(updatedGateways.pix?.apiKey || ""),

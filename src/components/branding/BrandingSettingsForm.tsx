@@ -19,6 +19,54 @@ export function BrandingSettingsForm({
 }) {
   const set = (field: string, nextValue: any) => onChange({ ...value, [field]: nextValue });
   const homeBranding = value.home_branding || value.homeBranding || value.metadata?.homeBranding || {};
+  const mergeUploadedBranding = (uploaded: any) => {
+    const nextLogoUrl = uploaded.logo_url || value.logo_url || "";
+    const nextLoginLogoUrl = uploaded.login_logo_url || value.login_logo_url || nextLogoUrl;
+    const nextFaviconUrl = uploaded.favicon_url || value.favicon_url || "";
+    const uploadedHomeBranding = uploaded.home_branding || uploaded.homeBranding || uploaded.metadata?.homeBranding || {};
+    onChange({
+      ...uploaded,
+      logo_url: nextLogoUrl,
+      login_logo_url: nextLoginLogoUrl,
+      favicon_url: nextFaviconUrl,
+      logo_mime_type: uploaded.logo_mime_type || value.logo_mime_type || "",
+      header_name: value.header_name || "",
+      display_name: value.display_name || "",
+      company_name: value.company_name || "",
+      home_branding: {
+        ...uploadedHomeBranding,
+        ...homeBranding,
+        showName: (value.header_name || value.display_name || value.company_name || "").trim() ? homeBranding.showName !== false : false
+      },
+      metadata: {
+        ...(uploaded.metadata || {}),
+        homeBranding: {
+          ...uploadedHomeBranding,
+          ...homeBranding,
+          showName: (value.header_name || value.display_name || value.company_name || "").trim() ? homeBranding.showName !== false : false
+        }
+      }
+    });
+  };
+  const setBrandName = (nextValue: string) => {
+    onChange({
+      ...value,
+      header_name: nextValue,
+      display_name: nextValue,
+      company_name: nextValue,
+      home_branding: {
+        ...homeBranding,
+        showName: nextValue.trim() ? homeBranding.showName !== false : false
+      },
+      metadata: {
+        ...(value.metadata || {}),
+        homeBranding: {
+          ...homeBranding,
+          showName: nextValue.trim() ? homeBranding.showName !== false : false
+        }
+      }
+    });
+  };
   const setHomeBranding = (field: string, nextValue: any) => {
     const nextHomeBranding = {
       brandLayout: "centered",
@@ -37,7 +85,7 @@ export function BrandingSettingsForm({
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="premium-card grid gap-4 p-5">
-        <label className="grid gap-2 text-sm font-semibold text-slate-300">Nome no cabeçalho<input value={value.header_name || ""} onChange={event => set("header_name", event.target.value)} className="admin-input" placeholder="CIFHER Prime" /></label>
+        <label className="grid gap-2 text-sm font-semibold text-slate-300">Nome no cabeçalho (opcional)<input value={value.header_name || ""} onChange={event => setBrandName(event.target.value)} className="admin-input" placeholder="Deixe vazio para usar apenas a logo" /></label>
         <label className="grid gap-2 text-sm font-semibold text-slate-300">Frase institucional<input value={value.slogan || ""} onChange={event => set("slogan", event.target.value)} className="admin-input" placeholder="Tecnologia premium para gestao avancada" /></label>
         <label className="grid gap-2 text-sm font-semibold text-slate-300">WhatsApp suporte<input value={value.support_whatsapp || ""} onChange={event => set("support_whatsapp", event.target.value)} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-semibold text-slate-300">Texto do rodape<textarea value={value.footer_text || ""} onChange={event => set("footer_text", event.target.value)} className="admin-input min-h-24" /></label>
@@ -56,6 +104,14 @@ export function BrandingSettingsForm({
             <p className="mt-1 text-xs text-slate-400">Configure a marca e os canais exibidos dentro da Home Premium V1.</p>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
+            <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm font-bold ${homeBranding.showName !== false ? "border-amber-300/50 bg-amber-300/10 text-white" : "border-white/10 bg-black/20 text-slate-300"}`}>
+              <input
+                type="checkbox"
+                checked={homeBranding.showName !== false}
+                onChange={event => setHomeBranding("showName", event.target.checked)}
+              />
+              Exibir nome junto da logo
+            </label>
             <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm font-bold ${homeBranding.brandLayout !== "inline" ? "border-amber-300/50 bg-amber-300/10 text-white" : "border-white/10 bg-black/20 text-slate-300"}`}>
               <input
                 type="radio"
@@ -108,8 +164,8 @@ export function BrandingSettingsForm({
           </select>
         </label>
         <div className="flex flex-wrap gap-3">
-          <LogoUploader endpoint={logoEndpoint} onUploaded={onChange} label="Enviar logo/GIF" />
-          <LogoUploader endpoint={faviconEndpoint} onUploaded={onChange} label="Enviar favicon/GIF" />
+          <LogoUploader endpoint={logoEndpoint} onUploaded={mergeUploadedBranding} label="Enviar logo/GIF" />
+          <LogoUploader endpoint={faviconEndpoint} onUploaded={mergeUploadedBranding} label="Enviar favicon/GIF" />
           <button type="button" onClick={onSave} className="premium-button rounded-xl px-5 py-3">Salvar marca</button>
           <button type="button" onClick={onReset} className="premium-button-ghost min-h-12 rounded-xl px-5 py-3 text-sm font-bold">Resetar padrão</button>
         </div>

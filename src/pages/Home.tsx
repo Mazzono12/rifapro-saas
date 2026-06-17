@@ -26,6 +26,7 @@ import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock
 import { cn } from "../lib/utils";
 import type { ResponsiveMediaAspectMode } from "../utils/mediaAspect";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
+import { PublicBrandMark } from "../components/branding/PublicBrandMark";
 
 /* public-home-premium-v1 contract: cfx-home-premium-v1 HomeV1Hero StandardRaffleMediaBlock className="cfx-home-media-block" */
 
@@ -421,15 +422,14 @@ function RifaProLoading() {
 
 function HomeV1Brand({ branding }: { branding: any }) {
   const layout = branding?.home_branding?.brandLayout === "inline" ? "inline" : "centered";
-  const name = safeText(branding?.display_name || branding?.header_name || branding?.company_name, "CIFHER");
   return (
     <header className={cn("cfx-v1-brand", layout === "inline" && "is-inline")}>
-      {branding?.logo_url ? (
-        <img src={branding.logo_url} alt={name} />
-      ) : (
-        <span className="cfx-v1-brand-mark"><Crown /></span>
-      )}
-      <strong>{name}</strong>
+      <PublicBrandMark
+        eager
+        inline={layout === "inline"}
+        logoClassName="cfx-v1-brand-logo"
+        nameClassName="cfx-v1-brand-title"
+      />
     </header>
   );
 }

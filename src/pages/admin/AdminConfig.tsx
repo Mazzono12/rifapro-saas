@@ -212,7 +212,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     });
     if (!res.ok) throw new Error("Não foi possível salvar aparência");
     setBranding(await res.json());
-    await refreshTenantBranding();
+    await refreshTenantBranding(true);
     toast.success("Aparência salva");
   };
 
@@ -220,7 +220,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     const res = await fetch("/api/admin/branding/reset", { method: "POST" });
     if (!res.ok) throw new Error("Não foi possível resetar aparência");
     setBranding(await res.json());
-    await refreshTenantBranding();
+    await refreshTenantBranding(true);
     toast.success("Aparência resetada");
   };
 

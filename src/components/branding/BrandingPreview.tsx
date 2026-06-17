@@ -9,17 +9,19 @@ export function BrandingPreview({ branding }: { branding: any }) {
   const loginPrimary = branding.login_primary_color || branding.primary_color || "#00d66b";
   const loginAccent = branding.login_accent_color || branding.cta_color || "#f5c451";
   const loginLogo = branding.login_logo_url || branding.logo_url;
+  const brandName = String(branding.display_name || branding.header_name || branding.company_name || "").trim();
+  const showName = branding.home_branding?.showName !== false && Boolean(brandName);
   return (
     <div className="grid gap-4">
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/50">
       <div className="flex items-center gap-3 border-b border-white/10 p-4" style={{ ["--tenant-primary" as string]: branding.primary_color || "#00d66b" }}>
         {branding.logo_url ? (
-          <ResponsiveMediaFrame src={branding.logo_url} type="image" alt={branding.header_name} preferredFit="contain" aspectMode="square" className="h-11 w-11 rounded-xl border border-white/10" />
+          <ResponsiveMediaFrame src={branding.logo_url} type="image" alt={brandName || "Logo da marca"} preferredFit="contain" aspectMode="square" className="h-11 w-11 rounded-xl border border-white/10" />
         ) : <TenantLogo />}
-        <div>
-          <p className="text-lg font-black text-white">{branding.header_name || "CIFHER Prime"}</p>
+        {showName && <div>
+          <p className="text-lg font-black text-white">{brandName}</p>
           <p className="text-xs font-semibold text-slate-400">{branding.slogan || "Sorteios premium"}</p>
-        </div>
+        </div>}
       </div>
       <div className="p-4">
         <button type="button" className="rounded-2xl px-5 py-3 text-sm font-black" style={{ background: ctaColor, color: ctaTextColor }}>

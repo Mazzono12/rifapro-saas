@@ -26,10 +26,14 @@ const publicBottomNav = read("src/components/PublicBottomNav.tsx");
 const navbar = read("src/components/Navbar.tsx");
 const server = read("server.ts");
 const app = read("src/App.tsx");
+const sorteios = read("src/pages/Sorteios.tsx");
+const dashboard = read("src/pages/Dashboard.tsx");
+const publicBrandMark = read("src/components/branding/PublicBrandMark.tsx");
 
 hasAll(home, [
   "cfx-home-premium-v1",
   "HomeV1Brand",
+  "PublicBrandMark",
   "HomeV1Hero",
   "HomeV1Meta",
   "HomeV1LivePurchases",
@@ -77,8 +81,10 @@ assert.ok(
 
 hasAll(css, [
   "HOME PREMIUM V1 MOBILE",
+  ".public-brand-mark",
+  ".public-brand-logo",
+  ".public-brand-name",
   ".cfx-home-premium-v1",
-  ".public-shell:has(.cfx-home-premium-v1) .premium-site-header",
   ".cfx-v1-shell",
   "width: min(100%, 540px)",
   "width: min(92vw, 420px)",
@@ -93,10 +99,15 @@ hasAll(css, [
   ".cfx-v1-chance-grid",
   ".cfx-v1-safe-strip"
 ], "CSS deve estilizar a Home Premium V1 mobile-first");
+hasNone(css, [
+  ".public-shell:has(.cfx-home-premium-v1) .premium-site-header",
+  ".public-shell:has(.cfx-customer-page) .premium-site-header"
+], "Header publico nao deve ser escondido por seletor :has das paginas publicas principais");
 
 hasAll(brandingContext, [
   "home_branding",
   "brandLayout",
+  "showName",
   "\"centered\"",
   "\"inline\"",
   "officialGroup"
@@ -104,6 +115,9 @@ hasAll(brandingContext, [
 
 hasAll(brandingSettings, [
   "Branding Home",
+  "Nome no cabeçalho (opcional)",
+  "Deixe vazio para usar apenas a logo",
+  "Exibir nome junto da logo",
   "Logo Centralizada",
   "Logo + Texto Lateral",
   "WhatsApp da Home",
@@ -115,9 +129,18 @@ hasAll(server, [
   "sanitizeHomeBranding",
   "home_branding",
   "homeBranding",
+  "showName",
   "officialGroup",
   "brandLayout === \"inline\" ? \"inline\" : \"centered\""
 ], "Backend deve sanitizar e publicar Branding Home");
+hasNone(server, [
+  "current.company_name ||= current.header_name",
+  "current.display_name ||= current.header_name",
+  "current.header_name = normalizeLegacyBrandText(current.header_name)",
+  "company_name: companyName || displayName || defaultTenantBranding(tenantId).header_name",
+  "display_name: displayName || companyName || defaultTenantBranding(tenantId).header_name",
+  "header_name: displayName || String(incoming.header_name ?? current.header_name ?? \"\").trim().slice(0, 80) || defaultTenantBranding(tenantId).header_name"
+], "Backend deve permitir marca sem nome exibido quando a logo for suficiente");
 
 hasAll(adminRaffles, [
   "Selo da edição",
@@ -125,6 +148,12 @@ hasAll(adminRaffles, [
   "homeEditionLabel",
   "1ª EDIÇÃO"
 ], "Admin da campanha deve permitir configurar selo da edicao");
+hasAll(adminRaffles, [
+  "PIX individual do sorteio",
+  "updateRafflePixConfig",
+  "RafflePixConfig",
+  "Chave privada Asaas deste sorteio"
+], "Admin da campanha deve expor PIX individual por sorteio");
 
 hasAll(publicBottomNav, [
   "label: \"Início\"",
@@ -136,19 +165,46 @@ hasAll(publicBottomNav, [
 ], "Menu inferior publico deve manter os quatro itens solicitados");
 hasNone(publicBottomNav, ["label: \"WhatsApp\"", "label: \"Instagram\""], "Menu inferior publico nao deve ter links sociais");
 hasAll(navbar, [
+  "PublicBrandMark",
   "label: \"Sorteios\"",
   "to: \"/sorteios\""
-], "Menu inferior da Home/Navbar deve apontar Sorteios para a rota oficial");
+], "Menu inferior da Home/Navbar deve apontar Sorteios para a rota oficial e usar marca global");
 hasNone(navbar, ["label: \"WhatsApp\"", "label: \"Instagram\""], "Menu inferior global da Navbar nao deve ter links sociais");
+hasAll(publicBrandMark, [
+  "useTenantBranding",
+  "branding.logo_url",
+  "branding.display_name || branding.header_name || branding.company_name || \"\"",
+  "branding.home_branding?.showName !== false",
+  "logo-only",
+  "ResponsiveMediaFrame",
+  "public-brand-logo"
+], "Marca publica deve vir do branding global do tenant");
 
 hasAll(app, [
   "<Route path=\"/\" element={<Home />} />",
+  "const isHomeRoute = location.pathname === \"/\"",
+  "{!isHomeRoute && !isRaffleRoute && <Navbar />}",
+  "{(isHomeRoute || isRaffleRoute) && <PublicBottomNav />}",
   "<Route path=\"/sorteio\" element={<Navigate to=\"/sorteios\" replace />} />",
   "<Route path=\"/campanhas\" element={<Navigate to=\"/sorteios\" replace />} />",
   "<Route path=\"/rifas\" element={<Navigate to=\"/sorteios\" replace />} />",
   "<Route path=\"/sorteios\" element={<Sorteios />} />",
-  "<Route path=\"/ganhadores\" element={<Winners />} />"
+  "<Route path=\"/ganhadores\" element={<Winners />} />",
+  "<Route path=\"/perfil\" element={<UserDashboard />} />",
+  "<Route path=\"/mensagens\" element={<Messages />} />"
 ], "Rotas publicas principais devem continuar registradas");
+hasAll(sorteios, [
+  "const fazConfigSource = fazendinha?.config || modalidades?.fazendinha",
+  "typeof fazConfigSource === \"object\"",
+  "!Array.isArray(fazConfigSource)",
+  "if (fazConfig && fazConfig.enabled !== false"
+], "Tela Sorteios deve tolerar payload parcial/booleano da Fazendinha sem quebrar renderizacao");
+hasAll(dashboard, [
+  "const customerCpf = String(customer?.cpf || \"\")",
+  "const formattedCustomerCpf = customerCpf",
+  "CPF {formattedCustomerCpf}",
+  "Number(customer.totalTickets || 0).toLocaleString(\"pt-BR\")"
+], "Tela Perfil deve tolerar cliente sem CPF/totalizadores sem quebrar renderizacao");
 assert.ok(
   app.indexOf("<Route path=\"/sorteio\" element={<Navigate to=\"/sorteios\" replace />} />") < app.indexOf("<Route path=\"/:mode\" element={<NumberModePage />} />"),
   "Rota /sorteio deve redirecionar para /sorteios antes da rota dinamica /:mode."

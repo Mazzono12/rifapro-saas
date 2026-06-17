@@ -12,7 +12,7 @@ export function TenantLogo({ className, eager = false }: { className?: string; e
       <ResponsiveMediaFrame
         src={branding.logo_url}
         type="image"
-        alt={branding.header_name}
+        alt={branding.header_name || branding.display_name || branding.company_name || "Logo da marca"}
         preferredFit="contain"
         aspectMode="square"
         priority={eager}

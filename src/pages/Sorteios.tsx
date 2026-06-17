@@ -188,8 +188,9 @@ export function Sorteios() {
 
 function buildExtraActiveCards(fazendinha: any, modalidades: any): DrawCard[] {
   const cards: DrawCard[] = [];
-  const fazConfig = fazendinha?.config || modalidades?.fazendinha;
-  if (fazConfig?.enabled !== false && String(fazConfig?.status || "active") === "active") {
+  const fazConfigSource = fazendinha?.config || modalidades?.fazendinha;
+  const fazConfig = fazConfigSource && typeof fazConfigSource === "object" && !Array.isArray(fazConfigSource) ? fazConfigSource : null;
+  if (fazConfig && fazConfig.enabled !== false && String(fazConfig.status || "active") === "active") {
     cards.push({
       id: "fazendinha",
       title: safeText(fazConfig.name, "Fazendinha da Sorte"),

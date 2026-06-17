@@ -168,6 +168,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const isAuthRoute = ["/login", "/cadastro", "/recuperar-senha"].includes(location.pathname);
   const isAdminRoute = isAuthRoute || location.pathname.startsWith('/admin') || location.pathname.startsWith('/superadmin') || location.pathname.startsWith('/perfil-saas');
   const isRaffleRoute = /^\/(raffle|rifa|sorteio)\/[^/]+\/?$/.test(location.pathname);
+  const isHomeRoute = location.pathname === "/";
   const [heroVideoCinema, setHeroVideoCinema] = React.useState(false);
 
   useEffect(() => {
@@ -189,11 +190,11 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="public-shell min-h-screen flex flex-col">
-      {!isRaffleRoute && <Navbar />}
+      {!isHomeRoute && !isRaffleRoute && <Navbar />}
       <main className="flex-1 w-full relative z-10">
         <TenantOperationalGate>{children}</TenantOperationalGate>
       </main>
-      {isRaffleRoute && <PublicBottomNav />}
+      {(isHomeRoute || isRaffleRoute) && <PublicBottomNav />}
     </div>
   );
 }
@@ -297,6 +298,7 @@ export default function App() {
               <Route path="/rifa/:id" element={<RaffleDetails />} />
               <Route path="/sorteio" element={<Navigate to="/sorteios" replace />} />
               <Route path="/sorteio/:id" element={<RaffleDetails />} />
+              <Route path="/checkout/pedido/:orderId" element={<CheckoutOrderResume />} />
               <Route path="/checkout/orders/:orderId" element={<CheckoutOrderResume />} />
               <Route path="/campanhas" element={<Navigate to="/sorteios" replace />} />
               <Route path="/rifas" element={<Navigate to="/sorteios" replace />} />

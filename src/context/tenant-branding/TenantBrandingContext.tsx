@@ -56,6 +56,7 @@ export type PublicTenantBranding = {
   };
   home_branding?: {
     brandLayout?: "centered" | "inline";
+    showName?: boolean;
     whatsapp?: string;
     instagram?: string;
     officialGroup?: string;
@@ -86,6 +87,7 @@ const fallbackBranding: PublicTenantBranding = {
   login_footer_text: "Ambiente protegido • Acesso autorizado",
   home_branding: {
     brandLayout: "centered",
+    showName: true,
     whatsapp: "",
     instagram: "",
     officialGroup: ""
@@ -95,11 +97,11 @@ const fallbackBranding: PublicTenantBranding = {
 const TenantBrandingContext = createContext<{
   branding: PublicTenantBranding;
   loading: boolean;
-  refresh: () => Promise<void>;
+  refresh: (force?: boolean) => Promise<void>;
 }>({
   branding: fallbackBranding,
   loading: true,
-  refresh: async () => undefined
+  refresh: async (_force = false) => undefined
 });
 
 const cache = new Map<string, { value: PublicTenantBranding; expiresAt: number }>();
@@ -122,7 +124,8 @@ function normalizeBranding(value: Partial<PublicTenantBranding> | null | undefin
     home_branding: {
       ...fallbackBranding.home_branding,
       ...homeBranding,
-      brandLayout: homeBranding.brandLayout === "inline" ? "inline" : "centered"
+      brandLayout: homeBranding.brandLayout === "inline" ? "inline" : "centered",
+      showName: homeBranding.showName !== false
     }
   };
 }
@@ -188,10 +191,10 @@ export function TenantBrandingProvider({ children }: { children: React.ReactNode
   const [branding, setBranding] = useState(fallbackBranding);
   const [loading, setLoading] = useState(true);
 
-  const refresh = async () => {
+  const refresh = async (force = false) => {
     const cacheKey = window.location.host || "default";
     const cached = cache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
+    if (!force && cached && cached.expiresAt > Date.now()) {
       setBranding(cached.value);
       setLoading(false);
       return;

@@ -465,28 +465,42 @@ export function CheckoutModalHeader({ title, eyebrow = "Checkout seguro", compac
   );
 }
 
-export function PixPaymentCard({ payload, copied, onCopy }: { payload?: string; copied?: boolean; onCopy: () => void }) {
+export function normalizePixQrImage(value?: string | null) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  if (/^(data:image\/|https?:\/\/)/i.test(normalized)) return normalized;
+  return `data:image/png;base64,${normalized}`;
+}
+
+export function PixPaymentCard({ payload, qrImage, copied, onCopy }: { payload?: string; qrImage?: string; copied?: boolean; onCopy: () => void }) {
+  const pixQrImage = normalizePixQrImage(qrImage);
   return (
     <div className="checkout-pix-card space-y-4 text-center">
       <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-cyan-300/10 text-cyan-100">
         <QrCode className="h-8 w-8" />
       </div>
-      {payload ? (
+      {pixQrImage || payload ? (
         <>
           <div className="mx-auto w-full max-w-[min(18rem,calc(100vw-3rem))] rounded-[1.35rem] bg-white p-3 sm:w-fit sm:max-w-none sm:rounded-[1.75rem] sm:p-5">
-            <QRCodeSVG value={payload} className="h-auto w-full sm:h-[236px] sm:w-[236px]" bgColor="#ffffff" fgColor="#0f172a" level="M" />
+            {pixQrImage ? (
+              <img src={pixQrImage} className="h-auto w-full sm:h-[236px] sm:w-[236px]" alt="QR Code PIX" />
+            ) : (
+              <QRCodeSVG value={payload || ""} className="h-auto w-full sm:h-[236px] sm:w-[236px]" bgColor="#ffffff" fgColor="#0f172a" level="M" />
+            )}
           </div>
-          <div className="checkout-pix-code-box">
-            <span>PIX copia e cola</span>
-            <code>{payload}</code>
-          </div>
+          {payload && (
+            <div className="checkout-pix-code-box">
+              <span>PIX copia e cola</span>
+              <code>{payload}</code>
+            </div>
+          )}
         </>
       ) : (
-        <div className="premium-card border-red-300/20 bg-red-500/10 text-red-100">PIX indisponível.</div>
+        <div className="premium-card border-red-300/20 bg-red-500/10 text-red-100">Não foi possível gerar o PIX. Tente novamente ou fale com o suporte.</div>
       )}
-      <CheckoutPrimaryButton onClick={onCopy} aria-label="Copiar PIX copia e cola" className={cn("checkout-pix-copy-button w-full", copied && "bg-emerald-200")}>
+      {payload && <CheckoutPrimaryButton onClick={onCopy} aria-label="Copiar PIX copia e cola" className={cn("checkout-pix-copy-button w-full", copied && "bg-emerald-200")}>
         {copied ? "Código PIX copiado" : <><Copy className="h-5 w-5" /> Copiar código PIX</>}
-      </CheckoutPrimaryButton>
+      </CheckoutPrimaryButton>}
       <p className="checkout-pix-help">Depois de copiar, abra o app do banco e pague via PIX copia e cola.</p>
     </div>
   );

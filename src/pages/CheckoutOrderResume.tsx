@@ -4,8 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { CheckCircle2, Clock3, MessageCircle, RefreshCw, ShieldCheck, Ticket, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PixPaymentCard, PremiumPageLayout } from "../components/premium/PremiumUI";
-import { TenantHeaderName } from "../components/branding/TenantHeaderName";
-import { TenantLogo } from "../components/branding/TenantLogo";
+import { PublicBrandMark } from "../components/branding/PublicBrandMark";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
 
 type ResumeStatus = {
@@ -16,6 +15,8 @@ type ResumeStatus = {
   paid?: boolean;
   expired?: boolean;
   pixPayload?: string;
+  pixQrCode?: string;
+  pixQrCodeBase64?: string;
   pixExpiresAt?: string;
   reservedUntil?: string;
   purchase?: Record<string, any>;
@@ -43,7 +44,8 @@ export function CheckoutOrderResume() {
   const remaining = useRemainingTime(expiresAt);
   const campaignPath = getCampaignPath(status);
   const pending = Boolean(status && !status.paid && !status.expired && (status.paymentStatus === "pending" || status.status === "pending" || status.status === "reserved"));
-  const pixPayload = pending ? String(status?.pixPayload || purchase.pixPayload || purchase.pix_payload || "") : "";
+  const pixPayload = pending ? String(status?.pixPayload || purchase.pixPayload || purchase.pix_payload || purchase.pixCopyPaste || purchase.pix_copy_paste || purchase.copyPaste || purchase.paymentCode || "") : "";
+  const pixQrCode = pending ? String(status?.pixQrCode || status?.pixQrCodeBase64 || purchase.pixQrCode || purchase.qrCode || purchase.pixQrCodeBase64 || purchase.qrCodeBase64 || purchase.qr_code_base64 || purchase.encodedImage || "") : "";
 
   const loadStatus = async (quiet = false) => {
     if (!orderId) return;
@@ -77,7 +79,11 @@ export function CheckoutOrderResume() {
 
   const copyPix = async () => {
     if (!pixPayload) return;
-    await navigator.clipboard.writeText(pixPayload);
+    const copiedOk = await copyTextToClipboard(pixPayload);
+    if (!copiedOk) {
+      toast.error("Nao foi possivel copiar o PIX", { description: "Toque e segure no codigo copia e cola para selecionar manualmente." });
+      return;
+    }
     setCopied(true);
     toast.success("Codigo PIX copiado");
     window.setTimeout(() => setCopied(false), 1800);
@@ -85,13 +91,15 @@ export function CheckoutOrderResume() {
 
   return (
     <PremiumPageLayout className="checkout-resume-page">
-      <main className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-3xl flex-col px-4 pb-28 pt-5 sm:pb-12 sm:pt-8">
-        <header className="mb-5 flex items-center gap-3">
-          <TenantLogo className="h-11 w-11 shrink-0" eager />
-          <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-200">Checkout seguro</p>
-            <h1 className="truncate text-xl font-black text-white"><TenantHeaderName /></h1>
-          </div>
+      <main className="checkout-resume-shell mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-3xl flex-col px-4 pb-28 pt-5 sm:pb-12 sm:pt-8">
+        <header className="checkout-resume-header">
+          <PublicBrandMark
+            className="checkout-resume-brand-mark"
+            logoClassName="checkout-resume-brand-logo"
+            nameClassName="checkout-resume-brand-name"
+            eager
+          />
+          <span className="checkout-resume-secure-badge"><ShieldCheck className="h-4 w-4" /> Checkout seguro</span>
         </header>
 
         {loading ? (
@@ -142,10 +150,10 @@ export function CheckoutOrderResume() {
               </div>
             )}
 
-            {pixPayload ? (
-              <PixPaymentCard payload={pixPayload} copied={copied} onCopy={copyPix} />
+            {pixPayload || pixQrCode ? (
+              <PixPaymentCard payload={pixPayload} qrImage={pixQrCode} copied={copied} onCopy={copyPix} />
             ) : (
-              <StateCard icon={<XCircle className="h-7 w-7" />} title="PIX indisponivel" description="Nao encontramos um codigo PIX valido para este pedido." />
+              <StateCard icon={<XCircle className="h-7 w-7" />} title="PIX indisponivel" description="Não foi possível gerar o PIX. Tente novamente ou fale com o suporte." />
             )}
 
             <button type="button" onClick={() => loadStatus(true)} disabled={checking} className="premium-button w-full disabled:opacity-60">
@@ -225,4 +233,34 @@ function normalizeWhatsAppUrl(value: string) {
   if (/^https?:\/\//i.test(value)) return value;
   const digits = value.replace(/\D/g, "");
   return digits ? `https://wa.me/${digits}` : "";
+}
+
+async function copyTextToClipboard(text: string) {
+  if (!text) return false;
+  try {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fallback abaixo cobre mobile/WebView em HTTP local.
+  }
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const copied = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return copied;
+  } catch {
+    return false;
+  }
 }

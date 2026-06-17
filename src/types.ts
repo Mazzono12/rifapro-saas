@@ -167,6 +167,8 @@ export interface RafflePixConfig {
   webhookUrl?: string;
   webhookSecret?: string;
   webhookEvents?: string;
+  releaseMode?: 'PAYMENT_RECEIVED' | 'PAYMENT_CONFIRMED' | string;
+  orderExpirationMinutes?: string | number;
 }
 
 export interface InstantPrize {

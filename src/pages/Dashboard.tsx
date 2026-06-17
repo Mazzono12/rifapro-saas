@@ -78,14 +78,19 @@ export function Dashboard() {
     if (activeTicketFilter === "prized") return ticketPurchases.filter(item => item.isPrized);
     return ticketPurchases;
   }, [activeTicketFilter, ticketPurchases]);
+  const customerName = customer?.name || "Cliente";
+  const customerCpf = String(customer?.cpf || "");
+  const formattedCustomerCpf = customerCpf
+    ? customerCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+    : "não informado";
 
   useEffect(() => {
     if (!customer) return;
     setUnlocked(false);
     setAreaPassword("");
     setForm({
-      name: customer.name,
-      phone: customer.phone,
+      name: customer.name || "",
+      phone: customer.phone || "",
       photoUrl: customer.photoUrl || "",
       city: customer.city || "",
       state: customer.state || "",
@@ -225,13 +230,13 @@ export function Dashboard() {
           <div className="cfx-customer-panel p-6 text-center">
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-neon-cyan to-neon-purple p-1 mx-auto mb-4">
               <div className="w-full h-full bg-cyber-900 rounded-full overflow-hidden flex items-center justify-center">
-                {customer.photoUrl ? <img src={customer.photoUrl} alt={customer.name} className="w-full h-full object-cover" /> : <User className="w-10 h-10 text-slate-400" />}
+                {customer.photoUrl ? <img src={customer.photoUrl} alt={customerName} className="w-full h-full object-cover" /> : <User className="w-10 h-10 text-slate-400" />}
               </div>
             </div>
-            <h2 className="text-xl font-bold font-display">{customer.name}</h2>
-            <p className="text-sm text-slate-400">CPF {customer.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}</p>
+            <h2 className="text-xl font-bold font-display">{customerName}</h2>
+            <p className="text-sm text-slate-400">CPF {formattedCustomerCpf}</p>
             <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neon-purple/10 border border-neon-purple/30 text-neon-purple text-xs font-semibold">
-              {customer.totalTickets} cotas compradas
+              {Number(customer.totalTickets || 0).toLocaleString("pt-BR")} cotas compradas
             </div>
             <button type="button" onClick={logoutCustomer} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08]">
               <LogOut className="h-4 w-4" /> Sair
@@ -279,7 +284,7 @@ export function Dashboard() {
                 </label>
                 <label className="space-y-2">
                   <span className="text-xs font-mono text-slate-400 uppercase">CPF bloqueado</span>
-                  <input value={customer.cpf} disabled className="w-full px-4 py-3 opacity-60 cursor-not-allowed" />
+                  <input value={formattedCustomerCpf} disabled className="w-full px-4 py-3 opacity-60 cursor-not-allowed" />
                 </label>
                 <label className="space-y-2 md:col-span-2">
                   <span className="text-xs font-mono text-slate-400 uppercase flex items-center gap-2"><Camera className="w-4 h-4" /> Foto do perfil</span>

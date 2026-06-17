@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -88,11 +88,11 @@ function getLatestSalesDeadline(raffle?: Raffle | null) {
 }
 
 function getPixPayload(purchase: any) {
-  return String(purchase?.pixPayload || purchase?.pix_payload || purchase?.pixCopyPaste || purchase?.pix_copy_paste || "").trim();
+  return String(purchase?.pixPayload || purchase?.pix_payload || purchase?.pixCopyPaste || purchase?.pix_copy_paste || purchase?.copyPaste || purchase?.paymentCode || purchase?.payload || "").trim();
 }
 
 function getPixQrCodeBase64(purchase: any) {
-  return String(purchase?.pixQrCodeBase64 || purchase?.qrCodeBase64 || purchase?.qr_code_base64 || "").trim();
+  return String(purchase?.pixQrCode || purchase?.qrCode || purchase?.pixQrCodeBase64 || purchase?.qrCodeBase64 || purchase?.qr_code_base64 || purchase?.encodedImage || purchase?.encoded_image || "").trim();
 }
 
 function getPixQrImageSrc(purchase: any) {
@@ -100,6 +100,17 @@ function getPixQrImageSrc(purchase: any) {
   if (!qrCode) return "";
   if (/^(data:image\/|https?:\/\/)/i.test(qrCode)) return qrCode;
   return `data:image/png;base64,${qrCode}`;
+}
+
+function getCheckoutOrderId(result: any) {
+  return String(result?.orderId || result?.order?.id || result?.purchaseId || result?.id || "").trim();
+}
+
+function getCheckoutRedirectUrl(result: any) {
+  const checkoutUrl = String(result?.checkoutUrl || result?.paymentUrl || "").trim();
+  if (checkoutUrl) return checkoutUrl;
+  const orderId = getCheckoutOrderId(result);
+  return orderId ? `/checkout/pedido/${encodeURIComponent(orderId)}` : "";
 }
 
 function getRaffleMinPurchaseTickets(raffle?: Raffle | null) {
@@ -159,6 +170,7 @@ function normalizePixPurchase<T extends Record<string, any> | null | undefined>(
 
 export function RaffleDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { branding } = useTenantBranding();
   const { customer, setCustomer, clearCustomer } = useCustomerStore();
   const [raffle, setRaffle] = useState<Raffle | null>(null);
@@ -407,6 +419,12 @@ export function RaffleDetails() {
   };
 
   const executeBuy = async (resolvedCustomer?: Partial<CheckoutCustomerForm>) => {
+    if (isSubmitting) return;
+    const existingCheckoutUrl = getCheckoutRedirectUrl(purchase);
+    if (existingCheckoutUrl && purchase?.status !== "paid") {
+      navigate(existingCheckoutUrl);
+      return;
+    }
     if (!raffle || !validateCheckoutForm(resolvedCustomer)) return;
     startMetric("pix_generation");
     setIsSubmitting(true);
@@ -428,23 +446,33 @@ export function RaffleDetails() {
         })
       });
       const data = normalizePixPurchase(await readJsonSafely(res));
-      if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Nao foi possivel gerar PIX. Tente novamente."));
-      if (data.status !== "paid" && !getPixPayload(data) && !getPixQrCodeBase64(data)) {
-        throw new Error("Pedido criado, mas o gateway nao retornou QR Code nem codigo PIX. Tente novamente em instantes.");
+      if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Não foi possível gerar o PIX. Tente novamente ou fale com o suporte."));
+      const redirectUrl = getCheckoutRedirectUrl(data);
+      if (data.status !== "paid" && !redirectUrl && !getPixPayload(data) && !getPixQrCodeBase64(data)) {
+        throw new Error("Não foi possível gerar o PIX. Tente novamente ou fale com o suporte.");
       }
       setPurchase(data);
       if (data.customer) setCustomer(data.customer);
       setRequireIdentity(false);
       setReceiptOpen(false);
-      setCheckoutStep(data.status === "paid" ? "ticket" : "payment");
+      if (data.status === "paid") {
+        setCheckoutStep("ticket");
+      }
       finishMetric("pix_generation", { raffleId: id, status: data.status });
       toast.success("PIX gerado", { description: `${tickets} cotas reservadas para voce.` });
+      if (data.status !== "paid" && redirectUrl) {
+        navigate(redirectUrl);
+        return;
+      }
+      if (data.status !== "paid") {
+        setCheckoutStep("payment");
+      }
     } catch (err: any) {
       if (/senha/i.test(err.message || "")) {
         setRequireIdentity(true);
         setCustomerMode("login");
       }
-      toast.error("Erro no checkout", { description: getFriendlyErrorMessage(err, "Nao foi possivel gerar PIX. Tente novamente.") });
+      toast.error("Erro no checkout", { description: getFriendlyErrorMessage(err, "Não foi possível gerar o PIX. Tente novamente ou fale com o suporte.") });
     } finally {
       setIsSubmitting(false);
     }

@@ -8,11 +8,11 @@ const defaultGateways = {
     sandbox: false,
     apiKey: "",
     pixKey: "",
-    webhookUrl: "/api/webhooks/mercadopago",
+    webhookUrl: "/api/webhooks/asaas",
     webhookSecret: "",
-    webhookEvents: "payment.created,payment.updated,payment.paid"
+    webhookEvents: "PAYMENT_RECEIVED,PAYMENT_CONFIRMED,PAYMENT_OVERDUE,PAYMENT_DELETED,PAYMENT_REFUNDED"
   },
-  active: "mercadopago",
+  active: "asaas",
   mercadopago: {
     enabled: false,
     environment: "production",
@@ -65,7 +65,8 @@ const defaultGateways = {
   mock: { apiKey: "mock-only", webhookUrl: "", webhookSecret: "" }
 };
 
-const gatewayIds = ["sandbox", "mock", "primepag", "paggue", "cashpay", "fakeprocessor", "mercadopago", "pagbank", "asaas", "infinitypay", "pay2m", "cora"];
+const gatewayIds = ["asaas", "sandbox", "mock", "primepag", "paggue", "cashpay", "fakeprocessor", "mercadopago", "pagbank", "infinitypay", "pay2m", "cora"];
+const publicGatewayIds = ["asaas"];
 const gatewayLabels: Record<string, string> = {
   sandbox: "Validação interna PIX",
   mock: "Simulação protegida",
@@ -109,8 +110,8 @@ function safeList<T = unknown>(value: unknown): T[] {
 }
 
 function normalizeProviderId(value: unknown) {
-  const normalized = safeText(value, "mercadopago").trim().toLowerCase().replace(/[\s_-]+/g, "");
-  return gatewayIds.includes(normalized) ? normalized : "mercadopago";
+  const normalized = safeText(value, "asaas").trim().toLowerCase().replace(/[\s_-]+/g, "");
+  return normalized === "asaas" ? "asaas" : "asaas";
 }
 
 function friendlyGatewayName(value?: unknown) {
@@ -260,7 +261,7 @@ function normalizeGateways(input: any) {
     ...defaultGateways,
     ...source,
     active: activeProvider,
-    pix: normalizeGatewaySection(defaultGateways.pix, source.pix),
+    pix: { ...normalizeGatewaySection(defaultGateways.pix, source.pix), sandbox: false },
     mercadopago: getSafeGatewayConfig("mercadopago", { ...safeRecord(source.mercadopago), ...mercadoPagoFromConfig }),
     pagbank: getSafeGatewayConfig("pagbank", { ...safeRecord(source.pagbank), ...pagbankFromConfig }),
     asaas: getSafeGatewayConfig("asaas", { ...safeRecord(source.asaas), ...asaasFromConfig }),
@@ -287,6 +288,13 @@ function validateAsaasGateway(config: any) {
   if (missing.length) {
     throw new Error(`Asaas incompleto: informe ${missing.join(", ")} antes de salvar.`);
   }
+}
+
+function detectAsaasEnvironmentFromKey(apiKey: unknown) {
+  const normalized = safeText(apiKey).trim().toLowerCase();
+  if (normalized.includes("$aact_prod") || normalized.includes("aact_prod")) return "production";
+  if (normalized) return "production";
+  return "";
 }
 
 export function AdminPaymentGateways() {
@@ -340,20 +348,21 @@ export function AdminPaymentGateways() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    let attemptedProvider = normalizeProviderId(gateways?.active);
+    let attemptedProvider = "asaas";
     try {
-      const normalized = normalizeGateways(gateways);
-      attemptedProvider = normalized.active;
-      if (normalized.active === "asaas") {
-        validateAsaasGateway(normalized);
-        normalized.pix = { ...normalized.pix, enabled: true, sandbox: normalized.asaas.environment !== "production", webhookUrl: "/api/webhooks/asaas" };
-        normalized.asaas = { ...normalized.asaas, enabled: true };
-      }
+      const normalized = normalizeGateways({ ...gateways, active: "asaas" });
+      normalized.active = "asaas";
+      attemptedProvider = "asaas";
+      validateAsaasGateway(normalized);
+      const detectedEnvironment = detectAsaasEnvironmentFromKey(normalized.asaas.apiKey);
+      const asaasEnvironment = detectedEnvironment || normalized.asaas.environment || "production";
+      normalized.pix = { ...normalized.pix, enabled: true, sandbox: false, webhookUrl: "/api/webhooks/asaas" };
+      normalized.asaas = { ...normalized.asaas, enabled: true, environment: asaasEnvironment, webhookUrl: "/api/webhooks/asaas" };
       const configs = [{
         provider: normalized.active,
         display_name: gatewayLabels[normalized.active] || normalized.active,
         enabled: Boolean(normalized.pix?.enabled),
-        environment: normalized.active === "primepag" ? normalized.primepag.environment : normalized.active === "cora" ? normalized.cora.environment : normalized.active === "mercadopago" ? normalized.mercadopago.environment : normalized.active === "asaas" ? normalized.asaas.environment : normalized.active === "pay2m" ? normalized.pay2m.environment : normalized.active === "pagbank" ? normalized.pagbank.environment : (normalized.pix?.sandbox ? "sandbox" : "production"),
+        environment: "production",
         credentials: normalized.active === "mercadopago"
           ? { accessToken: normalized.mercadopago.accessToken, publicKey: normalized.mercadopago.publicKey, expirationMinutes: normalized.mercadopago.expirationMinutes, releaseStatus: normalized.mercadopago.releaseStatus }
           : normalized.active === "primepag"
@@ -427,7 +436,7 @@ export function AdminPaymentGateways() {
         pix: {
           ...normalized.pix,
           enabled: true,
-          sandbox: field === "environment" ? value !== "production" : nextGateway.environment !== "production",
+          sandbox: false,
           webhookUrl: "/api/webhooks/asaas"
         }
       } : {})
@@ -435,20 +444,20 @@ export function AdminPaymentGateways() {
     setHasPendingChanges(true);
   };
 
-  const setActiveGateway = (gateway: string) => {
+  const setActiveGateway = (_gateway: string) => {
     const normalized = normalizeGateways(gateways);
     setGateways({
       ...normalized,
-      active: gateway,
-      ...(gateway === "asaas" ? { [gateway]: {
-        ...normalized[gateway],
+      active: "asaas",
+      asaas: {
+        ...normalized.asaas,
         enabled: true
-      } } : {}),
+      },
       pix: {
         ...normalized.pix,
-        enabled: gateway === "asaas" ? true : normalized.pix.enabled,
-        sandbox: gateway === "primepag" ? normalized.primepag.environment !== "production" : gateway === "cora" ? normalized.cora.environment !== "production" : gateway === "mercadopago" ? normalized.mercadopago.environment !== "production" : gateway === "asaas" ? normalized.asaas.environment !== "production" : gateway === "pay2m" ? normalized.pay2m.environment !== "production" : gateway === "pagbank" ? normalized.pagbank.environment !== "production" : normalized.pix.sandbox,
-        webhookUrl: gateway === "primepag" ? "/api/webhooks/primepag" : gateway === "cora" ? "/api/webhooks/cora" : gateway === "mercadopago" ? "/api/webhooks/mercadopago" : gateway === "asaas" ? "/api/webhooks/asaas" : gateway === "pay2m" ? "/api/webhooks/pay2m" : gateway === "pagbank" ? "/api/webhooks/pagbank" : `http://127.0.0.1:3000/api/webhooks/payment/${gateway}`
+        enabled: true,
+        sandbox: false,
+        webhookUrl: "/api/webhooks/asaas"
       }
     });
     setHasPendingChanges(true);
@@ -467,12 +476,19 @@ export function AdminPaymentGateways() {
   };
 
   const testGateway = async (gateway: string) => {
+    const normalized = normalizeGateways(gateways);
+    const testedGateway = normalizeProviderId(gateway);
     setTestingGateway(gateway);
     try {
       const res = await fetch("/api/admin/gateways/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gateway }),
+        body: JSON.stringify({
+          gateway: testedGateway,
+          active: testedGateway,
+          pix: normalized.pix,
+          config: normalized[testedGateway],
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao testar gateway");
@@ -487,7 +503,7 @@ export function AdminPaymentGateways() {
   };
 
   const testAllGateways = async () => {
-    for (const gateway of gatewayIds) {
+    for (const gateway of publicGatewayIds) {
       await testGateway(gateway);
     }
   };
@@ -536,19 +552,6 @@ export function AdminPaymentGateways() {
 
                 <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                     <summary className="cursor-pointer text-sm font-bold text-white">Configurações Avançadas</summary>
-                    {Boolean(gateways.pix?.sandbox) && (
-                      <div className="mt-4 rounded-xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-100">
-                        Modo Sandbox/Teste Ativo
-                      </div>
-                    )}
-                    <label className="mt-4 flex items-center justify-between gap-4 text-sm text-slate-300">
-                        Modo de validação
-                        <input
-                            type="checkbox"
-                            checked={Boolean(gateways.pix?.sandbox)}
-                            onChange={e => updatePix("sandbox", e.target.checked)}
-                        />
-                    </label>
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <GatewayInput label="Chave PIX" type="password" value={gateways.pix?.apiKey || ""} onChange={value => updatePix("apiKey", value)} help="Cole a chave entregue pelo gateway para receber pagamentos PIX." />
                         <GatewayInput label="Chave de segurança" type="password" value={gateways.pix?.webhookSecret || ""} onChange={value => updatePix("webhookSecret", value)} help="Protege as confirmações automáticas de pagamento." />
@@ -565,16 +568,61 @@ export function AdminPaymentGateways() {
                     onChange={(e) => setActiveGateway(e.target.value)}
                     className="w-full bg-white/[0.03] border border-white/10 rounded-xl p-3 text-white outline-none focus:border-emerald-500/50 transition-all font-mono text-sm max-w-sm"
                 >
-                    {gatewayIds.map(gateway => (
+                    {publicGatewayIds.map(gateway => (
                         <option key={gateway} value={gateway}>{gatewayLabels[gateway]}</option>
                     ))}
                 </select>
             </div>
 
-            <details className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <div className={`rounded-2xl border p-6 transition-colors ${gateways.active === "asaas" ? "border-emerald-500/50 bg-emerald-500/5" : "border-white/10 bg-white/[0.03]"}`}>
+              <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="flex items-center gap-2 text-xl font-display font-semibold text-white">
+                    {gateways.active === "asaas" && <CheckCircle className="h-5 w-5 text-emerald-400" />}
+                    Asaas Pix Produção
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-400">Gateway principal recomendado para gerar PIX real em produção.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-lg border px-2 py-1 text-[10px] font-mono uppercase ${asaasConfigured ? "border-emerald-400/30 text-emerald-200" : "border-amber-400/30 text-amber-200"}`}>
+                    {asaasConfigured ? "Chave informada" : "Informe a chave"}
+                  </span>
+                  <button type="button" onClick={() => setActiveGateway("asaas")} className="rounded-lg border border-emerald-400/30 px-3 py-2 text-[10px] font-mono uppercase text-emerald-200 hover:bg-emerald-400/10">
+                    Ativar Asaas
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <GatewayInput label="Chave privada Asaas" type="password" value={gateways.asaas?.apiKey || ""} onChange={value => updateGateway("asaas", "apiKey", value)} />
+                <GatewayInput label="Nome da aplicação / User-Agent" value={gateways.asaas?.userAgent || ""} onChange={value => updateGateway("asaas", "userAgent", value)} />
+                <GatewayInput label="Chave de segurança do webhook" type="password" value={gateways.asaas?.webhookSecret || ""} onChange={value => updateGateway("asaas", "webhookSecret", value)} />
+                <GatewayInput label="Prazo de expiração do pedido (min)" value={gateways.asaas?.orderExpirationMinutes || "15"} onChange={value => updateGateway("asaas", "orderExpirationMinutes", value)} />
+                <div>
+                  <label className="mb-1 block text-xs font-mono text-slate-400">Liberar cotas em</label>
+                  <select value={gateways.asaas?.releaseMode || "PAYMENT_RECEIVED"} onChange={e => updateGateway("asaas", "releaseMode", e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/50 p-2 text-xs font-mono text-white outline-none focus:border-emerald-500/50">
+                    <option value="PAYMENT_RECEIVED">PAYMENT_RECEIVED</option>
+                    <option value="PAYMENT_CONFIRMED">PAYMENT_CONFIRMED</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-mono text-slate-400">Modo de pagamento</label>
+                  <select value={gateways.asaas?.paymentMode || "pix_direct"} onChange={e => updateGateway("asaas", "paymentMode", e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/50 p-2 text-xs font-mono text-white outline-none focus:border-emerald-500/50">
+                    <option value="pix_direct">Pix direto</option>
+                    <option value="asaas_checkout">Checkout Asaas</option>
+                    <option value="pix_boleto">Pix + Boleto</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-xs text-emerald-100">
+                Ambiente fixo: Produção. O modo sandbox fica desativado permanentemente no checkout.
+              </div>
+              <GatewayTest gateway="asaas" result={testResults.asaas} testing={testingGateway === "asaas"} onTest={testGateway} />
+            </div>
+
+            <details className="hidden rounded-2xl border border-white/10 bg-white/[0.02] p-5" aria-hidden="true">
               <summary className="cursor-pointer text-sm font-bold text-white">Configurações Avançadas</summary>
               <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-8">
-                {["sandbox", "mock", "paggue", "cashpay", "fakeprocessor"].map(gateway => (
+                {["paggue", "cashpay"].map(gateway => (
                     <GenericGatewayCard
                         key={gateway}
                         gateway={gateway}
@@ -608,7 +656,7 @@ export function AdminPaymentGateways() {
                             setGateways({
                               ...normalized,
                               active: "mercadopago",
-                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.mercadopago.environment !== "production", webhookUrl: "/api/webhooks/mercadopago" }
+                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: false, webhookUrl: "/api/webhooks/mercadopago" }
                             });
                             setHasPendingChanges(true);
                           }} />
@@ -616,7 +664,6 @@ export function AdminPaymentGateways() {
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
                           <select value={gateways.mercadopago?.environment || "production"} onChange={e => updateGateway("mercadopago", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
                         </div>
@@ -654,7 +701,7 @@ export function AdminPaymentGateways() {
                             setGateways({
                               ...normalized,
                               active: "pagbank",
-                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.pagbank.environment !== "production", webhookUrl: "/api/webhooks/pagbank" }
+                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: false, webhookUrl: "/api/webhooks/pagbank" }
                             });
                             setHasPendingChanges(true);
                           }} />
@@ -662,7 +709,6 @@ export function AdminPaymentGateways() {
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
                           <select value={gateways.pagbank?.environment || "production"} onChange={e => updateGateway("pagbank", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
                         </div>
@@ -682,67 +728,6 @@ export function AdminPaymentGateways() {
                         </div>
                     </div>
                     <GatewayTest gateway="pagbank" result={testResults.pagbank} testing={testingGateway === "pagbank"} onTest={testGateway} />
-                </div>
-
-                {/* Asaas Pix */}
-                <div className={`p-6 rounded-2xl border transition-colors ${gateways.active === 'asaas' ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/5 bg-white/[0.02]'}`}>
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                        <h3 className="text-lg font-medium text-white flex items-center gap-2">
-                            {gateways.active === 'asaas' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
-                            Asaas Pix plug and play
-                        </h3>
-                        <div className="flex items-center gap-2">
-                          <span className={`rounded-lg border px-2 py-1 text-[10px] font-mono uppercase ${asaasConfigured ? "border-emerald-400/30 text-emerald-200" : "border-amber-400/30 text-amber-200"}`}>
-                            {asaasConfigured ? "Configurado" : "Não configurado"}
-                          </span>
-                          <button type="button" onClick={() => setActiveGateway("asaas")} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-mono uppercase text-slate-300 hover:border-emerald-400/40 hover:text-emerald-200">
-                            Usar
-                          </button>
-                        </div>
-                    </div>
-                    <div className="space-y-4">
-                        <label className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-slate-200">
-                          Ativar Asaas Pix
-                          <input type="checkbox" checked={gateways.active === "asaas" && Boolean(gateways.pix?.enabled)} onChange={e => {
-                            const normalized = normalizeGateways(gateways);
-                            setGateways({
-                              ...normalized,
-                              active: "asaas",
-                              asaas: { ...normalized.asaas, enabled: e.target.checked },
-                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.asaas.environment !== "production", webhookUrl: "/api/webhooks/asaas" }
-                            });
-                            setHasPendingChanges(true);
-                          }} />
-                        </label>
-                        <div>
-                          <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
-                          <select value={gateways.asaas?.environment || "production"} onChange={e => updateGateway("asaas", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="sandbox">Validação</option>
-                            <option value="production">Produção</option>
-                          </select>
-                        </div>
-                        <GatewayInput label="Chave privada" type="password" value={gateways.asaas?.apiKey || ''} onChange={value => updateGateway('asaas', 'apiKey', value)} />
-                        <GatewayInput label="Nome da aplicação / User-Agent" value={gateways.asaas?.userAgent || ''} onChange={value => updateGateway('asaas', 'userAgent', value)} />
-                        <GatewayInput label="Chave de segurança" type="password" value={gateways.asaas?.webhookSecret || ''} onChange={value => updateGateway('asaas', 'webhookSecret', value)} />
-                        <GatewayInput label="Canal de notificação" value="/api/webhooks/asaas" onChange={() => updateGateway('asaas', 'webhookUrl', '/api/webhooks/asaas')} help="Webhook oficial do Asaas neste sistema. A API Key deve ficar somente em Chave privada." />
-                        <GatewayInput label="Prazo de expiração do pedido (min)" value={gateways.asaas?.orderExpirationMinutes || '15'} onChange={value => updateGateway('asaas', 'orderExpirationMinutes', value)} />
-                        <div>
-                          <label className="block text-xs font-mono text-slate-400 mb-1">Liberar cotas em</label>
-                          <select value={gateways.asaas?.releaseMode || "PAYMENT_RECEIVED"} onChange={e => updateGateway("asaas", "releaseMode", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="PAYMENT_RECEIVED">PAYMENT_RECEIVED</option>
-                            <option value="PAYMENT_CONFIRMED">PAYMENT_CONFIRMED</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-mono text-slate-400 mb-1">Modo de pagamento</label>
-                          <select value={gateways.asaas?.paymentMode || "pix_direct"} onChange={e => updateGateway("asaas", "paymentMode", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="pix_direct">Pix direto</option>
-                            <option value="asaas_checkout">Checkout Asaas</option>
-                            <option value="pix_boleto">Pix + Boleto</option>
-                          </select>
-                        </div>
-                    </div>
-                    <GatewayTest gateway="asaas" result={testResults.asaas} testing={testingGateway === "asaas"} onTest={testGateway} />
                 </div>
 
                 {/* InfinityPay */}
@@ -779,7 +764,7 @@ export function AdminPaymentGateways() {
                             setGateways({
                               ...normalized,
                               active: "pay2m",
-                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.pay2m.environment !== "production", webhookUrl: "/api/webhooks/pay2m" }
+                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: false, webhookUrl: "/api/webhooks/pay2m" }
                             });
                             setHasPendingChanges(true);
                           }} />
@@ -787,7 +772,6 @@ export function AdminPaymentGateways() {
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
                           <select value={gateways.pay2m?.environment || "production"} onChange={e => updateGateway("pay2m", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
                         </div>
@@ -826,7 +810,7 @@ export function AdminPaymentGateways() {
                             setGateways({
                               ...normalized,
                               active: "primepag",
-                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.primepag.environment !== "production", webhookUrl: "/api/webhooks/primepag" }
+                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: false, webhookUrl: "/api/webhooks/primepag" }
                             });
                             setHasPendingChanges(true);
                           }} />
@@ -837,8 +821,6 @@ export function AdminPaymentGateways() {
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
                           <select value={gateways.primepag?.environment || "production"} onChange={e => updateGateway("primepag", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="staging">Validação assistida</option>
-                            <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
                         </div>
@@ -875,7 +857,7 @@ export function AdminPaymentGateways() {
                             setGateways({
                               ...normalized,
                               active: "cora",
-                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: normalized.cora.environment !== "production", webhookUrl: "/api/webhooks/cora" }
+                              pix: { ...normalized.pix, enabled: e.target.checked, sandbox: false, webhookUrl: "/api/webhooks/cora" }
                             });
                             setHasPendingChanges(true);
                           }} />
@@ -886,7 +868,6 @@ export function AdminPaymentGateways() {
                         <div>
                           <label className="block text-xs font-mono text-slate-400 mb-1">Ambiente</label>
                           <select value={gateways.cora?.environment || "production"} onChange={e => updateGateway("cora", "environment", e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-white font-mono text-xs focus:border-emerald-500/50 outline-none">
-                            <option value="sandbox">Validação</option>
                             <option value="production">Produção</option>
                           </select>
                         </div>

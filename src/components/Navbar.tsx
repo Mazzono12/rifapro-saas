@@ -2,8 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Bell, Headphones, Home, Ticket, Trophy, User, Users } from "lucide-react";
 import { useCustomerStore } from "../store/useCustomerStore";
-import { TenantLogo } from "./branding/TenantLogo";
-import { TenantHeaderName } from "./branding/TenantHeaderName";
+import { PublicBrandMark } from "./branding/PublicBrandMark";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
 
 export function Navbar() {
@@ -116,10 +115,13 @@ export function Navbar() {
       <nav className={`premium-site-header sticky top-0 z-[80] h-[68px] border-b border-[var(--theme-border)] bg-[var(--theme-surface-strong)]/90 backdrop-blur-2xl transition-transform duration-300 ${heroVideoCinema && !isAdmin ? "-translate-y-full" : "translate-y-0"}`}>
         <div className="app-content-container flex h-full items-center justify-between gap-3">
           <Link to="/" onClick={goHomeTop} className="group flex min-w-0 items-center gap-2.5 sm:gap-3" aria-label="Ir para a página principal">
-            <TenantLogo className="h-9 w-9 shrink-0 sm:h-10 sm:w-10" eager />
-            <span className="min-w-0 truncate font-display text-lg font-bold tracking-wide text-[var(--theme-text)] sm:text-xl">
-              <TenantHeaderName />
-            </span>
+            <PublicBrandMark
+              eager
+              inline
+              className="min-w-0"
+              logoClassName="h-9 w-9 shrink-0 rounded-xl sm:h-10 sm:w-10"
+              nameClassName="min-w-0 truncate font-display text-lg font-bold tracking-wide text-[var(--theme-text)] sm:text-xl"
+            />
           </Link>
           
           <div className="flex shrink-0 items-center gap-2">

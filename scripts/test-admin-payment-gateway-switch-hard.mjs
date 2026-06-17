@@ -206,6 +206,19 @@ try {
   }
 
   assertGatewayState(await saveRawGateway(headers, { active: "asaas" }), "asaas");
+  const partialAsaas = await saveRawGateway(headers, {
+    active: "asaas",
+    pix: { enabled: true, sandbox: false, webhookUrl: "/api/webhooks/asaas" },
+    asaas: { apiKey: "asaas-global-partial-key", userAgent: "CIFHER Prime" },
+    configs: [{ provider: "asaas", enabled: true, is_default: true, credentials: {} }]
+  });
+  assertGatewayState(partialAsaas, "asaas");
+  const partialAsaasConfig = partialAsaas.configs.find(config => config.provider === "asaas");
+  assert.match(partialAsaasConfig?.credentials?.apiKey || "", /\*+.*key$/, "Asaas global parcial deve salvar API key oficial mascarada.");
+  const partialAsaasReload = await json("/api/admin/gateways", { headers });
+  assert.equal(partialAsaasReload.response.status, 200, partialAsaasReload.body?.error);
+  assertGatewayState(partialAsaasReload.body, "asaas");
+  assert.match(partialAsaasReload.body.configs.find(config => config.provider === "asaas")?.credentials?.apiKey || "", /\*+.*key$/, "Reload deve manter API key Asaas global.");
   assertGatewayState(await saveRawGateway(headers, { active: "pay2m", configs: [{ provider: "pay2m", is_default: true }] }), "pay2m");
   assertGatewayState(await saveRawGateway(headers, { active: "pagbank", configs: [{ provider: "pagbank", enabled: true, is_default: true }] }), "pagbank");
   assertGatewayState(await saveRawGateway(headers, { active: "cora", cora: {}, configs: [{ provider: "cora", enabled: true, is_default: true }] }), "cora");

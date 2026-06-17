@@ -12,6 +12,7 @@ const requiredEnv = [
   "SUPABASE_SERVICE_ROLE_KEY",
   "PUBLIC_BASE_URL",
   "ADMIN_BASE_URL",
+  "ASAAS_API_KEY",
   "JWT_SECRET",
   "SESSION_SECRET"
 ];
@@ -56,9 +57,8 @@ if (!existsSync(envPath)) {
   if (!String(env.DATABASE_URL || "").trim()) errors.push("DATABASE_URL configurada obrigatoria");
   if (!strongSecret(env.JWT_SECRET)) errors.push("JWT_SECRET deve ter 32+ caracteres e nao pode ser placeholder");
   if (!strongSecret(env.SESSION_SECRET)) errors.push("SESSION_SECRET deve ter 32+ caracteres e nao pode ser placeholder");
-  if (!String(env.ASAAS_API_KEY || "").trim() || !String(env.ASAAS_WEBHOOK_TOKEN || "").trim()) {
-    warnings.push("Asaas nao configurado no .env; o sistema inicia, mas operacoes Asaas ficam bloqueadas ate o Admin configurar o gateway.");
-  }
+  if (!String(env.ASAAS_API_KEY || "").trim()) errors.push("ASAAS_API_KEY obrigatoria: Asaas e o unico gateway de producao.");
+  if (!String(env.ASAAS_WEBHOOK_TOKEN || "").trim()) warnings.push("ASAAS_WEBHOOK_TOKEN ausente: configure token do webhook Asaas antes de receber eventos em producao.");
   if (env.STORAGE_DRIVER === "persistent") {
     warnings.push("STORAGE_DRIVER=persistent aceito para single-process, mas confirme persistencia real antes do deploy.");
   }
