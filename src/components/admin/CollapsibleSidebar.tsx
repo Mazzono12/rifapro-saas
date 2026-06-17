@@ -3,7 +3,6 @@ import type React from "react";
 import { ChevronLeft, ChevronRight, Hexagon, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { ResponsiveMediaFrame } from "../ResponsiveMediaFrame";
 
 export type SidebarNavItem = {
   name: string;
@@ -61,8 +60,12 @@ export function CollapsibleSidebar({
         data-collapsed={minimized ? "true" : "false"}
       >
         <div className={cn("flex min-h-[58px] items-center border-b border-[var(--admin-border)]", minimized ? "justify-center" : "gap-2")}>
-          <Link to={rootPath} className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-[10px] bg-[var(--admin-primary)] text-[var(--admin-button-text)] shadow-[0_0_28px_var(--admin-glow)]" aria-label={title}>
-            {logoUrl ? <ResponsiveMediaFrame src={logoUrl} type="image" alt={title} preferredFit="contain" aspectMode="square" className="h-full w-full rounded-none" /> : <Hexagon className="h-7 w-7" />}
+          <Link
+            to={rootPath}
+            className={cn("admin-sidebar-brand-link shrink-0", minimized && "is-minimized")}
+            aria-label={title}
+          >
+            {logoUrl ? <img src={logoUrl} alt={title} className="admin-sidebar-brand-logo" /> : <Hexagon className="h-7 w-7" />}
           </Link>
           {!minimized && (
             <Link to={rootPath} className="min-w-0">

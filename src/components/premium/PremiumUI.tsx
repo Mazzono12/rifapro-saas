@@ -449,7 +449,7 @@ export function CheckoutModalHeader({ title, eyebrow = "Checkout seguro", compac
     <header className={cn("checkout-modal-header sticky top-0 z-10 shrink-0 border-b border-white/10 bg-[#090b11]/96 backdrop-blur-xl", compact ? "px-3 py-2" : "px-3 py-3 sm:px-4")} data-media-aware={compact ? "compact-no-media" : "standard-media"}>
       <CheckoutPageContainer className="grid grid-cols-1 items-center gap-3 px-0">
         <div className="checkout-modal-title-block flex min-w-0 items-center gap-2.5 sm:gap-3">
-          <TenantLogo className={cn("checkout-modal-logo shrink-0", compact ? "h-8 w-8" : "h-9 w-9 sm:h-10 sm:w-10")} eager />
+          <TenantLogo className={cn("checkout-modal-logo shrink-0", compact && "is-compact")} eager />
           <div className="min-w-0">
             <p className={cn("checkout-modal-kicker font-black uppercase tracking-[0.14em] text-[var(--theme-primary)]", compact ? "text-[8px]" : "text-[9px] sm:text-[10px]")}>
               {eyebrow}

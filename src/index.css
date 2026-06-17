@@ -21208,6 +21208,168 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
   }
 }
 
+/* Global brand logo visibility lock: larger usable logo area without changing header heights. */
+.tenant-logo-slot,
+.public-brand-mark {
+  box-sizing: border-box !important;
+}
+
+.tenant-logo-slot-image,
+.tenant-logo-slot.tenant-logo-slot-image {
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: 44px !important;
+  max-width: min(180px, 42vw) !important;
+  max-height: 44px !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+.tenant-logo-img,
+.public-brand-logo,
+.admin-sidebar-brand-logo,
+.admin-topbar-logo,
+.auth-brand-logo-img {
+  display: block !important;
+  width: auto !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  object-position: left center !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+}
+
+.premium-site-header .public-brand-mark {
+  height: 52px !important;
+  max-height: 52px !important;
+  align-items: center !important;
+  overflow: visible !important;
+}
+
+.premium-site-header .public-nav-brand-logo,
+.premium-site-header .public-brand-logo {
+  width: auto !important;
+  height: 52px !important;
+  max-width: min(210px, 54vw) !important;
+  max-height: 52px !important;
+}
+
+.checkout-modal-logo.tenant-logo-slot-image,
+.checkout-modal-logo.tenant-logo-slot-image.tenant-logo-slot {
+  height: 42px !important;
+  max-width: min(160px, 44vw) !important;
+  max-height: 42px !important;
+}
+
+.checkout-modal-logo.tenant-logo-slot-image.is-compact,
+.checkout-modal-logo.is-compact.tenant-logo-slot-image.tenant-logo-slot {
+  height: 38px !important;
+  max-width: min(148px, 42vw) !important;
+  max-height: 38px !important;
+}
+
+.admin-sidebar-brand-link {
+  display: inline-flex !important;
+  width: auto !important;
+  height: 48px !important;
+  max-width: 128px !important;
+  max-height: 48px !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--admin-primary) !important;
+  box-shadow: none !important;
+}
+
+.admin-sidebar-brand-link.is-minimized {
+  max-width: 56px !important;
+  justify-content: center !important;
+}
+
+.admin-sidebar-brand-link.is-minimized .admin-sidebar-brand-logo {
+  object-position: center center !important;
+}
+
+.admin-topbar-logo-slot {
+  display: inline-flex !important;
+  width: auto !important;
+  height: 32px !important;
+  max-width: 118px !important;
+  max-height: 32px !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  overflow: visible !important;
+  flex: 0 0 auto !important;
+}
+
+.auth-brand-logo-slot {
+  display: inline-flex !important;
+  width: auto !important;
+  height: 56px !important;
+  max-width: min(190px, 56vw) !important;
+  max-height: 56px !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.auth-brand-logo-slot.is-mobile,
+.auth-brand-logo-slot.is-preview {
+  height: 48px !important;
+  max-width: min(170px, 54vw) !important;
+  max-height: 48px !important;
+}
+
+.branding-preview-logo.tenant-logo-slot-image {
+  height: 48px !important;
+  max-width: min(180px, 48vw) !important;
+  max-height: 48px !important;
+}
+
+@media (min-width: 640px) {
+  .premium-site-header .public-brand-mark {
+    height: 56px !important;
+    max-height: 56px !important;
+  }
+
+  .premium-site-header .public-nav-brand-logo,
+  .premium-site-header .public-brand-logo {
+    height: 56px !important;
+    max-width: min(240px, 28vw) !important;
+    max-height: 56px !important;
+  }
+
+  .tenant-logo-slot-image,
+  .tenant-logo-slot.tenant-logo-slot-image {
+    height: 48px !important;
+    max-width: min(210px, 28vw) !important;
+    max-height: 48px !important;
+  }
+}
+
 /* Public Home logo size tune: +20% visual presence without changing header height. */
 .cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo,
 .cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo,

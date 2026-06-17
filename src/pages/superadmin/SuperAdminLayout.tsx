@@ -25,6 +25,7 @@ import { CollapsibleSidebar, type SidebarNavItem } from "../../components/admin/
 import { useAuth } from "../../context/auth/AuthContext";
 import { cn } from "../../lib/utils";
 import { NotificationBell } from "../../components/notifications/NotificationBell";
+import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
 
 // Compatibilidade de auditoria hard: o rótulo histórico "Financeiro executivo" segue coberto pela rota de Financeiro.
 // mobile-global-layout contract: overflow-y-auto
@@ -35,6 +36,7 @@ function SuperAdminLayoutContent() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("cifher.superadmin.sidebar") === "collapsed" || localStorage.getItem("rifapro.superadmin.sidebar") === "collapsed");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { branding } = useTenantBranding();
 
   useEffect(() => {
     localStorage.setItem("cifher.superadmin.sidebar", collapsed ? "collapsed" : "expanded");
@@ -91,6 +93,7 @@ function SuperAdminLayoutContent() {
       <CollapsibleSidebar
         items={navItems}
         rootPath="/superadmin"
+        logoUrl={branding.logo_url}
         title="CIFHER Prime"
         subtitle="Gestão Global"
         collapsed={collapsed}
@@ -106,7 +109,13 @@ function SuperAdminLayoutContent() {
               <button onClick={() => setCollapsed(value => !value)} className="admin-sidebar-toggle hidden lg:inline-grid" aria-label={collapsed ? "Expandir menu" : "Recolher menu"} title={collapsed ? "Expandir menu" : "Recolher menu"}>
                 {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
               </button>
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-[var(--admin-primary)] text-xs font-black text-[var(--admin-button-text)]">GG</div>
+              {branding.logo_url ? (
+                <span className="admin-topbar-logo-slot">
+                  <img src={branding.logo_url} alt={branding.header_name || "CIFHER Prime"} className="admin-topbar-logo" />
+                </span>
+              ) : (
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-[var(--admin-primary)] text-xs font-black text-[var(--admin-button-text)]">GG</div>
+              )}
               <div className="min-w-0">
                 <span className="block truncate text-base font-semibold text-[var(--admin-text)]">{activeItem?.name || "Gestão Global"}</span>
                 <span className="block text-xs text-[var(--admin-muted)]">{activeItem?.group || "Gestão"}</span>

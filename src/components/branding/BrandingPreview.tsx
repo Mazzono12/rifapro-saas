@@ -1,6 +1,5 @@
 import { TenantLogo } from "./TenantLogo";
 import { getReadableTextColor, getContrastRatio } from "../../lib/contrast";
-import { ResponsiveMediaFrame } from "../ResponsiveMediaFrame";
 
 export function BrandingPreview({ branding }: { branding: any }) {
   const ctaColor = branding.cta_color || "#00d66b";
@@ -16,7 +15,9 @@ export function BrandingPreview({ branding }: { branding: any }) {
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/50">
       <div className="flex items-center gap-3 border-b border-white/10 p-4" style={{ ["--tenant-primary" as string]: branding.primary_color || "#00d66b" }}>
         {branding.logo_url ? (
-          <ResponsiveMediaFrame src={branding.logo_url} type="image" alt={brandName || "Logo da marca"} preferredFit="contain" aspectMode="square" className="h-11 w-11 rounded-xl border border-white/10" />
+          <span className="tenant-logo-slot tenant-logo-slot-image branding-preview-logo">
+            <img src={branding.logo_url} alt={brandName || "Logo da marca"} className="tenant-logo-img" />
+          </span>
         ) : <TenantLogo />}
         {showName && <div>
           <p className="text-lg font-black text-white">{brandName}</p>
@@ -42,8 +43,8 @@ export function BrandingPreview({ branding }: { branding: any }) {
       >
         <div className="rounded-2xl border border-white/10 bg-black/45 p-4 backdrop-blur-xl">
           <div className="mb-4 flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.06]">
-              {loginLogo ? <ResponsiveMediaFrame src={loginLogo} type="image" alt={branding.login_title || branding.header_name} preferredFit="contain" aspectMode="square" className="h-full w-full" /> : <span className="font-black" style={{ color: loginAccent }}>C</span>}
+            <div className="auth-brand-logo-slot is-preview">
+              {loginLogo ? <img src={loginLogo} alt={branding.login_title || branding.header_name} className="auth-brand-logo-img" /> : <span className="font-black" style={{ color: loginAccent }}>C</span>}
             </div>
             <div>
               <p className="text-sm font-black text-white">{branding.login_title || "CIFHER Prime"}</p>

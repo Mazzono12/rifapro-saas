@@ -44,8 +44,8 @@ export function AuthShell({ title, subtitle, children }: { title?: string; subti
             <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primaryColor}26, transparent 42%), radial-gradient(circle at 50% 56%, ${accentColor}1c, transparent 36%)` }} />
             <div className="relative flex h-full flex-col justify-between">
               <div className="flex items-center gap-3">
-                <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] shadow-[0_0_42px_rgba(0,214,107,0.22)]">
-                  {logoUrl ? <img src={logoUrl} alt={loginTitle} className="h-full w-full object-contain p-2" /> : <span className="text-xl font-black" style={{ color: accentColor }}>C</span>}
+                <div className="auth-brand-logo-slot">
+                  {logoUrl ? <img src={logoUrl} alt={loginTitle} className="auth-brand-logo-img" /> : <span className="text-xl font-black" style={{ color: accentColor }}>C</span>}
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">{loginTitle}</p>
@@ -74,8 +74,8 @@ export function AuthShell({ title, subtitle, children }: { title?: string; subti
           <div className="p-6 sm:p-10 lg:p-12">
             <div className="mb-9">
               <div className="mb-7 flex items-center gap-3 lg:hidden">
-                <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06]">
-                  {logoUrl ? <img src={logoUrl} alt={loginTitle} className="h-full w-full object-contain p-2" /> : <span className="text-lg font-black" style={{ color: accentColor }}>C</span>}
+                <div className="auth-brand-logo-slot is-mobile">
+                  {logoUrl ? <img src={logoUrl} alt={loginTitle} className="auth-brand-logo-img" /> : <span className="text-lg font-black" style={{ color: accentColor }}>C</span>}
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">{loginTitle}</p>

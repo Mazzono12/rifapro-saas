@@ -119,7 +119,7 @@ export function Navbar() {
               eager
               inline
               className="min-w-0"
-              logoClassName="h-9 w-9 shrink-0 rounded-xl sm:h-10 sm:w-10"
+              logoClassName="public-nav-brand-logo shrink-0"
               nameClassName="min-w-0 truncate font-display text-lg font-bold tracking-wide text-[var(--theme-text)] sm:text-xl"
             />
           </Link>

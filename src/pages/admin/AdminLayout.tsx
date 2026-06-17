@@ -163,7 +163,13 @@ function AdminLayoutContent() {
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </button>
             <div className="hidden min-w-0 items-center gap-2 md:flex">
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-[var(--admin-primary)] text-xs font-black text-[var(--admin-button-text)]">CF</div>
+              {logo ? (
+                <span className="admin-topbar-logo-slot">
+                  <img src={logo} alt={companyName} className="admin-topbar-logo" />
+                </span>
+              ) : (
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-[var(--admin-primary)] text-xs font-black text-[var(--admin-button-text)]">CF</div>
+              )}
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold leading-tight text-[var(--admin-text)]">{companyName}</p>
                 <p className="truncate text-xs leading-tight text-[var(--admin-muted)]">{activeItem?.name || "Dashboard"}</p>
