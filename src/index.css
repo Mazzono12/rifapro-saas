@@ -21145,6 +21145,96 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
   color: #120900 !important;
 }
 
+/* Public Home logo final size lock: larger brand presence without changing header height. */
+.cfx-home-premium-v1 .cfx-v1-brand,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered {
+  box-sizing: border-box !important;
+  height: 60px !important;
+  min-height: 56px !important;
+  max-height: 64px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-mark {
+  height: 100% !important;
+  max-height: 100% !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo {
+  display: block !important;
+  width: auto !important;
+  height: 52px !important;
+  max-width: min(220px, 58vw) !important;
+  max-height: 52px !important;
+  object-fit: contain !important;
+  object-position: left center !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+@media (min-width: 640px) {
+  .cfx-home-premium-v1 .cfx-v1-brand,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-left,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-inline,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-centered {
+    height: 68px !important;
+    min-height: 64px !important;
+    max-height: 72px !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+
+  .cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo {
+    height: 56px !important;
+    max-width: min(260px, 34vw) !important;
+    max-height: 56px !important;
+  }
+}
+
+/* Public Home logo size tune: +20% visual presence without changing header height. */
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo {
+  max-width: 180px !important;
+  height: 42px !important;
+  max-height: 42px !important;
+  object-fit: contain !important;
+  filter: none !important;
+  box-shadow: none !important;
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+}
+
+@media (min-width: 640px) {
+  .cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo {
+    max-width: 180px !important;
+    height: 48px !important;
+    max-height: 48px !important;
+  }
+}
+
 /* Public Home logo clean reset: no decorative effects or animations. */
 .cfx-home-premium-v1 .cfx-v1-brand,
 .cfx-home-premium-v1 .cfx-v1-brand *,
@@ -23552,4 +23642,69 @@ body:has(.checkout-resume-page),
 
 .checkout-resume-page .checkout-pix-copy-button svg {
   color: #120900 !important;
+}
+
+/* Public Home logo EOF final size lock: overrides all older logo caps. */
+.cfx-home-premium-v1 .cfx-v1-brand,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered {
+  box-sizing: border-box !important;
+  height: 60px !important;
+  min-height: 56px !important;
+  max-height: 64px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  overflow: visible !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-mark {
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: visible !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo {
+  display: block !important;
+  width: auto !important;
+  height: 52px !important;
+  max-width: min(220px, 58vw) !important;
+  max-height: 52px !important;
+  object-fit: contain !important;
+  object-position: left center !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+@media (min-width: 640px) {
+  .cfx-home-premium-v1 .cfx-v1-brand,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-left,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-inline,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-centered {
+    height: 68px !important;
+    min-height: 64px !important;
+    max-height: 72px !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+
+  .cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo {
+    height: 56px !important;
+    max-width: min(260px, 34vw) !important;
+    max-height: 56px !important;
+  }
 }
