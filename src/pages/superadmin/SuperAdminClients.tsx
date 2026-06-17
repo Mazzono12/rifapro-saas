@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Building2, CreditCard, Eye, LogIn, Palette, Pencil, Plus, RefreshCw, SlidersHorizontal, Ticket, X } from "lucide-react";
+import { Building2, CreditCard, Eye, LogIn, Pencil, Plus, RefreshCw, SlidersHorizontal, Ticket, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminDataTable, AdminLoadingSkeleton, MetricCard } from "../../components/admin/AdminPremium";
 import { formatPlanName } from "../../lib/planLabels";
@@ -495,7 +495,6 @@ function ClientActions({
       <button type="button" className="admin-action-button" title="Editar cliente" onClick={onEdit}>
         <Pencil className="h-4 w-4" /> Editar
       </button>
-      <Link className="admin-icon-button" title="Aparência" to={`/superadmin/tenants/${tenant.id}/aparencia`}><Palette className="h-4 w-4" /></Link>
       <Link className="admin-icon-button" title="Plano e Recursos" to={`/superadmin/tenants/${tenant.id}/plano`}><SlidersHorizontal className="h-4 w-4" /></Link>
       <button type="button" className="admin-action-button" onClick={onToggle}>
         {tenant.status === "suspended" ? "Reativar" : "Suspender"}

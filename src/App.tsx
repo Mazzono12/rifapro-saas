@@ -137,7 +137,6 @@ const AdminDomains = lazy(() => import("./pages/admin/AdminDomains").then(module
 const AdminComplianceCenter = lazy(() => import("./pages/admin/AdminComplianceCenter").then(module => ({ default: module.AdminComplianceCenter })));
 const AdminMyPlan = lazy(() => import("./pages/admin/AdminMyPlan").then(module => ({ default: module.AdminMyPlan })));
 const AdminPlatformBilling = lazy(() => import("./pages/admin/AdminPlatformBilling").then(module => ({ default: module.AdminPlatformBilling })));
-const AdminWhiteLabel = lazy(() => import("./pages/admin/AdminWhiteLabel").then(module => ({ default: module.AdminWhiteLabel })));
 const SuperAdminLayout = lazy(() => import("./pages/superadmin/SuperAdminLayout").then(module => ({ default: module.SuperAdminLayout })));
 const SuperAdminDashboard = lazy(() => import("./pages/superadmin/SuperAdminDashboard").then(module => ({ default: module.SuperAdminDashboard })));
 const SuperAdminClients = lazy(() => import("./pages/superadmin/SuperAdminClients").then(module => ({ default: module.SuperAdminClients })));
@@ -150,7 +149,6 @@ const SuperAdminAudit = lazy(() => import("./pages/superadmin/SuperAdminAudit").
 const SuperAdminReports = lazy(() => import("./pages/superadmin/SuperAdminReports").then(module => ({ default: module.SuperAdminReports })));
 const SuperAdminAntifraud = lazy(() => import("./pages/superadmin/SuperAdminAntifraud").then(module => ({ default: module.SuperAdminAntifraud })));
 const SuperAdminTenantDetail = lazy(() => import("./pages/superadmin/SuperAdminTenantDetail").then(module => ({ default: module.SuperAdminTenantDetail })));
-const SuperAdminTenantBranding = lazy(() => import("./pages/superadmin/SuperAdminTenantBranding").then(module => ({ default: module.SuperAdminTenantBranding })));
 const SuperAdminTenantPlanResources = lazy(() => import("./pages/superadmin/SuperAdminTenantPlanResources").then(module => ({ default: module.SuperAdminTenantPlanResources })));
 const SuperAdminPlatformBilling = lazy(() => import("./pages/superadmin/SuperAdminPlatformBilling").then(module => ({ default: module.SuperAdminPlatformBilling })));
 const SuperAdminWhiteLabel = lazy(() => import("./pages/superadmin/SuperAdminWhiteLabel").then(module => ({ default: module.SuperAdminWhiteLabel })));
@@ -370,9 +368,9 @@ export default function App() {
                 <Route path="gerenciar-cotas" element={adminSection("Gerenciar Cotas", <AdminComplianceCenter view="tickets" />)} />
                 <Route path="meu-plano" element={adminSection("Meu Plano", <AdminMyPlan />)} />
                 <Route path="custos-plataforma" element={adminSection("Custos da Plataforma", <AdminPlatformBilling />)} />
-                <Route path="marca-dominio" element={adminSection("Marca e Domínio", <AdminWhiteLabel />)} />
+                <Route path="marca-dominio" element={<Navigate to="/admin/config" replace />} />
                 <Route path="config" element={adminSection("Configurações", <AdminConfig />)} />
-                <Route path="config/aparencia" element={adminSection("Aparência", <AdminConfig initialTab="branding" />)} />
+                <Route path="config/aparencia" element={<Navigate to="/admin/config" replace />} />
               </Route>
               <Route path="/superadmin" element={<ProtectedRoute roles={["superadmin"]}><Suspense fallback={<AdminRouteFallback />}><SuperAdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={<SuperAdminDashboard />} />
@@ -389,9 +387,9 @@ export default function App() {
                 <Route path="platform-billing" element={<SuperAdminPlatformBilling />} />
                 <Route path="white-label" element={<SuperAdminWhiteLabel />} />
                 <Route path="antifraude" element={<SuperAdminAntifraud />} />
-                <Route path="aparencia" element={<SuperAdminTenantBranding />} />
+                <Route path="aparencia" element={<Navigate to="/superadmin/white-label" replace />} />
                 <Route path="tenants/:tenantId/financeiro" element={<SuperAdminTenantDetail />} />
-                <Route path="tenants/:tenantId/aparencia" element={<SuperAdminTenantBranding />} />
+                <Route path="tenants/:tenantId/aparencia" element={<Navigate to="/superadmin/clientes" replace />} />
                 <Route path="tenants/:tenantId/plano" element={<SuperAdminTenantPlanResources />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />

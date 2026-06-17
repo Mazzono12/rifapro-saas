@@ -56,6 +56,7 @@ export type PublicTenantBranding = {
   };
   home_branding?: {
     brandLayout?: "centered" | "inline";
+    logoPosition?: "left";
     showName?: boolean;
     whatsapp?: string;
     instagram?: string;
@@ -86,7 +87,8 @@ const fallbackBranding: PublicTenantBranding = {
   login_button_text: "Entrar com segurança",
   login_footer_text: "Ambiente protegido • Acesso autorizado",
   home_branding: {
-    brandLayout: "centered",
+    brandLayout: "inline",
+    logoPosition: "left",
     showName: true,
     whatsapp: "",
     instagram: "",
@@ -124,7 +126,8 @@ function normalizeBranding(value: Partial<PublicTenantBranding> | null | undefin
     home_branding: {
       ...fallbackBranding.home_branding,
       ...homeBranding,
-      brandLayout: homeBranding.brandLayout === "inline" ? "inline" : "centered",
+      brandLayout: "inline",
+      logoPosition: "left",
       showName: homeBranding.showName !== false
     }
   };

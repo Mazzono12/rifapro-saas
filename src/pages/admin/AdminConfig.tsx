@@ -103,7 +103,7 @@ function AffiliateSection({
   );
 }
 
-export function AdminConfig({ initialTab = "settings" }: { initialTab?: "settings" | "branding" }) {
+export function AdminConfig() {
   const { themeId, setThemeId, previewTheme, clearPreview, applyPaletteOverrides } = useTheme();
   const { refresh: refreshTenantBranding } = useTenantBranding();
   const [loading, setLoading] = useState(true);
@@ -213,7 +213,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     if (!res.ok) throw new Error("Não foi possível salvar aparência");
     setBranding(await res.json());
     await refreshTenantBranding(true);
-    toast.success("Aparência salva");
+    toast.success("Identidade visual salva");
   };
 
   const resetBranding = async () => {
@@ -221,7 +221,7 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     if (!res.ok) throw new Error("Não foi possível resetar aparência");
     setBranding(await res.json());
     await refreshTenantBranding(true);
-    toast.success("Aparência resetada");
+    toast.success("Identidade visual resetada");
   };
 
   const saveThemeBuilder = async () => {
@@ -500,41 +500,6 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
     updateAffiliatePerformanceRewards({ rules });
   };
 
-  if (initialTab === "branding") {
-    return (
-      <div className="space-y-6 fade-in">
-        <div>
-          <h1 className="text-3xl font-display font-medium text-white flex items-center gap-3">
-            <Settings className="w-8 h-8 text-emerald-300" /> Configurações de Aparência
-          </h1>
-          <p className="mt-2 text-sm text-slate-400">Nome, logo, GIF animado, favicon, cores, frase institucional, WhatsApp e rodape da empresa.</p>
-        </div>
-        {branding ? (
-          <BrandingSettingsForm
-            value={branding}
-            onChange={setBranding}
-            onSave={() => saveBranding().catch(error => toast.error(error.message))}
-            onReset={() => resetBranding().catch(error => toast.error(error.message))}
-            logoEndpoint="/api/admin/branding/logo"
-            faviconEndpoint="/api/admin/branding/favicon"
-          />
-        ) : (
-          <div className="glass-card rounded-3xl p-8 text-slate-400">Carregando aparencia...</div>
-        )}
-        {builder ? (
-          <ThemeBuilder
-            data={builder}
-            onChange={setBuilder}
-            onSave={() => saveThemeBuilder().catch(error => toast.error(error.message))}
-            onPublish={() => publishThemeBuilder().catch(error => toast.error(error.message))}
-          />
-        ) : (
-          <div className="glass-card rounded-3xl p-8 text-slate-400">Carregando construtor visual...</div>
-        )}
-      </div>
-    );
-  }
-
   if (loading) return null;
 
   const affiliateProgram = settings.affiliateProgram || {};
@@ -568,8 +533,39 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
             <h1 className="text-3xl font-display font-medium text-white flex items-center gap-3">
                <Settings className="w-8 h-8 text-slate-400" /> Configurações do Ambiente
             </h1>
+            <p className="mt-2 text-sm text-slate-400">Local oficial para identidade visual, aparência, regras operacionais e preferências públicas do tenant.</p>
          </div>
        </div>
+
+       <section className="space-y-6 rounded-3xl border border-amber-300/15 bg-amber-300/[0.035] p-4 sm:p-5">
+         <div>
+           <p className="premium-eyebrow">Fonte oficial</p>
+           <h2 className="text-2xl font-display font-medium text-white">Identidade visual e aparência</h2>
+           <p className="mt-2 text-sm text-slate-400">Logo, nome da empresa, nome da marca, cores, tema, posição da logo e dados visuais da Home pública são salvos aqui.</p>
+         </div>
+         {branding ? (
+           <BrandingSettingsForm
+             value={branding}
+             onChange={setBranding}
+             onSave={() => saveBranding().catch(error => toast.error(error.message))}
+             onReset={() => resetBranding().catch(error => toast.error(error.message))}
+             logoEndpoint="/api/admin/branding/logo"
+             faviconEndpoint="/api/admin/branding/favicon"
+           />
+         ) : (
+           <div className="glass-card rounded-3xl p-8 text-slate-400">Carregando identidade visual...</div>
+         )}
+         {builder ? (
+           <ThemeBuilder
+             data={builder}
+             onChange={setBuilder}
+             onSave={() => saveThemeBuilder().catch(error => toast.error(error.message))}
+             onPublish={() => publishThemeBuilder().catch(error => toast.error(error.message))}
+           />
+         ) : (
+           <div className="glass-card rounded-3xl p-8 text-slate-400">Carregando construtor visual...</div>
+         )}
+       </section>
 
        <form onSubmit={handleSave} className="space-y-8">
          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -578,28 +574,10 @@ export function AdminConfig({ initialTab = "settings" }: { initialTab?: "setting
             <div className="glass-card p-6 border border-white/5 rounded-3xl space-y-6">
                <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
                   <Layout className="w-5 h-5 text-neon-cyan" />
-                  <h2 className="text-xl font-display font-medium text-white">Interface (UI)</h2>
+                  <h2 className="text-xl font-display font-medium text-white">Tema operacional</h2>
                </div>
-               
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <label className="space-y-2 md:col-span-2">
-                   <span className="block text-xs font-mono text-slate-400 uppercase tracking-widest">Nome da empresa</span>
-                   <input value={settings.branding?.companyName || ""} onChange={e => setSettings({...settings, branding: {...settings.branding, companyName: e.target.value}})} className="w-full p-3" />
-                 </label>
-                 <div className="md:col-span-2">
-                   <MediaPicker
-                     label="Logo da empresa"
-                     value={settings.branding?.logoUrl || ""}
-                     mediaType="image"
-                      onChange={mediaUrl => setSettings({...settings, branding: {...settings.branding, logoUrl: mediaUrl}})}
-                      accept=".jpg,.jpeg,.png,.gif,.webp"
-                      allowExternalVideo={false}
-                   />
-                 </div>
-                 <label className="space-y-2">
-                   <span className="block text-xs font-mono text-slate-400 uppercase tracking-widest">Texto alternativo</span>
-                   <input value={settings.branding?.logoAlt || ""} onChange={e => setSettings({...settings, branding: {...settings.branding, logoAlt: e.target.value}})} className="w-full p-3" />
-                 </label>
+               <div className="rounded-2xl border border-amber-300/20 bg-black/25 p-4 text-sm leading-6 text-slate-300">
+                 Nome, logo, cores públicas, favicon e posição da logo foram centralizados no bloco <strong className="text-amber-100">Identidade visual e aparência</strong> acima para evitar sobrescrita entre formulários.
                </div>
 
                <div className="space-y-4">

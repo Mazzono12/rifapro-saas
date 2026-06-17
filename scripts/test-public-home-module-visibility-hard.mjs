@@ -81,6 +81,20 @@ assert.ok(
 
 hasAll(css, [
   "HOME PREMIUM V1 MOBILE",
+  "Public Home compact header",
+  "Public Home logo clean reset",
+  "animation: none !important",
+  "transition: none !important",
+  "transform: none !important",
+  "content: none !important",
+  "box-shadow: none !important",
+  "filter: none !important",
+  "height: 60px !important",
+  "max-height: 64px !important",
+  "height: 68px !important",
+  "max-height: 72px !important",
+  "max-height: 42px !important",
+  "max-height: 48px !important",
   ".public-brand-mark",
   ".public-brand-logo",
   ".public-brand-name",
@@ -108,8 +122,9 @@ hasAll(brandingContext, [
   "home_branding",
   "brandLayout",
   "showName",
-  "\"centered\"",
   "\"inline\"",
+  "logoPosition",
+  "\"left\"",
   "officialGroup"
 ], "Branding publico deve expor configuracao da Home");
 
@@ -118,8 +133,7 @@ hasAll(brandingSettings, [
   "Nome no cabeçalho (opcional)",
   "Deixe vazio para usar apenas a logo",
   "Exibir nome junto da logo",
-  "Logo Centralizada",
-  "Logo + Texto Lateral",
+  "Logo e nome sempre alinhados à esquerda na Home.",
   "WhatsApp da Home",
   "Instagram da Home",
   "Grupo Oficial"
@@ -131,7 +145,8 @@ hasAll(server, [
   "homeBranding",
   "showName",
   "officialGroup",
-  "brandLayout === \"inline\" ? \"inline\" : \"centered\""
+  "brandLayout: \"inline\"",
+  "logoPosition: \"left\""
 ], "Backend deve sanitizar e publicar Branding Home");
 hasNone(server, [
   "current.company_name ||= current.header_name",
@@ -176,15 +191,16 @@ hasAll(publicBrandMark, [
   "branding.display_name || branding.header_name || branding.company_name || \"\"",
   "branding.home_branding?.showName !== false",
   "logo-only",
-  "ResponsiveMediaFrame",
+  "<img",
+  "decoding=\"async\"",
   "public-brand-logo"
 ], "Marca publica deve vir do branding global do tenant");
 
 hasAll(app, [
   "<Route path=\"/\" element={<Home />} />",
   "const isHomeRoute = location.pathname === \"/\"",
-  "{!isHomeRoute && !isRaffleRoute && <Navbar />}",
-  "{(isHomeRoute || isRaffleRoute) && <PublicBottomNav />}",
+  "{!isHomeRoute && !isRaffleRoute && !isCheckoutRoute && <Navbar />}",
+  "{(isHomeRoute || isRaffleRoute) && !isCheckoutRoute && <PublicBottomNav />}",
   "<Route path=\"/sorteio\" element={<Navigate to=\"/sorteios\" replace />} />",
   "<Route path=\"/campanhas\" element={<Navigate to=\"/sorteios\" replace />} />",
   "<Route path=\"/rifas\" element={<Navigate to=\"/sorteios\" replace />} />",

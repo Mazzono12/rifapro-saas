@@ -69,9 +69,10 @@ export function BrandingSettingsForm({
   };
   const setHomeBranding = (field: string, nextValue: any) => {
     const nextHomeBranding = {
-      brandLayout: "centered",
       ...homeBranding,
-      [field]: nextValue
+      [field]: nextValue,
+      brandLayout: "inline",
+      logoPosition: "left"
     };
     onChange({
       ...value,
@@ -112,24 +113,9 @@ export function BrandingSettingsForm({
               />
               Exibir nome junto da logo
             </label>
-            <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm font-bold ${homeBranding.brandLayout !== "inline" ? "border-amber-300/50 bg-amber-300/10 text-white" : "border-white/10 bg-black/20 text-slate-300"}`}>
-              <input
-                type="radio"
-                name="homeBrandLayout"
-                checked={homeBranding.brandLayout !== "inline"}
-                onChange={() => setHomeBranding("brandLayout", "centered")}
-              />
-              Logo Centralizada
-            </label>
-            <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm font-bold ${homeBranding.brandLayout === "inline" ? "border-amber-300/50 bg-amber-300/10 text-white" : "border-white/10 bg-black/20 text-slate-300"}`}>
-              <input
-                type="radio"
-                name="homeBrandLayout"
-                checked={homeBranding.brandLayout === "inline"}
-                onChange={() => setHomeBranding("brandLayout", "inline")}
-              />
-              Logo + Texto Lateral
-            </label>
+            <div className="flex items-center gap-3 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm font-bold text-white">
+              Logo e nome sempre alinhados à esquerda na Home.
+            </div>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
             <label className="grid gap-2 text-sm font-semibold text-slate-300">WhatsApp da Home<input value={homeBranding.whatsapp || ""} onChange={event => setHomeBranding("whatsapp", event.target.value)} className="admin-input" placeholder="https://wa.me/..." /></label>

@@ -19845,17 +19845,16 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
 }
 
 .public-brand-logo {
-  display: grid;
-  place-items: center;
-  overflow: hidden;
+  display: block;
+  min-width: 0;
   background: transparent;
-}
-
-.public-brand-logo.responsive-media-frame {
-  background: transparent;
+  object-fit: contain;
 }
 
 .public-brand-logo-fallback {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .1);
   background: color-mix(in srgb, var(--tenant-primary) 12%, transparent);
   color: var(--tenant-primary);
@@ -19872,29 +19871,72 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
 
 .cfx-v1-brand {
   display: flex;
-  min-height: 44px;
+  min-height: 70px;
   align-items: center;
   justify-content: center;
   gap: 6px;
   flex-direction: column;
   text-align: center;
   background: #000;
+  padding: 8px 0 6px;
 }
 
-.cfx-v1-brand.is-inline {
-  min-height: 44px;
+.cfx-v1-brand.is-centered {
+  min-height: clamp(70px, 18vw, 86px);
+}
+
+.cfx-v1-brand.is-inline,
+.cfx-v1-brand.is-left {
+  min-height: 62px;
   flex-direction: row;
+  justify-content: flex-start;
+  text-align: left;
+  padding: 8px 0;
 }
 
-.cfx-v1-brand .public-brand-logo {
-  width: 38px;
-  height: 38px;
-  object-fit: contain;
+.cfx-v1-brand .public-brand-mark {
+  max-width: 100%;
+}
+
+.cfx-v1-brand.is-centered .public-brand-mark {
+  min-height: clamp(70px, 18vw, 86px);
+  width: min(100%, 278px);
+  padding: 8px 16px;
+  border: 1px solid rgba(245, 196, 81, .2);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(245, 196, 81, .13), transparent 60%),
+    rgba(8, 8, 8, .72);
+  box-shadow: 0 14px 42px rgba(0, 0, 0, .34), inset 0 1px 0 rgba(255, 255, 255, .08);
+  backdrop-filter: blur(12px);
+}
+
+.cfx-v1-brand.is-centered .public-brand-logo {
+  width: auto;
+  height: auto;
+  max-width: clamp(150px, 46vw, 230px);
+  max-height: clamp(58px, 9vw, 90px);
+  filter: drop-shadow(0 8px 20px rgba(245, 196, 81, .2));
+}
+
+.cfx-v1-brand.is-left .public-brand-logo,
+.cfx-v1-brand.is-inline .public-brand-logo {
+  width: auto;
+  height: auto;
+  max-width: 132px;
+  max-height: 46px;
+  filter: drop-shadow(0 7px 16px rgba(245, 196, 81, .16));
+}
+
+.cfx-v1-brand .public-brand-logo-fallback {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
 }
 
 .cfx-v1-brand .public-brand-logo-fallback svg {
-  width: 28px;
-  height: 28px;
+  width: 64%;
+  height: 64%;
   filter: drop-shadow(0 0 18px color-mix(in srgb, var(--tenant-primary) 42%, transparent));
 }
 
@@ -19906,6 +19948,34 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
   text-transform: uppercase;
   letter-spacing: 0;
   color: #fff;
+}
+
+@media (min-width: 640px) {
+  .cfx-v1-brand {
+    min-height: 86px;
+    padding: 10px 0 8px;
+  }
+
+  .cfx-v1-brand.is-centered {
+    min-height: clamp(86px, 10vw, 110px);
+  }
+
+  .cfx-v1-brand.is-centered .public-brand-mark {
+    min-height: clamp(86px, 10vw, 110px);
+    width: min(100%, 340px);
+    padding: 10px 20px;
+  }
+
+  .cfx-v1-brand.is-left,
+  .cfx-v1-brand.is-inline {
+    min-height: 70px;
+  }
+
+  .cfx-v1-brand.is-left .public-brand-logo,
+  .cfx-v1-brand.is-inline .public-brand-logo {
+    max-width: 180px;
+    max-height: 58px;
+  }
 }
 
 .cfx-v1-hero,
@@ -21072,6 +21142,319 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
 
 .checkout-resume-page .premium-button svg,
 .checkout-resume-page .checkout-pix-copy-button svg {
+  color: #120900 !important;
+}
+
+/* Public Home logo clean reset: no decorative effects or animations. */
+.cfx-home-premium-v1 .cfx-v1-brand,
+.cfx-home-premium-v1 .cfx-v1-brand *,
+.cfx-home-premium-v1 .cfx-v1-brand *::before,
+.cfx-home-premium-v1 .cfx-v1-brand *::after {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand::before,
+.cfx-home-premium-v1 .cfx-v1-brand::after,
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-mark::before,
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-mark::after,
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo::before,
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo::after {
+  content: none !important;
+  display: none !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-mark {
+  border: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo-fallback,
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo-fallback svg {
+  box-shadow: none !important;
+  filter: none !important;
+  background-image: none !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo {
+  object-fit: contain !important;
+}
+
+/* Public Home compact header: logo must not create a tall top spacer. */
+.cfx-home-premium-v1 .cfx-v1-shell {
+  padding-top: 0 !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered {
+  display: flex !important;
+  height: 60px !important;
+  min-height: 56px !important;
+  max-height: 64px !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-direction: row !important;
+  gap: 10px !important;
+  margin: 0 !important;
+  padding: 7px 2px !important;
+  overflow: hidden !important;
+  background: #000 !important;
+  text-align: left !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-mark {
+  display: inline-flex !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  width: auto !important;
+  max-width: 100% !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-direction: row !important;
+  gap: 10px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo {
+  display: block !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 150px !important;
+  max-height: 42px !important;
+  object-fit: contain !important;
+  flex: 0 1 auto !important;
+  margin: 0 !important;
+  filter: drop-shadow(0 4px 10px rgba(245, 196, 81, .12)) !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo-fallback {
+  width: 42px !important;
+  height: 42px !important;
+  max-width: 42px !important;
+  max-height: 42px !important;
+  border-radius: 10px !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-name,
+.cfx-home-premium-v1 .cfx-v1-brand .cfx-v1-brand-title {
+  display: block !important;
+  min-width: 0 !important;
+  max-width: min(52vw, 240px) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-size: 17px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  letter-spacing: 0 !important;
+  margin: 0 !important;
+}
+
+.cfx-home-premium-v1 .cfx-v1-media {
+  margin-top: 4px !important;
+}
+
+@media (min-width: 640px) {
+  .cfx-home-premium-v1 .cfx-v1-brand,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-left,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-inline,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-centered {
+    height: 68px !important;
+    min-height: 64px !important;
+    max-height: 72px !important;
+    padding: 10px 2px !important;
+  }
+
+  .cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo {
+    max-height: 48px !important;
+  }
+
+  .cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo-fallback {
+    width: 48px !important;
+    height: 48px !important;
+    max-width: 48px !important;
+    max-height: 48px !important;
+  }
+
+  .cfx-home-premium-v1 .cfx-v1-brand .public-brand-name,
+  .cfx-home-premium-v1 .cfx-v1-brand .cfx-v1-brand-title {
+    max-width: 360px !important;
+    font-size: 19px !important;
+  }
+}
+
+/* Home logo final sizing lock: mobile-first, premium and tenant-safe. */
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered {
+  min-height: clamp(70px, 18vw, 86px);
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-mark {
+  min-height: clamp(70px, 18vw, 86px);
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo {
+  width: auto;
+  height: auto;
+  max-width: clamp(150px, 46vw, 230px);
+  max-height: clamp(58px, 9vw, 90px);
+  object-fit: contain;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo {
+  width: auto;
+  height: auto;
+  max-width: 132px;
+  max-height: 46px;
+  object-fit: contain;
+}
+
+@media (min-width: 640px) {
+  .cfx-home-premium-v1 .cfx-v1-brand.is-centered {
+    min-height: clamp(86px, 10vw, 110px);
+  }
+
+  .cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-mark {
+    min-height: clamp(86px, 10vw, 110px);
+  }
+
+  .cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo {
+    max-width: 180px;
+    max-height: 58px;
+  }
+}
+
+/* Home brand final layout: normal left header with logo and company name. */
+.cfx-home-premium-v1 .cfx-v1-brand,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered {
+  min-height: 58px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-direction: row;
+  text-align: left;
+  padding: 8px 2px 10px;
+  background: #000;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-mark,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-mark {
+  min-height: 0;
+  width: auto;
+  max-width: 100%;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+.cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo {
+  width: auto;
+  height: auto;
+  max-width: 118px;
+  max-height: 42px;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 12px rgba(245, 196, 81, .14));
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo-fallback {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+
+.cfx-home-premium-v1 .cfx-v1-brand .public-brand-name,
+.cfx-home-premium-v1 .cfx-v1-brand .cfx-v1-brand-title {
+  max-width: min(58vw, 260px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+@media (min-width: 640px) {
+  .cfx-home-premium-v1 .cfx-v1-brand,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-left,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-inline,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-centered {
+    min-height: 68px;
+    padding: 10px 2px 12px;
+  }
+
+  .cfx-home-premium-v1 .cfx-v1-brand .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-centered .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-left .public-brand-logo,
+  .cfx-home-premium-v1 .cfx-v1-brand.is-inline .public-brand-logo {
+    max-width: 160px;
+    max-height: 52px;
+  }
+
+  .cfx-home-premium-v1 .cfx-v1-brand .public-brand-name,
+  .cfx-home-premium-v1 .cfx-v1-brand .cfx-v1-brand-title {
+    max-width: 360px;
+    font-size: 20px;
+  }
+}
+
+html body .checkout-resume-page .checkout-pix-card button.pix-copy-gold-button,
+html body .checkout-resume-page .checkout-pix-card button.pix-copy-gold-button.bg-emerald-200,
+html body .checkout-resume-page .checkout-pix-card .pix-copy-gold-button.checkout-primary-button {
+  border: 0 !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6a90f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #120900 !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+}
+
+html body .checkout-resume-page .checkout-pix-card button.pix-copy-gold-button *,
+html body .checkout-resume-page .checkout-pix-card button.pix-copy-gold-button svg {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
   color: #120900 !important;
 }
 

@@ -69,7 +69,6 @@ function SuperAdminLayoutContent() {
     { name: "Financeiro", path: "/superadmin/relatorios", icon: FileText, group: "Gestão Global" },
     { name: "Billing da Plataforma", path: "/superadmin/platform-billing", icon: FileText, group: "Gestão Global" },
     { name: "White Label", path: "/superadmin/white-label", icon: Palette, group: "Gestão Global" },
-    { name: "Aparência", path: "/superadmin/aparencia", icon: Palette, group: "Ambiente" },
     { name: "Domínios", path: "/superadmin/dominios", icon: Globe2, group: "Ambiente" },
     { name: "Integrações", path: "/superadmin/integracoes", icon: Plug, group: "Ambiente" },
     { name: "WhatsApp Enterprise", path: "/superadmin/whatsapp-enterprise", icon: MessageCircle, group: "Ambiente" },

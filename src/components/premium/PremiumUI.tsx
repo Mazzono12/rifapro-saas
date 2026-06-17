@@ -498,7 +498,7 @@ export function PixPaymentCard({ payload, qrImage, copied, onCopy }: { payload?:
       ) : (
         <div className="premium-card border-red-300/20 bg-red-500/10 text-red-100">Não foi possível gerar o PIX. Tente novamente ou fale com o suporte.</div>
       )}
-      {payload && <CheckoutPrimaryButton onClick={onCopy} aria-label="Copiar PIX copia e cola" className={cn("checkout-pix-copy-button w-full", copied && "bg-emerald-200")}>
+      {payload && <CheckoutPrimaryButton onClick={onCopy} aria-label="Copiar PIX copia e cola" className={cn("checkout-pix-copy-button pix-copy-gold-button w-full", copied && "bg-emerald-200")}>
         {copied ? "Código PIX copiado" : <><Copy className="h-5 w-5" /> Copiar código PIX</>}
       </CheckoutPrimaryButton>}
       <p className="checkout-pix-help">Depois de copiar, abra o app do banco e pague via PIX copia e cola.</p>

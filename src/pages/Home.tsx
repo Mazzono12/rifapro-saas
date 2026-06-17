@@ -23,7 +23,6 @@ import { PremiumButton, PremiumEmptyState, PremiumErrorState, PremiumPageLayout 
 import { markPageLoaded, startMetric } from "../lib/performanceMetrics";
 import type { Raffle, Winner } from "../types";
 import { StandardRaffleMediaBlock } from "../components/StandardRaffleMediaBlock";
-import { cn } from "../lib/utils";
 import type { ResponsiveMediaAspectMode } from "../utils/mediaAspect";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
 import { PublicBrandMark } from "../components/branding/PublicBrandMark";
@@ -421,12 +420,14 @@ function RifaProLoading() {
 }
 
 function HomeV1Brand({ branding }: { branding: any }) {
-  const layout = branding?.home_branding?.brandLayout === "inline" ? "inline" : "centered";
   return (
-    <header className={cn("cfx-v1-brand", layout === "inline" && "is-inline")}>
+    <header
+      className="cfx-v1-brand is-inline is-left"
+      data-logo-position="left"
+    >
       <PublicBrandMark
         eager
-        inline={layout === "inline"}
+        inline
         logoClassName="cfx-v1-brand-logo"
         nameClassName="cfx-v1-brand-title"
       />

@@ -1,7 +1,6 @@
 import { Hexagon } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
-import { ResponsiveMediaFrame } from "../ResponsiveMediaFrame";
 
 type PublicBrandMarkProps = {
   className?: string;
@@ -31,15 +30,12 @@ export function PublicBrandMark({
   return (
     <span className={cn("public-brand-mark", (inline || !shouldShowName) && "is-inline", !shouldShowName && "logo-only", className)}>
       {branding.logo_url ? (
-        <ResponsiveMediaFrame
+        <img
           src={branding.logo_url}
-          type="image"
           alt={name || "Logo da marca"}
-          preferredFit="contain"
-          aspectMode="square"
-          priority={eager}
+          loading={eager ? "eager" : "lazy"}
+          decoding="async"
           className={cn("public-brand-logo", logoClassName)}
-          mediaClassName="object-contain"
         />
       ) : (
         <span className={cn("public-brand-logo public-brand-logo-fallback", logoClassName)}>

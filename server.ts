@@ -1213,9 +1213,9 @@ async function startServer() {
   function sanitizeHomeBranding(value: unknown, current: unknown = {}) {
     const source = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
     const fallback = current && typeof current === "object" && !Array.isArray(current) ? current as Record<string, unknown> : {};
-    const brandLayout = String(source.brandLayout ?? fallback.brandLayout ?? "centered").trim();
     return {
-      brandLayout: brandLayout === "inline" ? "inline" : "centered",
+      brandLayout: "inline",
+      logoPosition: "left",
       showName: source.showName !== undefined ? source.showName !== false : fallback.showName !== false,
       whatsapp: sanitizeWhiteLabelUrl(source.whatsapp ?? fallback.whatsapp),
       instagram: sanitizeWhiteLabelUrl(source.instagram ?? fallback.instagram),
@@ -25476,6 +25476,7 @@ async function startServer() {
   app.put("/api/admin/settings", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const currentSettings = getTenantSettings(tenantId);
+    const officialBranding = getTenantBranding(tenantId);
     const incomingN8n = { ...(req.body.n8nIntegration || {}) };
     const incomingAffiliateVideo = { ...(req.body.affiliateInstructionVideo || {}) };
     if (incomingN8n.secret === "********") incomingN8n.secret = currentSettings.n8nIntegration.secret;
@@ -25504,7 +25505,12 @@ async function startServer() {
       },
       footer: { ...currentSettings.footer, ...(req.body.footer || {}) },
       socialLinks: { ...currentSettings.socialLinks, ...(req.body.socialLinks || {}) },
-      branding: { ...currentSettings.branding, ...(req.body.branding || {}) },
+      branding: {
+        ...currentSettings.branding,
+        companyName: officialBranding.header_name || officialBranding.display_name || officialBranding.company_name || "",
+        logoUrl: officialBranding.logo_url || "",
+        logoAlt: officialBranding.header_name || officialBranding.display_name || officialBranding.company_name || "Logo da marca"
+      },
       theme: { ...currentSettings.theme, ...(req.body.theme || {}) },
       mainVideoPlayer: { ...currentSettings.mainVideoPlayer, ...(req.body.mainVideoPlayer || {}) }
     });
