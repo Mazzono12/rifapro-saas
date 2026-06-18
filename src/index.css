@@ -24969,3 +24969,389 @@ body:has(.checkout-paid-page) .public-mobile-bottom-nav {
   cursor: wait;
   opacity: .7;
 }
+
+/* Global premium dark/gold visual system
+   Visual-only normalization for legacy surfaces. QR-code wrappers keep their white
+   background through the explicit exceptions below. */
+:root {
+  --premium-black: #000;
+  --premium-ink: #030303;
+  --premium-surface: #070707;
+  --premium-surface-2: #0d0d0f;
+  --premium-surface-3: #151515;
+  --premium-gold: #f6b21f;
+  --premium-gold-soft: #ffdf72;
+  --premium-gold-dark: #b9780f;
+  --premium-gold-border: rgba(246, 178, 31, .42);
+  --premium-border: rgba(246, 178, 31, .24);
+  --premium-text: rgba(255, 255, 255, .94);
+  --premium-muted: rgba(255, 255, 255, .66);
+  --premium-muted-2: rgba(255, 255, 255, .48);
+}
+
+.page-dark,
+.premium-section {
+  color: var(--premium-text);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(246, 178, 31, .08), transparent 28%),
+    radial-gradient(circle at 88% 12%, rgba(246, 178, 31, .055), transparent 30%),
+    var(--premium-black);
+}
+
+.premium-card,
+.premium-card-gold,
+.premium-empty-state {
+  border: 1px solid var(--premium-border);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(246, 178, 31, .08), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, .025), transparent 52%),
+    var(--premium-surface);
+  color: var(--premium-text);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, .42);
+}
+
+.premium-card-gold {
+  border-color: var(--premium-gold-border);
+}
+
+.premium-input,
+.premium-table,
+.premium-badge {
+  border: 1px solid var(--premium-border);
+  background: var(--premium-ink);
+  color: var(--premium-text);
+}
+
+.premium-button,
+.premium-button-outline {
+  border: 1px solid rgba(246, 178, 31, .78);
+  color: #111;
+  background: linear-gradient(135deg, var(--premium-gold-soft), var(--premium-gold) 58%, var(--premium-gold-dark));
+  box-shadow: 0 12px 34px rgba(246, 178, 31, .18);
+}
+
+.premium-button-outline {
+  color: var(--premium-gold);
+  background: #050505;
+}
+
+.public-shell,
+.premium-page,
+.customer-premium,
+.admin-shell,
+.superadmin-shell,
+.saas-shell {
+  background-color: var(--premium-black);
+  color: var(--premium-text);
+}
+
+.public-shell .glass-card,
+.premium-page .glass-card,
+.customer-premium .glass-card,
+.admin-shell .glass-card,
+.admin-shell .admin-card,
+.superadmin-shell .glass-card,
+.superadmin-shell .admin-card {
+  border-color: var(--premium-border) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(246, 178, 31, .07), transparent 35%),
+    var(--premium-surface) !important;
+  color: var(--premium-text) !important;
+}
+
+.public-shell input,
+.public-shell textarea,
+.public-shell select,
+.premium-page input,
+.premium-page textarea,
+.premium-page select,
+.customer-premium input,
+.customer-premium textarea,
+.customer-premium select,
+.admin-shell input,
+.admin-shell textarea,
+.admin-shell select,
+.superadmin-shell input,
+.superadmin-shell textarea,
+.superadmin-shell select {
+  border-color: var(--premium-border) !important;
+  background-color: var(--premium-ink) !important;
+  color: var(--premium-text) !important;
+}
+
+.public-shell input:focus,
+.public-shell textarea:focus,
+.public-shell select:focus,
+.premium-page input:focus,
+.premium-page textarea:focus,
+.premium-page select:focus,
+.admin-shell input:focus,
+.admin-shell textarea:focus,
+.admin-shell select:focus,
+.superadmin-shell input:focus,
+.superadmin-shell textarea:focus,
+.superadmin-shell select:focus {
+  border-color: rgba(246, 178, 31, .78) !important;
+  box-shadow: 0 0 0 3px rgba(246, 178, 31, .13) !important;
+}
+
+.public-shell table,
+.premium-page table,
+.admin-shell table,
+.superadmin-shell table {
+  color: var(--premium-text);
+  background: var(--premium-ink);
+}
+
+.public-shell thead,
+.premium-page thead,
+.admin-shell thead,
+.superadmin-shell thead {
+  background: rgba(246, 178, 31, .07) !important;
+  color: var(--premium-gold) !important;
+}
+
+.public-shell th,
+.public-shell td,
+.premium-page th,
+.premium-page td,
+.admin-shell th,
+.admin-shell td,
+.superadmin-shell th,
+.superadmin-shell td {
+  border-color: var(--premium-border) !important;
+}
+
+.public-shell .bg-gray-50,
+.public-shell .bg-gray-100,
+.public-shell .bg-slate-50,
+.public-shell .bg-zinc-50,
+.public-shell .bg-neutral-50,
+.premium-page .bg-gray-50,
+.premium-page .bg-gray-100,
+.premium-page .bg-slate-50,
+.premium-page .bg-zinc-50,
+.premium-page .bg-neutral-50,
+.admin-shell .bg-gray-50,
+.admin-shell .bg-gray-100,
+.admin-shell .bg-slate-50,
+.admin-shell .bg-zinc-50,
+.admin-shell .bg-neutral-50,
+.superadmin-shell .bg-gray-50,
+.superadmin-shell .bg-gray-100,
+.superadmin-shell .bg-slate-50,
+.superadmin-shell .bg-zinc-50,
+.superadmin-shell .bg-neutral-50 {
+  background-color: var(--premium-surface) !important;
+  color: var(--premium-text) !important;
+}
+
+.public-shell .text-gray-900,
+.public-shell .text-slate-900,
+.premium-page .text-gray-900,
+.premium-page .text-slate-900,
+.admin-shell .text-gray-900,
+.admin-shell .text-slate-900,
+.admin-shell .text-gray-700,
+.superadmin-shell .text-gray-900,
+.superadmin-shell .text-slate-900 {
+  color: var(--premium-text) !important;
+}
+
+.public-shell .border-gray-100,
+.public-shell .border-gray-200,
+.public-shell .border-slate-100,
+.public-shell .border-slate-200,
+.public-shell .border-zinc-100,
+.public-shell .border-zinc-200,
+.premium-page .border-gray-100,
+.premium-page .border-gray-200,
+.premium-page .border-slate-100,
+.premium-page .border-slate-200,
+.admin-shell .border-gray-100,
+.admin-shell .border-gray-200,
+.admin-shell .border-slate-100,
+.admin-shell .border-slate-200,
+.superadmin-shell .border-gray-100,
+.superadmin-shell .border-gray-200,
+.superadmin-shell .border-slate-100,
+.superadmin-shell .border-slate-200 {
+  border-color: var(--premium-border) !important;
+}
+
+.public-shell .bg-violet-500\/20,
+.public-shell .bg-purple-500\/20,
+.public-shell .bg-indigo-500\/20,
+.premium-page .bg-violet-500\/20,
+.premium-page .bg-purple-500\/20,
+.premium-page .bg-indigo-500\/20,
+.admin-shell .bg-violet-500\/20,
+.admin-shell .bg-purple-500\/20,
+.admin-shell .bg-indigo-500\/20,
+.superadmin-shell .bg-violet-500\/20,
+.superadmin-shell .bg-purple-500\/20,
+.superadmin-shell .bg-indigo-500\/20 {
+  background-color: rgba(246, 178, 31, .14) !important;
+}
+
+.public-shell .text-violet-100,
+.public-shell .text-violet-200,
+.public-shell .text-violet-300,
+.public-shell .text-purple-100,
+.public-shell .text-purple-200,
+.public-shell .text-purple-300,
+.premium-page .text-violet-100,
+.premium-page .text-violet-200,
+.premium-page .text-violet-300,
+.admin-shell .text-violet-100,
+.admin-shell .text-violet-200,
+.admin-shell .text-violet-300,
+.superadmin-shell .text-violet-100,
+.superadmin-shell .text-violet-200,
+.superadmin-shell .text-violet-300 {
+  color: var(--premium-gold) !important;
+}
+
+.public-shell .border-violet-300\/35,
+.public-shell .border-purple-300\/35,
+.premium-page .border-violet-300\/35,
+.premium-page .border-purple-300\/35,
+.admin-shell .border-violet-300\/35,
+.admin-shell .border-purple-300\/35,
+.superadmin-shell .border-violet-300\/35,
+.superadmin-shell .border-purple-300\/35 {
+  border-color: rgba(246, 178, 31, .48) !important;
+}
+
+.public-shell .text-neon-cyan,
+.public-shell .text-neon-purple,
+.public-shell .text-cyan-100,
+.public-shell .text-cyan-200,
+.public-shell .text-cyan-300,
+.public-shell .text-cyan-400,
+.premium-page .text-neon-cyan,
+.premium-page .text-neon-purple,
+.premium-page .text-cyan-100,
+.premium-page .text-cyan-200,
+.premium-page .text-cyan-300,
+.premium-page .text-cyan-400,
+.admin-shell .text-neon-cyan,
+.admin-shell .text-neon-purple,
+.admin-shell .text-cyan-100,
+.admin-shell .text-cyan-200,
+.admin-shell .text-cyan-300,
+.admin-shell .text-cyan-400,
+.superadmin-shell .text-neon-cyan,
+.superadmin-shell .text-neon-purple,
+.superadmin-shell .text-cyan-100,
+.superadmin-shell .text-cyan-200,
+.superadmin-shell .text-cyan-300,
+.superadmin-shell .text-cyan-400 {
+  color: var(--premium-gold) !important;
+}
+
+.public-shell .bg-neon-cyan,
+.public-shell .bg-neon-purple,
+.public-shell .bg-cyan-300,
+.public-shell .bg-cyan-400,
+.premium-page .bg-neon-cyan,
+.premium-page .bg-neon-purple,
+.premium-page .bg-cyan-300,
+.premium-page .bg-cyan-400,
+.admin-shell .bg-neon-cyan,
+.admin-shell .bg-neon-purple,
+.admin-shell .bg-cyan-300,
+.admin-shell .bg-cyan-400,
+.superadmin-shell .bg-neon-cyan,
+.superadmin-shell .bg-neon-purple,
+.superadmin-shell .bg-cyan-300,
+.superadmin-shell .bg-cyan-400 {
+  background-color: var(--premium-gold) !important;
+  color: #111 !important;
+}
+
+.public-shell .border-neon-cyan,
+.public-shell .border-neon-purple,
+.public-shell .border-cyan-300,
+.premium-page .border-neon-cyan,
+.premium-page .border-neon-purple,
+.premium-page .border-cyan-300,
+.admin-shell .border-neon-cyan,
+.admin-shell .border-neon-purple,
+.admin-shell .border-cyan-300,
+.superadmin-shell .border-neon-cyan,
+.superadmin-shell .border-neon-purple,
+.superadmin-shell .border-cyan-300 {
+  border-color: rgba(246, 178, 31, .48) !important;
+}
+
+.public-shell .bg-white:not(.cfx-qr-wrap):not(.cp-qr-wrap):not([class*="qr"]):not([class*="QR"]),
+.premium-page .bg-white:not(.cfx-qr-wrap):not(.cp-qr-wrap):not([class*="qr"]):not([class*="QR"]),
+.admin-shell .bg-white:not([class*="qr"]):not([class*="QR"]),
+.superadmin-shell .bg-white:not([class*="qr"]):not([class*="QR"]) {
+  background-color: var(--premium-surface) !important;
+  color: var(--premium-text) !important;
+}
+
+.public-shell .from-indigo-600,
+.public-shell .from-blue-600,
+.public-shell .from-purple-600,
+.public-shell .to-blue-500,
+.public-shell .to-cyan-400,
+.premium-page .from-indigo-600,
+.premium-page .from-blue-600,
+.premium-page .from-purple-600,
+.premium-page .to-blue-500,
+.premium-page .to-cyan-400,
+.admin-shell .from-indigo-600,
+.admin-shell .from-blue-600,
+.admin-shell .from-purple-600,
+.admin-shell .to-blue-500,
+.admin-shell .to-cyan-400 {
+  --tw-gradient-from: var(--premium-gold) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: var(--premium-gold-dark) var(--tw-gradient-to-position) !important;
+}
+
+.public-mobile-bottom-nav {
+  border-color: var(--premium-border) !important;
+  background: rgba(3, 3, 3, .94) !important;
+}
+
+.cfx-qr-wrap,
+.cp-qr-wrap,
+.cfx-pix-premium .cfx-qr-wrap,
+.cfx-pix-premium .cfx-qr-code,
+.checkout-resume-page [class*="qr"] {
+  background-color: #fff !important;
+}
+
+/* Final visual audit: replace old cyan/purple campaign accents with the official dark/gold system. */
+.public-shell .cfx-home-hero-fallback svg,
+.public-shell .cfx-home-social-proof-strip svg,
+.public-shell .cfx-home-price-strip strong,
+.public-shell .cfx-detail-stat.is-gold > span,
+.public-shell .cfx-detail-stat.is-gold strong,
+.public-shell .cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card div:first-child strong,
+.public-shell .cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card div:nth-child(2) strong,
+.public-shell .cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card div:nth-child(3) strong {
+  color: var(--premium-gold) !important;
+  text-shadow: 0 0 18px rgba(245, 193, 77, .28) !important;
+}
+
+.public-shell .cfx-home-price-strip,
+.public-shell .cfx-detail-stat.is-gold,
+.public-shell .cfx-reward-section[data-reward-id="superCotas"],
+.public-shell .cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-card,
+.public-shell .cfx-reward-section[data-reward-id="superCotas"] .cfx-reward-more {
+  border-color: rgba(245, 193, 77, .34) !important;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(245, 193, 77, .14), transparent 8rem),
+    linear-gradient(135deg, rgba(14, 14, 14, .98), rgba(5, 5, 5, .98)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 18px 46px rgba(245, 193, 77, .12) !important;
+}
+
+.public-shell .cfx-reward-section[data-reward-id="superCotas"] {
+  --reward-accent: var(--premium-gold) !important;
+  --reward-soft: rgba(245, 193, 77, .14) !important;
+  --reward-border: rgba(245, 193, 77, .32) !important;
+}
