@@ -250,7 +250,7 @@ export function Dashboard() {
       <PremiumPageLayout className="cfx-customer-page px-4 pb-10 pt-6">
       <div className="cfx-customer-shell mx-auto max-w-xl">
         <form onSubmit={unlockArea} className="cfx-customer-panel p-8 text-center">
-          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-neon-cyan/20 bg-neon-cyan/10 text-neon-cyan">
+          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-amber-300/25 bg-amber-400/10 text-amber-200">
             <LockKeyhole className="h-7 w-7" />
           </div>
           <h1 className="text-2xl font-display font-bold">Área do cliente</h1>
@@ -410,14 +410,14 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
         <div className="md:col-span-4 lg:col-span-3 space-y-6">
           <div className="cfx-customer-panel p-6 text-center">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-neon-cyan to-neon-purple p-1 mx-auto mb-4">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-yellow-700 p-1 mx-auto mb-4">
               <div className="w-full h-full bg-cyber-900 rounded-full overflow-hidden flex items-center justify-center">
                 {customer.photoUrl ? <img src={customer.photoUrl} alt={customerName} className="w-full h-full object-cover" /> : <User className="w-10 h-10 text-slate-400" />}
               </div>
             </div>
             <h2 className="text-xl font-bold font-display">{customerName}</h2>
             <p className="text-sm text-slate-400">CPF {formattedCustomerCpf}</p>
-            <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neon-purple/10 border border-neon-purple/30 text-neon-purple text-xs font-semibold">
+            <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/10 border border-amber-300/30 text-amber-200 text-xs font-semibold">
               {Number(customer.totalTickets || 0).toLocaleString("pt-BR")} cotas compradas
             </div>
             <button type="button" onClick={logoutCustomer} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08]">
@@ -430,9 +430,9 @@ export function Dashboard() {
               {tabs.map(tab => {
                 const active = location.pathname === tab.path || (!isProfile && tab.path === "/minhas-cotas");
                 return (
-                  <Link key={tab.path} to={tab.path} className={cn("flex items-center justify-between p-4 text-left transition-colors border-b last:border-0 border-white/5", active ? "bg-white/5 border-l-2 border-l-neon-cyan" : "hover:bg-white/5 text-slate-400 hover:text-white")}>
+                  <Link key={tab.path} to={tab.path} className={cn("flex items-center justify-between p-4 text-left transition-colors border-b last:border-0 border-white/5", active ? "bg-amber-400/10 border-l-2 border-l-amber-300" : "hover:bg-amber-400/10 text-slate-400 hover:text-white")}>
                     <div className="flex items-center gap-3">
-                      <tab.icon className={cn("w-5 h-5", active ? "text-neon-cyan" : "")} />
+                      <tab.icon className={cn("w-5 h-5", active ? "text-amber-200" : "")} />
                       <span className="font-medium">{tab.label}</span>
                     </div>
                     {!active && <ChevronRight className="w-4 h-4 text-slate-500" />}
@@ -446,7 +446,7 @@ export function Dashboard() {
         <div className="md:col-span-8 lg:col-span-9">
           {isProfile ? (
             <form onSubmit={saveProfile} className="cfx-customer-panel p-6 md:p-8 space-y-6">
-              <h1 className="text-2xl font-display font-bold flex items-center gap-3"><User className="w-6 h-6 text-neon-cyan" /> Meu Perfil</h1>
+              <h1 className="text-2xl font-display font-bold flex items-center gap-3"><User className="w-6 h-6 text-amber-200" /> Meu Perfil</h1>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <label className="space-y-2">
                   <span className="text-xs font-mono text-slate-400 uppercase">Nome</span>
@@ -470,7 +470,7 @@ export function Dashboard() {
                 </label>
                 <label className="space-y-2 md:col-span-2">
                   <span className="text-xs font-mono text-slate-400 uppercase flex items-center gap-2"><Camera className="w-4 h-4" /> Foto do perfil</span>
-                  <span className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-neon-cyan/25 bg-neon-cyan/10 px-4 py-3 text-sm font-bold text-neon-cyan transition hover:bg-neon-cyan/15">
+                  <span className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-200 transition hover:bg-amber-400/15">
                     <UploadCloud className="w-4 h-4" /> {uploadingPhoto ? "Enviando..." : "Escolher foto ou GIF da galeria"}
                     <input
                       type="file"

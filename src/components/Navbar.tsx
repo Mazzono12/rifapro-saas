@@ -177,7 +177,7 @@ export function Navbar() {
           <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${bottomNavItems.length}, minmax(0, 1fr))` }}>
             {bottomNavItems.map(item => {
               const Icon = item.icon;
-              const className = `relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-black transition ${item.active ? "border border-violet-300/35 bg-violet-500/20 text-violet-100 shadow-[0_10px_30px_rgba(168,85,247,0.28)]" : "text-[#A1A1AA] hover:bg-white/5 hover:text-white"}`;
+              const className = `relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-black transition ${item.active ? "border border-amber-300/55 bg-amber-400/15 text-amber-200 shadow-[0_10px_30px_rgba(246,178,31,0.24)]" : "text-[#A1A1AA] hover:bg-amber-400/10 hover:text-white"}`;
               const content = (
                 <>
                   <span className="flex h-5 items-center justify-center">

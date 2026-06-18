@@ -149,7 +149,7 @@ export function Lootbox() {
                  
                  <button 
                    onClick={() => setOpenedPrize(null)} 
-                   className="w-full py-4 bg-white text-black font-bold font-mono tracking-widest text-xs uppercase rounded-xl hover:bg-slate-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                   className="w-full py-4 bg-amber-400 text-black font-bold font-mono tracking-widest text-xs uppercase rounded-xl hover:bg-amber-300 transition-colors shadow-[0_0_20px_rgba(246,178,31,0.22)]"
                  >
                     Ir para próxima
                  </button>

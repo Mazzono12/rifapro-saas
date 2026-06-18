@@ -48,7 +48,7 @@ export function SaaSLayout({ children }: { children?: React.ReactNode }) {
                 to={item.to}
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
-                    isActive ? "bg-white text-black" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    isActive ? "bg-amber-400 text-black" : "text-slate-300 hover:bg-amber-400/10 hover:text-white"
                   }`
                 }
               >

@@ -26,13 +26,13 @@ export function RecoverPassword() {
           <span className="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-slate-400">E-mail</span>
           <span className="relative block">
             <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-            <input value={email} onChange={event => setEmail(event.target.value)} type="email" required className="w-full rounded-2xl border border-white/10 bg-black/30 py-4 pl-12 pr-4 text-white outline-none transition focus:border-cyan-300/60" placeholder="voce@empresa.com" />
+            <input value={email} onChange={event => setEmail(event.target.value)} type="email" required className="w-full rounded-2xl border border-white/10 bg-black/30 py-4 pl-12 pr-4 text-white outline-none transition focus:border-amber-300/60" placeholder="voce@empresa.com" />
           </span>
         </label>
-        <button disabled={auth.loading} className="w-full rounded-2xl bg-cyan-300 px-5 py-4 font-semibold text-black shadow-[0_0_36px_rgba(34,211,238,0.28)] transition hover:bg-cyan-200 disabled:opacity-60">
+        <button disabled={auth.loading} className="w-full rounded-2xl bg-amber-400 px-5 py-4 font-semibold text-black shadow-[0_0_36px_rgba(246,178,31,0.28)] transition hover:bg-amber-300 disabled:opacity-60">
           Enviar instruções
         </button>
-        <p className="text-center text-sm text-slate-400"><Link to="/login" className="text-cyan-200">Voltar para o login</Link></p>
+        <p className="text-center text-sm text-slate-400"><Link to="/login" className="text-amber-200">Voltar para o login</Link></p>
       </form>
     </AuthShell>
   );
