@@ -12,6 +12,7 @@ import {
   Gift,
   Megaphone,
   Medal,
+  MessageCircle,
   QrCode,
   Save,
   Send,
@@ -193,7 +194,13 @@ export function Affiliates() {
   const consumingRewardRef = useRef("");
 
   useEffect(() => {
-    if (!customer) return;
+    if (!customer?.affiliateRefCode) {
+      setIsLoadingAffiliate(false);
+      setAffiliateLoadError("");
+      setStats(null);
+      setDashboard(null);
+      return;
+    }
     setIsLoadingAffiliate(true);
     setAffiliateLoadError("");
     Promise.all([
@@ -224,7 +231,7 @@ export function Affiliates() {
       .then(async res => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Erro ao carregar campanhas");
-        setCampaignLinks(Array.isArray(data?.campaigns) ? data.campaigns : []);
+        setCampaignLinks(Array.isArray(data?.campaigns) ? normalizeCampaignAffiliateLinks(data.campaigns, customer.affiliateRefCode) : []);
       })
       .catch(() => {
         setCampaignLinks([]);
@@ -234,18 +241,22 @@ export function Affiliates() {
   }, [customer?.affiliateRefCode]);
 
   const affiliateLink = useMemo(() => {
-    if (dashboard?.links?.primary) return dashboard.links.primary;
-    if (typeof window === "undefined" || !customer) return "";
-    return `${window.location.origin}/?ref=${customer.affiliateRefCode}&utm_source=afiliado&utm_medium=painel`;
-  }, [customer?.affiliateRefCode, dashboard?.links?.primary]);
+    return buildRootAffiliateLink(customer?.affiliateRefCode);
+  }, [customer?.affiliateRefCode]);
 
   const shortLink = useMemo(() => {
-    if (dashboard?.links?.short) return dashboard.links.short;
-    if (typeof window === "undefined" || !customer) return "";
-    return `${window.location.origin}/?ref=${customer.affiliateRefCode}`;
-  }, [customer?.affiliateRefCode, dashboard?.links?.short]);
+    return buildRootAffiliateLink(customer?.affiliateRefCode);
+  }, [customer?.affiliateRefCode]);
+
+  const whatsappLink = useMemo(() => {
+    return affiliateLink ? `https://wa.me/?text=${encodeURIComponent(buildAffiliateShareMessage(affiliateLink))}` : "";
+  }, [affiliateLink]);
 
   const copyValue = async (value: string, message: string) => {
+    if (!value) {
+      toast.info("Ative seu cadastro de afiliado para gerar seu link.");
+      return;
+    }
     await navigator.clipboard.writeText(value);
     toast.success(message);
   };
@@ -570,10 +581,14 @@ export function Affiliates() {
               <p className="min-w-0 break-words text-sm font-bold text-[var(--admin-text)] sm:truncate">{customer.name}</p>
               <p className="min-w-0 break-all font-mono text-xs text-[var(--admin-muted)] sm:truncate sm:break-normal">{customer.affiliateRefCode}</p>
             </div>
-            <button onClick={() => void copyValue(affiliateLink, "Link de afiliado copiado")} className="admin-button-secondary w-full shrink-0 justify-center sm:w-auto">
-              <Copy className="h-4 w-4" />
-              Copiar
-            </button>
+            {affiliateLink ? (
+              <button onClick={() => void copyValue(affiliateLink, "Link de afiliado copiado")} className="admin-button-secondary w-full shrink-0 justify-center sm:w-auto">
+                <Copy className="h-4 w-4" />
+                Copiar
+              </button>
+            ) : (
+              <p className="rounded-[8px] border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-100">Ative seu cadastro de afiliado para gerar seu link.</p>
+            )}
           </div>
         </div>
       </section>
@@ -657,9 +672,16 @@ export function Affiliates() {
             <LinkRow label="Link curto" value={shortLink} onCopy={() => void copyValue(shortLink, "Link curto copiado")} />
             <LinkRow label="Cupom personalizado" value={couponCode} onCopy={() => void copyValue(couponCode, "Cupom copiado")} />
           </div>
+          {!affiliateLink && (
+            <p className="mt-3 rounded-[8px] border border-amber-300/30 bg-amber-300/10 p-3 text-sm font-bold text-amber-100">Ative seu cadastro de afiliado para gerar seu link.</p>
+          )}
           <div className="mt-5 grid gap-4 sm:grid-cols-[150px_1fr]">
             <div className="mx-auto grid aspect-square w-full max-w-[180px] place-items-center rounded-[8px] border border-[var(--admin-border)] bg-white p-3 sm:mx-0 sm:max-w-none">
-              <QRCodeSVG value={affiliateLink} className="h-full w-full" bgColor="#ffffff" fgColor="#0f172a" level="M" />
+              {affiliateLink ? (
+                <QRCodeSVG value={affiliateLink} className="h-full w-full" bgColor="#ffffff" fgColor="#0f172a" level="M" />
+              ) : (
+                <QrCode className="h-12 w-12 text-slate-400" />
+              )}
             </div>
             <div className="min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
               <p className="text-sm font-semibold text-[var(--admin-text)]">QR Code de divulgação</p>
@@ -668,6 +690,12 @@ export function Affiliates() {
                 <Share2 className="h-4 w-4" />
                 Compartilhar link
               </button>
+              {whatsappLink && (
+                <a href={whatsappLink} target="_blank" rel="noreferrer" className="admin-button-primary mt-3 w-full justify-center sm:w-auto">
+                  <MessageCircle className="h-4 w-4" />
+                  WhatsApp
+                </a>
+              )}
             </div>
           </div>
         </section>
@@ -1416,7 +1444,7 @@ function MarketingTextPreview({ label, text }: { label: string; text: string }) 
 function buildCampaignMarketingTexts(campaign: AffiliateCampaignLink) {
   const name = campaign.name || "campanha";
   const affiliateUrl = campaign.affiliateUrl;
-  const whatsapp = campaign.whatsappText || `🚀 Olha essa oportunidade!
+  const whatsapp = `🚀 Olha essa oportunidade!
 
 Participe agora da campanha: ${name}
 
@@ -1433,6 +1461,48 @@ Boa sorte! 🍀`;
     status: `Campanha ${name} no ar! Entre pelo meu link: ${affiliateUrl}`,
     facebook: `Olha essa oportunidade: a campanha ${name} já está ativa. Participe com segurança pelo meu link oficial: ${affiliateUrl}`
   };
+}
+
+function buildRootAffiliateLink(refCode?: string) {
+  const code = String(refCode || "").trim();
+  if (!code || typeof window === "undefined") return "";
+  return `${window.location.origin}/?r=${encodeURIComponent(code)}`;
+}
+
+function buildCampaignAffiliateLink(publicPath: string, refCode?: string) {
+  const code = String(refCode || "").trim();
+  if (!code || typeof window === "undefined") return "";
+  const path = String(publicPath || "/").trim() || "/";
+  const url = new URL(path.startsWith("http") ? path : `${window.location.origin}${path.startsWith("/") ? path : `/${path}`}`);
+  url.searchParams.set("r", code);
+  return url.toString();
+}
+
+function normalizeCampaignAffiliateLinks(campaigns: AffiliateCampaignLink[], refCode?: string) {
+  return campaigns.map(campaign => ({
+    ...campaign,
+    affiliateUrl: buildCampaignAffiliateLink(campaign.publicPath || campaign.affiliateUrl || "/", refCode)
+  }));
+}
+
+function buildAffiliateShareMessage(link: string) {
+  return [
+    "🎉 Estou participando da Deni Premiações!",
+    "",
+    "🍀 Já garanti minhas cotas e você também pode participar.",
+    "",
+    "🎁 iPhone 17 Pro Max ou R$ 5.000 no PIX",
+    "",
+    "🔥 Além disso tem:",
+    "• Roleta Premiada",
+    "• Caixinha Premiada",
+    "• Raspadinha",
+    "• Top Compradores",
+    "",
+    "👇 Compre suas cotas pelo meu link:",
+    "",
+    link
+  ].join("\n");
 }
 
 function AffiliateAvatar({ customer, large = false }: { customer: { name: string; photoUrl?: string }; large?: boolean }) {

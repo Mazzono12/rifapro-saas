@@ -24787,6 +24787,36 @@ body:has(.checkout-paid-page) .public-mobile-bottom-nav {
   color: #45d65d;
 }
 
+.checkout-paid-page .checkout-paid-affiliate-cta {
+  margin-top: 12px;
+  border: 1px solid rgba(246, 178, 31, .62);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(246, 178, 31, .08);
+}
+
+.checkout-paid-page .checkout-paid-affiliate-cta p {
+  margin: 0;
+  color: rgba(255, 255, 255, .9);
+  font-size: .98rem;
+  font-weight: 800;
+}
+
+.checkout-paid-page .checkout-paid-affiliate-cta a {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  border: 1px solid rgba(246, 178, 31, .82);
+  border-radius: 10px;
+  padding: 0 16px;
+  color: #111;
+  background: linear-gradient(135deg, #ffdf72, #f6b21f 58%, #cc870f);
+  font-weight: 1000;
+  text-decoration: none;
+}
+
 .checkout-paid-page .checkout-paid-logo {
   max-width: clamp(172px, 42vw, 250px) !important;
   max-height: 62px !important;
@@ -24815,4 +24845,33 @@ body:has(.checkout-paid-page) .public-mobile-bottom-nav {
     width: 48px;
     height: 48px;
   }
+}
+
+.cfx-my-tickets-affiliate-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.cfx-my-tickets-affiliate-actions a,
+.cfx-my-tickets-affiliate-actions button,
+.cfx-my-tickets-affiliate-cta {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(246, 178, 31, .76);
+  border-radius: 12px;
+  padding: 0 16px;
+  color: #f6b21f;
+  background: #050505;
+  font-weight: 1000;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.cfx-my-tickets-affiliate-actions a {
+  border-color: rgba(64, 255, 112, .55);
+  color: #fff;
+  background: linear-gradient(180deg, #1fb84d, #0b7d2f);
 }

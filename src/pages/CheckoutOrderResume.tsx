@@ -50,9 +50,8 @@ export function CheckoutOrderResume() {
   const affiliateCode = String(purchase.affiliateRefCode || purchase.affiliate_ref_code || purchase.refCode || purchase.ref_code || purchase.customer?.affiliateRefCode || purchase.customer?.affiliate_ref_code || purchase.customer?.refCode || purchase.customer?.ref_code || "").trim();
   const publicOrigin = typeof window !== "undefined" ? window.location.origin : "";
   const affiliateLink = affiliateCode && publicOrigin ? `${publicOrigin}/?r=${affiliateCode}` : "";
-  const shareLink = affiliateLink || (publicOrigin ? `${publicOrigin}${campaignPath}` : "");
   const affiliateStats = getAffiliateStats(purchase);
-  const whatsappShareUrl = shareLink ? `https://wa.me/?text=${encodeURIComponent(buildReceiptWhatsAppMessage(shareLink))}` : "";
+  const whatsappShareUrl = affiliateLink ? `https://wa.me/?text=${encodeURIComponent(buildReceiptWhatsAppMessage(affiliateLink))}` : "";
   const pending = Boolean(status && !status.paid && !status.expired && (status.paymentStatus === "pending" || status.status === "pending" || status.status === "reserved"));
   const pixPayload = pending ? String(status?.pixPayload || purchase.pixPayload || purchase.pix_payload || purchase.pixCopyPaste || purchase.pix_copy_paste || purchase.copyPaste || purchase.paymentCode || "") : "";
   const pixQrCode = pending ? String(status?.pixQrCode || status?.pixQrCodeBase64 || purchase.pixQrCode || purchase.qrCode || purchase.pixQrCodeBase64 || purchase.qrCodeBase64 || purchase.qr_code_base64 || purchase.encodedImage || "") : "";
@@ -100,11 +99,11 @@ export function CheckoutOrderResume() {
   };
 
   const copyAffiliateLink = async () => {
-    if (!shareLink) {
-      toast.info("Link indisponível");
+    if (!affiliateLink) {
+      toast.info("Ative seu cadastro de afiliado para gerar seu link.");
       return;
     }
-    const copiedOk = await copyTextToClipboard(shareLink);
+    const copiedOk = await copyTextToClipboard(affiliateLink);
     if (!copiedOk) {
       toast.error("Não foi possível copiar o link");
       return;
@@ -136,17 +135,26 @@ export function CheckoutOrderResume() {
             <section className="checkout-paid-share">
               <h2><span>✦</span> Ganhe indicando amigos <span>✦</span></h2>
               <p>Seu link exclusivo:</p>
-              <div className="checkout-paid-linkbox">
-                <span>{shareLink || "Link indisponível"}</span>
-                <button type="button" onClick={copyAffiliateLink} aria-label="Copiar link"><Copy /></button>
-              </div>
-              <a href={whatsappShareUrl || undefined} target="_blank" rel="noreferrer" aria-disabled={!whatsappShareUrl} className="checkout-paid-whatsapp">
-                <MessageCircle /> <span><strong>Compartilhar no WhatsApp</strong><small>Compartilhe e convide seus amigos</small></span>
-              </a>
-              <button type="button" onClick={copyAffiliateLink} className="checkout-paid-copy">
-                <Copy /> <span><strong>Copiar meu link</strong><small>Copie seu link de afiliado</small></span>
-              </button>
-              {affiliateCopied && <p className="checkout-paid-copy-success"><CheckCircle2 /> Link copiado com sucesso!</p>}
+              {affiliateLink ? (
+                <>
+                  <div className="checkout-paid-linkbox">
+                    <span>{affiliateLink}</span>
+                    <button type="button" onClick={copyAffiliateLink} aria-label="Copiar link"><Copy /></button>
+                  </div>
+                  <a href={whatsappShareUrl} target="_blank" rel="noreferrer" className="checkout-paid-whatsapp">
+                    <MessageCircle /> <span><strong>Compartilhar no WhatsApp</strong><small>Compartilhe e convide seus amigos</small></span>
+                  </a>
+                  <button type="button" onClick={copyAffiliateLink} className="checkout-paid-copy">
+                    <Copy /> <span><strong>Copiar meu link</strong><small>Copie seu link de afiliado</small></span>
+                  </button>
+                  {affiliateCopied && <p className="checkout-paid-copy-success"><CheckCircle2 /> Link copiado com sucesso!</p>}
+                </>
+              ) : (
+                <div className="checkout-paid-affiliate-cta">
+                  <p>Ative seu cadastro de afiliado para gerar seu link.</p>
+                  <Link to="/afiliados">Ativar cadastro</Link>
+                </div>
+              )}
             </section>
 
             <section className="checkout-paid-affiliate-stats">

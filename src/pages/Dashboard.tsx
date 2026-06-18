@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { CalendarDays, Camera, CheckCircle2, ChevronRight, Clock3, Coins, FileText, Gift, LockKeyhole, LogOut, Megaphone, ReceiptText, Save, Sparkles, Ticket, Trophy, UploadCloud, User, Users, WalletCards } from "lucide-react";
+import { CalendarDays, Camera, CheckCircle2, ChevronRight, Clock3, Coins, FileText, Gift, LockKeyhole, LogOut, Megaphone, MessageCircle, ReceiptText, Save, Sparkles, Ticket, Trophy, UploadCloud, User, Users, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { useCustomerStore } from "../store/useCustomerStore";
@@ -87,8 +87,12 @@ export function Dashboard() {
     : "não informado";
   const affiliateLink = useMemo(() => {
     if (!customer?.affiliateRefCode || typeof window === "undefined") return "";
-    return `${window.location.origin}/?ref=${customer.affiliateRefCode}&utm_source=afiliado&utm_medium=meus_bilhetes`;
+    return `${window.location.origin}/?r=${customer.affiliateRefCode}`;
   }, [customer?.affiliateRefCode]);
+  const affiliateWhatsAppUrl = useMemo(() => {
+    if (!affiliateLink) return "";
+    return `https://wa.me/?text=${encodeURIComponent(buildAffiliateShareMessage(affiliateLink))}`;
+  }, [affiliateLink]);
   const affiliateMetrics = useMemo(() => {
     const affiliate = ((customer as any)?.affiliate || {}) as Record<string, any>;
     const metrics = affiliateDashboard?.metrics || {};
@@ -121,7 +125,7 @@ export function Dashboard() {
 
   const copyAffiliateLink = async () => {
     if (!affiliateLink) {
-      toast.info("Link de afiliado indisponível");
+      toast.info("Ative seu cadastro de afiliado para gerar seu link.");
       return;
     }
     try {
@@ -351,11 +355,18 @@ export function Dashboard() {
             <div className="cfx-my-tickets-megaphone"><Megaphone /></div>
             <div>
               <h2>Ganhe mais indicando amigos</h2>
-              <p>Compartilhe seu link de afiliado e ganhe comissões!</p>
+              <p>{affiliateLink ? "Compartilhe seu link de afiliado e ganhe comissões!" : "Ative seu cadastro de afiliado para gerar seu link."}</p>
             </div>
-            <button type="button" onClick={copyAffiliateLink}>
-              <FileText /> Copiar meu link
-            </button>
+            {affiliateLink ? (
+              <div className="cfx-my-tickets-affiliate-actions">
+                <a href={affiliateWhatsAppUrl} target="_blank" rel="noreferrer"><MessageCircle /> WhatsApp</a>
+                <button type="button" onClick={copyAffiliateLink}>
+                  <FileText /> Copiar meu link
+                </button>
+              </div>
+            ) : (
+              <Link to="/afiliados" className="cfx-my-tickets-affiliate-cta">Ativar cadastro</Link>
+            )}
           </section>
 
           <section className="cfx-my-tickets-affiliate-stats" aria-label="Estatísticas de afiliado">
@@ -616,6 +627,26 @@ function formatTicketDate(value?: string) {
 
 function formatTicketCurrency(value: number) {
   return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function buildAffiliateShareMessage(link: string) {
+  return [
+    "🎉 Estou participando da Deni Premiações!",
+    "",
+    "🍀 Já garanti minhas cotas e você também pode participar.",
+    "",
+    "🎁 iPhone 17 Pro Max ou R$ 5.000 no PIX",
+    "",
+    "🔥 Além disso tem:",
+    "• Roleta Premiada",
+    "• Caixinha Premiada",
+    "• Raspadinha",
+    "• Top Compradores",
+    "",
+    "👇 Compre suas cotas pelo meu link:",
+    "",
+    link
+  ].join("\n");
 }
 
 function formatTicketNumber(value: number | string) {
