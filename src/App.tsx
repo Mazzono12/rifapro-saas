@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 import { Navbar } from "./components/Navbar";
 import { PublicBottomNav } from "./components/PublicBottomNav";
 import { PremiumAtmosphere } from "./components/PremiumAtmosphere";
@@ -19,7 +19,7 @@ function GlobalTracking() {
   
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const ref = params.get("ref");
+    const ref = params.get("r") || params.get("ref");
     if (ref) {
       localStorage.setItem("refCode", ref);
       fetch(`/api/affiliates/${ref}/click`, { method: 'POST' }).catch(console.error);
@@ -256,8 +256,144 @@ function PageFallback() {
   );
 }
 
+function CustomerAccessGate({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const customer = useCustomerStore(state => state.customer);
+  const setCustomer = useCustomerStore(state => state.setCustomer);
+  const hydrateCustomer = useCustomerStore(state => state.hydrate);
+  const [identifier, setIdentifier] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
+  useEffect(() => {
+    hydrateCustomer();
+  }, [hydrateCustomer]);
+
+  if (customer) return <>{children}</>;
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const cleanIdentifier = identifier.replace(/\D/g, "");
+    const cleanPassword = password.replace(/\D/g, "").slice(0, 6);
+    if (!cleanIdentifier || !cleanPassword) {
+      toast.error("Informe CPF ou telefone e senha.");
+      return;
+    }
+    setLoading(true);
+    try {
+      console.info("[CUSTOMER_LOGIN_START]", {
+        endpoint: "/api/customers/login",
+        identifier: cleanIdentifier,
+        identifierLength: cleanIdentifier.length,
+        passwordLength: cleanPassword.length,
+        returnTo: location.pathname
+      });
+      const response = await fetch("/api/customers/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: cleanIdentifier, accessPassword: cleanPassword, returnTo: location.pathname })
+      });
+      const data = await response.json().catch(() => null);
+      console.info(response.ok ? "[CUSTOMER_LOGIN_SUCCESS]" : "[CUSTOMER_LOGIN_ERROR]", {
+        status: response.status,
+        customerFound: Boolean(data?.id),
+        error: data?.error || ""
+      });
+      if (!response.ok || !data?.id) throw new Error(data?.error || "Não foi possível acessar sua conta.");
+      setCustomer(data);
+      toast.success("Acesso liberado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "CPF/telefone ou senha inválidos.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className="customer-access-page">
+      <form onSubmit={submit} className="customer-access-card">
+        <p className="customer-access-eyebrow">Área do cliente</p>
+        <h1>Entrar na sua conta</h1>
+        <p>Use o CPF ou telefone cadastrado na compra para acessar seus bilhetes, perfil e afiliados.</p>
+        <label>
+          <span>CPF ou telefone</span>
+          <input
+            value={identifier}
+            onChange={event => setIdentifier(event.target.value)}
+            inputMode="numeric"
+            autoComplete="tel"
+            placeholder="Digite CPF ou WhatsApp"
+          />
+        </label>
+        <label>
+          <span>Senha</span>
+          <input
+            value={password}
+            onChange={event => setPassword(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            inputMode="numeric"
+            autoComplete="current-password"
+            maxLength={6}
+            placeholder="Senha de 6 dígitos"
+            type="password"
+          />
+        </label>
+        <button type="submit" disabled={loading}>
+          {loading ? "Entrando..." : "Entrar"}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+class CustomerSectionBoundary extends React.Component<
+  { section: string; children: React.ReactNode },
+  { hasError: boolean; message: string }
+> {
+  declare readonly props: { section: string; children: React.ReactNode };
+  state = { hasError: false, message: "" };
+
+  static getDerivedStateFromError(error: unknown) {
+    return {
+      hasError: true,
+      message: error instanceof Error ? error.message : "Erro inesperado"
+    };
+  }
+
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
+    console.error("[CUSTOMER_SECTION_RENDER_ERROR]", {
+      section: this.props.section,
+      error: error instanceof Error ? error.message : String(error),
+      componentStack: info.componentStack
+    });
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+    return (
+      <section className="customer-access-page">
+        <div className="customer-access-card text-center">
+          <p className="customer-access-eyebrow">Área do cliente</p>
+          <h1>{this.props.section}</h1>
+          <p>Não foi possível carregar esta área agora. Atualize a página ou volte para o início.</p>
+          <button type="button" onClick={() => window.location.reload()}>Atualizar</button>
+        </div>
+      </section>
+    );
+  }
+}
+
 function AffiliateAccessRoute() {
-  return <Affiliates />;
+  return <CustomerSectionBoundary section="Afiliados"><CustomerAccessGate><Affiliates /></CustomerAccessGate></CustomerSectionBoundary>;
+}
+
+function CustomerDashboardRoute({ section }: { section: string }) {
+  return (
+    <CustomerSectionBoundary section={section}>
+      <CustomerAccessGate>
+        <UserDashboard />
+      </CustomerAccessGate>
+    </CustomerSectionBoundary>
+  );
 }
 
 export default function App() {
@@ -311,11 +447,11 @@ export default function App() {
               <Route path="/dashboard" element={<ProtectedRoute roles={["admin", "superadmin"]}><UserDashboard /></ProtectedRoute>} />
               <Route path="/painel" element={<ProtectedRoute roles={["operador", "admin", "superadmin"]}><UserDashboard /></ProtectedRoute>} />
               <Route path="/perfil-saas" element={<ProtectedRoute roles={["superadmin", "admin", "operador", "afiliado"]}><Profile /></ProtectedRoute>} />
-              <Route path="/minhas-cotas" element={<UserDashboard />} />
-              <Route path="/meus-bilhetes" element={<UserDashboard />} />
-              <Route path="/meus-numeros" element={<UserDashboard />} />
-              <Route path="/meus-jogos" element={<UserDashboard />} />
-              <Route path="/perfil" element={<UserDashboard />} />
+              <Route path="/minhas-cotas" element={<CustomerDashboardRoute section="Minhas Cotas" />} />
+              <Route path="/meus-bilhetes" element={<CustomerDashboardRoute section="Bilhetes" />} />
+              <Route path="/meus-numeros" element={<CustomerDashboardRoute section="Meus Números" />} />
+              <Route path="/meus-jogos" element={<CustomerDashboardRoute section="Meus Jogos" />} />
+              <Route path="/perfil" element={<CustomerDashboardRoute section="Perfil" />} />
               <Route path="/afiliado" element={<Navigate to="/afiliados" replace />} />
               <Route path="/afiliados" element={<AffiliateAccessRoute />} />
               <Route path="/mensagens" element={<Messages />} />

@@ -12,6 +12,19 @@ import type { Raffle } from "../types";
 
 type TicketFilter = "all" | "pending" | "paid" | "prized";
 
+function toSafeArray<T = any>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
+function toSafeString(value: unknown, fallback = "") {
+  return value === null || value === undefined ? fallback : String(value);
+}
+
+function toSafeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export function Dashboard() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -22,7 +35,7 @@ export function Dashboard() {
   const [activeTicketFilter, setActiveTicketFilter] = useState<TicketFilter>("paid");
   const [form, setForm] = useState({ name: "", phone: "", photoUrl: "", city: "", state: "", accessPassword: "" });
   const [areaPassword, setAreaPassword] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [affiliateDashboard, setAffiliateDashboard] = useState<any>(null);
   const isProfile = location.pathname === "/perfil";
@@ -32,22 +45,25 @@ export function Dashboard() {
     { label: "Meu Perfil", icon: User, path: "/perfil" },
   ];
   const ticketPurchases = useMemo(() => {
-    return purchases.map(item => {
+    return toSafeArray(purchases).map(item => {
       const raffle = raffles.find(candidate => String(candidate.id) === String(item.raffleId));
       const status = String(item.status || "pending").toLowerCase();
       const isPaid = status === "paid";
       const mediaType = String(item.mediaType || raffle?.mediaType || raffle?.checkoutMediaType || "").toLowerCase();
       const image = item.raffleImage || item.image || (!mediaType.includes("video") ? (raffle?.image || raffle?.checkoutMediaUrl || raffle?.mediaUrl) : raffle?.image) || "";
-      const numbers = isPaid && Array.isArray(item.numeros) ? item.numeros : [];
-      const instantPrizes = isPaid && Array.isArray(item.premiosInstantaneos) ? item.premiosInstantaneos : [];
+      const numbers = isPaid ? toSafeArray<number | string>(item.numeros) : [];
+      const instantPrizes = isPaid ? toSafeArray(item.premiosInstantaneos) : [];
+      const orderId = toSafeString(item.purchaseId || item.id || item.orderId || item.order_id || item.codigo || item.code).trim();
       const games = [
         item.gamification?.scratchcardEventId ? "Raspadinha" : null,
-        item.gamification?.mysteryBoxEventId || Number(item.earnedLootboxes || 0) > 0 ? "Caixinha" : null,
-        Number(item.earnedLootboxes || 0) > 0 ? "Roleta" : null
+        item.gamification?.mysteryBoxEventId || toSafeNumber(item.earnedLootboxes) > 0 ? "Caixinha" : null,
+        toSafeNumber(item.earnedLootboxes) > 0 ? "Roleta" : null
       ].filter(Boolean) as string[];
 
       return {
         ...item,
+        purchaseId: orderId,
+        id: orderId || item.id,
         raffle,
         image,
         title: item.raffleTitle || raffle?.title || item.raffleName || `Campanha ${item.raffleId || ""}`.trim(),
@@ -55,8 +71,8 @@ export function Dashboard() {
         isPaid,
         isPending: status === "pending",
         isPrized: instantPrizes.length > 0,
-        amount: Number(item.amount || item.totalValue || 0),
-        tickets: Number(item.tickets || numbers.length || 0),
+        amount: toSafeNumber(item.amount || item.totalValue),
+        tickets: toSafeNumber(item.tickets || numbers.length),
         numbers,
         instantPrizes,
         games,
@@ -104,7 +120,7 @@ export function Dashboard() {
 
   useEffect(() => {
     if (!customer) return;
-    setUnlocked(false);
+    setUnlocked(true);
     setAreaPassword("");
     setForm({
       name: customer.name || "",
@@ -114,7 +130,13 @@ export function Dashboard() {
       state: customer.state || "",
       accessPassword: ""
     });
-    fetch(`/api/customers/${customer.id}/purchases`).then(res => res.json()).then(setPurchases).catch(() => null);
+    fetch(`/api/customers/${customer.id}/purchases`)
+      .then(res => res.ok ? res.json() : [])
+      .then(payload => setPurchases(toSafeArray(payload)))
+      .catch(error => {
+        console.error("[CUSTOMER_TICKETS_LOAD_ERROR]", error);
+        setPurchases([]);
+      });
     fetch("/api/raffles").then(res => res.ok ? res.json() : []).then(payload => setRaffles(Array.isArray(payload) ? payload : [])).catch(() => setRaffles([]));
     if (customer.affiliateRefCode) {
       fetch(`/api/affiliates/${customer.affiliateRefCode}/dashboard`).then(res => res.ok ? res.json() : null).then(setAffiliateDashboard).catch(() => setAffiliateDashboard(null));
