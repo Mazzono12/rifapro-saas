@@ -24322,3 +24322,399 @@ body:has(.cfx-my-tickets-page) .public-mobile-bottom-nav a[href="/meus-bilhetes"
     padding-inline: 22px;
   }
 }
+
+.checkout-paid-receipt {
+  width: min(100%, 430px);
+  margin: 0 auto;
+  display: grid;
+  gap: 12px;
+  color: #fff;
+}
+
+.checkout-paid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 2px 6px;
+}
+
+.checkout-paid-brand {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  text-decoration: none;
+}
+
+.checkout-paid-logo {
+  width: auto !important;
+  max-width: 190px !important;
+  max-height: 58px !important;
+  object-fit: contain !important;
+}
+
+.checkout-paid-brand-name {
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 1000;
+}
+
+.checkout-paid-profile {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(246, 178, 31, .82);
+  border-radius: 999px;
+  color: #f6b21f;
+  background: #050505;
+}
+
+.checkout-paid-profile svg {
+  width: 25px;
+  height: 25px;
+}
+
+.checkout-paid-hero,
+.checkout-paid-share,
+.checkout-paid-affiliate-stats,
+.checkout-paid-details,
+.checkout-paid-numbers {
+  border: 1px solid rgba(246, 178, 31, .68);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(246, 178, 31, .18), transparent 36%),
+    linear-gradient(135deg, rgba(255, 255, 255, .035), transparent 45%),
+    #050505;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .48), inset 0 0 28px rgba(246, 178, 31, .035);
+}
+
+.checkout-paid-hero {
+  padding: 24px 18px 22px;
+  text-align: center;
+}
+
+.checkout-paid-check {
+  display: grid;
+  width: 86px;
+  height: 86px;
+  margin: 0 auto 12px;
+  place-items: center;
+  border: 2px solid rgba(255, 232, 153, .86);
+  border-radius: 999px;
+  color: #111;
+  background: radial-gradient(circle at 35% 28%, #fff2a8, #f6b21f 52%, #9d6407);
+  box-shadow: 0 0 34px rgba(246, 178, 31, .5);
+}
+
+.checkout-paid-check svg {
+  width: 54px;
+  height: 54px;
+}
+
+.checkout-paid-hero h1 {
+  color: #f6b21f;
+  font-size: clamp(2rem, 9vw, 3rem);
+  font-weight: 1000;
+  line-height: .98;
+  text-transform: uppercase;
+}
+
+.checkout-paid-hero h1 span {
+  display: block;
+  color: #fff;
+  font-size: clamp(1.55rem, 7vw, 2.4rem);
+}
+
+.checkout-paid-hero p {
+  margin: 12px auto 0;
+  max-width: 34rem;
+  color: rgba(255, 255, 255, .9);
+  font-size: clamp(1rem, 4.3vw, 1.3rem);
+  font-weight: 650;
+  line-height: 1.42;
+}
+
+.checkout-paid-hero .checkout-paid-hero-highlight {
+  color: rgba(255, 255, 255, .92);
+  font-size: clamp(.98rem, 4.1vw, 1.18rem);
+}
+
+.checkout-paid-hero-highlight strong {
+  color: #f6b21f;
+}
+
+.checkout-paid-share {
+  padding: 14px 14px 16px;
+  text-align: center;
+}
+
+.checkout-paid-share h2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #f6b21f;
+  font-size: clamp(1.05rem, 4.5vw, 1.32rem);
+  font-weight: 1000;
+  line-height: 1.08;
+  text-transform: uppercase;
+}
+
+.checkout-paid-share > p {
+  margin-top: 8px;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.checkout-paid-linkbox {
+  display: grid;
+  grid-template-columns: 1fr 48px;
+  align-items: center;
+  min-height: 56px;
+  margin-top: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(246, 178, 31, .82);
+  border-radius: 10px;
+  background: #070707;
+  text-align: left;
+}
+
+.checkout-paid-linkbox span {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 14px;
+  color: #fff;
+  font-size: clamp(.88rem, 4vw, 1.05rem);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.checkout-paid-linkbox button {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  border: 0;
+  border-left: 1px solid rgba(246, 178, 31, .22);
+  color: #f6b21f;
+  background: transparent;
+}
+
+.checkout-paid-linkbox svg {
+  width: 24px;
+  height: 24px;
+}
+
+.checkout-paid-whatsapp,
+.checkout-paid-copy {
+  display: flex;
+  width: 100%;
+  min-height: 66px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+  border-radius: 10px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.checkout-paid-whatsapp {
+  border: 1px solid rgba(64, 255, 112, .6);
+  color: #fff;
+  background: linear-gradient(180deg, #1fb84d, #0b7d2f);
+}
+
+.checkout-paid-copy {
+  border: 1px solid rgba(246, 178, 31, .75);
+  color: #111;
+  background: linear-gradient(135deg, #ffdf72, #f6b21f 58%, #cc870f);
+}
+
+.checkout-paid-whatsapp svg,
+.checkout-paid-copy svg {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+}
+
+.checkout-paid-whatsapp strong,
+.checkout-paid-copy strong,
+.checkout-paid-whatsapp small,
+.checkout-paid-copy small {
+  display: block;
+}
+
+.checkout-paid-whatsapp strong,
+.checkout-paid-copy strong {
+  font-size: clamp(1rem, 4.2vw, 1.18rem);
+  font-weight: 1000;
+  text-transform: uppercase;
+}
+
+.checkout-paid-whatsapp small,
+.checkout-paid-copy small {
+  font-size: .86rem;
+  font-weight: 650;
+  opacity: .92;
+}
+
+.checkout-paid-affiliate-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 14px 4px;
+}
+
+.checkout-paid-affiliate-stats article {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  gap: 5px;
+  padding: 4px;
+  text-align: center;
+}
+
+.checkout-paid-affiliate-stats article + article {
+  border-left: 1px solid rgba(255, 255, 255, .28);
+}
+
+.checkout-paid-affiliate-stats svg {
+  width: 30px;
+  height: 30px;
+  color: #f6b21f;
+}
+
+.checkout-paid-affiliate-stats strong {
+  color: #f6b21f;
+  font-size: clamp(.95rem, 4.3vw, 1.25rem);
+  font-weight: 1000;
+}
+
+.checkout-paid-affiliate-stats span {
+  color: #fff;
+  font-size: clamp(.68rem, 3vw, .82rem);
+  font-weight: 650;
+  line-height: 1.12;
+}
+
+.checkout-paid-details,
+.checkout-paid-numbers {
+  padding: 14px;
+}
+
+.checkout-paid-details h2,
+.checkout-paid-numbers h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  color: #f6b21f;
+  font-size: clamp(1rem, 4.4vw, 1.22rem);
+  font-weight: 1000;
+  text-transform: uppercase;
+}
+
+.checkout-paid-details h2 svg,
+.checkout-paid-numbers h2 svg {
+  width: 22px;
+  height: 22px;
+}
+
+.checkout-paid-details dl {
+  display: grid;
+  gap: 7px;
+}
+
+.checkout-paid-details div {
+  display: grid;
+  grid-template-columns: minmax(78px, 1fr) minmax(0, 1.2fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.checkout-paid-details dt {
+  color: #fff;
+  font-size: .98rem;
+  font-weight: 650;
+}
+
+.checkout-paid-details dd {
+  min-width: 0;
+  color: #fff;
+  font-size: .98rem;
+  font-weight: 750;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.checkout-paid-details dd span {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  border: 1px solid rgba(64, 255, 112, .72);
+  border-radius: 999px;
+  padding: 0 14px;
+  color: #f3fff5;
+  background: rgba(46, 201, 83, .2);
+}
+
+.checkout-paid-numbers > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.checkout-paid-numbers span {
+  display: grid;
+  min-height: 38px;
+  place-items: center;
+  border: 1px solid rgba(246, 178, 31, .78);
+  border-radius: 999px;
+  color: #fff;
+  background: #080808;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(.85rem, 3.8vw, 1rem);
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.checkout-paid-numbers p {
+  color: rgba(255, 255, 255, .78);
+  font-weight: 700;
+}
+
+.checkout-paid-outline {
+  display: inline-flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid rgba(246, 178, 31, .82);
+  border-radius: 10px;
+  color: #f6b21f;
+  background: #050505;
+  font-size: 1rem;
+  font-weight: 1000;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.checkout-paid-outline svg {
+  width: 22px;
+  height: 22px;
+}
+
+@media (min-width: 390px) {
+  .checkout-paid-numbers > div {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 640px) {
+  .checkout-paid-receipt {
+    width: min(100%, 760px);
+  }
+}

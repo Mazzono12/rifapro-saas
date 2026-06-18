@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { Link, useParams } from "react-router-dom";
-import { CheckCircle2, Clock3, MessageCircle, RefreshCw, ShieldCheck, Ticket, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Coins, Copy, FileText, MessageCircle, RefreshCw, ShieldCheck, Ticket, User, Users, WalletCards, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PixPaymentCard, PremiumPageLayout } from "../components/premium/PremiumUI";
+import { PublicBrandMark } from "../components/branding/PublicBrandMark";
 import { useTenantBranding } from "../context/tenant-branding/TenantBrandingContext";
 
 type ResumeStatus = {
@@ -44,6 +45,11 @@ export function CheckoutOrderResume() {
   const campaignPath = getCampaignPath(status);
   const purchasedNumbers = getPurchasedNumbers(status);
   const receiptUrl = String(purchase.receiptUrl || purchase.receipt_url || purchase.comprovanteUrl || purchase.comprovante_url || purchase.invoiceUrl || purchase.invoice_url || "").trim();
+  const paidAt = String(purchase.paidAt || purchase.paid_at || purchase.updatedAt || purchase.updated_at || purchase.createdAt || purchase.created_at || "");
+  const affiliateCode = String(purchase.affiliateRefCode || purchase.affiliate_ref_code || purchase.customer?.affiliateRefCode || purchase.customer?.affiliate_ref_code || "").trim();
+  const affiliateLink = affiliateCode && typeof window !== "undefined" ? `${window.location.origin}/?r=${affiliateCode}` : "";
+  const affiliateStats = getAffiliateStats(purchase);
+  const whatsappShareUrl = affiliateLink ? `https://wa.me/?text=${encodeURIComponent(`Participe comigo: ${affiliateLink}`)}` : "";
   const pending = Boolean(status && !status.paid && !status.expired && (status.paymentStatus === "pending" || status.status === "pending" || status.status === "reserved"));
   const pixPayload = pending ? String(status?.pixPayload || purchase.pixPayload || purchase.pix_payload || purchase.pixCopyPaste || purchase.pix_copy_paste || purchase.copyPaste || purchase.paymentCode || "") : "";
   const pixQrCode = pending ? String(status?.pixQrCode || status?.pixQrCodeBase64 || purchase.pixQrCode || purchase.qrCode || purchase.pixQrCodeBase64 || purchase.qrCodeBase64 || purchase.qr_code_base64 || purchase.encodedImage || "") : "";
@@ -90,6 +96,19 @@ export function CheckoutOrderResume() {
     window.setTimeout(() => setCopied(false), 1800);
   };
 
+  const copyAffiliateLink = async () => {
+    if (!affiliateLink) {
+      toast.info("Link de afiliado indisponível");
+      return;
+    }
+    const copiedOk = await copyTextToClipboard(affiliateLink);
+    if (!copiedOk) {
+      toast.error("Não foi possível copiar o link");
+      return;
+    }
+    toast.success("Link copiado com sucesso!");
+  };
+
   return (
     <PremiumPageLayout className="checkout-resume-page">
       <main className="checkout-resume-shell mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 pb-8 pt-5 sm:pb-12 sm:pt-8">
@@ -98,43 +117,69 @@ export function CheckoutOrderResume() {
         ) : error ? (
           <StateCard icon={<XCircle className="h-7 w-7" />} title="Pedido nao encontrado" description={error} action={<Link to="/" className="premium-button mt-4 w-full">Voltar para campanhas</Link>} />
         ) : status?.paid ? (
-          <StateCard
-            icon={<CheckCircle2 className="h-8 w-8" />}
-            title="Pagamento confirmado"
-            description="Seu pagamento ja foi confirmado. Suas cotas estao registradas."
-            action={
-              <div className="mt-4 grid gap-3">
-                <div className="rounded-2xl border border-white/10 bg-black p-4 text-left">
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    <Info label="Pedido" value={status.orderId || orderId} />
-                    <Info label="Status" value="Pago" />
-                    <Info label="Valor" value={amount > 0 ? money.format(amount) : "Confirmado"} />
-                  </div>
-                  <div className="mt-3 rounded-2xl border border-white/10 bg-black p-3">
-                    <p className="checkout-resume-info-label text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Campanha</p>
-                    <p className="mt-1 break-words text-sm font-black text-white">{campaignName}</p>
-                  </div>
-                  <div className="mt-3 rounded-2xl border border-white/10 bg-black p-3">
-                    <p className="checkout-resume-info-label text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Suas cotas/números</p>
-                    {purchasedNumbers.length ? (
-                      <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
-                        {purchasedNumbers.map(number => (
-                          <span key={number} className="rounded-full border border-amber-300/60 bg-amber-300/10 px-3 py-2 text-center font-mono text-sm font-black text-white">
-                            {number}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-sm font-semibold text-slate-300">Cotas confirmadas. Atualize a página caso os números ainda não apareçam.</p>
-                    )}
-                  </div>
-                </div>
-                {receiptUrl && <a href={receiptUrl} target="_blank" rel="noreferrer" className="premium-button w-full">Ver comprovante</a>}
-                <Link to={campaignPath} className="premium-button premium-button-secondary w-full">Voltar a campanha</Link>
+          <section className="checkout-paid-receipt">
+            <header className="checkout-paid-header">
+              <Link to="/" className="checkout-paid-brand" aria-label="Ir para início">
+                <PublicBrandMark eager inline logoClassName="checkout-paid-logo" nameClassName="checkout-paid-brand-name" />
+              </Link>
+              <Link to="/perfil" className="checkout-paid-profile" aria-label="Abrir perfil"><User /></Link>
+            </header>
+
+            <section className="checkout-paid-hero">
+              <div className="checkout-paid-check"><CheckCircle2 /></div>
+              <h1><span>🎉 Parabéns!</span> Pagamento confirmado</h1>
+              <p>Suas cotas foram registradas e já estão participando do sorteio.</p>
+              <p className="checkout-paid-hero-highlight"><strong>🚀 Aproveite para aumentar seus ganhos:</strong><br />Indique amigos através do seu link exclusivo e receba recompensas sobre as compras realizadas pelos seus convidados.</p>
+            </section>
+
+            <section className="checkout-paid-share">
+              <h2><span>✦</span> Ganhe indicando amigos <span>✦</span></h2>
+              <p>Seu link exclusivo:</p>
+              <div className="checkout-paid-linkbox">
+                <span>{affiliateLink || "Link indisponível"}</span>
+                <button type="button" onClick={copyAffiliateLink} aria-label="Copiar link"><Copy /></button>
               </div>
-            }
-            tone="success"
-          />
+              {whatsappShareUrl && (
+                <a href={whatsappShareUrl} target="_blank" rel="noreferrer" className="checkout-paid-whatsapp">
+                  <MessageCircle /> <span><strong>Compartilhar no WhatsApp</strong><small>Compartilhe e convide seus amigos</small></span>
+                </a>
+              )}
+              <button type="button" onClick={copyAffiliateLink} className="checkout-paid-copy">
+                <Copy /> <span><strong>Copiar meu link</strong><small>Copie seu link de afiliado</small></span>
+              </button>
+            </section>
+
+            <section className="checkout-paid-affiliate-stats">
+              <article><Users /><strong>{affiliateStats.indicated.toLocaleString("pt-BR")}</strong><span>Indicados</span></article>
+              <article><Coins /><strong>{money.format(affiliateStats.commissions)}</strong><span>Comissões Geradas</span></article>
+              <article><WalletCards /><strong>{money.format(affiliateStats.balance)}</strong><span>Saldo Disponível</span></article>
+            </section>
+
+            <section className="checkout-paid-details">
+              <h2><FileText /> Detalhes do pedido</h2>
+              <dl>
+                <div><dt>Pedido</dt><dd>{status.orderId || orderId}</dd></div>
+                <div><dt>Status</dt><dd><span>Pago</span></dd></div>
+                <div><dt>Valor</dt><dd>{amount > 0 ? money.format(amount) : "Confirmado"}</dd></div>
+                <div><dt>Campanha</dt><dd>{campaignName}</dd></div>
+                <div><dt>Data</dt><dd>{formatReceiptDate(paidAt)}</dd></div>
+              </dl>
+            </section>
+
+            <section className="checkout-paid-numbers">
+              <h2><Ticket /> Suas cotas / números</h2>
+              {purchasedNumbers.length ? (
+                <div>
+                  {purchasedNumbers.map((number, index) => <span key={`${number}-${index}`}>{number}</span>)}
+                </div>
+              ) : (
+                <p>Cotas confirmadas. Atualize a página caso os números ainda não apareçam.</p>
+              )}
+            </section>
+
+            {receiptUrl && <a href={receiptUrl} target="_blank" rel="noreferrer" className="checkout-paid-outline"><FileText /> Ver comprovante</a>}
+            <Link to="/meus-bilhetes" className="checkout-paid-outline"><FileText /> Ir para minhas cotas</Link>
+          </section>
         ) : status?.expired ? (
           <StateCard
             icon={<XCircle className="h-8 w-8" />}
@@ -246,6 +291,22 @@ function getPurchasedNumbers(status: ResumeStatus | null) {
   ];
   const values = candidates.find(item => Array.isArray(item) && item.length) || [];
   return values.map((item: unknown) => String(item).trim()).filter(Boolean);
+}
+
+function getAffiliateStats(purchase: Record<string, any>) {
+  const stats = purchase.affiliateStats || purchase.affiliate_stats || purchase.affiliate || {};
+  return {
+    indicated: Math.max(0, Number(stats.indicated || stats.customers || stats.referrals || stats.clicks || 0)),
+    commissions: Math.max(0, Number(stats.commissions || stats.commissionsTotal || stats.commission || stats.commissionBalance || 0)),
+    balance: Math.max(0, Number(stats.balance || stats.availableBalance || stats.availableToWithdraw || stats.commissionBalance || 0))
+  };
+}
+
+function formatReceiptDate(value?: string) {
+  if (!value) return "Data não informada";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Data não informada";
+  return `${date.toLocaleDateString("pt-BR")} - ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
 function useRemainingTime(expiresAt?: string) {
