@@ -2486,6 +2486,12 @@ async function startServer() {
     return `${"*".repeat(Math.max(4, decrypted.length - visible))}${decrypted.slice(-visible)}`;
   }
 
+  function fingerprintGatewaySecret(value: unknown) {
+    const decrypted = decryptGatewaySecret(value);
+    if (!decrypted || isMaskedGatewaySecret(decrypted)) return "";
+    return createHash("sha256").update(decrypted).digest("hex").slice(0, 16);
+  }
+
   function isMaskedGatewaySecret(value: unknown) {
     return typeof value === "string" && value.includes("*") && !isEncryptedGatewayValue(value);
   }
@@ -4131,6 +4137,10 @@ async function startServer() {
     return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
   }
 
+  function isTryCloudflareDevHost(host: string) {
+    return host === "trycloudflare.com" || host.endsWith(".trycloudflare.com");
+  }
+
   function resolveLocalDevTenant(req: express.Request) {
     if (isProductionRuntime) return null;
     const explicitTenant = firstHeaderValue(req.headers["x-tenant-id"] || req.headers["x-tenant-slug"] || req.query?.tenant || "");
@@ -4315,9 +4325,13 @@ async function startServer() {
   async function resolveDomainTenantInfo(req: express.Request): Promise<TenantResolution> {
     const hostRecebido = getRawRequestHost(req);
     const host = normalizeDomainName(hostRecebido);
-    if (isLocalhost(host) || (!isProductionRuntime && isPrivateDevHost(host))) {
+    if (isLocalhost(host) || (!isProductionRuntime && (isPrivateDevHost(host) || isTryCloudflareDevHost(host)))) {
       const tenant = resolveLocalDevTenant(req);
-      const reason = isLocalhost(host) ? "localhost_fallback" : "private_dev_host_fallback";
+      const reason = isLocalhost(host)
+        ? "localhost_fallback"
+        : isTryCloudflareDevHost(host)
+          ? "trycloudflare_dev_fallback"
+          : "private_dev_host_fallback";
       return { hostRecebido, hostNormalizado: host, tenant, fonte: tenant ? "tenants.dominio" : "none", reason: tenant ? reason : "local_dev_no_active_tenant" };
     }
     if (host === "admin" || host.startsWith("admin.")) {
@@ -10868,7 +10882,14 @@ async function startServer() {
         pix_payload: pixPayload,
         pix_copy_paste: pixPayload,
         expiration_date: pixExpiresAt,
-        raw_response: { payment, qrCode: { ...qrCode, encodedImage: qrCode.encodedImage ? "[base64]" : "" } },
+        raw_response: {
+          payment,
+          qrCode: { ...qrCode, encodedImage: qrCode.encodedImage ? "[base64]" : "" },
+          asaasConfig: {
+            environment: asaas.config.environment,
+            apiKeyFingerprint: fingerprintGatewaySecret(asaas.config.apiKey)
+          }
+        },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
@@ -21159,6 +21180,18 @@ async function startServer() {
     };
   }
 
+  app.get("/api/webhooks/asaas", (req, res) => {
+    const tenant = getRequestTenant(req);
+    res.json({
+      ok: true,
+      gateway: "asaas",
+      route: "/api/webhooks/asaas",
+      methods: ["POST"],
+      tenant: tenant?.slug || null,
+      message: "Webhook Asaas ativo. Configure o Asaas para enviar eventos via POST."
+    });
+  });
+
   app.post("/api/webhooks/asaas", async (req, res) => {
     const gateway = "asaas";
     const payload = (req.body || {}) as Record<string, unknown>;
@@ -21241,8 +21274,38 @@ async function startServer() {
     if (parsed.shouldRelease && payment) {
       const asaas = getAsaasProvider(tenantId);
       const remotePaymentId = String(payment.provider_payment_id || payment.asaas_payment_id || asaasPaymentId || parsed.paymentId || "");
+      const paymentRawResponse = payment.raw_response && typeof payment.raw_response === "object" ? payment.raw_response as Record<string, any> : {};
+      const createdAsaasConfig = paymentRawResponse.asaasConfig && typeof paymentRawResponse.asaasConfig === "object" ? paymentRawResponse.asaasConfig as Record<string, unknown> : {};
+      const webhookValidationContext = {
+        tenant_id: tenantId,
+        gateway,
+        purchaseId: payment.order_id || purchaseIdToConfirm || undefined,
+        eventStatus: rawStatus,
+        eventKey,
+        webhookPaymentId: asaasPaymentId || parsed.paymentId || "",
+        remotePaymentId,
+        externalReference: parsed.externalReference || externalReference || "",
+        resolvedSource: resolved.source,
+        asaasProviderConfigured: Boolean(asaas),
+        asaasEnvironment: asaas?.config.environment || "",
+        asaasApiKeyFingerprint: asaas ? fingerprintGatewaySecret(asaas.config.apiKey) : "",
+        createdApiKeyFingerprint: String(createdAsaasConfig.apiKeyFingerprint || ""),
+        apiKeyFingerprintMatches: Boolean(asaas && createdAsaasConfig.apiKeyFingerprint && String(createdAsaasConfig.apiKeyFingerprint) === fingerprintGatewaySecret(asaas.config.apiKey)),
+        createdEnvironment: String(createdAsaasConfig.environment || ""),
+        webhookSecretConfigured: Boolean(webhookSecret),
+        providedWebhookSecret: Boolean(providedSecret),
+        paymentRecordId: payment.id,
+        paymentProviderPaymentId: payment.provider_payment_id || "",
+        paymentAsaasPaymentId: payment.asaas_payment_id || "",
+        validationLine: "server.ts:21272 getPayment(remotePaymentId)"
+      };
       if (!asaas || !remotePaymentId) {
-        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment.order_id || purchaseIdToConfirm || undefined, status: "failed", message: "Falha ao validar pagamento Asaas: configuracao ou payment id ausente", statusCode: 503, eventStatus: rawStatus });
+        const diagnostic = {
+          ...webhookValidationContext,
+          failureReason: !asaas ? "asaas_provider_not_configured" : "remote_payment_id_missing"
+        };
+        console.error("[ASAAS_WEBHOOK_VALIDATE]", JSON.stringify(diagnostic));
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment.order_id || purchaseIdToConfirm || undefined, status: "failed", message: `Falha ao validar pagamento Asaas: configuracao ou payment id ausente | ${JSON.stringify(diagnostic)}`.slice(0, 1800), statusCode: 503, eventStatus: rawStatus });
         const event = webhookEvents.find(item => item.id === eventKey);
         if (event) event.error_message = "Validacao remota Asaas indisponivel";
         res.status(503).json({ error: "Falha ao validar pagamento Asaas", eventId: eventKey });
@@ -21281,7 +21344,19 @@ async function startServer() {
       } catch (error) {
         const providerError = error instanceof AsaasProviderError ? error : null;
         const message = providerError?.message || (error instanceof Error ? error.message : "Falha ao consultar pagamento Asaas");
-        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment.order_id || purchaseIdToConfirm || undefined, status: "failed", message: `Falha ao consultar pagamento Asaas antes da baixa: ${message}`, statusCode: providerError?.status || 503, eventStatus: rawStatus });
+        const diagnostic = {
+          ...webhookValidationContext,
+          failureReason: "asaas_get_payment_failed",
+          errorName: error instanceof Error ? error.name : "",
+          errorMessage: message,
+          httpStatus: providerError?.status || null,
+          method: providerError?.method || "GET",
+          path: providerError?.path || `/payments/${remotePaymentId}`,
+          bodySummary: providerError?.bodySummary || "",
+          stackTop: error instanceof Error ? String(error.stack || "").split("\n").slice(0, 4).join(" | ") : ""
+        };
+        console.error("[ASAAS_WEBHOOK_VALIDATE]", JSON.stringify(diagnostic));
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment.order_id || purchaseIdToConfirm || undefined, status: "failed", message: `Falha ao consultar pagamento Asaas antes da baixa: ${message} | ${JSON.stringify(diagnostic)}`.slice(0, 1800), statusCode: providerError?.status || 503, eventStatus: rawStatus });
         const event = webhookEvents.find(item => item.id === eventKey);
         if (event) event.error_message = "Falha ao consultar pagamento Asaas";
         res.status(503).json({ error: "Falha ao validar pagamento Asaas", eventId: eventKey });
