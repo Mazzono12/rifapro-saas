@@ -23188,6 +23188,385 @@ async function startServer() {
     res.json(scoped(purchases, req));
   });
 
+  type OrderCenterSource = "raffle" | "number_mode" | "fazendinha";
+
+  function normalizeOrderCenterText(value: unknown) {
+    return String(value ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  }
+
+  function normalizeOrderCenterPhone(value: unknown) {
+    return String(value ?? "").replace(/\D/g, "");
+  }
+
+  function formatOrderCenterTicket(value: unknown, size = 5) {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    const numeric = Number(raw);
+    if (Number.isInteger(numeric)) return String(numeric).padStart(size, "0");
+    return raw;
+  }
+
+  function getOrderCenterRaffle(tenantId: string, raffleId?: string) {
+    return raffles.find(item => item.tenant_id === tenantId && item.id === raffleId);
+  }
+
+  function findOrderCenterPayment(tenantId: string, orderId: string, externalPaymentId?: string, externalReference?: string) {
+    return payments
+      .filter(payment => payment.tenant_id === tenantId)
+      .find(payment =>
+        payment.order_id === orderId ||
+        payment.provider_payment_id === externalPaymentId ||
+        payment.asaas_payment_id === externalPaymentId ||
+        payment.provider_reference === externalReference ||
+        payment.provider_reference === orderId ||
+        payment.txid === externalPaymentId
+      );
+  }
+
+  function orderCenterPaymentStatus(order: any, payment?: PaymentRecord) {
+    if (payment?.status) return payment.status;
+    if (order?.paymentStatus) return order.paymentStatus;
+    if (order?.statusPagamento) return order.statusPagamento;
+    if (order?.status === "paid") return "paid";
+    if (order?.status === "cancelled") return "cancelled";
+    return "pending";
+  }
+
+  function getOrderCenterCustomer(order: any) {
+    const customer = order?.customer && typeof order.customer === "object" ? order.customer : {};
+    return {
+      nome: String(customer.name || order?.customerName || "Cliente"),
+      telefone: String(customer.phone || order?.contact || ""),
+      cpf: String(customer.cpf || ""),
+      email: String(customer.email || "")
+    };
+  }
+
+  function buildOrderCenterRow(source: OrderCenterSource, order: any) {
+    const tenantId = String(order.tenant_id || "");
+    const orderId = String(order.purchaseId || order.id || "");
+    const raffleId = source === "raffle" ? String(order.raffleId || "") : "";
+    const raffle = source === "raffle" ? getOrderCenterRaffle(tenantId, raffleId) : undefined;
+    const payment = findOrderCenterPayment(tenantId, orderId, order.externalPaymentId, order.externalReference);
+    const customer = getOrderCenterCustomer(order);
+    const rawTickets = source === "number_mode"
+      ? (Array.isArray(order.numbers) ? order.numbers : [])
+      : (Array.isArray(order.numeros) ? order.numeros : []);
+    const tickets = rawTickets.map((number: unknown) => formatOrderCenterTicket(number, source === "number_mode" ? String(number).length : 5)).filter(Boolean);
+    const amount = Number(order.amount ?? order.valorPago ?? 0);
+    const createdAt = String(order.createdAt || order.dataCompra || "");
+    const paidAt = String(payment?.paid_at || order.paidAt || order.confirmedAt || "");
+    const gateway = String(payment?.provider || order.pixGateway || "manual");
+    const campaign = source === "raffle"
+      ? (raffle?.title || raffleId || "Campanha")
+      : source === "number_mode"
+        ? `Modalidade ${String(order.mode || "").toUpperCase()}`
+        : (order.nomeBicho || "A Fazendinha");
+    const row = {
+      id: orderId,
+      source,
+      pedido: orderId,
+      purchaseId: orderId,
+      orderId,
+      cliente: customer.nome,
+      telefone: customer.telefone,
+      cpf: customer.cpf,
+      email: customer.email,
+      campanha: campaign,
+      campaignId: raffleId || order.mode || order.grupoId || "",
+      quantidadeCotas: Number(order.tickets || tickets.length || order.grupoIds?.length || 0),
+      valor: amount,
+      gateway,
+      statusPedido: String(order.status || order.statusPagamento || "pending"),
+      statusPagamento: orderCenterPaymentStatus(order, payment),
+      dataCompra: createdAt,
+      dataPagamento: paidAt,
+      paymentId: String(payment?.provider_payment_id || payment?.asaas_payment_id || order.externalPaymentId || ""),
+      externalReference: String(payment?.provider_reference || order.externalReference || ""),
+      pixTransactionId: String(payment?.txid || payment?.end_to_end || ""),
+      cobrancaUrl: String(payment?.ticket_url || ""),
+      comprovanteUrl: String((payment?.raw_response as any)?.receiptUrl || ""),
+      tickets,
+      numbersPreview: tickets.slice(0, 8).join(", ")
+    };
+    return row;
+  }
+
+  function getOrderCenterRows(req: express.Request) {
+    return [
+      ...scoped(purchases, req).map(order => buildOrderCenterRow("raffle", order)),
+      ...scoped(numberModePurchases, req).map(order => buildOrderCenterRow("number_mode", order)),
+      ...scoped(fazendinhaCompras, req).map(order => buildOrderCenterRow("fazendinha", order))
+    ].sort((a, b) => String(b.dataCompra || "").localeCompare(String(a.dataCompra || "")));
+  }
+
+  function orderCenterMatches(row: ReturnType<typeof buildOrderCenterRow>, query: string) {
+    if (!query) return true;
+    const normalizedQuery = normalizeOrderCenterText(query);
+    const numericQuery = normalizeOrderCenterPhone(query);
+    const search = normalizeOrderCenterText([
+      row.pedido,
+      row.purchaseId,
+      row.orderId,
+      row.cliente,
+      row.cpf,
+      row.telefone,
+      row.email,
+      row.paymentId,
+      row.externalReference,
+      row.pixTransactionId,
+      row.campanha,
+      row.campaignId,
+      row.tickets.join(" ")
+    ].join(" "));
+    return search.includes(normalizedQuery) || Boolean(numericQuery && normalizeOrderCenterPhone(search).includes(numericQuery));
+  }
+
+  function findOrderCenterOrder(req: express.Request, orderId: string) {
+    const rows = getOrderCenterRows(req);
+    const row = rows.find(item =>
+      item.orderId === orderId ||
+      item.purchaseId === orderId ||
+      item.paymentId === orderId ||
+      item.externalReference === orderId ||
+      item.pixTransactionId === orderId
+    );
+    if (!row) return null;
+    const collection = row.source === "raffle" ? purchases : row.source === "number_mode" ? numberModePurchases : fazendinhaCompras;
+    const order = collection.find((item: any) => (item.purchaseId || item.id) === row.orderId && adminCanAccessTenant(req, item.tenant_id));
+    return order ? { row, order } : null;
+  }
+
+  function getOrderCenterWebhooks(tenantId: string, row: ReturnType<typeof buildOrderCenterRow>) {
+    const match = (value: unknown) => {
+      const text = String(value || "");
+      return Boolean(text && [row.orderId, row.paymentId, row.externalReference, row.pixTransactionId].some(needle => needle && text.includes(needle)));
+    };
+    const events = webhookEvents
+      .filter(event => event.tenant_id === tenantId)
+      .filter(event => match(event.reference_code) || match(event.reference_id) || match(event.external_reference) || match(event.provider_payment_id) || match(JSON.stringify(event.payload || {})))
+      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    const logs = [
+      ...paymentWebhookLogs.filter(log => log.tenant_id === tenantId && (log.purchaseId === row.orderId || match(log.message) || match(log.eventStatus))),
+      ...paymentLogs.filter(log => log.tenant_id === tenantId && (log.order_id === row.orderId || match(log.provider_payment_id) || match(log.message))),
+      ...webhookLogs.filter(log => log.tenant_id === tenantId && (match(log.event_id) || match(log.message)))
+    ].sort((a: any, b: any) => String(b.createdAt || b.created_at || "").localeCompare(String(a.createdAt || a.created_at || "")));
+    return { events, logs };
+  }
+
+  function buildOrderCenterDetail(req: express.Request, row: ReturnType<typeof buildOrderCenterRow>, order: any) {
+    const tenantId = String(order.tenant_id || "");
+    const payment = findOrderCenterPayment(tenantId, row.orderId, order.externalPaymentId, order.externalReference);
+    const raffle = row.source === "raffle" ? getOrderCenterRaffle(tenantId, order.raffleId) : undefined;
+    const webhooks = getOrderCenterWebhooks(tenantId, row);
+    const auditLogs = auditEventLedger
+      .filter(item => item.tenant_id === tenantId && (item.resource_id === row.orderId || JSON.stringify(item.before_data || {}).includes(row.orderId) || JSON.stringify(item.after_data || {}).includes(row.orderId)))
+      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    const adjustments = ticketAdjustments
+      .filter(item => item.tenant_id === tenantId && item.order_id === row.orderId)
+      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    const numericTickets = row.tickets.map(ticket => Number(ticket)).filter(Number.isFinite);
+    const instantPrizeHits = row.source === "raffle"
+      ? instantPrizes.filter((prize: any) => prize.tenant_id === tenantId && prize.raffleId === order.raffleId && numericTickets.includes(Number(prize.numeroPremiado)))
+      : [];
+    const gamificationHits = gamificationWinners.filter(item => item.tenant_id === tenantId && item.purchaseId === row.orderId);
+    const drawHits = raffleDrawAudits.filter(item =>
+      item.tenant_id === tenantId &&
+      (item.raffle_id === order.raffleId || item.raffle_id === row.campaignId) &&
+      numericTickets.includes(Number(item.winning_number))
+    );
+    const timeline = [
+      { type: "created", label: "Pedido criado", date: row.dataCompra, status: "done" },
+      row.paymentId ? { type: "pix_created", label: "PIX gerado", date: payment?.created_at || row.dataCompra, status: "done" } : null,
+      webhooks.events[0] ? { type: "webhook", label: "Webhook recebido", date: webhooks.events[0].created_at, status: webhooks.events[0].processed ? "done" : "pending" } : null,
+      row.dataPagamento ? { type: "paid", label: "Pagamento confirmado", date: row.dataPagamento, status: "done" } : null,
+      row.statusPagamento === "paid" || row.statusPagamento === "confirmed" || row.statusPagamento === "RECEIVED" ? { type: "tickets_released", label: "Cotas liberadas", date: row.dataPagamento || row.dataCompra, status: "done" } : null,
+      ...instantPrizeHits.map((prize: any) => ({ type: "instant_prize", label: `Prêmio instantâneo ${prize.numeroPremiado}`, date: prize.createdAt || row.dataCompra, status: prize.status || "available" })),
+      ...drawHits.map(draw => ({ type: "main_prize", label: `Prêmio principal ${draw.winning_number}`, date: draw.executed_at || draw.published_at || draw.created_at, status: draw.status || "executed" })),
+      ...adjustments.map(adjustment => ({ type: "manual_audit", label: `Auditoria manual ${adjustment.adjustment_type}`, date: adjustment.created_at, status: "done" }))
+    ].filter(Boolean);
+    return {
+      row,
+      cliente: getOrderCenterCustomer(order),
+      compra: {
+        pedido: row.orderId,
+        purchaseId: row.purchaseId,
+        campanha: row.campanha,
+        campanhaId: row.campaignId,
+        quantidadeCotas: row.quantidadeCotas,
+        valor: row.valor,
+        dataCompra: row.dataCompra,
+        status: row.statusPedido,
+        source: row.source
+      },
+      pagamento: {
+        gateway: row.gateway,
+        paymentId: row.paymentId,
+        externalReference: row.externalReference,
+        pixTransaction: row.pixTransactionId,
+        statusGateway: payment?.status || row.statusPagamento,
+        dataPagamento: row.dataPagamento,
+        valorPago: Number((payment?.raw_response as any)?.value ?? row.valor),
+        cobrancaUrl: row.cobrancaUrl,
+        comprovanteUrl: row.comprovanteUrl
+      },
+      webhook: {
+        eventId: webhooks.events[0]?.id || webhooks.logs[0]?.id || "",
+        ultimoEvento: webhooks.events[0]?.event_type || (webhooks.logs[0] as any)?.eventStatus || "",
+        status: webhooks.events[0]?.status || (webhooks.logs[0] as any)?.status || "",
+        data: webhooks.events[0]?.created_at || (webhooks.logs[0] as any)?.createdAt || "",
+        jobId: webhooks.events[0]?.reference_id || "",
+        historico: [...webhooks.events, ...webhooks.logs].slice(0, 80)
+      },
+      cotas: row.tickets,
+      historicoCotas: row.tickets.map(ticket => ({
+        numero: ticket,
+        dataGeracao: row.dataCompra,
+        dataConfirmacao: row.dataPagamento,
+        pedido: row.orderId,
+        cliente: row.cliente,
+        alteracoes: adjustments.filter(adjustment =>
+          adjustment.old_numbers.map(String).includes(String(Number(ticket))) ||
+          adjustment.new_numbers.map(String).includes(String(Number(ticket)))
+        )
+      })),
+      premiosInstantaneos: [
+        ...instantPrizeHits.map((prize: any) => ({ tipo: "Bilhete premiado", numero: formatOrderCenterTicket(prize.numeroPremiado), premio: prize.valorPremio, data: prize.createdAt || "", status: prize.status })),
+        ...gamificationHits.map(item => ({ tipo: item.module, numero: item.number ? formatOrderCenterTicket(item.number) : "", premio: item.prize, data: item.createdAt, status: "won" }))
+      ],
+      premioPrincipal: drawHits[0] ? {
+        numeroVencedor: formatOrderCenterTicket(drawHits[0].winning_number),
+        nomeGanhador: row.cliente,
+        pedido: row.orderId,
+        compra: row.purchaseId,
+        data: drawHits[0].executed_at || drawHits[0].published_at || drawHits[0].created_at,
+        campanha: row.campanha
+      } : null,
+      timeline,
+      ajustes: adjustments,
+      auditoria: auditLogs
+    };
+  }
+
+  app.get("/api/admin/order-center", (req, res) => {
+    const query = String(req.query.q || "");
+    const limit = Math.min(500, Math.max(25, Number(req.query.limit || 250)));
+    const allRows = getOrderCenterRows(req);
+    const orders = allRows.filter(row => orderCenterMatches(row, query)).slice(0, limit);
+    res.json({
+      orders,
+      metrics: {
+        total: allRows.length,
+        filtered: orders.length,
+        paid: allRows.filter(row => normalizeOrderCenterText(row.statusPagamento).includes("paid") || normalizeOrderCenterText(row.statusPagamento).includes("confirmed") || normalizeOrderCenterText(row.statusPagamento).includes("received")).length,
+        pending: allRows.filter(row => normalizeOrderCenterText(row.statusPagamento).includes("pending") || normalizeOrderCenterText(row.statusPedido).includes("pending")).length,
+        amount: allRows.reduce((sum, row) => sum + Number(row.valor || 0), 0)
+      }
+    });
+  });
+
+  app.get("/api/admin/order-center/:orderId", (req, res) => {
+    const found = findOrderCenterOrder(req, req.params.orderId);
+    if (!found) {
+      res.status(404).json({ error: "Pedido nao encontrado" });
+      return;
+    }
+    res.json(buildOrderCenterDetail(req, found.row, found.order));
+  });
+
+  app.post("/api/admin/order-center/:orderId/reprocess-webhook", async (req, res) => {
+    const found = findOrderCenterOrder(req, req.params.orderId);
+    if (!found) {
+      res.status(404).json({ error: "Pedido nao encontrado" });
+      return;
+    }
+    const webhooks = getOrderCenterWebhooks(found.order.tenant_id, found.row);
+    const event = webhooks.events[0];
+    if (!event) {
+      res.status(404).json({ error: "Nenhum webhook encontrado para este pedido" });
+      return;
+    }
+    let reason = "";
+    try {
+      reason = requireAuditReason(req.body.reason || "Reprocessamento manual de webhook pela Central de Pedidos");
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Motivo obrigatorio" });
+      return;
+    }
+    const job = enqueuePaymentJob({
+      tenant_id: found.order.tenant_id,
+      gateway: String(event.provider || found.row.gateway || "asaas"),
+      purchaseId: found.row.orderId,
+      eventStatus: event.status || event.event_type || "MANUAL_REPROCESS",
+      payload: event.payload || {}
+    });
+    await processPaymentJob(job);
+    recordAuditLedger(req, {
+      tenant_id: found.order.tenant_id,
+      action: "ORDER_CENTER_WEBHOOK_REPROCESSED",
+      resource_type: "purchase",
+      resource_id: found.row.orderId,
+      before_data: { webhookEventId: event.id, processed: event.processed },
+      after_data: { jobId: job.id, status: job.status, result: job.result },
+      reason
+    });
+    schedulePersistentStateSave("order-center-webhook-reprocess", 0);
+    res.json({ success: true, job });
+  });
+
+  app.post("/api/admin/order-center/:orderId/tickets/swap", (req, res) => {
+    const found = findOrderCenterOrder(req, req.params.orderId);
+    if (!found || found.row.source !== "raffle") {
+      res.status(404).json({ error: "Pedido de rifa nao encontrado" });
+      return;
+    }
+    const purchase = found.order as PurchaseRecord;
+    const raffle = getOrderCenterRaffle(purchase.tenant_id, purchase.raffleId);
+    if (!raffle) {
+      res.status(404).json({ error: "Rifa nao encontrada" });
+      return;
+    }
+    let reason = "";
+    try {
+      reason = requireAuditReason(req.body.reason);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Motivo obrigatorio" });
+      return;
+    }
+    if (req.body.confirmation !== "CONFIRMAR TROCA") {
+      res.status(400).json({ error: "Digite CONFIRMAR TROCA para executar a substituicao" });
+      return;
+    }
+    const oldNumbers = [...purchase.numeros];
+    const nextNumbers = parseTicketNumbers(req.body.newNumbers ?? req.body.numbers);
+    try {
+      if (raffle.status !== "active" && !req.body.overrideClosed) throw new Error("Rifa encerrada bloqueia troca de cotas");
+      if (raffleDrawAudits.some(item => item.tenant_id === purchase.tenant_id && item.raffle_id === purchase.raffleId)) throw new Error("Sorteio ja realizado bloqueia troca de cotas");
+      if (nextNumbers.length !== oldNumbers.length) throw new Error("Troca precisa manter a mesma quantidade de cotas");
+      if (!nextNumbers.length) throw new Error("Informe as novas cotas");
+      if (nextNumbers.some(number => number < 1 || number > raffle.totalTickets)) throw new Error("Cota fora do intervalo da rifa");
+      const blockedInstantPrize = instantPrizes.find((prize: any) => prize.tenant_id === purchase.tenant_id && prize.raffleId === purchase.raffleId && [...oldNumbers, ...nextNumbers].includes(Number(prize.numeroPremiado)));
+      if (blockedInstantPrize) throw new Error(`Cota ${blockedInstantPrize.numeroPremiado} possui premio instantaneo e nao pode ser trocada`);
+      const winningNumber = raffleDrawAudits.find(item => [...oldNumbers, ...nextNumbers].includes(Number(item.winning_number)));
+      if (winningNumber) throw new Error(`Cota ${winningNumber.winning_number} ja consta como sorteada`);
+      const pendingAudit = ticketAdjustments.find(item => item.tenant_id === purchase.tenant_id && item.order_id === purchase.purchaseId && normalizeOrderCenterText(item.reason).includes("pendente"));
+      if (pendingAudit) throw new Error("Pedido possui auditoria pendente");
+      assertTicketsAvailable(purchase.tenant_id, purchase.raffleId, nextNumbers, purchase.purchaseId);
+    } catch (error) {
+      res.status(409).json({ error: error instanceof Error ? error.message : "Troca de cotas bloqueada" });
+      return;
+    }
+    oldNumbers.forEach(number => raffle.soldNumbers.delete(number));
+    nextNumbers.forEach(number => raffle.soldNumbers.add(number));
+    raffle.soldTickets = raffle.soldNumbers.size;
+    purchase.numeros = nextNumbers;
+    purchase.tickets = nextNumbers.length;
+    const adjustment = recordTicketAdjustment(req, purchase, "swap", oldNumbers, nextNumbers, reason, 0);
+    if (purchase.customer) recalculateCustomerPaidTickets(purchase.customer);
+    schedulePersistentStateSave("order-center-ticket-swap", 0);
+    res.json({ success: true, purchase, adjustment, detail: buildOrderCenterDetail(req, buildOrderCenterRow("raffle", purchase), purchase) });
+  });
+
   function buildPixRecoveryMessage(input: { customerName: string; campaign: string; link: string; expired: boolean }) {
     if (input.expired) {
       return `Olá, ${input.customerName}! Vi que você iniciou sua compra na campanha ${input.campaign}, mas o PIX anterior venceu.\n\nPara participar, faça uma nova compra pelo link abaixo:\n\n${input.link}\n\nSe já pagou, pode desconsiderar esta mensagem. 🍀`;

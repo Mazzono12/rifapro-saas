@@ -114,6 +114,7 @@ const AdminStories = lazy(() => import("./pages/admin/AdminStories").then(module
 const AdminWinners = lazy(() => import("./pages/admin/AdminWinners").then(module => ({ default: module.AdminWinners })));
 const AdminInstantPrizes = lazy(() => import("./pages/admin/AdminInstantPrizes").then(module => ({ default: module.AdminInstantPrizes })));
 const AdminSales = lazy(() => import("./pages/admin/AdminSales").then(module => ({ default: module.AdminSales })));
+const AdminOrderCenter = lazy(() => import("./pages/admin/AdminOrderCenter").then(module => ({ default: module.AdminOrderCenter })));
 const AdminConfig = lazy(() => import("./pages/admin/AdminConfig").then(module => ({ default: module.AdminConfig })));
 const AdminPaymentGateways = lazy(() => import("./pages/admin/AdminPaymentGateways").then(module => ({ default: module.AdminPaymentGateways })));
 const AdminFazendinha = lazy(() => import("./pages/admin/AdminFazendinha").then(module => ({ default: module.AdminFazendinha })));
@@ -345,6 +346,7 @@ export default function App() {
                 <Route path="ganhadores" element={adminSection("Ganhadores", <AdminWinners />)} />
                 <Route path="cotas" element={adminSection("Super Cotas", <AdminInstantPrizes />)} />
                 <Route path="vendas" element={adminSection("Vendas", <AdminSales />)} />
+                <Route path="central-pedidos" element={adminSection("Central de Pedidos", <AdminOrderCenter />)} />
                 <Route path="pagamentos" element={adminSection("Pagamentos", <AdminPaymentGateways />)} />
                 <Route path="fazendinha" element={adminSection("Fazendinha", <AdminFazendinha />)} />
                 <Route path="caixinhas" element={adminSection("Roleta Premiada", <AdminLootboxes />)} />
