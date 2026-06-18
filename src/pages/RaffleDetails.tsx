@@ -107,10 +107,17 @@ function getCheckoutOrderId(result: any) {
 }
 
 function getCheckoutRedirectUrl(result: any) {
-  const checkoutUrl = String(result?.checkoutUrl || result?.paymentUrl || "").trim();
-  if (checkoutUrl) return checkoutUrl;
   const orderId = getCheckoutOrderId(result);
-  return orderId ? `/checkout/pedido/${encodeURIComponent(orderId)}` : "";
+  if (orderId) return `/checkout/pedido/${encodeURIComponent(orderId)}`;
+  const checkoutUrl = String(result?.checkoutUrl || result?.paymentUrl || "").trim();
+  if (!checkoutUrl) return "";
+  if (checkoutUrl.startsWith("/")) return checkoutUrl;
+  try {
+    const url = new URL(checkoutUrl);
+    return url.pathname.startsWith("/checkout/") ? `${url.pathname}${url.search}${url.hash}` : "";
+  } catch {
+    return "";
+  }
 }
 
 function getRaffleMinPurchaseTickets(raffle?: Raffle | null) {
