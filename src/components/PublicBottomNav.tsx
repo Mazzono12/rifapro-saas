@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Bell, Gift, Home, Trophy, User } from "lucide-react";
+import { Bell, Gift, Home, Ticket, Trophy } from "lucide-react";
 
 export function PublicBottomNav({ hidden = false }: { hidden?: boolean }) {
   const location = useLocation();
@@ -9,8 +9,8 @@ export function PublicBottomNav({ hidden = false }: { hidden?: boolean }) {
   const items = [
     { label: "Início", to: "/", icon: Home, active: location.pathname === "/" && !location.hash },
     { label: "Sorteios", to: "/sorteios", icon: Gift, active: location.pathname.startsWith("/raffle") || location.pathname === "/sorteios" },
-    { label: "Ganhadores", to: "/ganhadores", icon: Trophy, active: location.pathname === "/ganhadores" || location.hash === "#ganhadores" },
-    { label: "Perfil", to: "/perfil", icon: User, active: location.pathname === "/perfil" },
+    { label: "Ganhe mais", to: "/afiliados", icon: Trophy, active: location.pathname.startsWith("/afiliad") },
+    { label: "Meus Bilhetes", to: "/meus-bilhetes", icon: Ticket, active: ["/meus-bilhetes", "/minhas-cotas", "/meus-numeros", "/meus-jogos"].includes(location.pathname) },
     { label: "Notific.", to: "/mensagens", icon: Bell, active: location.pathname === "/mensagens" || location.pathname === "/contato" }
   ];
 

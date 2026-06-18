@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { CalendarDays, Camera, CheckCircle2, ChevronRight, Clock3, Gift, LockKeyhole, LogOut, ReceiptText, Save, Sparkles, Ticket, Trophy, UploadCloud, User, Users } from "lucide-react";
+import { CalendarDays, Camera, CheckCircle2, ChevronRight, Clock3, Coins, FileText, Gift, LockKeyhole, LogOut, Megaphone, ReceiptText, Save, Sparkles, Ticket, Trophy, UploadCloud, User, Users, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { useCustomerStore } from "../store/useCustomerStore";
 import { uploadCustomerProfilePhoto } from "../utils/customerMedia";
 import { PremiumEmptyState, PremiumPageLayout, SectionTitle } from "../components/premium/PremiumUI";
+import { PublicBrandMark } from "../components/branding/PublicBrandMark";
 import type { Raffle } from "../types";
 
 type TicketFilter = "all" | "pending" | "paid" | "prized";
@@ -18,11 +19,12 @@ export function Dashboard() {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [expandedPurchase, setExpandedPurchase] = useState<string | null>(null);
-  const [activeTicketFilter, setActiveTicketFilter] = useState<TicketFilter>("all");
+  const [activeTicketFilter, setActiveTicketFilter] = useState<TicketFilter>("paid");
   const [form, setForm] = useState({ name: "", phone: "", photoUrl: "", city: "", state: "", accessPassword: "" });
   const [areaPassword, setAreaPassword] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [affiliateDashboard, setAffiliateDashboard] = useState<any>(null);
   const isProfile = location.pathname === "/perfil";
   const tabs = [
     { label: "Minhas Cotas", icon: Ticket, path: "/minhas-cotas" },
@@ -83,6 +85,18 @@ export function Dashboard() {
   const formattedCustomerCpf = customerCpf
     ? customerCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
     : "não informado";
+  const affiliateLink = useMemo(() => {
+    if (!customer?.affiliateRefCode || typeof window === "undefined") return "";
+    return `${window.location.origin}/?ref=${customer.affiliateRefCode}&utm_source=afiliado&utm_medium=meus_bilhetes`;
+  }, [customer?.affiliateRefCode]);
+  const affiliateMetrics = useMemo(() => {
+    const affiliate = ((customer as any)?.affiliate || {}) as Record<string, any>;
+    const metrics = affiliateDashboard?.metrics || {};
+    const indicated = Number(metrics.customers || metrics.indicated || metrics.referrals || affiliate.customers || affiliate.indicated || affiliate.clicks || 0);
+    const commissions = Number(metrics.commissionsTotal ?? metrics.commissionsReleased ?? affiliate.commission ?? affiliate.commissionBalance ?? 0);
+    const balance = Number(metrics.availableToWithdraw ?? affiliate.commissionBalance ?? affiliate.availableBalance ?? affiliate.commission ?? 0);
+    return { indicated, commissions, balance };
+  }, [affiliateDashboard, customer]);
 
   useEffect(() => {
     if (!customer) return;
@@ -98,7 +112,25 @@ export function Dashboard() {
     });
     fetch(`/api/customers/${customer.id}/purchases`).then(res => res.json()).then(setPurchases).catch(() => null);
     fetch("/api/raffles").then(res => res.ok ? res.json() : []).then(payload => setRaffles(Array.isArray(payload) ? payload : [])).catch(() => setRaffles([]));
+    if (customer.affiliateRefCode) {
+      fetch(`/api/affiliates/${customer.affiliateRefCode}/dashboard`).then(res => res.ok ? res.json() : null).then(setAffiliateDashboard).catch(() => setAffiliateDashboard(null));
+    } else {
+      setAffiliateDashboard(null);
+    }
   }, [customer?.id]);
+
+  const copyAffiliateLink = async () => {
+    if (!affiliateLink) {
+      toast.info("Link de afiliado indisponível");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(affiliateLink);
+      toast.success("Link copiado com sucesso!");
+    } catch {
+      toast.error("Não foi possível copiar o link");
+    }
+  };
 
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,6 +247,123 @@ export function Dashboard() {
           </button>
         </form>
       </div>
+      </PremiumPageLayout>
+    );
+  }
+
+  if (!isProfile) {
+    return (
+      <PremiumPageLayout className="cfx-my-tickets-page" data-premium-surface="my-tickets">
+        <main className="cfx-my-tickets-shell">
+          <header className="cfx-my-tickets-topbar">
+            <Link to="/" aria-label="Ir para o início" className="cfx-my-tickets-brand">
+              <PublicBrandMark eager inline logoClassName="cfx-my-tickets-logo" nameClassName="cfx-my-tickets-brand-name" />
+            </Link>
+            <Link to="/perfil" className="cfx-my-tickets-profile" aria-label="Abrir perfil">
+              <User />
+            </Link>
+          </header>
+
+          <nav className="cfx-my-tickets-tabs" aria-label="Filtrar bilhetes">
+            {[
+              ["all", "Todos"],
+              ["pending", "Pendentes"],
+              ["paid", "Pagos"],
+              ["prized", "Premiados"]
+            ].map(([value, label]) => (
+              <button key={value} type="button" data-active={activeTicketFilter === value} onClick={() => setActiveTicketFilter(value as TicketFilter)}>
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          <section className="cfx-my-tickets-list" aria-label="Lista de bilhetes">
+            {filteredTicketPurchases.length === 0 ? (
+              <PremiumEmptyState
+                title="Nenhum bilhete encontrado"
+                description="Quando uma compra aparecer neste filtro, ela será exibida aqui."
+                action={<Link to="/" className="premium-button mt-4 px-5">Participar agora</Link>}
+              />
+            ) : filteredTicketPurchases.map((item, index) => {
+              const orderId = String(item.purchaseId || item.id || "").trim();
+              const receiptUrl = String(item.receiptUrl || item.receipt_url || item.comprovanteUrl || item.comprovante_url || item.invoiceUrl || item.invoice_url || "").trim();
+              const numbersToShow = expandedPurchase === orderId ? item.numbers : item.numbers.slice(0, 18);
+              return (
+                <motion.article
+                  key={orderId || `${item.raffleId}-${index}`}
+                  className="cfx-my-ticket-entry"
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.035 }}
+                >
+                  <div className="cfx-my-ticket-card">
+                    <div className="cfx-my-ticket-media">
+                      {item.image ? <img src={item.image} alt={item.title} onError={event => { event.currentTarget.style.display = "none"; }} /> : <Ticket />}
+                    </div>
+                    <div className="cfx-my-ticket-copy">
+                      <h2>{item.title}</h2>
+                      <span className={cn("cfx-my-ticket-badge", item.isPaid ? "is-paid" : item.isPending ? "is-pending" : "")}>{item.isPaid ? "PAGO" : item.isPending ? "PENDENTE" : String(item.status).toUpperCase()}</span>
+                      <div className="cfx-my-ticket-meta">
+                        <span><CalendarDays /> {formatTicketDate(item.createdAt)}</span>
+                        <span><ReceiptText /> {formatTicketCurrency(item.amount)}</span>
+                        <span><Users /> {item.tickets.toLocaleString("pt-BR")} cotas</span>
+                      </div>
+                    </div>
+                    <div className="cfx-my-ticket-actions">
+                      <Link to={`/checkout/pedido/${encodeURIComponent(orderId)}`}>
+                        <Ticket /> Ver Bilhete
+                      </Link>
+                      {receiptUrl ? (
+                        <a href={receiptUrl} target="_blank" rel="noreferrer"><FileText /> Comprovante</a>
+                      ) : (
+                        <Link to={`/checkout/pedido/${encodeURIComponent(orderId)}`}><FileText /> Comprovante</Link>
+                      )}
+                    </div>
+                  </div>
+
+                  <section className="cfx-my-ticket-numbers">
+                    <h3><Ticket /> Meus Números</h3>
+                    {item.isPaid && item.numbers.length > 0 ? (
+                      <>
+                        <div className="cfx-my-ticket-number-grid">
+                          {numbersToShow.map((number: number | string, numberIndex: number) => (
+                            <span key={`${orderId}-${number}-${numberIndex}`}>{formatTicketNumber(number)}</span>
+                          ))}
+                        </div>
+                        {item.numbers.length > 18 && (
+                          <button type="button" onClick={() => setExpandedPurchase(expandedPurchase === orderId ? null : orderId)}>
+                            {expandedPurchase === orderId ? "Ver menos" : `Ver todos os ${item.numbers.length.toLocaleString("pt-BR")}`}
+                          </button>
+                        )}
+                      </>
+                    ) : item.isPaid ? (
+                      <p>Cotas confirmadas. Atualize caso os números ainda não apareçam.</p>
+                    ) : (
+                      <p>Os números serão liberados após a confirmação do pagamento.</p>
+                    )}
+                  </section>
+                </motion.article>
+              );
+            })}
+          </section>
+
+          <section className="cfx-my-tickets-affiliate">
+            <div className="cfx-my-tickets-megaphone"><Megaphone /></div>
+            <div>
+              <h2>Ganhe mais indicando amigos</h2>
+              <p>Compartilhe seu link de afiliado e ganhe comissões!</p>
+            </div>
+            <button type="button" onClick={copyAffiliateLink}>
+              <FileText /> Copiar meu link
+            </button>
+          </section>
+
+          <section className="cfx-my-tickets-affiliate-stats" aria-label="Estatísticas de afiliado">
+            <article><Users /><strong>{affiliateMetrics.indicated.toLocaleString("pt-BR")}</strong><span>Indicados</span></article>
+            <article><Coins /><strong>{formatTicketCurrency(affiliateMetrics.commissions)}</strong><span>Comissões</span></article>
+            <article><WalletCards /><strong>{formatTicketCurrency(affiliateMetrics.balance)}</strong><span>Saldo Disponível</span></article>
+          </section>
+        </main>
       </PremiumPageLayout>
     );
   }

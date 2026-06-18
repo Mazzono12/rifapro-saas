@@ -19,8 +19,8 @@ export function Navbar() {
   const bottomNavItems = [
     { label: "Início", to: "/", icon: Home, active: location.pathname === "/" && !location.hash },
     { label: "Sorteios", to: "/sorteios", icon: Ticket, active: location.pathname.startsWith("/raffle") || location.pathname === "/sorteios" },
-    { label: "Ganhadores", to: "/ganhadores", icon: Trophy, active: location.pathname === "/ganhadores" || location.hash === "#ganhadores" },
-    { label: "Perfil", to: "/perfil", icon: User, active: location.pathname === "/perfil" },
+    { label: "Ganhe mais", to: "/afiliados", icon: Trophy, active: location.pathname.startsWith("/afiliad") },
+    { label: "Meus Bilhetes", to: "/meus-bilhetes", icon: Ticket, active: ["/meus-bilhetes", "/minhas-cotas", "/meus-numeros", "/meus-jogos"].includes(location.pathname) },
     { label: "Notific.", to: "/mensagens", icon: Bell, active: location.pathname === "/mensagens" || location.pathname === "/contato" }
   ];
 
