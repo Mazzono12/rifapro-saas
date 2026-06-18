@@ -10764,6 +10764,28 @@ async function startServer() {
     return { tenantId, orderId, payment, conflict, source, parsedReference };
   }
 
+  function resolveAsaasPaymentRafflePixConfig(input: { tenantId: string; orderId?: string; payment?: PaymentRecord | null }) {
+    const orderId = String(input.payment?.order_id || input.orderId || "").trim();
+    if (!input.tenantId || !orderId) {
+      return { pixConfig: undefined as ResolvedRafflePixConfig | undefined, source: "none", raffleId: "", orderId };
+    }
+    const purchase = purchases.find(item => item.tenant_id === input.tenantId && item.purchaseId === orderId)
+      || purchases.find(item => item.tenant_id === input.tenantId && item.linkedPurchases?.some(linked => linked.purchaseId === orderId));
+    if (!purchase?.raffleId) {
+      return { pixConfig: undefined as ResolvedRafflePixConfig | undefined, source: "global_fallback_no_raffle_purchase", raffleId: "", orderId };
+    }
+    const raffle = raffles.find(item => item.tenant_id === input.tenantId && item.id === purchase.raffleId);
+    if (!raffle?.pixConfig) {
+      return { pixConfig: undefined as ResolvedRafflePixConfig | undefined, source: "global_fallback_no_raffle_pix_config", raffleId: purchase.raffleId, orderId };
+    }
+    const pixConfig = getRafflePixConfig({
+      id: raffle.id,
+      tenant_id: raffle.tenant_id,
+      pixConfig: raffle.pixConfig
+    }, input.tenantId);
+    return { pixConfig, source: "raffle_pix_config", raffleId: raffle.id, orderId };
+  }
+
   async function attachAsaasPixToOrder(input: { tenantId: string; purchase: PurchaseRecord | FazendinhaPurchase | NumberModePurchase; customer: CustomerRecord; amount: number; description: string; pixExpiresAt?: string; pixConfig?: ResolvedRafflePixConfig }) {
     const asaas = getAsaasProvider(input.tenantId, input.pixConfig);
     if (!asaas || input.amount <= 0) return null;
@@ -21214,7 +21236,15 @@ async function startServer() {
       return;
     }
     const asaasConfig = getAsaasGatewayConfig(resolved.tenantId);
-    const webhookSecret = asaasConfig?.webhookToken || "";
+    const preliminaryPurchaseId = resolved.orderId || parseAsaasExternalReference(preParsed.externalReference).orderId || extractPaymentReference(gateway, payload as Record<string, any>);
+    const preliminaryPayment = resolved.payment || payments.find(item =>
+      item.tenant_id === tenantId &&
+      item.provider === "asaas" &&
+      (item.provider_payment_id === asaasPaymentId || item.asaas_payment_id === asaasPaymentId || item.order_id === preliminaryPurchaseId)
+    );
+    const preliminaryRafflePixResolution = resolveAsaasPaymentRafflePixConfig({ tenantId, orderId: preliminaryPurchaseId, payment: preliminaryPayment });
+    const effectiveAsaasConfig = getAsaasGatewayConfig(resolved.tenantId, preliminaryRafflePixResolution.pixConfig) || asaasConfig;
+    const webhookSecret = effectiveAsaasConfig?.webhookToken || asaasConfig?.webhookToken || "";
     const providedSecret = String(req.headers["asaas-access-token"] || "");
     if (webhookSecret) {
       const providedBuffer = Buffer.from(providedSecret);
@@ -21229,7 +21259,7 @@ async function startServer() {
       res.status(401).json({ error: "Webhook token Asaas obrigatorio em producao" });
       return;
     }
-    const parsed = new AsaasProvider({ apiKey: "webhook", environment: "sandbox", userAgent: "CIFHER Webhook" }).handleWebhook(payload as Record<string, any>, asaasConfig?.releaseMode || "PAYMENT_RECEIVED");
+    const parsed = new AsaasProvider({ apiKey: "webhook", environment: "sandbox", userAgent: "CIFHER Webhook" }).handleWebhook(payload as Record<string, any>, effectiveAsaasConfig?.releaseMode || "PAYMENT_RECEIVED");
     const rawStatus = parsed.eventType || parsed.status || extractPaymentStatus(payload as Record<string, any>);
     const purchaseIdToConfirm = resolved.orderId || parseAsaasExternalReference(parsed.externalReference).orderId || extractPaymentReference(gateway, payload as Record<string, any>);
     const eventKey = buildPaymentIdempotencyKey({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, eventStatus: rawStatus, payload });
@@ -21272,7 +21302,8 @@ async function startServer() {
     let verifiedPayload = payload;
     let verifiedStatus = rawStatus;
     if (parsed.shouldRelease && payment) {
-      const asaas = getAsaasProvider(tenantId);
+      const paymentRafflePixResolution = resolveAsaasPaymentRafflePixConfig({ tenantId, orderId: purchaseIdToConfirm, payment });
+      const asaas = getAsaasProvider(tenantId, paymentRafflePixResolution.pixConfig) || getAsaasProvider(tenantId);
       const remotePaymentId = String(payment.provider_payment_id || payment.asaas_payment_id || asaasPaymentId || parsed.paymentId || "");
       const paymentRawResponse = payment.raw_response && typeof payment.raw_response === "object" ? payment.raw_response as Record<string, any> : {};
       const createdAsaasConfig = paymentRawResponse.asaasConfig && typeof paymentRawResponse.asaasConfig === "object" ? paymentRawResponse.asaasConfig as Record<string, unknown> : {};
@@ -21286,6 +21317,8 @@ async function startServer() {
         remotePaymentId,
         externalReference: parsed.externalReference || externalReference || "",
         resolvedSource: resolved.source,
+        pixConfigSource: paymentRafflePixResolution.source,
+        pixConfigRaffleId: paymentRafflePixResolution.raffleId,
         asaasProviderConfigured: Boolean(asaas),
         asaasEnvironment: asaas?.config.environment || "",
         asaasApiKeyFingerprint: asaas ? fingerprintGatewaySecret(asaas.config.apiKey) : "",
@@ -21413,7 +21446,8 @@ async function startServer() {
     if (!reference) return res.status(400).json({ error: "payment_id/order_id obrigatorio" });
     const payment = payments.find(item => item.tenant_id === tenantId && item.provider === "asaas" && (item.provider_payment_id === reference || item.asaas_payment_id === reference || item.order_id === reference));
     if (!payment) return res.status(404).json({ error: "Pagamento Asaas nao encontrado para este tenant" });
-    const asaas = getAsaasProvider(tenantId);
+    const rafflePixResolution = resolveAsaasPaymentRafflePixConfig({ tenantId, orderId: payment.order_id || reference, payment });
+    const asaas = getAsaasProvider(tenantId, rafflePixResolution.pixConfig) || getAsaasProvider(tenantId);
     if (!asaas) return res.status(503).json({ error: "Asaas nao configurado para este tenant" });
     try {
       const remote = await asaas.provider.getPayment(payment.provider_payment_id || payment.asaas_payment_id || reference);
