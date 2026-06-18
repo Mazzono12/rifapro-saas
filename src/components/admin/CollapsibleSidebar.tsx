@@ -37,7 +37,6 @@ export function CollapsibleSidebar({
   rootPath,
   logoUrl,
   title,
-  subtitle,
   collapsed,
   mobileOpen,
   onCollapsedChange,
@@ -59,7 +58,7 @@ export function CollapsibleSidebar({
         )}
         data-collapsed={minimized ? "true" : "false"}
       >
-        <div className={cn("flex min-h-[58px] items-center border-b border-[var(--admin-border)]", minimized ? "justify-center" : "gap-2")}>
+        <div className="flex min-h-[58px] items-center justify-center border-b border-[var(--admin-border)]">
           <Link
             to={rootPath}
             className={cn("admin-sidebar-brand-link shrink-0", minimized && "is-minimized")}
@@ -67,20 +66,9 @@ export function CollapsibleSidebar({
           >
             {logoUrl ? <img src={logoUrl} alt={title} className="admin-sidebar-brand-logo" /> : <Hexagon className="h-7 w-7" />}
           </Link>
-          {!minimized && (
-            <Link to={rootPath} className="min-w-0">
-              <h1 className="mb-0 truncate text-sm font-semibold text-[var(--admin-text)]">{title}</h1>
-              <p className="truncate text-xs text-[var(--admin-muted)]">{subtitle}</p>
-            </Link>
-          )}
           {mobile && (
             <button onClick={() => onMobileOpenChange(false)} className="admin-icon-button ml-auto" aria-label="Fechar menu">
               <X className="h-5 w-5" />
-            </button>
-          )}
-          {!mobile && !minimized && (
-            <button onClick={() => onCollapsedChange(true)} className="admin-sidebar-toggle ml-auto" aria-label="Recolher menu" title="Recolher menu">
-              <ChevronLeft className="h-4 w-4" />
             </button>
           )}
         </div>

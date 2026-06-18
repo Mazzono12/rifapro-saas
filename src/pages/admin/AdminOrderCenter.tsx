@@ -21,6 +21,7 @@ import {
   X
 } from "lucide-react";
 import { toast } from "sonner";
+import { authFetch } from "../../lib/authSession";
 
 type OrderCenterRow = {
   id: string;
@@ -63,8 +64,131 @@ type OrderCenterDetail = {
   auditoria: Array<Record<string, any>>;
 };
 
+const emptyRow: OrderCenterRow = {
+  id: "",
+  source: "raffle",
+  pedido: "",
+  purchaseId: "",
+  orderId: "",
+  cliente: "Cliente",
+  telefone: "",
+  cpf: "",
+  email: "",
+  campanha: "Campanha",
+  campaignId: "",
+  quantidadeCotas: 0,
+  valor: 0,
+  gateway: "manual",
+  statusPedido: "pending",
+  statusPagamento: "pending",
+  dataCompra: "",
+  dataPagamento: "",
+  paymentId: "",
+  externalReference: "",
+  pixTransactionId: "",
+  tickets: [],
+  numbersPreview: ""
+};
+
+function asArray<T = any>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
+function safeText(value: unknown, fallback = "") {
+  return typeof value === "string" ? value : value === undefined || value === null ? fallback : String(value);
+}
+
+function normalizeRow(value: any): OrderCenterRow {
+  const raw = value && typeof value === "object" ? value : {};
+  const orderId = safeText(raw.orderId || raw.purchaseId || raw.pedido || raw.id);
+  const source = ["raffle", "number_mode", "fazendinha"].includes(raw.source) ? raw.source : "raffle";
+  return {
+    ...emptyRow,
+    ...raw,
+    id: safeText(raw.id || orderId),
+    source,
+    pedido: safeText(raw.pedido || orderId),
+    purchaseId: safeText(raw.purchaseId || orderId),
+    orderId,
+    cliente: safeText(raw.cliente, "Cliente"),
+    telefone: safeText(raw.telefone),
+    cpf: safeText(raw.cpf),
+    email: safeText(raw.email),
+    campanha: safeText(raw.campanha, "Campanha"),
+    campaignId: safeText(raw.campaignId),
+    quantidadeCotas: Number(raw.quantidadeCotas || 0),
+    valor: Number(raw.valor || 0),
+    gateway: safeText(raw.gateway, "manual"),
+    statusPedido: safeText(raw.statusPedido, "pending"),
+    statusPagamento: safeText(raw.statusPagamento, "pending"),
+    dataCompra: safeText(raw.dataCompra),
+    dataPagamento: safeText(raw.dataPagamento),
+    paymentId: safeText(raw.paymentId),
+    externalReference: safeText(raw.externalReference),
+    pixTransactionId: safeText(raw.pixTransactionId),
+    tickets: asArray(raw.tickets).map(item => safeText(item)).filter(Boolean),
+    numbersPreview: safeText(raw.numbersPreview)
+  };
+}
+
+function normalizeDetail(value: any): OrderCenterDetail {
+  const raw = value && typeof value === "object" ? value : {};
+  const row = normalizeRow(raw.row);
+  const cliente = raw.cliente && typeof raw.cliente === "object" ? raw.cliente : {};
+  const compra = raw.compra && typeof raw.compra === "object" ? raw.compra : {};
+  const pagamento = raw.pagamento && typeof raw.pagamento === "object" ? raw.pagamento : {};
+  const webhook = raw.webhook && typeof raw.webhook === "object" ? raw.webhook : {};
+  return {
+    row,
+    cliente: {
+      nome: safeText(cliente.nome || row.cliente, "Cliente"),
+      telefone: safeText(cliente.telefone || row.telefone),
+      cpf: safeText(cliente.cpf || row.cpf),
+      email: safeText(cliente.email || row.email)
+    },
+    compra: {
+      pedido: safeText(compra.pedido || row.orderId),
+      purchaseId: safeText(compra.purchaseId || row.purchaseId),
+      campanha: safeText(compra.campanha || row.campanha, "Campanha"),
+      campanhaId: safeText(compra.campanhaId || row.campaignId),
+      quantidadeCotas: Number(compra.quantidadeCotas || row.quantidadeCotas || 0),
+      valor: Number(compra.valor || row.valor || 0),
+      dataCompra: safeText(compra.dataCompra || row.dataCompra),
+      status: safeText(compra.status || row.statusPedido, "pending"),
+      source: safeText(compra.source || row.source)
+    },
+    pagamento: {
+      gateway: safeText(pagamento.gateway || row.gateway, "manual"),
+      paymentId: safeText(pagamento.paymentId || row.paymentId),
+      externalReference: safeText(pagamento.externalReference || row.externalReference),
+      pixTransaction: safeText(pagamento.pixTransaction || row.pixTransactionId),
+      statusGateway: safeText(pagamento.statusGateway || row.statusPagamento, "pending"),
+      dataPagamento: safeText(pagamento.dataPagamento || row.dataPagamento),
+      valorPago: Number(pagamento.valorPago || row.valor || 0),
+      cobrancaUrl: safeText(pagamento.cobrancaUrl),
+      comprovanteUrl: safeText(pagamento.comprovanteUrl)
+    },
+    webhook: {
+      eventId: safeText(webhook.eventId),
+      ultimoEvento: safeText(webhook.ultimoEvento),
+      status: safeText(webhook.status),
+      data: safeText(webhook.data),
+      jobId: safeText(webhook.jobId),
+      historico: asArray(webhook.historico)
+    },
+    cotas: asArray(raw.cotas).map(item => safeText(item)).filter(Boolean),
+    historicoCotas: asArray(raw.historicoCotas),
+    premiosInstantaneos: asArray(raw.premiosInstantaneos),
+    premioPrincipal: raw.premioPrincipal && typeof raw.premioPrincipal === "object" ? raw.premioPrincipal : null,
+    timeline: asArray(raw.timeline),
+    ajustes: asArray(raw.ajustes),
+    auditoria: asArray(raw.auditoria)
+  };
+}
+
 function money(value: unknown) {
-  return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const parsed = Number(value || 0);
+  return (Number.isFinite(parsed) ? parsed : 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 function dateTime(value: unknown) {
@@ -104,13 +228,50 @@ function downloadText(filename: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
+class OrderCenterResponseError extends Error {
+  status: number;
+  invalidResponse: boolean;
+
+  constructor(message: string, status: number, invalidResponse = false) {
+    super(message);
+    this.name = "OrderCenterResponseError";
+    this.status = status;
+    this.invalidResponse = invalidResponse;
+  }
+}
+
+async function readAdminJson<T = any>(response: Response): Promise<T> {
+  const contentType = response.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+  if (response.status === 401) {
+    throw new OrderCenterResponseError("Sessao expirada. Faça login novamente para acessar a Central de Pedidos.", response.status);
+  }
+  if (response.status === 403) {
+    throw new OrderCenterResponseError("Seu usuario nao tem permissao para acessar a Central de Pedidos.", response.status);
+  }
+  if (!isJson) {
+    const preview = await response.text().catch(() => "");
+    console.warn("[ORDER_CENTER_INVALID_RESPONSE]", {
+      status: response.status,
+      contentType,
+      preview: preview.slice(0, 160)
+    });
+    throw new OrderCenterResponseError("Resposta invalida do servidor", response.status, true);
+  }
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new OrderCenterResponseError(payload?.error || "Falha ao carregar dados da Central de Pedidos", response.status);
+  }
+  return payload as T;
+}
+
 function InfoLine({ label, value, copyable }: { label: string; value: unknown; copyable?: boolean }) {
   const text = value === undefined || value === null || value === "" ? "-" : String(value);
   return (
     <div className="min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-2">
       <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--admin-muted)]">{label}</p>
       <div className="mt-1 flex min-w-0 items-center gap-2">
-        <p className="min-w-0 truncate text-sm font-semibold text-[var(--admin-text)]">{text}</p>
+        <p className="min-w-0 truncate text-sm font-semibold text-[var(--admin-text)]" title={text}>{text}</p>
         {copyable && text !== "-" && (
           <button type="button" className="admin-icon-button h-7 w-7" onClick={() => copyText(label, text)} aria-label={`Copiar ${label}`}>
             <Copy className="h-3.5 w-3.5" />
@@ -121,11 +282,17 @@ function InfoLine({ label, value, copyable }: { label: string; value: unknown; c
   );
 }
 
+function TruncateText({ value, className = "" }: { value: unknown; className?: string }) {
+  const text = value === undefined || value === null || value === "" ? "-" : String(value);
+  return <span className={`block min-w-0 truncate ${className}`} title={text}>{text}</span>;
+}
+
 export function AdminOrderCenter() {
   const [query, setQuery] = useState("");
   const [orders, setOrders] = useState<OrderCenterRow[]>([]);
   const [metrics, setMetrics] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [loadMessage, setLoadMessage] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState<OrderCenterDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -135,16 +302,29 @@ export function AdminOrderCenter() {
 
   async function loadOrders(search = query) {
     setLoading(true);
+    setLoadMessage("");
     try {
       const params = new URLSearchParams();
       if (search.trim()) params.set("q", search.trim());
-      const response = await fetch(`/api/admin/order-center?${params.toString()}`);
-      if (!response.ok) throw new Error("Falha ao carregar pedidos");
-      const payload = await response.json();
-      setOrders(Array.isArray(payload.orders) ? payload.orders : []);
+      const queryString = params.toString();
+      const response = await authFetch(queryString ? `/api/admin/order-center?${queryString}` : "/api/admin/order-center", {
+        headers: { Accept: "application/json" }
+      });
+      const payload = await readAdminJson(response);
+      setOrders(asArray(payload.orders).map(normalizeRow).filter(order => order.orderId));
       setMetrics(payload.metrics || {});
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao carregar Central");
+      console.warn("[ORDER_CENTER_REFRESH_ERROR]", error);
+      const responseError = error instanceof OrderCenterResponseError ? error : null;
+      if (responseError?.invalidResponse) {
+        setOrders([]);
+        setMetrics({ total: 0, filtered: 0, paid: 0, pending: 0, amount: 0 });
+        setLoadMessage("Nenhum pedido encontrado.");
+        return;
+      }
+      const message = error instanceof Error ? error.message : "Erro ao carregar Central";
+      setLoadMessage(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -154,11 +334,11 @@ export function AdminOrderCenter() {
     setSelectedId(orderId);
     setDetailLoading(true);
     try {
-      const response = await fetch(`/api/admin/order-center/${encodeURIComponent(orderId)}`);
-      if (!response.ok) throw new Error("Pedido nao encontrado");
-      const payload = await response.json();
-      setDetail(payload);
-      setSwapForm({ newNumbers: (payload.cotas || []).join("\n"), reason: "", confirmation: "" });
+      const response = await authFetch(`/api/admin/order-center/${encodeURIComponent(orderId)}`);
+      const payload = await readAdminJson(response);
+      const normalized = normalizeDetail(payload);
+      setDetail(normalized);
+      setSwapForm({ newNumbers: normalized.cotas.join("\n"), reason: "", confirmation: "" });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro ao abrir pedido");
     } finally {
@@ -171,6 +351,19 @@ export function AdminOrderCenter() {
     return () => window.clearTimeout(timer);
   }, [query]);
 
+  useEffect(() => {
+    const logRenderIssue = (event: ErrorEvent | PromiseRejectionEvent) => {
+      console.warn("[ORDER_CENTER_RENDER_ERROR]", "reason" in event ? event.reason : event.error);
+    };
+    window.addEventListener("error", logRenderIssue);
+    window.addEventListener("unhandledrejection", logRenderIssue);
+    return () => {
+      window.removeEventListener("error", logRenderIssue);
+      window.removeEventListener("unhandledrejection", logRenderIssue);
+    };
+  }, []);
+
+  const visibleOrders = useMemo(() => orders.slice(0, 500), [orders]);
   const selectedOrder = useMemo(() => orders.find(order => order.orderId === selectedId), [orders, selectedId]);
 
   async function runAction(action: "reprocess" | "reconcile" | "swap") {
@@ -179,26 +372,25 @@ export function AdminOrderCenter() {
     try {
       let response: Response;
       if (action === "reconcile") {
-        response = await fetch("/api/admin/payments/asaas/reconcile", {
+        response = await authFetch("/api/admin/payments/asaas/reconcile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ orderId: detail.row.orderId, paymentId: detail.row.paymentId })
         });
       } else if (action === "reprocess") {
-        response = await fetch(`/api/admin/order-center/${encodeURIComponent(detail.row.orderId)}/reprocess-webhook`, {
+        response = await authFetch(`/api/admin/order-center/${encodeURIComponent(detail.row.orderId)}/reprocess-webhook`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ reason: "Reprocessamento manual pela Central de Pedidos" })
         });
       } else {
-        response = await fetch(`/api/admin/order-center/${encodeURIComponent(detail.row.orderId)}/tickets/swap`, {
+        response = await authFetch(`/api/admin/order-center/${encodeURIComponent(detail.row.orderId)}/tickets/swap`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(swapForm)
         });
       }
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || "Acao nao concluida");
+      await readAdminJson(response);
       toast.success(action === "swap" ? "Cotas alteradas com auditoria" : "Acao operacional concluida");
       await loadOrders();
       await loadDetail(detail.row.orderId);
@@ -215,20 +407,20 @@ export function AdminOrderCenter() {
   }
 
   return (
-    <div className="space-y-5">
-      <section className="admin-card p-5">
+    <div className="min-w-0 space-y-5">
+      <section className="admin-card min-w-0 p-4 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--admin-muted)]">Operação</p>
-            <h1 className="mt-1 text-2xl font-black text-[var(--admin-text)]">Central de Pedidos</h1>
-            <p className="mt-1 text-sm text-[var(--admin-muted)]">Localize cliente, pagamento, cotas, webhook e auditoria em uma tela.</p>
+            <h1 className="mt-1 truncate text-2xl font-black text-[var(--admin-text)]">Central de Pedidos</h1>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--admin-muted)]">Localize cliente, pagamento, cotas, webhook e auditoria em uma tela.</p>
           </div>
-          <button type="button" className="admin-button-secondary" onClick={() => void loadOrders()} disabled={loading}>
+          <button type="button" className="admin-button-secondary h-11 shrink-0 justify-center" onClick={() => void loadOrders()} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Atualizar
           </button>
         </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-4">
+        <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <InfoLine label="Pedidos" value={metrics.total || 0} />
           <InfoLine label="Filtrados" value={metrics.filtered || 0} />
           <InfoLine label="Pagos" value={metrics.paid || 0} />
@@ -243,52 +435,88 @@ export function AdminOrderCenter() {
             placeholder="Buscar por pedido, cliente, CPF, telefone, e-mail, Payment ID, PIX, cota ou numero vencedor"
           />
         </div>
+        {loadMessage && !loading && (
+          <p className="mt-3 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-2 text-sm text-[var(--admin-muted)]">{loadMessage}</p>
+        )}
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.8fr)]">
-        <section className="admin-card overflow-hidden p-0">
-          <div className="overflow-x-auto">
-            <table className="min-w-[1100px] w-full text-left text-sm">
+      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
+        <section className="admin-card min-w-0 overflow-hidden p-0">
+          <div className="hidden overflow-x-auto lg:block">
+            <table className="w-full table-fixed text-left text-sm">
+              <colgroup>
+                <col className="w-[120px]" />
+                <col className="w-[150px]" />
+                <col className="w-[130px]" />
+                <col className="w-[120px]" />
+                <col className="w-[180px]" />
+                <col className="w-[80px]" />
+                <col className="w-[105px]" />
+                <col className="w-[115px]" />
+                <col className="w-[135px]" />
+                <col className="w-[120px]" />
+              </colgroup>
               <thead className="border-b border-[var(--admin-border)] text-xs uppercase tracking-[0.12em] text-[var(--admin-muted)]">
                 <tr>
-                  {["Pedido", "Cliente", "Telefone", "CPF", "Campanha", "Cotas", "Valor", "Gateway", "Pedido", "Pagamento", "Compra", "Pago", ""].map(header => (
-                    <th key={header} className="px-4 py-3 font-bold">{header}</th>
+                  {["Pedido", "Cliente", "Telefone", "CPF", "Campanha", "Cotas", "Valor", "Status", "Data", ""].map((header, index) => (
+                    <th key={`${header || "actions"}-${index}`} className="px-4 py-3 font-bold">{header}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--admin-border)]">
                 {loading ? (
-                  <tr><td colSpan={13} className="px-4 py-10 text-center text-[var(--admin-muted)]">Carregando pedidos...</td></tr>
-                ) : orders.length ? orders.map(order => (
+                  <tr><td colSpan={10} className="px-4 py-10 text-center text-[var(--admin-muted)]">Carregando pedidos...</td></tr>
+                ) : visibleOrders.length ? visibleOrders.map(order => (
                   <tr key={`${order.source}-${order.orderId}`} className={selectedId === order.orderId ? "bg-[var(--admin-primary)]/10" : "hover:bg-[var(--admin-surface)]"}>
-                    <td className="px-4 py-3 font-mono font-bold text-[var(--admin-text)]">{order.orderId}</td>
-                    <td className="px-4 py-3 max-w-[170px] truncate font-semibold text-[var(--admin-text)]">{order.cliente}</td>
-                    <td className="px-4 py-3 font-mono text-[var(--admin-muted)]">{order.telefone || "-"}</td>
-                    <td className="px-4 py-3 font-mono text-[var(--admin-muted)]">{order.cpf || "-"}</td>
-                    <td className="px-4 py-3 max-w-[190px] truncate text-[var(--admin-muted)]">{order.campanha}</td>
+                    <td className="px-4 py-3 font-mono font-bold text-[var(--admin-text)]"><TruncateText value={order.orderId} /></td>
+                    <td className="px-4 py-3 font-semibold text-[var(--admin-text)]"><TruncateText value={order.cliente} /></td>
+                    <td className="px-4 py-3 font-mono text-[var(--admin-muted)]"><TruncateText value={order.telefone || "-"} /></td>
+                    <td className="px-4 py-3 font-mono text-[var(--admin-muted)]"><TruncateText value={order.cpf || "-"} /></td>
+                    <td className="px-4 py-3 text-[var(--admin-muted)]"><TruncateText value={order.campanha} /></td>
                     <td className="px-4 py-3 font-bold text-[var(--admin-text)]">{order.quantidadeCotas}</td>
-                    <td className="px-4 py-3 font-bold text-[var(--admin-text)]">{money(order.valor)}</td>
-                    <td className="px-4 py-3 uppercase text-[var(--admin-muted)]">{order.gateway}</td>
-                    <td className="px-4 py-3"><StatusPill value={order.statusPedido} /></td>
-                    <td className="px-4 py-3"><StatusPill value={order.statusPagamento} /></td>
-                    <td className="px-4 py-3 text-[var(--admin-muted)]">{dateTime(order.dataCompra)}</td>
-                    <td className="px-4 py-3 text-[var(--admin-muted)]">{dateTime(order.dataPagamento)}</td>
+                    <td className="px-4 py-3 font-bold text-[var(--admin-text)]"><TruncateText value={money(order.valor)} /></td>
+                    <td className="px-4 py-3"><StatusPill value={order.statusPagamento || order.statusPedido} /></td>
+                    <td className="px-4 py-3 text-[var(--admin-muted)]"><TruncateText value={dateTime(order.dataCompra)} /></td>
                     <td className="px-4 py-3">
-                      <button type="button" className="admin-button-secondary py-2 text-xs" onClick={() => void loadDetail(order.orderId)}>
+                      <button type="button" className="admin-button-secondary h-9 justify-center px-3 py-2 text-xs" onClick={() => void loadDetail(order.orderId)}>
                         <FileSearch className="h-4 w-4" />
                         Detalhes
                       </button>
                     </td>
                   </tr>
                 )) : (
-                  <tr><td colSpan={13} className="px-4 py-10 text-center text-[var(--admin-muted)]">Nenhum pedido encontrado.</td></tr>
+                  <tr><td colSpan={10} className="px-4 py-10 text-center text-[var(--admin-muted)]">Nenhum pedido encontrado.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
+          <div className="grid gap-3 p-3 lg:hidden">
+            {loading ? (
+              <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 text-center text-sm text-[var(--admin-muted)]">Carregando pedidos...</div>
+            ) : visibleOrders.length ? visibleOrders.map(order => (
+              <button key={`${order.source}-${order.orderId}-mobile`} type="button" onClick={() => void loadDetail(order.orderId)} className="min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4 text-left transition hover:border-[var(--admin-primary)]/40">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-mono text-sm font-black text-[var(--admin-text)]" title={order.orderId}>{order.orderId}</p>
+                    <p className="mt-1 truncate text-sm font-semibold text-[var(--admin-text)]" title={order.cliente}>{order.cliente}</p>
+                    <p className="mt-1 truncate text-xs text-[var(--admin-muted)]" title={order.campanha}>{order.campanha}</p>
+                  </div>
+                  <StatusPill value={order.statusPagamento || order.statusPedido} />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--admin-muted)]">
+                  <span className="truncate" title={order.telefone}>Tel: {order.telefone || "-"}</span>
+                  <span className="truncate" title={order.cpf}>CPF: {order.cpf || "-"}</span>
+                  <span>Cotas: <strong className="text-[var(--admin-text)]">{order.quantidadeCotas}</strong></span>
+                  <span className="font-bold text-[var(--admin-text)]">{money(order.valor)}</span>
+                </div>
+              </button>
+            )) : (
+              <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 text-center text-sm text-[var(--admin-muted)]">Nenhum pedido encontrado.</div>
+            )}
+          </div>
         </section>
 
-        <aside className="admin-card min-h-[720px] p-0">
+        <aside className="admin-card min-w-0 overflow-hidden p-0 2xl:min-h-[720px]">
           {!selectedId ? (
             <div className="grid h-full min-h-[420px] place-items-center p-8 text-center">
               <div>
@@ -300,12 +528,12 @@ export function AdminOrderCenter() {
           ) : detailLoading || !detail ? (
             <div className="grid h-full min-h-[420px] place-items-center text-[var(--admin-muted)]"><Loader2 className="h-8 w-8 animate-spin" /></div>
           ) : (
-            <div className="space-y-5 p-5">
+            <div className="min-w-0 space-y-5 p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--admin-muted)]">Pedido</p>
-                  <h2 className="truncate text-2xl font-black text-[var(--admin-text)]">{detail.row.orderId}</h2>
-                  <p className="truncate text-sm text-[var(--admin-muted)]">{selectedOrder?.campanha || detail.row.campanha}</p>
+                  <h2 className="truncate text-xl font-black text-[var(--admin-text)] sm:text-2xl" title={detail.row.orderId}>{detail.row.orderId}</h2>
+                  <p className="truncate text-sm text-[var(--admin-muted)]" title={selectedOrder?.campanha || detail.row.campanha}>{selectedOrder?.campanha || detail.row.campanha}</p>
                 </div>
                 <button type="button" className="admin-icon-button" onClick={() => { setSelectedId(""); setDetail(null); }} aria-label="Fechar detalhe"><X className="h-4 w-4" /></button>
               </div>
@@ -354,15 +582,15 @@ export function AdminOrderCenter() {
 
               <Section title="Cotas compradas" icon={<Grid3X3 className="h-4 w-4" />}>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" className={ticketView === "grid" ? "admin-button-primary py-2 text-xs" : "admin-button-secondary py-2 text-xs"} onClick={() => setTicketView("grid")}><Grid3X3 className="h-4 w-4" /> Grade</button>
-                  <button type="button" className={ticketView === "list" ? "admin-button-primary py-2 text-xs" : "admin-button-secondary py-2 text-xs"} onClick={() => setTicketView("list")}><List className="h-4 w-4" /> Lista</button>
-                  <button type="button" className="admin-button-secondary py-2 text-xs" onClick={() => copyText("Cotas", detail.cotas.join("\n"))}><Copy className="h-4 w-4" /> Copiar cotas</button>
-                  <button type="button" className="admin-button-secondary py-2 text-xs" onClick={() => downloadText(`cotas-${detail.row.orderId}.csv`, detail.cotas.join("\n"))}><Download className="h-4 w-4" /> Exportar</button>
+                  <button type="button" className={ticketView === "grid" ? "admin-button-primary h-9 py-2 text-xs" : "admin-button-secondary h-9 py-2 text-xs"} onClick={() => setTicketView("grid")}><Grid3X3 className="h-4 w-4" /> Grade</button>
+                  <button type="button" className={ticketView === "list" ? "admin-button-primary h-9 py-2 text-xs" : "admin-button-secondary h-9 py-2 text-xs"} onClick={() => setTicketView("list")}><List className="h-4 w-4" /> Lista</button>
+                  <button type="button" className="admin-button-secondary h-9 py-2 text-xs" onClick={() => copyText("Cotas", asArray(detail.cotas).join("\n"))}><Copy className="h-4 w-4" /> Copiar</button>
+                  <button type="button" className="admin-button-secondary h-9 py-2 text-xs" onClick={() => downloadText(`cotas-${detail.row.orderId}.csv`, asArray(detail.cotas).join("\n"))}><Download className="h-4 w-4" /> Exportar</button>
                 </div>
-                <div className={ticketView === "grid" ? "mt-3 grid max-h-64 grid-cols-4 gap-2 overflow-y-auto sm:grid-cols-6" : "mt-3 max-h-64 overflow-y-auto rounded-[8px] border border-[var(--admin-border)] p-3"}>
-                  {detail.cotas.map(ticket => (
-                    <span key={ticket} className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-2 py-2 text-center font-mono text-xs font-bold text-[var(--admin-text)]">{ticket}</span>
-                  ))}
+                <div className={ticketView === "grid" ? "mt-3 grid max-h-64 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-5" : "mt-3 max-h-64 min-w-0 overflow-y-auto rounded-[8px] border border-[var(--admin-border)] p-3"}>
+                  {asArray<string>(detail.cotas).length ? asArray<string>(detail.cotas).map(ticket => (
+                    <span key={ticket} className="min-w-0 truncate rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-2 py-2 text-center font-mono text-xs font-bold text-[var(--admin-text)]" title={ticket}>{ticket}</span>
+                  )) : <p className="col-span-full text-sm text-[var(--admin-muted)]">Nenhuma cota vinculada a este pedido.</p>}
                 </div>
               </Section>
 
@@ -370,7 +598,7 @@ export function AdminOrderCenter() {
                 <div className="rounded-[8px] border border-amber-300/25 bg-amber-300/10 p-3 text-xs text-amber-100">
                   <AlertTriangle className="mr-2 inline h-4 w-4" /> A troca exige cotas livres e bloqueia cotas premiadas, reservadas, vendidas ou sorteadas. O historico nunca e apagado.
                 </div>
-                <textarea className="admin-input mt-3 min-h-24 w-full font-mono text-xs" value={swapForm.newNumbers} onChange={event => setSwapForm({ ...swapForm, newNumbers: event.target.value })} placeholder="Uma cota por linha" />
+                <textarea className="admin-input mt-3 min-h-24 w-full resize-y font-mono text-xs" value={swapForm.newNumbers} onChange={event => setSwapForm({ ...swapForm, newNumbers: event.target.value })} placeholder="Uma cota por linha" />
                 <input className="admin-input mt-2 h-11 w-full" value={swapForm.reason} onChange={event => setSwapForm({ ...swapForm, reason: event.target.value })} placeholder="Motivo obrigatorio da troca" />
                 <input className="admin-input mt-2 h-11 w-full" value={swapForm.confirmation} onChange={event => setSwapForm({ ...swapForm, confirmation: event.target.value })} placeholder="Digite CONFIRMAR TROCA" />
                 <button type="button" className="admin-button-primary mt-3 w-full justify-center" disabled={busy === "swap"} onClick={() => void runAction("swap")}>
@@ -380,7 +608,7 @@ export function AdminOrderCenter() {
               </Section>
 
               <Section title="Prêmios" icon={<CheckCircle2 className="h-4 w-4" />}>
-                <CompactList empty="Nenhum prêmio instantâneo vinculado." items={detail.premiosInstantaneos.map(item => `${item.tipo}: ${item.numero || "-"} - ${item.premio || "-"}`)} />
+                <CompactList empty="Nenhum prêmio instantâneo vinculado." items={asArray<Record<string, any>>(detail.premiosInstantaneos).map(item => `${item.tipo || "Premio"}: ${item.numero || "-"} - ${item.premio || "-"}`)} />
                 <div className="mt-2">
                   <InfoLine label="Prêmio principal" value={detail.premioPrincipal ? `${detail.premioPrincipal.numeroVencedor} - ${detail.premioPrincipal.nomeGanhador}` : "Sem premio principal vinculado"} />
                 </div>
@@ -388,7 +616,7 @@ export function AdminOrderCenter() {
 
               <Section title="Timeline operacional" icon={<Clock className="h-4 w-4" />}>
                 <div className="space-y-2">
-                  {detail.timeline.map((item, index) => (
+                  {asArray<Record<string, any>>(detail.timeline).length ? asArray<Record<string, any>>(detail.timeline).map((item, index) => (
                     <div key={`${item.type}-${index}`} className="flex gap-3 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3">
                       <span className="mt-1 h-2.5 w-2.5 rounded-full bg-[var(--admin-primary)]" />
                       <div>
@@ -396,17 +624,17 @@ export function AdminOrderCenter() {
                         <p className="text-xs text-[var(--admin-muted)]">{dateTime(item.date)} · {item.status}</p>
                       </div>
                     </div>
-                  ))}
+                  )) : <p className="text-sm text-[var(--admin-muted)]">Nenhum evento operacional registrado.</p>}
                 </div>
               </Section>
 
               <Section title="Ações administrativas" icon={<ShieldCheck className="h-4 w-4" />}>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <button type="button" className="admin-button-secondary justify-center" disabled={busy === "reconcile"} onClick={() => void runAction("reconcile")}><RefreshCw className="h-4 w-4" /> Reconciliar</button>
-                  <button type="button" className="admin-button-secondary justify-center" disabled={busy === "reprocess"} onClick={() => void runAction("reprocess")}><RefreshCw className="h-4 w-4" /> Reprocessar webhook</button>
-                  <button type="button" className="admin-button-secondary justify-center" onClick={() => copyText("Pedido", detail.row.orderId)}><Copy className="h-4 w-4" /> Copiar pedido</button>
-                  <button type="button" className="admin-button-secondary justify-center" onClick={exportAudit}><Download className="h-4 w-4" /> Exportar auditoria</button>
-                  <a className="admin-button-secondary justify-center sm:col-span-2" href={`/checkout/pedido/${encodeURIComponent(detail.row.orderId)}`} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Abrir página pública do pedido</a>
+                  <button type="button" className="admin-button-secondary h-10 justify-center" disabled={busy === "reconcile"} onClick={() => void runAction("reconcile")}><RefreshCw className="h-4 w-4" /> Reconciliar</button>
+                  <button type="button" className="admin-button-secondary h-10 justify-center" disabled={busy === "reprocess"} onClick={() => void runAction("reprocess")}><RefreshCw className="h-4 w-4" /> Reprocessar</button>
+                  <button type="button" className="admin-button-secondary h-10 justify-center" onClick={() => copyText("Pedido", detail.row.orderId)}><Copy className="h-4 w-4" /> Copiar pedido</button>
+                  <button type="button" className="admin-button-secondary h-10 justify-center" onClick={exportAudit}><Download className="h-4 w-4" /> Exportar</button>
+                  <a className="admin-button-secondary h-10 justify-center sm:col-span-2" href={`/checkout/pedido/${encodeURIComponent(detail.row.orderId)}`} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Abrir página pública</a>
                 </div>
               </Section>
             </div>
@@ -419,10 +647,10 @@ export function AdminOrderCenter() {
 
 function Section({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   return (
-    <section className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
-      <div className="mb-3 flex items-center gap-2 text-sm font-black text-[var(--admin-text)]">
+    <section className="min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
+      <div className="mb-3 flex min-w-0 items-center gap-2 text-sm font-black text-[var(--admin-text)]">
         <span className="grid h-8 w-8 place-items-center rounded-[8px] bg-[var(--admin-primary)]/15 text-[var(--admin-primary)]">{icon}</span>
-        {title}
+        <span className="min-w-0 truncate" title={title}>{title}</span>
       </div>
       {children}
     </section>
@@ -433,7 +661,7 @@ function CompactList({ items, empty }: { items: string[]; empty: string }) {
   if (!items.length) return <p className="text-sm text-[var(--admin-muted)]">{empty}</p>;
   return (
     <div className="space-y-2">
-      {items.map(item => <p key={item} className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-2 text-sm text-[var(--admin-text)]">{item}</p>)}
+      {items.map(item => <p key={item} className="truncate rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-2 text-sm text-[var(--admin-text)]" title={item}>{item}</p>)}
     </div>
   );
 }

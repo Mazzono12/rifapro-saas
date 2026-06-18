@@ -18566,7 +18566,7 @@ async function startServer() {
   }
 
   function buildPublicTicketUrl(purchase: PurchaseRecord) {
-    return buildTenantPublicPath(purchase.tenant_id, `/rifa/${purchase.raffleId}?pedido=${encodeURIComponent(purchase.purchaseId)}`);
+    return buildTenantPublicPath(purchase.tenant_id, `/checkout/pedido/${encodeURIComponent(purchase.purchaseId)}`);
   }
 
   function getTicketConfirmationOrder(purchase: PurchaseRecord): TicketConfirmationOrder {

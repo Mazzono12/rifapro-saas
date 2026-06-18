@@ -21,7 +21,6 @@ import {
   Plug,
   Rocket,
   Scale,
-  Search,
   Settings,
   ShieldAlert,
   ShieldCheck,
@@ -47,15 +46,10 @@ import { NotificationBell } from "../../components/notifications/NotificationBel
 function AdminLayoutContent() {
   const location = useLocation();
   const { theme } = useAdminTheme();
-  const [settingsData, setSettingsData] = useState<any>(null);
   const { branding } = useTenantBranding();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("cifher.admin.sidebar") === "collapsed" || localStorage.getItem("rifapro.admin.sidebar") === "collapsed");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [supportSessionId, setSupportSessionId] = useState(() => localStorage.getItem(supportSessionStorageKey) || "");
-
-  useEffect(() => {
-    fetch("/api/settings").then(res => res.json()).then(setSettingsData).catch(() => null);
-  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -140,8 +134,8 @@ function AdminLayoutContent() {
   ], []);
 
   const activeItem = navItems.find(item => location.pathname === item.path || (item.path !== "/admin" && location.pathname.startsWith(item.path)));
-  const companyName = branding.header_name || settingsData?.branding?.companyName || "CIFHER Prime";
-  const logo = branding.logo_url || settingsData?.branding?.logoUrl;
+  const adminBrandTitle = (branding.header_name || branding.display_name || branding.company_name || "").trim();
+  const logo = branding.logo_url || "";
 
   return (
     <div className="admin-shell min-h-screen overflow-x-hidden">
@@ -149,8 +143,8 @@ function AdminLayoutContent() {
         items={navItems}
         rootPath="/admin"
         logoUrl={logo}
-        title={companyName}
-        subtitle="Operação Premium"
+        title={adminBrandTitle || "Admin"}
+        subtitle=""
         collapsed={collapsed}
         mobileOpen={mobileOpen}
         onCollapsedChange={setCollapsed}
@@ -164,30 +158,13 @@ function AdminLayoutContent() {
             <button onClick={() => setCollapsed(value => !value)} className="admin-sidebar-toggle hidden lg:inline-grid" aria-label={collapsed ? "Expandir menu" : "Recolher menu"} title={collapsed ? "Expandir menu" : "Recolher menu"}>
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </button>
-            <div className="hidden min-w-0 items-center gap-2 md:flex">
-              {logo ? (
-                <span className="admin-topbar-logo-slot">
-                  <img src={logo} alt={companyName} className="admin-topbar-logo" />
-                </span>
-              ) : (
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-[var(--admin-primary)] text-xs font-black text-[var(--admin-button-text)]">CF</div>
-              )}
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold leading-tight text-[var(--admin-text)]">{companyName}</p>
-                <p className="truncate text-xs leading-tight text-[var(--admin-muted)]">{activeItem?.name || "Dashboard"}</p>
-              </div>
-            </div>
-            <div className="relative hidden min-w-0 flex-1 sm:block">
-              <input className="admin-input h-10 w-full max-w-[430px] pl-10" placeholder="Buscar campanhas, clientes ou vendas..." />
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
-            </div>
-            <div className="hidden items-center gap-2 rounded-[10px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-2 text-xs font-bold text-[var(--admin-success)] lg:flex">
-              <span className="h-2 w-2 rounded-full bg-[var(--admin-success)] shadow-[0_0_16px_var(--admin-success)]" />
-              Operação saudável
+            <div className="hidden min-w-0 md:block">
+              <h2 className="mb-0 truncate !text-sm font-semibold text-[var(--admin-text)]">{activeItem?.name || "Dashboard"}</h2>
             </div>
             <div className="min-w-0 flex-1 sm:hidden">
               <h2 className="mb-0 truncate !text-sm font-semibold text-[var(--admin-text)]">{activeItem?.name || "Dashboard"}</h2>
             </div>
+            <div className="hidden min-w-0 flex-1 sm:block" />
             <Link to="/" className="admin-icon-button" aria-label="Abrir site" title="Abrir site">
               <ExternalLink className="h-5 w-5" />
             </Link>

@@ -111,22 +111,22 @@ export function AdminConfig() {
   const [builder, setBuilder] = useState<any>(null);
   const [settings, setSettings] = useState<any>({
     branding: {
-      companyName: "CIFHER Prime",
+      companyName: "",
       logoUrl: "",
-      logoAlt: "CIFHER Prime"
+      logoAlt: ""
     },
     theme: {
       defaultTheme: "vimeu_dark",
       paletteOverrides: {}
     },
     footer: {
-      companyName: "CIFHER Prime",
+      companyName: "",
       cnpj: "",
       email: "",
       mission: "",
       terms: "",
       faq: "",
-      ownerName: "CIFHER",
+      ownerName: "",
       ownerLogoUrl: "",
       ownerContact: "",
       ownerSocial: ""
@@ -1102,10 +1102,8 @@ export function AdminConfig() {
                </div>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  {[
-                   ["companyName", "Nome da empresa"],
                    ["cnpj", "CNPJ"],
                    ["email", "E-mail"],
-                   ["ownerName", "Marca responsável"],
                    ["ownerContact", "Contato institucional"],
                    ["ownerSocial", "Rede social institucional"],
                  ].map(([field, label]) => (
@@ -1115,14 +1113,6 @@ export function AdminConfig() {
                    </label>
                  ))}
                </div>
-               <MediaPicker
-                 label="Logo institucional"
-                 value={settings.footer?.ownerLogoUrl || ""}
-                 mediaType="image"
-                  onChange={mediaUrl => setSettings({...settings, footer: {...settings.footer, ownerLogoUrl: mediaUrl}})}
-                  accept=".jpg,.jpeg,.png,.gif,.webp"
-                  allowExternalVideo={false}
-               />
                <div className="grid grid-cols-1 gap-4">
                  {[
                    ["mission", "Missão"],

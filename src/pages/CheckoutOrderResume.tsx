@@ -42,6 +42,8 @@ export function CheckoutOrderResume() {
   const expiresAt = status?.pixExpiresAt || status?.reservedUntil || purchase.pixExpiresAt || purchase.reservedUntil || "";
   const remaining = useRemainingTime(expiresAt);
   const campaignPath = getCampaignPath(status);
+  const purchasedNumbers = getPurchasedNumbers(status);
+  const receiptUrl = String(purchase.receiptUrl || purchase.receipt_url || purchase.comprovanteUrl || purchase.comprovante_url || purchase.invoiceUrl || purchase.invoice_url || "").trim();
   const pending = Boolean(status && !status.paid && !status.expired && (status.paymentStatus === "pending" || status.status === "pending" || status.status === "reserved"));
   const pixPayload = pending ? String(status?.pixPayload || purchase.pixPayload || purchase.pix_payload || purchase.pixCopyPaste || purchase.pix_copy_paste || purchase.copyPaste || purchase.paymentCode || "") : "";
   const pixQrCode = pending ? String(status?.pixQrCode || status?.pixQrCodeBase64 || purchase.pixQrCode || purchase.qrCode || purchase.pixQrCodeBase64 || purchase.qrCodeBase64 || purchase.qr_code_base64 || purchase.encodedImage || "") : "";
@@ -102,7 +104,32 @@ export function CheckoutOrderResume() {
             description="Seu pagamento ja foi confirmado. Suas cotas estao registradas."
             action={
               <div className="mt-4 grid gap-3">
-                {status.ticketUrl && <a href={status.ticketUrl} className="premium-button w-full">Ver bilhete</a>}
+                <div className="rounded-2xl border border-white/10 bg-black p-4 text-left">
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <Info label="Pedido" value={status.orderId || orderId} />
+                    <Info label="Status" value="Pago" />
+                    <Info label="Valor" value={amount > 0 ? money.format(amount) : "Confirmado"} />
+                  </div>
+                  <div className="mt-3 rounded-2xl border border-white/10 bg-black p-3">
+                    <p className="checkout-resume-info-label text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Campanha</p>
+                    <p className="mt-1 break-words text-sm font-black text-white">{campaignName}</p>
+                  </div>
+                  <div className="mt-3 rounded-2xl border border-white/10 bg-black p-3">
+                    <p className="checkout-resume-info-label text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Suas cotas/números</p>
+                    {purchasedNumbers.length ? (
+                      <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                        {purchasedNumbers.map(number => (
+                          <span key={number} className="rounded-full border border-amber-300/60 bg-amber-300/10 px-3 py-2 text-center font-mono text-sm font-black text-white">
+                            {number}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm font-semibold text-slate-300">Cotas confirmadas. Atualize a página caso os números ainda não apareçam.</p>
+                    )}
+                  </div>
+                </div>
+                {receiptUrl && <a href={receiptUrl} target="_blank" rel="noreferrer" className="premium-button w-full">Ver comprovante</a>}
                 <Link to={campaignPath} className="premium-button premium-button-secondary w-full">Voltar a campanha</Link>
               </div>
             }
@@ -204,6 +231,21 @@ function getCampaignPath(status: ResumeStatus | null) {
   if (status?.type === "modalidade" && purchase.mode) return `/${purchase.mode}`;
   if (purchase.raffleId) return `/rifa/${purchase.raffleId}`;
   return "/";
+}
+
+function getPurchasedNumbers(status: ResumeStatus | null) {
+  const purchase = status?.purchase || {};
+  const candidates = [
+    purchase.numeros,
+    purchase.numbers,
+    purchase.ticketsNumbers,
+    purchase.ticketNumbers,
+    purchase.cotas,
+    purchase.grupoIds,
+    purchase.groups
+  ];
+  const values = candidates.find(item => Array.isArray(item) && item.length) || [];
+  return values.map((item: unknown) => String(item).trim()).filter(Boolean);
 }
 
 function useRemainingTime(expiresAt?: string) {

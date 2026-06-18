@@ -514,6 +514,7 @@ export function RaffleDetails() {
         setPaymentResult("approved");
         setCheckoutStep("ticket");
         toast.success("Pagamento confirmado", { description: "Bilhete liberado pelo status seguro do pedido." });
+        navigate(`/checkout/pedido/${encodeURIComponent(refreshedPurchase.purchaseId || purchase.purchaseId)}`, { replace: true });
         return;
       }
       toast.info(status.message || "Pagamento ainda pendente", { description: "O sistema vai atualizar quando o pagamento for confirmado." });
