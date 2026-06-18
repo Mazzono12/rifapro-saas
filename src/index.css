@@ -24852,6 +24852,7 @@ body:has(.checkout-paid-page) .public-mobile-bottom-nav {
   gap: 10px;
 }
 
+
 .cfx-my-tickets-affiliate-actions a,
 .cfx-my-tickets-affiliate-actions button,
 .cfx-my-tickets-affiliate-cta {
@@ -24874,4 +24875,97 @@ body:has(.checkout-paid-page) .public-mobile-bottom-nav {
   border-color: rgba(64, 255, 112, .55);
   color: #fff;
   background: linear-gradient(180deg, #1fb84d, #0b7d2f);
+}
+
+.customer-access-page {
+  display: grid;
+  min-height: calc(100dvh - 68px);
+  place-items: center;
+  padding: 24px 14px 96px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(246, 178, 31, .12), transparent 34%),
+    #000;
+}
+
+.customer-access-card {
+  width: min(100%, 430px);
+  border: 1px solid rgba(246, 178, 31, .62);
+  border-radius: 18px;
+  padding: 22px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(246, 178, 31, .12), transparent 38%),
+    #050505;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, .5);
+}
+
+.customer-access-eyebrow {
+  color: #f6b21f;
+  font-size: .78rem;
+  font-weight: 1000;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.customer-access-card h1 {
+  margin-top: 8px;
+  color: #fff;
+  font-size: clamp(1.7rem, 7vw, 2.3rem);
+  font-weight: 1000;
+  line-height: 1.05;
+}
+
+.customer-access-card p:not(.customer-access-eyebrow) {
+  margin-top: 10px;
+  color: rgba(255, 255, 255, .74);
+  font-size: .96rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.customer-access-card label {
+  display: grid;
+  gap: 7px;
+  margin-top: 16px;
+  color: rgba(255, 255, 255, .72);
+  font-size: .78rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.customer-access-card input {
+  min-height: 52px;
+  border: 1px solid rgba(246, 178, 31, .36);
+  border-radius: 12px;
+  padding: 0 14px;
+  color: #fff;
+  background: #000;
+  font-size: 1rem;
+  font-weight: 800;
+  outline: none;
+}
+
+.customer-access-card input:focus {
+  border-color: rgba(246, 178, 31, .9);
+  box-shadow: 0 0 0 3px rgba(246, 178, 31, .16);
+}
+
+.customer-access-card button {
+  display: inline-flex;
+  width: 100%;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 18px;
+  border: 1px solid rgba(246, 178, 31, .86);
+  border-radius: 12px;
+  color: #111;
+  background: linear-gradient(135deg, #ffdf72, #f6b21f 58%, #cc870f);
+  font-weight: 1000;
+  text-transform: uppercase;
+}
+
+.customer-access-card button:disabled {
+  cursor: wait;
+  opacity: .7;
 }
