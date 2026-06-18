@@ -20374,6 +20374,11 @@ async function startServer() {
       });
       return purchase;
     }
+    console.info("[PAYMENT_CONFIRM_FROM_MANUAL_CHECK]", JSON.stringify({
+      tenant_id: purchase.tenant_id,
+      purchaseId: purchase.purchaseId,
+      reason: normalizedReason
+    }));
     const confirmed = confirmPurchase(purchase);
     purchase.linkedPurchases?.forEach(confirmPurchase);
     const alreadyLogged = purchase.paymentHistory?.some(item => item.status === "paid" && item.admin && item.reason === normalizedReason);
@@ -20551,6 +20556,16 @@ async function startServer() {
     };
     paymentQueue.unshift(job);
     paymentQueue = paymentQueue.slice(0, 500);
+    if (input.gateway === "asaas") {
+      console.info("[ASAAS_WEBHOOK_JOB_CREATED]", JSON.stringify({
+        tenant_id: input.tenant_id,
+        purchaseId: input.purchaseId || "",
+        eventStatus: input.eventStatus || "",
+        jobId: job.id,
+        forceRetry: Boolean(input.forceRetry),
+        idempotencyKey
+      }));
+    }
     enqueuePaymentWebhookJob({
       tenant_id: input.tenant_id,
       provider: input.gateway,
@@ -20798,6 +20813,7 @@ async function startServer() {
           job.result = { duplicate: true, purchaseId: job.purchaseId, type: "modalidade" };
           return job;
         }
+        console.info("[PAYMENT_CONFIRM_FROM_WEBHOOK]", JSON.stringify({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId: job.purchaseId, type: "modalidade", releaseJobId: job.id }));
         confirmNumberModePurchase(modePurchase);
         updatePaymentRecordStatus(job.tenant_id, job.gateway, job.purchaseId, "paid", { releaseJobId: job.id, webhook: job.payload });
         markPaymentWorkerJob(job, "completed");
@@ -20813,6 +20829,7 @@ async function startServer() {
           job.result = { duplicate: true, purchaseId: job.purchaseId, type: "fazendinha" };
           return job;
         }
+        console.info("[PAYMENT_CONFIRM_FROM_WEBHOOK]", JSON.stringify({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId: job.purchaseId, type: "fazendinha", releaseJobId: job.id }));
         confirmFazendinhaPurchase(farmPurchase);
         updatePaymentRecordStatus(job.tenant_id, job.gateway, job.purchaseId, "paid", { releaseJobId: job.id, webhook: job.payload });
         markPaymentWorkerJob(job, "completed");
@@ -20827,6 +20844,7 @@ async function startServer() {
         job.result = { duplicate: true, purchaseId: job.purchaseId, type: "raffle" };
         return job;
       }
+      console.info("[PAYMENT_CONFIRM_FROM_WEBHOOK]", JSON.stringify({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId: job.purchaseId, type: "raffle", releaseJobId: job.id }));
       confirmPurchase(purchase);
       purchase.linkedPurchases?.forEach(confirmPurchase);
       updatePaymentRecordStatus(job.tenant_id, job.gateway, job.purchaseId, "paid", { releaseJobId: job.id, webhook: job.payload });
@@ -20835,6 +20853,7 @@ async function startServer() {
       return job;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha na alocacao";
+      console.error("[PAYMENT_QUEUE_PROCESS_ERROR]", JSON.stringify({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId: job.purchaseId, releaseType: job.releaseType, jobId: job.id, error: message }));
       markPaymentWorkerJob(job, job.attempts + 1 >= job.maxAttempts ? "dead" : "pending", message);
       if (job.status === "dead") movePaymentJobToDeadLetter("release", job, message);
       return job;
@@ -20850,6 +20869,9 @@ async function startServer() {
 
     markPaymentJob(job, "processing");
     const rawStatus = job.eventStatus || extractPaymentStatus(job.payload as Record<string, any>);
+    if (job.gateway === "asaas") {
+      console.info("[PAYMENT_QUEUE_PROCESS_START]", JSON.stringify({ tenant_id: job.tenant_id, purchaseId: job.purchaseId || "", eventStatus: rawStatus, jobId: job.id, attempts: job.attempts }));
+    }
     const isPaidEvent = job.gateway === "asaas"
       ? isPaidAsaasEvent(job.tenant_id, rawStatus)
       : job.gateway === "mercadopago"
@@ -20931,7 +20953,9 @@ async function startServer() {
           markPaymentJob(job, "paid");
           job.result = releaseJob.result || { success: true, purchaseId, type: "modalidade", earnedLootboxes: modePurchase.earnedLootboxes };
           recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "confirmed", message: "Pagamento de modalidade liquidado", statusCode: 200, eventStatus: rawStatus });
-        } catch {
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Falha na alocacao";
+          console.error("[PAYMENT_QUEUE_PROCESS_ERROR]", JSON.stringify({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, jobId: job.id, error: message }));
           markPaymentJob(job, job.attempts + 1 >= job.maxAttempts ? "failed" : "pending", "Falha na alocacao");
           recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "failed", message: "Reserva de modalidade expirada", statusCode: 409, eventStatus: rawStatus });
         }
@@ -20952,7 +20976,9 @@ async function startServer() {
           markPaymentJob(job, "paid");
           job.result = releaseJob.result || { success: true, purchaseId, type: "fazendinha", earnedLootboxes: farmPurchase.earnedLootboxes };
           recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "confirmed", message: "Pagamento da Fazendinha liquidado", statusCode: 200, eventStatus: rawStatus });
-        } catch {
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Falha na alocacao";
+          console.error("[PAYMENT_QUEUE_PROCESS_ERROR]", JSON.stringify({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, jobId: job.id, error: message }));
           markPaymentJob(job, job.attempts + 1 >= job.maxAttempts ? "failed" : "pending", "Falha na alocacao");
           recordPaymentWebhookLog({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, status: "failed", message: "Reserva da Fazendinha expirada", statusCode: 409, eventStatus: rawStatus });
         }
@@ -21001,7 +21027,9 @@ async function startServer() {
         statusCode: 200,
         eventStatus: rawStatus
       });
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha na alocacao";
+      console.error("[PAYMENT_QUEUE_PROCESS_ERROR]", JSON.stringify({ tenant_id: job.tenant_id, gateway: job.gateway, purchaseId, jobId: job.id, error: message }));
       markPaymentJob(job, job.attempts + 1 >= job.maxAttempts ? "failed" : "pending", "Falha na alocacao");
       recordPaymentWebhookLog({
         tenant_id: job.tenant_id,
@@ -21264,25 +21292,52 @@ async function startServer() {
     const purchaseIdToConfirm = resolved.orderId || parseAsaasExternalReference(parsed.externalReference).orderId || extractPaymentReference(gateway, payload as Record<string, any>);
     const eventKey = buildPaymentIdempotencyKey({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, eventStatus: rawStatus, payload });
     const existingEvent = webhookEvents.find(item => item.tenant_id === tenantId && String(item.provider) === "asaas" && item.id === eventKey);
+    let forceDuplicateReprocess = false;
     if (existingEvent?.processed) {
-      recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, status: "duplicate", message: "Webhook Asaas duplicado ignorado por event.id", statusCode: 200, eventStatus: rawStatus });
-      res.json({ success: true, duplicate: true, eventId: eventKey });
-      return;
+      const duplicatePurchaseId = purchaseIdToConfirm || existingEvent.external_reference || "";
+      const duplicateRafflePurchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === duplicatePurchaseId);
+      const duplicateModePurchase = numberModePurchases.find(item => item.tenant_id === tenantId && item.id === duplicatePurchaseId);
+      const duplicateFarmPurchase = fazendinhaCompras.find(item => item.tenant_id === tenantId && item.id === duplicatePurchaseId);
+      const duplicateAlreadyPaid = duplicateRafflePurchase?.status === "paid" ||
+        duplicateModePurchase?.status === "paid" ||
+        duplicateFarmPurchase?.statusPagamento === "paid";
+      if (parsed.shouldRelease && !duplicateAlreadyPaid) {
+        forceDuplicateReprocess = true;
+        existingEvent.processed = false;
+        existingEvent.processed_at = "";
+        existingEvent.error_message = "Webhook duplicado reprocessado porque o pedido ainda nao estava pago";
+        existingEvent.payload = payload;
+        existingEvent.status = rawStatus;
+        console.info("[ASAAS_WEBHOOK_JOB_CREATED]", JSON.stringify({
+          tenant_id: tenantId,
+          purchaseId: duplicatePurchaseId,
+          eventStatus: rawStatus,
+          eventId: eventKey,
+          duplicateReprocess: true
+        }));
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: duplicatePurchaseId || undefined, status: "received", message: "Webhook Asaas duplicado sera reprocessado porque o pedido ainda nao esta pago", statusCode: 200, eventStatus: rawStatus });
+      } else {
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: purchaseIdToConfirm || undefined, status: "duplicate", message: "Webhook Asaas duplicado ignorado por event.id", statusCode: 200, eventStatus: rawStatus });
+        res.json({ success: true, duplicate: true, eventId: eventKey });
+        return;
+      }
     }
-    webhookEvents.unshift({
-      id: eventKey,
-      tenant_id: tenantId,
-      provider: "asaas" as IntegrationProviderId,
-      event_type: String((payload as Record<string, any>).event || rawStatus || "PAYMENT_UPDATED"),
-      status: rawStatus,
-      external_reference: purchaseIdToConfirm,
-      provider_payment_id: asaasPaymentId,
-      payload,
-      processed: false,
-      processed_at: "",
-      error_message: "",
-      created_at: new Date().toISOString()
-    });
+    if (!existingEvent) {
+      webhookEvents.unshift({
+        id: eventKey,
+        tenant_id: tenantId,
+        provider: "asaas" as IntegrationProviderId,
+        event_type: String((payload as Record<string, any>).event || rawStatus || "PAYMENT_UPDATED"),
+        status: rawStatus,
+        external_reference: purchaseIdToConfirm,
+        provider_payment_id: asaasPaymentId,
+        payload,
+        processed: false,
+        processed_at: "",
+        error_message: "",
+        created_at: new Date().toISOString()
+      });
+    }
     const payment = resolved.payment || payments.find(item =>
       item.tenant_id === tenantId &&
       item.provider === "asaas" &&
@@ -21427,7 +21482,7 @@ async function startServer() {
       res.json({ success: true, status: rawStatus });
       return;
     }
-    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || undefined, eventStatus: verifiedStatus, payload: verifiedPayload });
+    const queueJob = enqueuePaymentJob({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || undefined, eventStatus: verifiedStatus, payload: verifiedPayload, forceRetry: forceDuplicateReprocess });
     await processPaymentJob(queueJob);
     const event = webhookEvents.find(item => item.id === queueJob.idempotencyKey);
     if (event) {
@@ -23211,15 +23266,15 @@ async function startServer() {
   }
 
   function findOrderCenterPayment(tenantId: string, orderId: string, externalPaymentId?: string, externalReference?: string) {
+    const paymentNeedles = [orderId, externalPaymentId, externalReference].filter(Boolean).map(String);
     return payments
       .filter(payment => payment.tenant_id === tenantId)
       .find(payment =>
-        payment.order_id === orderId ||
-        payment.provider_payment_id === externalPaymentId ||
-        payment.asaas_payment_id === externalPaymentId ||
-        payment.provider_reference === externalReference ||
-        payment.provider_reference === orderId ||
-        payment.txid === externalPaymentId
+        paymentNeedles.includes(String(payment.order_id || "")) ||
+        paymentNeedles.includes(String(payment.provider_payment_id || "")) ||
+        paymentNeedles.includes(String(payment.asaas_payment_id || "")) ||
+        paymentNeedles.includes(String(payment.provider_reference || "")) ||
+        paymentNeedles.includes(String(payment.txid || ""))
       );
   }
 
@@ -23262,6 +23317,7 @@ async function startServer() {
       : source === "number_mode"
         ? `Modalidade ${String(order.mode || "").toUpperCase()}`
         : (order.nomeBicho || "A Fazendinha");
+    const quantity = Array.isArray(order.grupoIds) ? order.grupoIds.length : 0;
     const row = {
       id: orderId,
       source,
@@ -23274,7 +23330,7 @@ async function startServer() {
       email: customer.email,
       campanha: campaign,
       campaignId: raffleId || order.mode || order.grupoId || "",
-      quantidadeCotas: Number(order.tickets || tickets.length || order.grupoIds?.length || 0),
+      quantidadeCotas: Number(order.tickets || tickets.length || quantity || 0),
       valor: amount,
       gateway,
       statusPedido: String(order.status || order.statusPagamento || "pending"),
@@ -23293,11 +23349,12 @@ async function startServer() {
   }
 
   function getOrderCenterRows(req: express.Request) {
-    return [
+    const rows = [
       ...scoped(purchases, req).map(order => buildOrderCenterRow("raffle", order)),
       ...scoped(numberModePurchases, req).map(order => buildOrderCenterRow("number_mode", order)),
       ...scoped(fazendinhaCompras, req).map(order => buildOrderCenterRow("fazendinha", order))
-    ].sort((a, b) => String(b.dataCompra || "").localeCompare(String(a.dataCompra || "")));
+    ];
+    return rows.filter(row => row.orderId).sort((a, b) => String(b.dataCompra || "").localeCompare(String(a.dataCompra || "")));
   }
 
   function orderCenterMatches(row: ReturnType<typeof buildOrderCenterRow>, query: string) {
@@ -23449,29 +23506,39 @@ async function startServer() {
   }
 
   app.get("/api/admin/order-center", (req, res) => {
-    const query = String(req.query.q || "");
-    const limit = Math.min(500, Math.max(25, Number(req.query.limit || 250)));
-    const allRows = getOrderCenterRows(req);
-    const orders = allRows.filter(row => orderCenterMatches(row, query)).slice(0, limit);
-    res.json({
-      orders,
-      metrics: {
-        total: allRows.length,
-        filtered: orders.length,
-        paid: allRows.filter(row => normalizeOrderCenterText(row.statusPagamento).includes("paid") || normalizeOrderCenterText(row.statusPagamento).includes("confirmed") || normalizeOrderCenterText(row.statusPagamento).includes("received")).length,
-        pending: allRows.filter(row => normalizeOrderCenterText(row.statusPagamento).includes("pending") || normalizeOrderCenterText(row.statusPedido).includes("pending")).length,
-        amount: allRows.reduce((sum, row) => sum + Number(row.valor || 0), 0)
-      }
-    });
+    try {
+      const query = String(req.query.q || "");
+      const limit = Math.min(500, Math.max(25, Number(req.query.limit || 250)));
+      const allRows = getOrderCenterRows(req);
+      const orders = allRows.filter(row => orderCenterMatches(row, query)).slice(0, limit);
+      res.json({
+        orders,
+        metrics: {
+          total: allRows.length,
+          filtered: orders.length,
+          paid: allRows.filter(row => normalizeOrderCenterText(row.statusPagamento).includes("paid") || normalizeOrderCenterText(row.statusPagamento).includes("confirmed") || normalizeOrderCenterText(row.statusPagamento).includes("received")).length,
+          pending: allRows.filter(row => normalizeOrderCenterText(row.statusPagamento).includes("pending") || normalizeOrderCenterText(row.statusPedido).includes("pending")).length,
+          amount: allRows.reduce((sum, row) => sum + Number(row.valor || 0), 0)
+        }
+      });
+    } catch (error) {
+      console.error("[ORDER_CENTER_LIST_ERROR]", error);
+      res.status(500).json({ error: "Falha ao carregar Central de Pedidos", orders: [], metrics: { total: 0, filtered: 0, paid: 0, pending: 0, amount: 0 } });
+    }
   });
 
   app.get("/api/admin/order-center/:orderId", (req, res) => {
-    const found = findOrderCenterOrder(req, req.params.orderId);
-    if (!found) {
-      res.status(404).json({ error: "Pedido nao encontrado" });
-      return;
+    try {
+      const found = findOrderCenterOrder(req, req.params.orderId);
+      if (!found) {
+        res.status(404).json({ error: "Pedido nao encontrado" });
+        return;
+      }
+      res.json(buildOrderCenterDetail(req, found.row, found.order));
+    } catch (error) {
+      console.error("[ORDER_CENTER_DETAIL_ERROR]", { orderId: req.params.orderId, error });
+      res.status(500).json({ error: "Falha ao carregar detalhe do pedido" });
     }
-    res.json(buildOrderCenterDetail(req, found.row, found.order));
   });
 
   app.post("/api/admin/order-center/:orderId/reprocess-webhook", async (req, res) => {
