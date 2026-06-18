@@ -5091,12 +5091,111 @@ async function startServer() {
     return `${tenantId}:${value}`;
   }
 
+  function maskIdentity(value: string) {
+    const digits = String(value || "").replace(/\D/g, "");
+    if (!digits) return "";
+    return `${"*".repeat(Math.max(0, digits.length - 4))}${digits.slice(-4)}`;
+  }
+
   function findCustomerByPhone(phone: string, tenantId: string) {
-    return customersByPhone[tenantCustomerKey(tenantId, phone)];
+    const normalized = normalizePhone(phone);
+    if (!normalized) return undefined;
+    const exact = customersByPhone[tenantCustomerKey(tenantId, normalized)];
+    if (exact) return exact;
+
+    const withoutBrazilCode = normalized.startsWith("55") ? normalized.slice(2) : "";
+    if (withoutBrazilCode) {
+      const byLocal = customersByPhone[tenantCustomerKey(tenantId, withoutBrazilCode)];
+      if (byLocal) return byLocal;
+    }
+
+    const withBrazilCode = normalized.length >= 10 && !normalized.startsWith("55") ? `55${normalized}` : "";
+    if (withBrazilCode) {
+      const byDdi = customersByPhone[tenantCustomerKey(tenantId, withBrazilCode)];
+      if (byDdi) return byDdi;
+    }
+
+    return Object.values(customersByPhone).find(customer => {
+      if (customer.tenant_id !== tenantId) return false;
+      const stored = normalizePhone(customer.phone);
+      if (!stored) return false;
+      return stored === normalized ||
+        Boolean(withoutBrazilCode && stored === withoutBrazilCode) ||
+        Boolean(withBrazilCode && stored === withBrazilCode) ||
+        (normalized.length >= 10 && stored.endsWith(normalized)) ||
+        (stored.length >= 10 && normalized.endsWith(stored));
+    });
   }
 
   function findCustomerByCpf(cpf: string, tenantId: string) {
-    return customersByCpf[tenantCustomerKey(tenantId, cpf)];
+    const normalized = normalizeCpf(cpf);
+    return normalized ? customersByCpf[tenantCustomerKey(tenantId, normalized)] : undefined;
+  }
+
+  function resolveUniqueCustomerByIdentity(input: { tenantId: string; cpf?: string; phone?: string; context: string }) {
+    const cpf = normalizeCpf(input.cpf || "");
+    const phone = normalizePhone(input.phone || "");
+    const byCpf = cpf ? findCustomerByCpf(cpf, input.tenantId) : undefined;
+    const byPhone = phone ? findCustomerByPhone(phone, input.tenantId) : undefined;
+    console.log("[CUSTOMER_UNIQUE_LOOKUP]", {
+      tenantId: input.tenantId,
+      context: input.context,
+      cpf: maskIdentity(cpf),
+      phone: maskIdentity(phone),
+      foundByCpf: Boolean(byCpf),
+      foundByPhone: Boolean(byPhone),
+      customerIdByCpf: byCpf?.id || "",
+      customerIdByPhone: byPhone?.id || ""
+    });
+
+    if (byCpf && byPhone && byCpf.id !== byPhone.id) {
+      console.warn("[CUSTOMER_UNIQUE_CONFLICT]", {
+        tenantId: input.tenantId,
+        context: input.context,
+        reason: "cpf_phone_different_customers",
+        cpf: maskIdentity(cpf),
+        phone: maskIdentity(phone),
+        customerIdByCpf: byCpf.id,
+        customerIdByPhone: byPhone.id
+      });
+      throw new Error("CPF e telefone pertencem a cadastros diferentes. Verifique os dados.");
+    }
+
+    if (byCpf && byPhone && byCpf.id === byPhone.id) return { customer: byCpf, matchedBy: "both" as const };
+    if (byCpf) return { customer: byCpf, matchedBy: "cpf" as const };
+    if (byPhone) return { customer: byPhone, matchedBy: "phone" as const };
+    return { customer: undefined, matchedBy: "none" as const };
+  }
+
+  function assertCustomerIdentityCompatible(customer: CustomerRecord, input: { tenantId: string; cpf?: string; phone?: string; context: string }) {
+    const cpf = normalizeCpf(input.cpf || "");
+    const phone = normalizePhone(input.phone || "");
+    if (cpf && customer.cpf && customer.cpf !== cpf) {
+      console.warn("[CUSTOMER_UNIQUE_CONFLICT]", {
+        tenantId: input.tenantId,
+        context: input.context,
+        reason: "phone_existing_customer_cpf_mismatch",
+        customerId: customer.id,
+        cpf: maskIdentity(cpf),
+        phone: maskIdentity(phone)
+      });
+      throw new Error("Telefone já cadastrado para outro cliente.");
+    }
+    if (phone && customer.phone && normalizePhone(customer.phone) !== phone) {
+      const existingByPhone = findCustomerByPhone(phone, input.tenantId);
+      if (existingByPhone && existingByPhone.id !== customer.id) {
+        console.warn("[CUSTOMER_UNIQUE_CONFLICT]", {
+          tenantId: input.tenantId,
+          context: input.context,
+          reason: "cpf_existing_customer_phone_belongs_to_other",
+          customerId: customer.id,
+          otherCustomerId: existingByPhone.id,
+          cpf: maskIdentity(cpf),
+          phone: maskIdentity(phone)
+        });
+        throw new Error("Telefone já cadastrado para outro cliente.");
+      }
+    }
   }
 
   async function handleSecureLogin(req: express.Request, res: express.Response) {
@@ -10132,10 +10231,11 @@ async function startServer() {
     if (!phone && !cpf) throw new Error("Informe telefone ou CPF");
     if (phone && phone.length < 10) throw new Error("Telefone inválido");
 
-    const existing = findCustomerByPhone(phone, tenantId) || (cpf ? findCustomerByCpf(cpf, tenantId) : undefined);
+    const uniqueLookup = resolveUniqueCustomerByIdentity({ tenantId, cpf, phone, context: "checkout_find_or_create" });
+    const existing = uniqueLookup.customer;
     if (existing) {
       if (existing.blocked) throw new Error(existing.blockedReason || "Cliente bloqueado pelo administrador");
-      if (cpf && existing.cpf !== cpf) throw new Error("CPF não confere com o cadastro deste telefone");
+      assertCustomerIdentityCompatible(existing, { tenantId, cpf, phone, context: "checkout_find_or_create" });
       const trustedBrowser = Boolean(browserId && existing.browserId && browserId === existing.browserId);
       if (!trustedBrowser && accessPassword && existing.accessPassword && existing.accessPassword !== accessPassword) throw new Error("Senha de acesso inválida");
       if (!trustedBrowser && browserId) existing.browserId = browserId;
@@ -10155,6 +10255,14 @@ async function startServer() {
           sourceUrl: String(payload.sourceUrl || payload.referrerUrl || "")
         });
       }
+      console.log("[CUSTOMER_REUSED]", {
+        tenantId,
+        context: "checkout_find_or_create",
+        customerId: existing.id,
+        matchedBy: uniqueLookup.matchedBy,
+        cpf: maskIdentity(cpf),
+        phone: maskIdentity(phone)
+      });
       return existing;
     }
 
@@ -10188,6 +10296,13 @@ async function startServer() {
     customersByPhone[tenantCustomerKey(tenantId, phone)] = customer;
     customersByCpf[tenantCustomerKey(tenantId, cpf)] = customer;
     updateCrmAutomationForCustomer(customer);
+    console.log("[CUSTOMER_CREATED]", {
+      tenantId,
+      context: "checkout_find_or_create",
+      customerId: customer.id,
+      cpf: maskIdentity(cpf),
+      phone: maskIdentity(phone)
+    });
 
     const referrer = refCode ? affiliates[tenantCustomerKey(tenantId, refCode)] : undefined;
     const sponsorLink = refCode
@@ -12806,6 +12921,68 @@ async function startServer() {
     });
   });
 
+  app.post("/api/customers/login", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    const identifier = String(req.body?.identifier || req.body?.cpf || req.body?.phone || "").replace(/\D/g, "");
+    const accessPassword = normalizeAccessPassword(req.body?.accessPassword || req.body?.password);
+    console.log("[CUSTOMER_LOGIN_START]", {
+      tenantId,
+      identifier,
+      identifierLength: identifier.length,
+      passwordProvided: Boolean(accessPassword),
+      browserIdPresent: Boolean(getBrowserIdFromRequest(req))
+    });
+    const customer = identifier.length === 11
+      ? (findCustomerByCpf(identifier, tenantId) || findCustomerByPhone(identifier, tenantId))
+      : findCustomerByPhone(identifier, tenantId);
+    console.log("[CUSTOMER_LOGIN_LOOKUP]", {
+      tenantId,
+      identifier,
+      found: Boolean(customer),
+      customerId: customer?.id || "",
+      phoneMatched: customer?.phone || "",
+      cpfMatched: customer?.cpf || "",
+      totalTenantCustomers: Object.values(customersByPhone).filter(item => item.tenant_id === tenantId).length
+    });
+
+    if (!identifier || !accessPassword) {
+      console.warn("[CUSTOMER_LOGIN_ERROR]", { tenantId, identifier, reason: "missing_identifier_or_password" });
+      res.status(400).json({ error: "Informe CPF ou telefone e senha." });
+      return;
+    }
+    if (!customer) {
+      console.warn("[CUSTOMER_LOGIN_ERROR]", { tenantId, identifier, reason: "customer_not_found" });
+      res.status(404).json({ error: "Cadastro não encontrado." });
+      return;
+    }
+    if (customer.blocked) {
+      console.warn("[CUSTOMER_LOGIN_ERROR]", { tenantId, customerId: customer.id, reason: "customer_blocked" });
+      res.status(403).json({ error: customer.blockedReason || "Cliente bloqueado pelo administrador." });
+      return;
+    }
+    console.log("[CUSTOMER_LOGIN_PASSWORD_CHECK]", {
+      tenantId,
+      customerId: customer.id,
+      hasStoredPassword: Boolean(customer.accessPassword),
+      passwordMatches: Boolean(customer.accessPassword && customer.accessPassword === accessPassword)
+    });
+    if (!customer.accessPassword || customer.accessPassword !== accessPassword) {
+      console.warn("[CUSTOMER_LOGIN_ERROR]", { tenantId, customerId: customer.id, reason: !customer.accessPassword ? "missing_stored_password" : "password_mismatch" });
+      res.status(401).json({ error: "CPF/telefone ou senha inválidos." });
+      return;
+    }
+
+    const browserId = getBrowserIdFromRequest(req);
+    if (browserId) customer.browserId = browserId;
+    console.log("[CUSTOMER_LOGIN_SUCCESS]", {
+      tenantId,
+      customerId: customer.id,
+      browserIdLinked: Boolean(browserId),
+      sessionSource: "nexusdraw_customer"
+    });
+    res.json(stripSensitiveCustomerFields({ ...customer, affiliate: publicAffiliateView(getAffiliateForCustomer(customer)) }));
+  });
+
   app.post("/api/customers/:id/photo", express.raw({ type: "*/*", limit: "20mb" }), async (req, res) => {
     const customer = Object.values(customersByPhone).find(c => c.tenant_id === resolveRequestTenantId(req) && c.id === req.params.id);
     if (!customer) {
@@ -12860,9 +13037,22 @@ async function startServer() {
       res.status(403).json({ error: "Acesso negado para este cliente" });
       return;
     }
+    const requestedPhone = normalizePhone(req.body.phone || customer.phone);
+    const requestedCpf = normalizeCpf(req.body.cpf || customer.cpf);
+    try {
+      const lookup = resolveUniqueCustomerByIdentity({ tenantId: customer.tenant_id, cpf: requestedCpf, phone: requestedPhone, context: "customer_profile_update" });
+      if (lookup.customer && lookup.customer.id !== customer.id) {
+        throw new Error(lookup.matchedBy === "cpf" ? "CPF já cadastrado para outro cliente." : "Telefone já cadastrado para outro cliente.");
+      }
+    } catch (error) {
+      res.status(409).json({ error: error instanceof Error ? error.message : "CPF ou telefone já cadastrado para outro cliente." });
+      return;
+    }
     const oldPhone = customer.phone;
+    const oldCpf = customer.cpf;
     customer.name = req.body.name ?? customer.name;
-    customer.phone = normalizePhone(req.body.phone || customer.phone);
+    customer.phone = requestedPhone;
+    customer.cpf = requestedCpf || customer.cpf;
     customer.photoUrl = req.body.photoUrl ?? customer.photoUrl;
     customer.city = req.body.city ?? customer.city;
     customer.state = req.body.state ?? customer.state;
@@ -12875,7 +13065,9 @@ async function startServer() {
       customer.accessPassword = accessPassword;
     }
     if (oldPhone !== customer.phone) delete customersByPhone[tenantCustomerKey(customer.tenant_id, oldPhone)];
+    if (oldCpf !== customer.cpf) delete customersByCpf[tenantCustomerKey(customer.tenant_id, oldCpf)];
     customersByPhone[tenantCustomerKey(customer.tenant_id, customer.phone)] = customer;
+    customersByCpf[tenantCustomerKey(customer.tenant_id, customer.cpf)] = customer;
     res.json(stripSensitiveCustomerFields({ ...customer, affiliate: publicAffiliateView(getAffiliateForCustomer(customer)) }));
   });
 
@@ -26773,7 +26965,14 @@ async function startServer() {
       return;
     }
 
-    let customer = findCustomerByPhone(phone, tenantId) || findCustomerByCpf(cpf, tenantId);
+    let uniqueLookup;
+    try {
+      uniqueLookup = resolveUniqueCustomerByIdentity({ tenantId, cpf, phone, context: "admin_manual_affiliate" });
+    } catch (error) {
+      res.status(409).json({ error: error instanceof Error ? error.message : "CPF e telefone pertencem a cadastros diferentes. Verifique os dados." });
+      return;
+    }
+    let customer = uniqueLookup.customer;
     if (!customer) {
       customer = {
         id: createPublicId("C_"),
@@ -26792,7 +26991,20 @@ async function startServer() {
       };
       customersByPhone[tenantCustomerKey(tenantId, phone)] = customer;
       customersByCpf[tenantCustomerKey(tenantId, cpf)] = customer;
+      console.log("[CUSTOMER_CREATED]", {
+        tenantId,
+        context: "admin_manual_affiliate",
+        customerId: customer.id,
+        cpf: maskIdentity(cpf),
+        phone: maskIdentity(phone)
+      });
     } else {
+      try {
+        assertCustomerIdentityCompatible(customer, { tenantId, cpf, phone, context: "admin_manual_affiliate" });
+      } catch (error) {
+        res.status(409).json({ error: error instanceof Error ? error.message : "CPF ou telefone já cadastrado para outro cliente." });
+        return;
+      }
       const oldPhone = customer.phone;
       const oldCpf = customer.cpf;
       customer.name = String(req.body.name || customer.name).trim();
@@ -26813,6 +27025,14 @@ async function startServer() {
       delete customersByCpf[tenantCustomerKey(tenantId, oldCpf)];
       customersByPhone[tenantCustomerKey(tenantId, customer.phone)] = customer;
       customersByCpf[tenantCustomerKey(tenantId, customer.cpf)] = customer;
+      console.log("[CUSTOMER_REUSED]", {
+        tenantId,
+        context: "admin_manual_affiliate",
+        customerId: customer.id,
+        matchedBy: uniqueLookup.matchedBy,
+        cpf: maskIdentity(cpf),
+        phone: maskIdentity(phone)
+      });
     }
 
     const requestedRef = String(req.body.refCode || customer.affiliateRefCode || createAffiliateCode(customer.name, customer.phone))
@@ -26839,6 +27059,12 @@ async function startServer() {
     affiliate.pixKey = req.body.pixKey ?? affiliate.pixKey;
     affiliate.useBalanceForPurchases = Boolean(req.body.useBalanceForPurchases ?? affiliate.useBalanceForPurchases);
     affiliate.history.push({ amount: 0, type: "admin_manual_affiliate_register", date: new Date().toISOString() });
+    console.log("[AFFILIATE_LINKED_TO_CUSTOMER]", {
+      tenantId,
+      customerId: customer.id,
+      refCode: affiliate.refCode,
+      context: "admin_manual_affiliate"
+    });
     res.json({ customer: buildAdminCustomerProfile(customer), affiliate: { ...affiliate, rules: settings.affiliateProgram } });
   });
 
