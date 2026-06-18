@@ -34,6 +34,7 @@ export function CheckoutOrderResume() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [affiliateCopied, setAffiliateCopied] = useState(false);
   const [error, setError] = useState("");
 
   const supportUrl = normalizeWhatsAppUrl(String(settings?.socialLinks?.whatsapp || branding.support_whatsapp || "").trim());
@@ -46,10 +47,12 @@ export function CheckoutOrderResume() {
   const purchasedNumbers = getPurchasedNumbers(status);
   const receiptUrl = String(purchase.receiptUrl || purchase.receipt_url || purchase.comprovanteUrl || purchase.comprovante_url || purchase.invoiceUrl || purchase.invoice_url || "").trim();
   const paidAt = String(purchase.paidAt || purchase.paid_at || purchase.updatedAt || purchase.updated_at || purchase.createdAt || purchase.created_at || "");
-  const affiliateCode = String(purchase.affiliateRefCode || purchase.affiliate_ref_code || purchase.customer?.affiliateRefCode || purchase.customer?.affiliate_ref_code || "").trim();
-  const affiliateLink = affiliateCode && typeof window !== "undefined" ? `${window.location.origin}/?r=${affiliateCode}` : "";
+  const affiliateCode = String(purchase.affiliateRefCode || purchase.affiliate_ref_code || purchase.refCode || purchase.ref_code || purchase.customer?.affiliateRefCode || purchase.customer?.affiliate_ref_code || purchase.customer?.refCode || purchase.customer?.ref_code || "").trim();
+  const publicOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const affiliateLink = affiliateCode && publicOrigin ? `${publicOrigin}/?r=${affiliateCode}` : "";
+  const shareLink = affiliateLink || (publicOrigin ? `${publicOrigin}${campaignPath}` : "");
   const affiliateStats = getAffiliateStats(purchase);
-  const whatsappShareUrl = affiliateLink ? `https://wa.me/?text=${encodeURIComponent(`Participe comigo: ${affiliateLink}`)}` : "";
+  const whatsappShareUrl = shareLink ? `https://wa.me/?text=${encodeURIComponent(buildReceiptWhatsAppMessage(shareLink))}` : "";
   const pending = Boolean(status && !status.paid && !status.expired && (status.paymentStatus === "pending" || status.status === "pending" || status.status === "reserved"));
   const pixPayload = pending ? String(status?.pixPayload || purchase.pixPayload || purchase.pix_payload || purchase.pixCopyPaste || purchase.pix_copy_paste || purchase.copyPaste || purchase.paymentCode || "") : "";
   const pixQrCode = pending ? String(status?.pixQrCode || status?.pixQrCodeBase64 || purchase.pixQrCode || purchase.qrCode || purchase.pixQrCodeBase64 || purchase.qrCodeBase64 || purchase.qr_code_base64 || purchase.encodedImage || "") : "";
@@ -97,26 +100,24 @@ export function CheckoutOrderResume() {
   };
 
   const copyAffiliateLink = async () => {
-    if (!affiliateLink) {
-      toast.info("Link de afiliado indisponível");
+    if (!shareLink) {
+      toast.info("Link indisponível");
       return;
     }
-    const copiedOk = await copyTextToClipboard(affiliateLink);
+    const copiedOk = await copyTextToClipboard(shareLink);
     if (!copiedOk) {
       toast.error("Não foi possível copiar o link");
       return;
     }
+    setAffiliateCopied(true);
     toast.success("Link copiado com sucesso!");
+    window.setTimeout(() => setAffiliateCopied(false), 2200);
   };
 
-  return (
-    <PremiumPageLayout className="checkout-resume-page">
-      <main className="checkout-resume-shell mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 pb-8 pt-5 sm:pb-12 sm:pt-8">
-        {loading ? (
-          <StateCard icon={<RefreshCw className="h-7 w-7 animate-spin" />} title="Carregando pedido" description="Estamos buscando o PIX salvo para este pedido." />
-        ) : error ? (
-          <StateCard icon={<XCircle className="h-7 w-7" />} title="Pedido nao encontrado" description={error} action={<Link to="/" className="premium-button mt-4 w-full">Voltar para campanhas</Link>} />
-        ) : status?.paid ? (
+  if (!loading && !error && status?.paid) {
+    return (
+      <PremiumPageLayout className="checkout-paid-page">
+        <main className="checkout-paid-main">
           <section className="checkout-paid-receipt">
             <header className="checkout-paid-header">
               <Link to="/" className="checkout-paid-brand" aria-label="Ir para início">
@@ -136,17 +137,16 @@ export function CheckoutOrderResume() {
               <h2><span>✦</span> Ganhe indicando amigos <span>✦</span></h2>
               <p>Seu link exclusivo:</p>
               <div className="checkout-paid-linkbox">
-                <span>{affiliateLink || "Link indisponível"}</span>
+                <span>{shareLink || "Link indisponível"}</span>
                 <button type="button" onClick={copyAffiliateLink} aria-label="Copiar link"><Copy /></button>
               </div>
-              {whatsappShareUrl && (
-                <a href={whatsappShareUrl} target="_blank" rel="noreferrer" className="checkout-paid-whatsapp">
-                  <MessageCircle /> <span><strong>Compartilhar no WhatsApp</strong><small>Compartilhe e convide seus amigos</small></span>
-                </a>
-              )}
+              <a href={whatsappShareUrl || undefined} target="_blank" rel="noreferrer" aria-disabled={!whatsappShareUrl} className="checkout-paid-whatsapp">
+                <MessageCircle /> <span><strong>Compartilhar no WhatsApp</strong><small>Compartilhe e convide seus amigos</small></span>
+              </a>
               <button type="button" onClick={copyAffiliateLink} className="checkout-paid-copy">
                 <Copy /> <span><strong>Copiar meu link</strong><small>Copie seu link de afiliado</small></span>
               </button>
+              {affiliateCopied && <p className="checkout-paid-copy-success"><CheckCircle2 /> Link copiado com sucesso!</p>}
             </section>
 
             <section className="checkout-paid-affiliate-stats">
@@ -180,6 +180,18 @@ export function CheckoutOrderResume() {
             {receiptUrl && <a href={receiptUrl} target="_blank" rel="noreferrer" className="checkout-paid-outline"><FileText /> Ver comprovante</a>}
             <Link to="/meus-bilhetes" className="checkout-paid-outline"><FileText /> Ir para minhas cotas</Link>
           </section>
+        </main>
+      </PremiumPageLayout>
+    );
+  }
+
+  return (
+    <PremiumPageLayout className="checkout-resume-page">
+      <main className="checkout-resume-shell mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 pb-8 pt-5 sm:pb-12 sm:pt-8">
+        {loading ? (
+          <StateCard icon={<RefreshCw className="h-7 w-7 animate-spin" />} title="Carregando pedido" description="Estamos buscando o PIX salvo para este pedido." />
+        ) : error ? (
+          <StateCard icon={<XCircle className="h-7 w-7" />} title="Pedido nao encontrado" description={error} action={<Link to="/" className="premium-button mt-4 w-full">Voltar para campanhas</Link>} />
         ) : status?.expired ? (
           <StateCard
             icon={<XCircle className="h-8 w-8" />}
@@ -307,6 +319,26 @@ function formatReceiptDate(value?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "Data não informada";
   return `${date.toLocaleDateString("pt-BR")} - ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+function buildReceiptWhatsAppMessage(link: string) {
+  return [
+    "🎉 Estou participando da Deni Premiações!",
+    "",
+    "🍀 Já garanti minhas cotas e você também pode participar.",
+    "",
+    "🎁 iPhone 17 Pro Max ou R$ 5.000 no PIX",
+    "",
+    "🔥 Além disso tem:",
+    "• Roleta Premiada",
+    "• Caixinha Premiada",
+    "• Raspadinha",
+    "• Top Compradores",
+    "",
+    "👇 Compre suas cotas pelo meu link:",
+    "",
+    link
+  ].join("\n");
 }
 
 function useRemainingTime(expiresAt?: string) {

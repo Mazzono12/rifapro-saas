@@ -24718,3 +24718,101 @@ body:has(.cfx-my-tickets-page) .public-mobile-bottom-nav a[href="/meus-bilhetes"
     width: min(100%, 760px);
   }
 }
+
+html:has(.checkout-paid-page),
+body:has(.checkout-paid-page),
+.public-shell:has(.checkout-paid-page) {
+  min-height: 100dvh !important;
+  background: #000 !important;
+  background-color: #000 !important;
+  background-image: none !important;
+}
+
+body:has(.checkout-paid-page) .premium-site-header,
+body:has(.checkout-paid-page) .public-mobile-bottom-nav {
+  display: none !important;
+}
+
+.checkout-paid-page {
+  min-height: 100dvh !important;
+  padding: max(14px, env(safe-area-inset-top)) 12px max(18px, env(safe-area-inset-bottom)) !important;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(246, 178, 31, .08), transparent 28%),
+    #000 !important;
+}
+
+.checkout-paid-main {
+  width: min(100%, 820px);
+  min-height: 100dvh;
+  margin: 0 auto;
+}
+
+.checkout-paid-page .checkout-paid-receipt {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  color: #fff;
+}
+
+.checkout-paid-page .checkout-paid-header {
+  margin-bottom: 12px;
+}
+
+.checkout-paid-page .checkout-paid-hero,
+.checkout-paid-page .checkout-paid-share,
+.checkout-paid-page .checkout-paid-affiliate-stats,
+.checkout-paid-page .checkout-paid-details,
+.checkout-paid-page .checkout-paid-numbers {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(246, 178, 31, .16), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, .03), transparent 48%),
+    #030303 !important;
+  background-color: #030303 !important;
+  border-color: rgba(246, 178, 31, .72) !important;
+}
+
+.checkout-paid-page .checkout-paid-copy-success {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 10px auto 0;
+  color: rgba(255, 255, 255, .92);
+  font-size: .96rem;
+  font-weight: 750;
+}
+
+.checkout-paid-page .checkout-paid-copy-success svg {
+  width: 22px;
+  height: 22px;
+  color: #45d65d;
+}
+
+.checkout-paid-page .checkout-paid-logo {
+  max-width: clamp(172px, 42vw, 250px) !important;
+  max-height: 62px !important;
+}
+
+.checkout-paid-page .checkout-paid-brand-name {
+  display: none !important;
+}
+
+@media (max-width: 430px) {
+  .checkout-paid-page {
+    padding-right: 10px !important;
+    padding-left: 10px !important;
+  }
+
+  .checkout-paid-page .checkout-paid-hero {
+    padding: 22px 14px 18px;
+  }
+
+  .checkout-paid-page .checkout-paid-check {
+    width: 78px;
+    height: 78px;
+  }
+
+  .checkout-paid-page .checkout-paid-check svg {
+    width: 48px;
+    height: 48px;
+  }
+}
