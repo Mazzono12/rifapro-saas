@@ -80,6 +80,7 @@ function readCustomerCookie() {
 
 function clearCustomerCookie() {
   document.cookie = `${customerSessionKey}=; Max-Age=0; Path=/; SameSite=Lax`;
+  document.cookie = `${browserIdKey}=; Max-Age=0; Path=/; SameSite=Lax`;
 }
 
 interface CustomerState {
@@ -100,7 +101,9 @@ export const useCustomerStore = create<CustomerState>((set) => ({
   },
   clearCustomer: () => {
     localStorage.removeItem(customerSessionKey);
+    localStorage.removeItem(browserIdKey);
     sessionStorage.removeItem(customerSessionKey);
+    sessionStorage.removeItem(browserIdKey);
     clearCustomerCookie();
     set({ customer: null });
   },

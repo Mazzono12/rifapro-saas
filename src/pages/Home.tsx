@@ -421,9 +421,11 @@ function RifaProLoading() {
 
 function HomeV1Brand({ branding }: { branding: any }) {
   return (
-    <header
+    <Link
+      to="/"
       className="cfx-v1-brand is-inline is-left"
       data-logo-position="left"
+      aria-label="Ir para a Home"
     >
       <PublicBrandMark
         eager
@@ -431,7 +433,7 @@ function HomeV1Brand({ branding }: { branding: any }) {
         logoClassName="cfx-v1-brand-logo"
         nameClassName="cfx-v1-brand-title"
       />
-    </header>
+    </Link>
   );
 }
 
@@ -480,7 +482,7 @@ function HomeV1Hero({ raffle }: { raffle: Raffle }) {
           <p>{subtitle}</p>
         </div>
 
-        <Link to={`/raffle/${raffle.id}`} className="cfx-v1-primary-cta">
+        <Link to={`/raffle/${raffle.id}`} className="public-primary-cta">
           <Ticket /> Participar Agora
         </Link>
       </div>

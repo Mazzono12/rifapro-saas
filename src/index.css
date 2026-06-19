@@ -25355,3 +25355,3527 @@ body:has(.checkout-paid-page) .public-mobile-bottom-nav {
   --reward-soft: rgba(245, 193, 77, .14) !important;
   --reward-border: rgba(245, 193, 77, .32) !important;
 }
+
+.customer-area-top-actions {
+  position: sticky;
+  top: 0;
+  z-index: 45;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  width: min(100% - 24px, 1120px);
+  margin: 0 auto;
+  padding: 10px 0 6px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .94), rgba(0, 0, 0, .68), transparent);
+}
+
+.customer-area-top-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid rgba(246, 178, 31, .34);
+  border-radius: 999px;
+  background: rgba(8, 8, 8, .88);
+  padding: 8px 13px;
+  color: rgba(255, 236, 184, .94);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .34);
+}
+
+.customer-area-top-button:hover {
+  border-color: rgba(246, 178, 31, .68);
+  background: rgba(246, 178, 31, .11);
+  color: #fff7d6;
+}
+
+.customer-area-top-button.is-logout {
+  color: rgba(255, 255, 255, .84);
+  border-color: rgba(255, 255, 255, .14);
+}
+
+.customer-area-top-button.is-logout:hover {
+  border-color: rgba(246, 178, 31, .56);
+  color: #fff;
+}
+
+@media (max-width: 460px) {
+  .customer-area-top-actions {
+    width: min(100% - 18px, 1120px);
+    gap: 8px;
+  }
+
+  .customer-area-top-button {
+    flex: 1;
+    padding-inline: 10px;
+    font-size: 11px;
+  }
+}
+
+/* Black Edition Premium
+   Official visual layer. Visual only: preserves business/payment behavior and keeps QR code white for scanning. */
+:root,
+html,
+html[data-theme],
+html[data-admin-theme] {
+  --premium-black: #000000;
+  --premium-ink: #050505;
+  --premium-surface: #0A0A0A;
+  --premium-surface-2: #111111;
+  --premium-surface-3: #050505;
+  --premium-gold: #FFD700;
+  --premium-gold-soft: #FFD700;
+  --premium-gold-dark: #FFC107;
+  --premium-gold-border: rgba(255, 215, 0, .24);
+  --premium-border: rgba(255, 215, 0, .14);
+  --premium-text: #FFFFFF;
+  --premium-muted: #F5F5F5;
+  --premium-muted-2: #EAEAEA;
+
+  --theme-bg: #000000;
+  --theme-background: #000000;
+  --theme-surface: #050505;
+  --theme-surface-strong: #050505;
+  --theme-surface-soft: #0A0A0A;
+  --theme-card: #0A0A0A;
+  --theme-border: rgba(255, 215, 0, .14);
+  --theme-text: #FFFFFF;
+  --theme-muted: #F5F5F5;
+  --theme-primary: #FFD700;
+  --theme-secondary: #FFC107;
+
+  --admin-bg: #000000;
+  --admin-bg-soft: #050505;
+  --admin-bg-deep: #000000;
+  --admin-surface: #0A0A0A;
+  --admin-surface-strong: #050505;
+  --admin-card-muted: #050505;
+  --admin-border: rgba(255, 215, 0, .13);
+  --admin-text: #FFFFFF;
+  --admin-muted: #F5F5F5;
+  --admin-primary: #FFD700;
+  --admin-warning: #FFC107;
+  --admin-accent: #FFD700;
+  --admin-button: #FFD700;
+  --admin-button-text: #050505;
+}
+
+html,
+body,
+#root,
+.public-shell,
+.premium-page,
+.customer-premium,
+.cfx-customer-page,
+.cfx-my-tickets-page,
+.checkout-resume-page,
+.cfx-pix-premium,
+.admin-shell,
+.superadmin-shell,
+.saas-shell {
+  background: #000000 !important;
+  color: #FFFFFF !important;
+}
+
+.premium-site-header,
+.admin-shell header,
+.superadmin-shell header,
+.public-shell nav:not(.public-mobile-bottom-nav),
+.admin-shell aside,
+.superadmin-shell aside,
+.admin-sidebar,
+.collapsible-sidebar,
+[class*="sidebar"] {
+  background: #050505 !important;
+  color: #FFFFFF !important;
+}
+
+.glass-card,
+.premium-card,
+.premium-card-gold,
+.premium-empty-state,
+.admin-card,
+.customer-access-card,
+.cfx-customer-panel,
+.cfx-my-ticket-card,
+.cfx-my-ticket-numbers,
+.cfx-my-tickets-affiliate,
+.cfx-my-tickets-affiliate-stats,
+.checkout-paid-card,
+.checkout-paid-panel,
+.cfx-pix-panel,
+.cfx-pix-card,
+.public-shell [class*="card"],
+.premium-page [class*="card"],
+.admin-shell [class*="card"],
+.superadmin-shell [class*="card"] {
+  background-color: #0A0A0A !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 215, 0, .12) !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .42) !important;
+}
+
+.public-shell section,
+.premium-page section,
+.admin-shell section,
+.superadmin-shell section {
+  color: #FFFFFF;
+}
+
+.public-shell input,
+.public-shell textarea,
+.public-shell select,
+.premium-page input,
+.premium-page textarea,
+.premium-page select,
+.admin-shell input,
+.admin-shell textarea,
+.admin-shell select,
+.superadmin-shell input,
+.superadmin-shell textarea,
+.superadmin-shell select,
+.customer-access-card input {
+  background-color: #111111 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 215, 0, .13) !important;
+}
+
+.public-shell table,
+.premium-page table,
+.admin-shell table,
+.superadmin-shell table {
+  background: #0A0A0A !important;
+  color: #FFFFFF !important;
+}
+
+.public-shell thead,
+.premium-page thead,
+.admin-shell thead,
+.superadmin-shell thead {
+  background: #050505 !important;
+  color: #FFD700 !important;
+}
+
+.public-shell tbody tr,
+.premium-page tbody tr,
+.admin-shell tbody tr,
+.superadmin-shell tbody tr {
+  background-color: #0A0A0A !important;
+}
+
+.public-shell th,
+.public-shell td,
+.premium-page th,
+.premium-page td,
+.admin-shell th,
+.admin-shell td,
+.superadmin-shell th,
+.superadmin-shell td {
+  border-color: rgba(255, 215, 0, .10) !important;
+}
+
+.public-shell h1,
+.public-shell h2,
+.public-shell h3,
+.public-shell h4,
+.premium-page h1,
+.premium-page h2,
+.premium-page h3,
+.premium-page h4,
+.admin-shell h1,
+.admin-shell h2,
+.admin-shell h3,
+.admin-shell h4,
+.superadmin-shell h1,
+.superadmin-shell h2,
+.superadmin-shell h3,
+.superadmin-shell h4 {
+  color: #FFFFFF !important;
+}
+
+.public-shell p,
+.premium-page p,
+.admin-shell p,
+.superadmin-shell p,
+.public-shell span,
+.premium-page span,
+.admin-shell span,
+.superadmin-shell span {
+  border-color: rgba(255, 215, 0, .10);
+}
+
+.public-shell .text-slate-300,
+.public-shell .text-slate-400,
+.public-shell .text-gray-300,
+.public-shell .text-gray-400,
+.premium-page .text-slate-300,
+.premium-page .text-slate-400,
+.admin-shell .text-slate-300,
+.admin-shell .text-slate-400,
+.admin-shell .text-gray-300,
+.admin-shell .text-gray-400,
+.superadmin-shell .text-slate-300,
+.superadmin-shell .text-slate-400,
+.superadmin-shell .text-gray-300,
+.superadmin-shell .text-gray-400 {
+  color: #F5F5F5 !important;
+}
+
+.public-shell .text-slate-500,
+.public-shell .text-gray-500,
+.premium-page .text-slate-500,
+.premium-page .text-gray-500,
+.admin-shell .text-slate-500,
+.admin-shell .text-gray-500,
+.superadmin-shell .text-slate-500,
+.superadmin-shell .text-gray-500 {
+  color: #EAEAEA !important;
+}
+
+.premium-button,
+.premium-button-outline,
+.admin-button,
+.admin-button-primary,
+.admin-shell .admin-button,
+.admin-shell .admin-button-primary,
+.superadmin-shell .admin-button,
+.superadmin-shell .admin-button-primary,
+.customer-access-card button,
+.cfx-customer-cta,
+.checkout-paid-outline,
+.customer-area-top-button:not(.is-logout) {
+  border-color: transparent !important;
+  background: linear-gradient(135deg, #FFD700, #FFC107) !important;
+  color: #050505 !important;
+  box-shadow: 0 12px 28px rgba(255, 193, 7, .16) !important;
+}
+
+.premium-button:hover,
+.premium-button-outline:hover,
+.admin-button:hover,
+.admin-button-primary:hover,
+.admin-shell .admin-button:hover,
+.admin-shell .admin-button-primary:hover,
+.superadmin-shell .admin-button:hover,
+.superadmin-shell .admin-button-primary:hover,
+.customer-access-card button:hover,
+.cfx-customer-cta:hover,
+.checkout-paid-outline:hover,
+.customer-area-top-button:not(.is-logout):hover {
+  background: linear-gradient(135deg, #FFE45C, #FFD700) !important;
+  color: #000000 !important;
+  transform: translateY(-1px);
+}
+
+.admin-button-secondary,
+.admin-icon-button,
+.admin-action-button,
+.admin-shell .admin-button-secondary,
+.admin-shell .admin-icon-button,
+.admin-shell .admin-action-button,
+.superadmin-shell .admin-button-secondary,
+.superadmin-shell .admin-icon-button,
+.superadmin-shell .admin-action-button,
+.customer-area-top-button.is-logout {
+  background: #0A0A0A !important;
+  color: #FFFFFF !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, .10) !important;
+}
+
+.admin-button-secondary:hover,
+.admin-icon-button:hover,
+.admin-action-button:hover,
+.admin-shell .admin-button-secondary:hover,
+.admin-shell .admin-icon-button:hover,
+.admin-shell .admin-action-button:hover,
+.superadmin-shell .admin-button-secondary:hover,
+.superadmin-shell .admin-icon-button:hover,
+.superadmin-shell .admin-action-button:hover,
+.customer-area-top-button.is-logout:hover {
+  background: #111111 !important;
+  color: #FFD700 !important;
+}
+
+.public-shell .text-amber-100,
+.public-shell .text-amber-200,
+.public-shell .text-amber-300,
+.public-shell .text-yellow-300,
+.premium-page .text-amber-100,
+.premium-page .text-amber-200,
+.premium-page .text-amber-300,
+.premium-page .text-yellow-300,
+.admin-shell .text-amber-100,
+.admin-shell .text-amber-200,
+.admin-shell .text-amber-300,
+.admin-shell .text-yellow-300,
+.superadmin-shell .text-amber-100,
+.superadmin-shell .text-amber-200,
+.superadmin-shell .text-amber-300,
+.superadmin-shell .text-yellow-300,
+.public-shell .text-[var\(--theme-primary\)],
+.admin-shell .text-[var\(--admin-primary\)] {
+  color: #FFD700 !important;
+}
+
+.public-shell .bg-white:not(.cfx-qr-wrap):not(.cp-qr-wrap):not([class*="qr"]):not([class*="QR"]),
+.public-shell .bg-gray-50,
+.public-shell .bg-gray-100,
+.public-shell .bg-slate-50,
+.public-shell .bg-zinc-50,
+.public-shell .bg-neutral-50,
+.premium-page .bg-white:not([class*="qr"]):not([class*="QR"]),
+.premium-page .bg-gray-50,
+.premium-page .bg-gray-100,
+.premium-page .bg-slate-50,
+.premium-page .bg-zinc-50,
+.premium-page .bg-neutral-50,
+.admin-shell .bg-white:not([class*="qr"]):not([class*="QR"]),
+.admin-shell .bg-gray-50,
+.admin-shell .bg-gray-100,
+.admin-shell .bg-slate-50,
+.admin-shell .bg-zinc-50,
+.admin-shell .bg-neutral-50,
+.superadmin-shell .bg-white:not([class*="qr"]):not([class*="QR"]),
+.superadmin-shell .bg-gray-50,
+.superadmin-shell .bg-gray-100,
+.superadmin-shell .bg-slate-50,
+.superadmin-shell .bg-zinc-50,
+.superadmin-shell .bg-neutral-50 {
+  background-color: #0A0A0A !important;
+  color: #FFFFFF !important;
+}
+
+.public-mobile-bottom-nav {
+  background: rgba(5, 5, 5, .96) !important;
+  border-color: rgba(255, 255, 255, .06) !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .58) !important;
+}
+
+.public-mobile-bottom-nav a {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.public-mobile-bottom-nav a span:last-child {
+  color: #F5F5F5 !important;
+}
+
+.admin-shell svg,
+.superadmin-shell svg {
+  color: currentColor;
+}
+
+.admin-shell .text-emerald-300,
+.admin-shell .text-cyan-300,
+.admin-shell .text-purple-300,
+.admin-shell .text-violet-300,
+.admin-shell .text-blue-300,
+.superadmin-shell .text-emerald-300,
+.superadmin-shell .text-cyan-300,
+.superadmin-shell .text-purple-300,
+.superadmin-shell .text-violet-300,
+.superadmin-shell .text-blue-300 {
+  color: #FFD700 !important;
+}
+
+.cfx-qr-wrap,
+.cp-qr-wrap,
+.cfx-pix-premium .cfx-qr-wrap,
+.cfx-pix-premium .cfx-qr-code,
+.checkout-resume-page [class*="qr"] {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+/* Black Edition Premium: total visual removal of gray/slate/zinc/neutral/stone families. */
+.public-shell [class*="bg-gray-"],
+.public-shell [class*="bg-slate-"],
+.public-shell [class*="bg-zinc-"],
+.public-shell [class*="bg-neutral-"],
+.public-shell [class*="bg-stone-"],
+.premium-page [class*="bg-gray-"],
+.premium-page [class*="bg-slate-"],
+.premium-page [class*="bg-zinc-"],
+.premium-page [class*="bg-neutral-"],
+.premium-page [class*="bg-stone-"],
+.admin-shell [class*="bg-gray-"],
+.admin-shell [class*="bg-slate-"],
+.admin-shell [class*="bg-zinc-"],
+.admin-shell [class*="bg-neutral-"],
+.admin-shell [class*="bg-stone-"],
+.superadmin-shell [class*="bg-gray-"],
+.superadmin-shell [class*="bg-slate-"],
+.superadmin-shell [class*="bg-zinc-"],
+.superadmin-shell [class*="bg-neutral-"],
+.superadmin-shell [class*="bg-stone-"],
+.saas-shell [class*="bg-gray-"],
+.saas-shell [class*="bg-slate-"],
+.saas-shell [class*="bg-zinc-"],
+.saas-shell [class*="bg-neutral-"],
+.saas-shell [class*="bg-stone-"] {
+  background-color: #0A0A0A !important;
+  background-image: none !important;
+}
+
+.public-shell [class*="bg-gray-9"],
+.public-shell [class*="bg-slate-9"],
+.public-shell [class*="bg-zinc-9"],
+.public-shell [class*="bg-neutral-9"],
+.public-shell [class*="bg-stone-9"],
+.premium-page [class*="bg-gray-9"],
+.premium-page [class*="bg-slate-9"],
+.premium-page [class*="bg-zinc-9"],
+.premium-page [class*="bg-neutral-9"],
+.premium-page [class*="bg-stone-9"],
+.admin-shell [class*="bg-gray-9"],
+.admin-shell [class*="bg-slate-9"],
+.admin-shell [class*="bg-zinc-9"],
+.admin-shell [class*="bg-neutral-9"],
+.admin-shell [class*="bg-stone-9"],
+.superadmin-shell [class*="bg-gray-9"],
+.superadmin-shell [class*="bg-slate-9"],
+.superadmin-shell [class*="bg-zinc-9"],
+.superadmin-shell [class*="bg-neutral-9"],
+.superadmin-shell [class*="bg-stone-9"] {
+  background-color: #050505 !important;
+}
+
+.public-shell [class*="text-gray-"],
+.public-shell [class*="text-slate-"],
+.public-shell [class*="text-zinc-"],
+.public-shell [class*="text-neutral-"],
+.public-shell [class*="text-stone-"],
+.premium-page [class*="text-gray-"],
+.premium-page [class*="text-slate-"],
+.premium-page [class*="text-zinc-"],
+.premium-page [class*="text-neutral-"],
+.premium-page [class*="text-stone-"],
+.admin-shell [class*="text-gray-"],
+.admin-shell [class*="text-slate-"],
+.admin-shell [class*="text-zinc-"],
+.admin-shell [class*="text-neutral-"],
+.admin-shell [class*="text-stone-"],
+.superadmin-shell [class*="text-gray-"],
+.superadmin-shell [class*="text-slate-"],
+.superadmin-shell [class*="text-zinc-"],
+.superadmin-shell [class*="text-neutral-"],
+.superadmin-shell [class*="text-stone-"],
+.saas-shell [class*="text-gray-"],
+.saas-shell [class*="text-slate-"],
+.saas-shell [class*="text-zinc-"],
+.saas-shell [class*="text-neutral-"],
+.saas-shell [class*="text-stone-"] {
+  color: #F5F5F5 !important;
+}
+
+.public-shell [class*="text-gray-9"],
+.public-shell [class*="text-slate-9"],
+.public-shell [class*="text-zinc-9"],
+.public-shell [class*="text-neutral-9"],
+.public-shell [class*="text-stone-9"],
+.premium-page [class*="text-gray-9"],
+.premium-page [class*="text-slate-9"],
+.premium-page [class*="text-zinc-9"],
+.premium-page [class*="text-neutral-9"],
+.premium-page [class*="text-stone-9"],
+.admin-shell [class*="text-gray-9"],
+.admin-shell [class*="text-slate-9"],
+.admin-shell [class*="text-zinc-9"],
+.admin-shell [class*="text-neutral-9"],
+.admin-shell [class*="text-stone-9"],
+.superadmin-shell [class*="text-gray-9"],
+.superadmin-shell [class*="text-slate-9"],
+.superadmin-shell [class*="text-zinc-9"],
+.superadmin-shell [class*="text-neutral-9"],
+.superadmin-shell [class*="text-stone-9"] {
+  color: #000000 !important;
+}
+
+.public-shell [class*="border-gray-"],
+.public-shell [class*="border-slate-"],
+.public-shell [class*="border-zinc-"],
+.public-shell [class*="border-neutral-"],
+.public-shell [class*="border-stone-"],
+.premium-page [class*="border-gray-"],
+.premium-page [class*="border-slate-"],
+.premium-page [class*="border-zinc-"],
+.premium-page [class*="border-neutral-"],
+.premium-page [class*="border-stone-"],
+.admin-shell [class*="border-gray-"],
+.admin-shell [class*="border-slate-"],
+.admin-shell [class*="border-zinc-"],
+.admin-shell [class*="border-neutral-"],
+.admin-shell [class*="border-stone-"],
+.superadmin-shell [class*="border-gray-"],
+.superadmin-shell [class*="border-slate-"],
+.superadmin-shell [class*="border-zinc-"],
+.superadmin-shell [class*="border-neutral-"],
+.superadmin-shell [class*="border-stone-"],
+.saas-shell [class*="border-gray-"],
+.saas-shell [class*="border-slate-"],
+.saas-shell [class*="border-zinc-"],
+.saas-shell [class*="border-neutral-"],
+.saas-shell [class*="border-stone-"] {
+  border-color: rgba(255, 215, 0, .10) !important;
+}
+
+.public-shell [class*="divide-gray-"] > :not([hidden]) ~ :not([hidden]),
+.public-shell [class*="divide-slate-"] > :not([hidden]) ~ :not([hidden]),
+.public-shell [class*="divide-zinc-"] > :not([hidden]) ~ :not([hidden]),
+.public-shell [class*="divide-neutral-"] > :not([hidden]) ~ :not([hidden]),
+.public-shell [class*="divide-stone-"] > :not([hidden]) ~ :not([hidden]),
+.admin-shell [class*="divide-gray-"] > :not([hidden]) ~ :not([hidden]),
+.admin-shell [class*="divide-slate-"] > :not([hidden]) ~ :not([hidden]),
+.admin-shell [class*="divide-zinc-"] > :not([hidden]) ~ :not([hidden]),
+.admin-shell [class*="divide-neutral-"] > :not([hidden]) ~ :not([hidden]),
+.admin-shell [class*="divide-stone-"] > :not([hidden]) ~ :not([hidden]),
+.superadmin-shell [class*="divide-gray-"] > :not([hidden]) ~ :not([hidden]),
+.superadmin-shell [class*="divide-slate-"] > :not([hidden]) ~ :not([hidden]),
+.superadmin-shell [class*="divide-zinc-"] > :not([hidden]) ~ :not([hidden]),
+.superadmin-shell [class*="divide-neutral-"] > :not([hidden]) ~ :not([hidden]),
+.superadmin-shell [class*="divide-stone-"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 215, 0, .10) !important;
+}
+
+.public-shell [class*="placeholder-gray-"]::placeholder,
+.public-shell [class*="placeholder-slate-"]::placeholder,
+.public-shell [class*="placeholder-zinc-"]::placeholder,
+.public-shell [class*="placeholder-neutral-"]::placeholder,
+.public-shell [class*="placeholder-stone-"]::placeholder,
+.admin-shell [class*="placeholder-gray-"]::placeholder,
+.admin-shell [class*="placeholder-slate-"]::placeholder,
+.admin-shell [class*="placeholder-zinc-"]::placeholder,
+.admin-shell [class*="placeholder-neutral-"]::placeholder,
+.admin-shell [class*="placeholder-stone-"]::placeholder,
+.superadmin-shell [class*="placeholder-gray-"]::placeholder,
+.superadmin-shell [class*="placeholder-slate-"]::placeholder,
+.superadmin-shell [class*="placeholder-zinc-"]::placeholder,
+.superadmin-shell [class*="placeholder-neutral-"]::placeholder,
+.superadmin-shell [class*="placeholder-stone-"]::placeholder {
+  color: #EAEAEA !important;
+}
+
+/* Public navigation refinement: logo links home and public surfaces stay black/profound. */
+.public-shell,
+.premium-page,
+.customer-premium,
+.cfx-customer-page,
+.cfx-my-tickets-page,
+.checkout-resume-page,
+.checkout-paid-page,
+.affiliate-premium,
+.cfx-public-winners-page {
+  background: #000000 !important;
+  background-color: #000000 !important;
+}
+
+.premium-site-header,
+.cfx-my-tickets-topbar,
+.checkout-paid-header,
+.affiliate-v2-header {
+  background: #050505 !important;
+  background-color: #050505 !important;
+  background-image: none !important;
+}
+
+.cfx-customer-panel,
+.cfx-my-ticket-card,
+.cfx-my-ticket-numbers,
+.cfx-my-tickets-affiliate,
+.cfx-my-tickets-affiliate-stats,
+.checkout-paid-receipt,
+.checkout-paid-hero,
+.checkout-paid-share,
+.checkout-paid-affiliate-stats,
+.checkout-paid-details,
+.checkout-paid-numbers,
+.affiliate-v2-card,
+.affiliate-v2-section,
+.glass-card,
+.admin-card {
+  background: #0A0A0A !important;
+  background-color: #0A0A0A !important;
+  background-image: none !important;
+}
+
+.public-shell input,
+.public-shell textarea,
+.public-shell select,
+.premium-page input,
+.premium-page textarea,
+.premium-page select,
+.affiliate-premium input,
+.affiliate-premium textarea,
+.affiliate-premium select,
+.checkout-paid-linkbox {
+  background: #111111 !important;
+  background-color: #111111 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+}
+
+.public-brand-mark,
+.cfx-my-tickets-brand,
+.checkout-paid-brand,
+.affiliate-v2-home-brand,
+.cfx-v1-brand {
+  cursor: pointer;
+  text-decoration: none !important;
+}
+
+.affiliate-v2-home-brand {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(58vw, 240px);
+  align-items: center;
+  justify-content: center;
+}
+
+.affiliate-v2-home-brand .public-brand-mark {
+  min-width: 0;
+}
+
+.affiliate-v2-logo {
+  width: auto !important;
+  max-width: clamp(132px, 42vw, 210px) !important;
+  max-height: clamp(38px, 8vw, 56px) !important;
+  object-fit: contain !important;
+}
+
+/* Black Edition Premium final pass: pure black outer canvas and restrained gold dividers. */
+html,
+body,
+#root,
+#root > *,
+#root > * > *,
+.app,
+.app-shell,
+.public-shell,
+.admin-shell,
+.superadmin-shell,
+.saas-shell,
+.premium-page,
+.customer-premium,
+.page,
+.page-wrapper,
+.layout,
+.layout-wrapper,
+.main-layout,
+.content-wrapper,
+.content-shell,
+.app-content,
+main,
+[role="main"],
+[class*="page"],
+[class*="Page"],
+[class*="shell"],
+[class*="Shell"],
+[class*="wrapper"],
+[class*="Wrapper"],
+[class*="layout"],
+[class*="Layout"] {
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+body::before,
+body::after,
+#root::before,
+#root::after,
+.public-shell::before,
+.public-shell::after,
+.premium-page::before,
+.premium-page::after,
+.admin-shell::before,
+.admin-shell::after,
+.superadmin-shell::before,
+.superadmin-shell::after {
+  background-color: #000000 !important;
+}
+
+.public-shell [class*="bg-gray-"],
+.public-shell [class*="bg-slate-"],
+.public-shell [class*="bg-zinc-"],
+.public-shell [class*="bg-neutral-"],
+.public-shell [class*="bg-muted"],
+.premium-page [class*="bg-gray-"],
+.premium-page [class*="bg-slate-"],
+.premium-page [class*="bg-zinc-"],
+.premium-page [class*="bg-neutral-"],
+.premium-page [class*="bg-muted"],
+.admin-shell [class*="bg-gray-"],
+.admin-shell [class*="bg-slate-"],
+.admin-shell [class*="bg-zinc-"],
+.admin-shell [class*="bg-neutral-"],
+.admin-shell [class*="bg-muted"],
+.superadmin-shell [class*="bg-gray-"],
+.superadmin-shell [class*="bg-slate-"],
+.superadmin-shell [class*="bg-zinc-"],
+.superadmin-shell [class*="bg-neutral-"],
+.superadmin-shell [class*="bg-muted"],
+.saas-shell [class*="bg-gray-"],
+.saas-shell [class*="bg-slate-"],
+.saas-shell [class*="bg-zinc-"],
+.saas-shell [class*="bg-neutral-"],
+.saas-shell [class*="bg-muted"] {
+  background-color: #0A0A0A !important;
+  background-image: none !important;
+}
+
+.public-shell [class*="bg-gray-9"],
+.public-shell [class*="bg-slate-9"],
+.public-shell [class*="bg-zinc-9"],
+.public-shell [class*="bg-neutral-9"],
+.premium-page [class*="bg-gray-9"],
+.premium-page [class*="bg-slate-9"],
+.premium-page [class*="bg-zinc-9"],
+.premium-page [class*="bg-neutral-9"],
+.admin-shell [class*="bg-gray-9"],
+.admin-shell [class*="bg-slate-9"],
+.admin-shell [class*="bg-zinc-9"],
+.admin-shell [class*="bg-neutral-9"],
+.superadmin-shell [class*="bg-gray-9"],
+.superadmin-shell [class*="bg-slate-9"],
+.superadmin-shell [class*="bg-zinc-9"],
+.superadmin-shell [class*="bg-neutral-9"] {
+  background-color: #050505 !important;
+}
+
+.premium-site-header,
+.public-mobile-bottom-nav,
+.admin-shell header,
+.superadmin-shell header,
+.admin-shell aside,
+.superadmin-shell aside,
+.admin-sidebar,
+.collapsible-sidebar,
+[class*="topbar"],
+[class*="Topbar"],
+[class*="navbar"],
+[class*="Navbar"],
+[class*="sidebar"],
+[class*="Sidebar"],
+[class*="menu"],
+[class*="Menu"] {
+  background-color: #050505 !important;
+  background-image: none !important;
+  border-color: rgba(255, 255, 255, .06) !important;
+  box-shadow: none !important;
+}
+
+.public-shell input,
+.public-shell textarea,
+.public-shell select,
+.premium-page input,
+.premium-page textarea,
+.premium-page select,
+.admin-shell input,
+.admin-shell textarea,
+.admin-shell select,
+.superadmin-shell input,
+.superadmin-shell textarea,
+.superadmin-shell select,
+.saas-shell input,
+.saas-shell textarea,
+.saas-shell select,
+[class*="input"],
+[class*="Input"],
+[class*="field"],
+[class*="Field"] {
+  background-color: #111111 !important;
+  background-image: none !important;
+  border-color: rgba(255, 255, 255, .08) !important;
+  box-shadow: none !important;
+}
+
+.public-shell table,
+.premium-page table,
+.admin-shell table,
+.superadmin-shell table,
+.saas-shell table,
+[class*="table"],
+[class*="Table"] {
+  background-color: #0A0A0A !important;
+  background-image: none !important;
+  border-color: rgba(255, 255, 255, .06) !important;
+}
+
+.public-shell th,
+.public-shell td,
+.premium-page th,
+.premium-page td,
+.admin-shell th,
+.admin-shell td,
+.superadmin-shell th,
+.superadmin-shell td,
+.saas-shell th,
+.saas-shell td {
+  border-color: rgba(255, 255, 255, .06) !important;
+}
+
+.public-shell form,
+.premium-page form,
+.admin-shell form,
+.superadmin-shell form,
+.saas-shell form,
+[class*="form"],
+[class*="Form"] {
+  border-color: rgba(255, 255, 255, .06) !important;
+}
+
+.glass-card,
+.premium-card,
+.admin-card,
+.cfx-customer-panel,
+.checkout-resume-summary-card,
+.checkout-resume-timer-card,
+.cfx-pix-panel,
+.cfx-pix-card {
+  background-color: #0A0A0A !important;
+  background-image: none !important;
+}
+
+.checkout-paid-receipt,
+.checkout-paid-hero,
+.checkout-paid-share,
+.checkout-paid-affiliate-stats,
+.checkout-paid-details,
+.checkout-paid-numbers,
+.cfx-winner-showcase-card,
+.cfx-winner-modal-card,
+.cfx-my-ticket-card,
+.cfx-my-ticket-numbers,
+.cfx-my-tickets-affiliate,
+.cfx-my-tickets-affiliate-stats,
+.affiliate-v2-card,
+.affiliate-v2-section,
+.affiliate-v2-metric-grid > *,
+.cfx-v1-card,
+.premium-card-gold,
+.premium-highlight-card,
+.premium-stat-card,
+.premium-prize-card,
+.admin-metric-card,
+.admin-stat-card,
+.chart-card,
+[data-affiliate-premium],
+[data-premium-highlight],
+[data-card-role="winner"],
+[data-card-role="commission"],
+[data-card-role="affiliate"],
+[data-card-role="stats"],
+[data-card-role="prize"] {
+  border-color: rgba(255, 215, 0, .08) !important;
+  box-shadow: 0 0 0 1px rgba(255, 215, 0, .045), 0 18px 42px rgba(0, 0, 0, .42) !important;
+}
+
+.checkout-paid-details h2,
+.checkout-paid-numbers h2,
+.cfx-my-ticket-numbers h3,
+.cfx-my-tickets-affiliate h2,
+.affiliate-v2-title,
+.premium-section-title {
+  border-color: rgba(255, 215, 0, .10) !important;
+}
+
+.cfx-qr-wrap,
+.cp-qr-wrap,
+.cfx-pix-premium .cfx-qr-wrap,
+.cfx-pix-premium .cfx-qr-code,
+.checkout-resume-page [class*="qr"],
+.checkout-resume-page [class*="QR"] {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+/* Black Absolute Edition final cascade: last word wins, with usability preserved. */
+html,
+body,
+#root,
+#dynamic-bg,
+main,
+.container,
+.app-content-container,
+.public-shell,
+.premium-page,
+.admin-shell,
+.superadmin-shell,
+.saas-shell,
+.customer-premium,
+.cfx-home-page,
+.cfx-home-premium-v1,
+.cfx-customer-page,
+.cfx-my-tickets-page,
+.affiliate-premium,
+.affiliate-v2-shell,
+.checkout-resume-page,
+.checkout-paid-page,
+.cfx-pix-premium,
+.cfx-public-winners-page,
+.checkout-screen,
+.raffle-reference-page,
+.cfx-v1-shell,
+.checkout-paid-main,
+.checkout-resume-shell,
+.cfx-my-tickets-shell,
+.cfx-customer-shell,
+.premium-site-header,
+.public-mobile-bottom-nav,
+.cfx-home-bottom-nav,
+.affiliate-v2-bottom-nav,
+.cfx-mobile-buy-bar,
+.rdp-mobile-purchase,
+.rdp-mobile-countdown,
+.checkout-media-preview,
+.checkout-campaign-media,
+.checkout-media-fallback,
+.fazendinha-checkout-media,
+.glass-card,
+.glass-panel,
+.premium-card,
+.admin-card,
+.admin-card-strong,
+.cfx-home-progress-card,
+.cfx-campaign-card,
+.cfx-game-card,
+.cfx-winner-card,
+.cfx-affiliate-card,
+.cfx-payment-card,
+.cfx-live-card,
+.cfx-quantity-card,
+.checkout-info-card,
+.checkout-card,
+.checkout-summary-card,
+.customer-identified-card,
+.checkout-pix-card,
+.wallet-balance-card,
+.premium-stats-card,
+.premium-chart-card,
+.cfx-success-card,
+.cfx-review-prize-card,
+.cfx-pix-card,
+.cfx-pix-panel,
+.cfx-pix-trust-card,
+.checkout-resume-summary-card,
+.checkout-resume-timer-card,
+.checkout-paid-receipt,
+.checkout-paid-hero,
+.checkout-paid-share,
+.checkout-paid-affiliate-stats,
+.checkout-paid-details,
+.checkout-paid-numbers,
+.cfx-my-ticket-card,
+.cfx-my-ticket-numbers,
+.cfx-my-tickets-affiliate,
+.cfx-my-tickets-affiliate-stats,
+.affiliate-v2-card,
+.affiliate-v2-section,
+.affiliate-v2-metric-card,
+.rp-home-animal-card,
+.rp-home-dezena-card,
+.rp-home-special-card {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+input,
+textarea,
+select,
+.premium-input,
+.admin-input,
+.cfx-input,
+.checkout-paid-linkbox,
+.affiliate-v2-linkbox,
+[class*="input"],
+[class*="Input"],
+[class*="field"],
+[class*="Field"] {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  caret-color: #FFD700 !important;
+  border-color: rgba(255, 215, 0, .22) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, .68) !important;
+}
+
+body,
+.public-shell,
+.premium-page,
+.admin-shell,
+.superadmin-shell,
+.saas-shell {
+  color: #FFFFFF !important;
+}
+
+button,
+a,
+[role="button"],
+summary,
+[aria-current="page"],
+[aria-selected="true"],
+.is-active,
+.active {
+  opacity: 1 !important;
+}
+
+a:not(.public-mobile-bottom-nav a):not(.cfx-home-bottom-nav a):not(.affiliate-v2-nav-item),
+[aria-current="page"],
+[aria-selected="true"],
+.is-active,
+.active {
+  color: #FFD700 !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid rgba(255, 215, 0, .78) !important;
+  outline-offset: 3px !important;
+}
+
+.premium-button,
+.neon-button,
+.admin-button-primary,
+.cfx-primary-action,
+.checkout-paid-copy,
+.checkout-paid-ticket-button,
+.checkout-paid-minhas-cotas,
+.cfx-mobile-buy-bar button,
+.rdp-mobile-purchase button,
+button[type="submit"] {
+  background: linear-gradient(135deg, #FFD700, #FFC107) !important;
+  background-color: #FFD700 !important;
+  color: #000000 !important;
+  border-color: rgba(255, 215, 0, .42) !important;
+  box-shadow: 0 14px 32px rgba(255, 193, 7, .20) !important;
+}
+
+.admin-button-secondary,
+.premium-button-outline,
+.checkout-paid-linkbox button,
+.affiliate-v2-linkbox button,
+.cfx-my-tickets-tabs button,
+.cfx-my-ticket-actions a,
+.cfx-my-ticket-actions button {
+  background: #000000 !important;
+  color: #FFD700 !important;
+  border-color: rgba(255, 215, 0, .32) !important;
+}
+
+.public-mobile-bottom-nav,
+.premium-site-header,
+.cfx-my-tickets-topbar,
+.checkout-paid-header,
+.affiliate-v2-header {
+  border-color: rgba(255, 215, 0, .14) !important;
+  box-shadow: 0 0 0 1px rgba(255, 215, 0, .08), 0 18px 48px rgba(0, 0, 0, .58) !important;
+}
+
+.glass-card,
+.premium-card,
+.admin-card,
+.checkout-card,
+.checkout-info-card,
+.checkout-summary-card,
+.checkout-paid-details,
+.checkout-paid-numbers,
+.cfx-my-ticket-card,
+.cfx-my-ticket-numbers,
+.affiliate-v2-card {
+  border-color: rgba(255, 215, 0, .10) !important;
+  box-shadow: 0 0 0 1px rgba(255, 215, 0, .055), 0 18px 44px rgba(0, 0, 0, .64) !important;
+}
+
+.cfx-qr-wrap,
+.cp-qr-wrap,
+.cfx-pix-premium .cfx-qr-wrap,
+.cfx-pix-premium .cfx-qr-code,
+.checkout-resume-page [class*="qr"],
+.checkout-resume-page [class*="QR"],
+.affiliate-premium [class*="qr"],
+.affiliate-premium [class*="QR"] {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+/* FINAL EOF CTA LOCK: Comprar Agora, Participar agora and Continuar para o recibo share one exact visual style. */
+.cfx-detail-buybox .cfx-checkout-row button,
+.public-shell .media-info-block .premium-button,
+.public-shell .cfx-home-page .media-info-block .premium-button,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button,
+.cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit {
+  display: grid !important;
+  width: 100% !important;
+  min-height: 68px !important;
+  grid-template-columns: 1fr !important;
+  place-items: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  padding: 14px 16px !important;
+  text-align: center !important;
+  letter-spacing: 0 !important;
+  text-decoration: none !important;
+  text-shadow: none !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .24), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button > span,
+.public-shell .media-info-block .premium-button,
+.public-shell .media-info-block .premium-button > span,
+.public-shell .cfx-home-page .media-info-block .premium-button,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button > span,
+.cfx-review-submit,
+.cfx-review-submit > span,
+.cfx-fast-pix-checkout .cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit > span {
+  color: #FFFFFF !important;
+  font-size: clamp(1.05rem, 5.4vw, 1.45rem) !important;
+  font-weight: 950 !important;
+  line-height: 1.05 !important;
+  text-transform: uppercase !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button svg,
+.public-shell .media-info-block .premium-button svg,
+.public-shell .cfx-home-page .media-info-block .premium-button svg,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button svg,
+.premium-page .media-info-block .premium-button svg,
+.cfx-review-submit svg,
+.cfx-fast-pix-checkout .cfx-review-submit svg {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+/* Button appearance only: public campaign CTAs. No route/action/checkout behavior changes. */
+.public-shell .media-info-block .premium-button,
+.public-shell .cfx-home-page .media-info-block .premium-button,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button,
+.cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit {
+  min-height: 48px !important;
+  border-radius: 16px !important;
+  padding: 0 18px !important;
+  color: #FFFFFF !important;
+  font-size: 14px !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+}
+
+.cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit {
+  width: 100% !important;
+}
+
+.public-shell .media-info-block .premium-button *,
+.public-shell .cfx-home-page .media-info-block .premium-button *,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button *,
+.premium-page .media-info-block .premium-button *,
+.cfx-review-submit *,
+.cfx-fast-pix-checkout .cfx-review-submit * {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button,
+.cfx-mobile-buy-bar button {
+  min-height: 74px !important;
+  color: #FFFFFF !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button *,
+.cfx-detail-buybox .cfx-checkout-row button > span,
+.cfx-detail-buybox .cfx-checkout-row button small,
+.cfx-mobile-buy-bar button *,
+.cfx-mobile-buy-bar button span,
+.cfx-mobile-buy-bar button small {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+@media (max-width: 640px) {
+  .cfx-detail-buybox .cfx-checkout-row button,
+  .cfx-mobile-buy-bar button {
+    min-height: 62px !important;
+  }
+}
+
+.cfx-detail-buybox .cfx-checkout-row button small {
+  color: rgba(18, 9, 0, .72) !important;
+  font-size: clamp(.7rem, 3.2vw, .82rem) !important;
+  font-weight: 800 !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button:hover,
+.public-shell .media-info-block .premium-button:hover,
+.public-shell .cfx-home-page .media-info-block .premium-button:hover,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button:hover,
+.premium-page .media-info-block .premium-button:hover,
+.cfx-review-submit:hover,
+.cfx-fast-pix-checkout .cfx-review-submit:hover {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .24), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+/* PIX data screen: keep the receipt continuation button compact and readable. */
+.cfx-fast-pix-checkout .cfx-review-submit {
+  min-height: 44px !important;
+  border-radius: 14px !important;
+  padding: 0 14px !important;
+  font-size: 13px !important;
+  color: #FFFFFF !important;
+}
+
+.cfx-fast-pix-checkout .cfx-review-submit *,
+.cfx-fast-pix-checkout .cfx-review-submit svg {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+@media (max-width: 640px) {
+  .cfx-detail-buybox .cfx-checkout-row button,
+  .public-shell .media-info-block .premium-button,
+  .public-shell .cfx-home-page .media-info-block .premium-button,
+  .public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+  .premium-page .media-info-block .premium-button,
+  .cfx-review-submit,
+  .cfx-fast-pix-checkout .cfx-review-submit {
+    min-height: 58px !important;
+    border-radius: 16px !important;
+    padding: 12px 14px !important;
+  }
+}
+
+/* ABSOLUTE FINAL CTA PARITY: Participar Agora = Comprar Agora = Continuar para o recibo. */
+.cfx-main-purchase-cta,
+a.cfx-main-purchase-cta,
+button.cfx-main-purchase-cta,
+.cfx-v1-primary-cta.cfx-main-purchase-cta,
+.cfx-detail-buybox .cfx-checkout-row button.cfx-main-purchase-cta,
+.cfx-review-submit.cfx-main-purchase-cta,
+.checkout-primary-action-button.cfx-main-purchase-cta {
+  display: inline-flex !important;
+  width: 100% !important;
+  min-height: 58px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  padding: 12px 14px !important;
+  font-size: clamp(1rem, 4.6vw, 1.18rem) !important;
+  font-weight: 700 !important;
+  line-height: 1.05 !important;
+  letter-spacing: 0 !important;
+  text-align: center !important;
+  text-decoration: none !important;
+  text-transform: uppercase !important;
+  text-shadow: none !important;
+  box-shadow: 0 14px 32px rgba(246, 178, 31, .22), inset 0 1px 0 rgba(255, 255, 255, .30) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cfx-main-purchase-cta *,
+.cfx-main-purchase-cta > span,
+.cfx-main-purchase-cta small,
+.cfx-main-purchase-cta svg {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  fill: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+  font-size: inherit !important;
+  font-weight: 700 !important;
+  line-height: 1.05 !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+.cfx-main-purchase-cta small {
+  display: none !important;
+}
+
+.cfx-main-purchase-cta:hover,
+a.cfx-main-purchase-cta:hover,
+button.cfx-main-purchase-cta:hover,
+.cfx-main-purchase-cta:active,
+a.cfx-main-purchase-cta:active,
+button.cfx-main-purchase-cta:active {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 14px 32px rgba(246, 178, 31, .22), inset 0 1px 0 rgba(255, 255, 255, .30) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cfx-main-purchase-cta:focus-visible,
+a.cfx-main-purchase-cta:focus-visible,
+button.cfx-main-purchase-cta:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, .88) !important;
+  outline-offset: 3px !important;
+}
+
+@media (min-width: 641px) {
+  .cfx-main-purchase-cta,
+  a.cfx-main-purchase-cta,
+  button.cfx-main-purchase-cta,
+  .cfx-v1-primary-cta.cfx-main-purchase-cta,
+  .cfx-detail-buybox .cfx-checkout-row button.cfx-main-purchase-cta,
+  .cfx-review-submit.cfx-main-purchase-cta,
+  .checkout-primary-action-button.cfx-main-purchase-cta {
+    min-height: 68px !important;
+    border-radius: 18px !important;
+    padding: 14px 16px !important;
+    font-size: clamp(1.08rem, 1.35vw, 1.45rem) !important;
+  }
+}
+
+/* Mobile CTA final parity: Comprar Agora, Participar Agora and Continuar para recibo. */
+@media (max-width: 640px) {
+  .cfx-detail-buybox .cfx-checkout-row button,
+  .cfx-mobile-buy-bar button,
+  .public-shell .media-info-block .premium-button,
+  .public-shell .cfx-home-page .media-info-block .premium-button,
+  .public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+  .premium-page .media-info-block .premium-button,
+  .cfx-review-submit,
+  .cfx-fast-pix-checkout .cfx-review-submit {
+    display: inline-flex !important;
+    width: 100% !important;
+    min-height: 58px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+    background-color: #f6b21f !important;
+    background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+    color: #FFFFFF !important;
+    padding: 12px 14px !important;
+    font-size: clamp(.95rem, 4.1vw, 1.08rem) !important;
+    font-weight: 950 !important;
+    line-height: 1.05 !important;
+    letter-spacing: .01em !important;
+    text-align: center !important;
+    text-transform: uppercase !important;
+    text-decoration: none !important;
+    text-shadow: none !important;
+    box-shadow: 0 12px 28px rgba(246, 178, 31, .18), inset 0 1px 0 rgba(255, 255, 255, .28) !important;
+    filter: none !important;
+    transform: none !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row button *,
+  .cfx-detail-buybox .cfx-checkout-row button > span,
+  .cfx-detail-buybox .cfx-checkout-row button small,
+  .cfx-mobile-buy-bar button *,
+  .cfx-mobile-buy-bar button span,
+  .cfx-mobile-buy-bar button small,
+  .public-shell .media-info-block .premium-button *,
+  .public-shell .cfx-home-page .media-info-block .premium-button *,
+  .public-shell .cfx-home-premium-v1 .media-info-block .premium-button *,
+  .premium-page .media-info-block .premium-button *,
+  .cfx-review-submit *,
+  .cfx-fast-pix-checkout .cfx-review-submit * {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    color: #FFFFFF !important;
+    stroke: #FFFFFF !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row button small {
+    font-size: .68rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row button:hover,
+  .cfx-mobile-buy-bar button:hover,
+  .public-shell .media-info-block .premium-button:hover,
+  .public-shell .cfx-home-page .media-info-block .premium-button:hover,
+  .public-shell .cfx-home-premium-v1 .media-info-block .premium-button:hover,
+  .premium-page .media-info-block .premium-button:hover,
+  .cfx-review-submit:hover,
+  .cfx-fast-pix-checkout .cfx-review-submit:hover {
+    background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+    background-color: #f6b21f !important;
+    background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 12px 28px rgba(246, 178, 31, .18), inset 0 1px 0 rgba(255, 255, 255, .28) !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
+
+/* Shared primary purchase CTA. Applied directly to Participar, Comprar and Continuar. */
+.cfx-main-purchase-cta,
+a.cfx-main-purchase-cta,
+button.cfx-main-purchase-cta {
+  display: inline-flex !important;
+  width: 100% !important;
+  min-height: 58px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  padding: 12px 14px !important;
+  font-size: clamp(.95rem, 4.1vw, 1.08rem) !important;
+  font-weight: 700 !important;
+  line-height: 1.05 !important;
+  letter-spacing: .01em !important;
+  text-align: center !important;
+  text-decoration: none !important;
+  text-transform: uppercase !important;
+  text-shadow: none !important;
+  box-shadow: 0 12px 28px rgba(246, 178, 31, .18), inset 0 1px 0 rgba(255, 255, 255, .28) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cfx-main-purchase-cta *,
+.cfx-main-purchase-cta > span,
+.cfx-main-purchase-cta small,
+.cfx-main-purchase-cta svg {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  fill: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+  font-weight: 700 !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+.cfx-main-purchase-cta:hover,
+a.cfx-main-purchase-cta:hover,
+button.cfx-main-purchase-cta:hover {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 12px 28px rgba(246, 178, 31, .18), inset 0 1px 0 rgba(255, 255, 255, .28) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cfx-main-purchase-cta:active,
+a.cfx-main-purchase-cta:active,
+button.cfx-main-purchase-cta:active {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  transform: none !important;
+}
+
+.cfx-main-purchase-cta:focus-visible,
+a.cfx-main-purchase-cta:focus-visible,
+button.cfx-main-purchase-cta:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, .88) !important;
+  outline-offset: 3px !important;
+}
+
+@media (min-width: 641px) {
+  .cfx-main-purchase-cta,
+  a.cfx-main-purchase-cta,
+  button.cfx-main-purchase-cta {
+    min-height: 68px !important;
+    border-radius: 18px !important;
+    padding: 14px 16px !important;
+    font-size: clamp(1.05rem, 1.35vw, 1.45rem) !important;
+  }
+}
+
+/* Mobile-only final adjustment for public campaign buttons. Appearance only. */
+@media (max-width: 640px) {
+  .public-shell .media-info-block .premium-button,
+  .public-shell .cfx-home-page .media-info-block .premium-button,
+  .public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+  .premium-page .media-info-block .premium-button,
+  .cfx-review-submit,
+  .cfx-fast-pix-checkout .cfx-review-submit {
+    display: inline-flex !important;
+    min-height: 44px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    border: 0 !important;
+    border-radius: 14px !important;
+    background: #FFD700 !important;
+    background-color: #FFD700 !important;
+    background-image: none !important;
+    color: #FFFFFF !important;
+    padding: 0 14px !important;
+    font-size: 13px !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    transform: none !important;
+  }
+
+  .cfx-review-submit,
+  .cfx-fast-pix-checkout .cfx-review-submit {
+    width: 100% !important;
+  }
+
+  .public-shell .media-info-block .premium-button *,
+  .public-shell .cfx-home-page .media-info-block .premium-button *,
+  .public-shell .cfx-home-premium-v1 .media-info-block .premium-button *,
+  .premium-page .media-info-block .premium-button *,
+  .cfx-review-submit *,
+  .cfx-fast-pix-checkout .cfx-review-submit * {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    color: #FFFFFF !important;
+    stroke: #FFFFFF !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row button,
+  .cfx-mobile-buy-bar button {
+    min-height: 62px !important;
+    border-radius: 16px !important;
+    color: #FFFFFF !important;
+  }
+
+  .cfx-detail-buybox .cfx-checkout-row button *,
+  .cfx-detail-buybox .cfx-checkout-row button > span,
+  .cfx-detail-buybox .cfx-checkout-row button small,
+  .cfx-mobile-buy-bar button *,
+  .cfx-mobile-buy-bar button span,
+  .cfx-mobile-buy-bar button small {
+    color: #FFFFFF !important;
+    stroke: #FFFFFF !important;
+  }
+}
+
+/* Final requested restore: compact yellow CTAs with white text/icons and no black layer. */
+.public-shell .media-info-block .premium-button,
+.public-shell .cfx-home-page .media-info-block .premium-button,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button,
+.cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit {
+  display: inline-flex !important;
+  min-height: 48px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: #FFD700 !important;
+  background-color: #FFD700 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  padding: 0 18px !important;
+  font-size: 14px !important;
+  font-weight: 950 !important;
+  letter-spacing: .02em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+  text-decoration: none !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit {
+  width: 100% !important;
+}
+
+.public-shell .media-info-block .premium-button *,
+.public-shell .cfx-home-page .media-info-block .premium-button *,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button *,
+.premium-page .media-info-block .premium-button *,
+.cfx-review-submit *,
+.cfx-fast-pix-checkout .cfx-review-submit * {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+.public-shell .media-info-block .premium-button:hover,
+.public-shell .cfx-home-page .media-info-block .premium-button:hover,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button:hover,
+.premium-page .media-info-block .premium-button:hover,
+.cfx-review-submit:hover,
+.cfx-fast-pix-checkout .cfx-review-submit:hover {
+  background: #FFD700 !important;
+  background-color: #FFD700 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+/* EOF CTA lock: these three customer-facing purchase buttons must be visually identical. */
+.cfx-detail-buybox .cfx-checkout-row button,
+.public-shell .media-info-block .premium-button,
+.public-shell .cfx-home-page .media-info-block .premium-button,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button,
+.cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit {
+  display: grid !important;
+  width: 100% !important;
+  min-height: 68px !important;
+  grid-template-columns: 1fr !important;
+  place-items: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  padding: 14px 16px !important;
+  text-align: center !important;
+  letter-spacing: 0 !important;
+  text-decoration: none !important;
+  text-shadow: none !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .24), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button > span,
+.public-shell .media-info-block .premium-button,
+.public-shell .media-info-block .premium-button > span,
+.public-shell .cfx-home-page .media-info-block .premium-button,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button > span,
+.cfx-review-submit,
+.cfx-review-submit > span,
+.cfx-fast-pix-checkout .cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit > span {
+  color: #FFFFFF !important;
+  font-size: clamp(1.05rem, 5.4vw, 1.45rem) !important;
+  font-weight: 950 !important;
+  line-height: 1.05 !important;
+  text-transform: uppercase !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button svg,
+.public-shell .media-info-block .premium-button svg,
+.public-shell .cfx-home-page .media-info-block .premium-button svg,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button svg,
+.premium-page .media-info-block .premium-button svg,
+.cfx-review-submit svg,
+.cfx-fast-pix-checkout .cfx-review-submit svg {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button small {
+  color: rgba(18, 9, 0, .72) !important;
+  font-size: clamp(.7rem, 3.2vw, .82rem) !important;
+  font-weight: 800 !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button:hover,
+.public-shell .media-info-block .premium-button:hover,
+.public-shell .cfx-home-page .media-info-block .premium-button:hover,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button:hover,
+.premium-page .media-info-block .premium-button:hover,
+.cfx-review-submit:hover,
+.cfx-fast-pix-checkout .cfx-review-submit:hover {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .24), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+@media (max-width: 640px) {
+  .cfx-detail-buybox .cfx-checkout-row button,
+  .public-shell .media-info-block .premium-button,
+  .public-shell .cfx-home-page .media-info-block .premium-button,
+  .public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+  .premium-page .media-info-block .premium-button,
+  .cfx-review-submit,
+  .cfx-fast-pix-checkout .cfx-review-submit {
+    min-height: 58px !important;
+    border-radius: 16px !important;
+    padding: 12px 14px !important;
+  }
+}
+
+/* Definitive purchase CTA style: match the main COMPRAR AGORA button everywhere. */
+.cfx-detail-buybox .cfx-checkout-row button,
+.public-shell .media-info-block .premium-button,
+.public-shell .cfx-home-page .media-info-block .premium-button,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button,
+.cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit {
+  display: grid !important;
+  width: 100% !important;
+  min-height: 68px !important;
+  grid-template-columns: 1fr !important;
+  place-items: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  padding: 14px 16px !important;
+  text-align: center !important;
+  letter-spacing: 0 !important;
+  text-decoration: none !important;
+  text-shadow: none !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .24), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button > span,
+.public-shell .media-info-block .premium-button,
+.public-shell .media-info-block .premium-button > span,
+.public-shell .cfx-home-page .media-info-block .premium-button,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button > span,
+.cfx-review-submit,
+.cfx-review-submit > span,
+.cfx-fast-pix-checkout .cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit > span {
+  color: #FFFFFF !important;
+  font-size: clamp(1.05rem, 5.4vw, 1.45rem) !important;
+  font-weight: 950 !important;
+  line-height: 1.05 !important;
+  text-transform: uppercase !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button svg,
+.public-shell .media-info-block .premium-button svg,
+.public-shell .cfx-home-page .media-info-block .premium-button svg,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button svg,
+.premium-page .media-info-block .premium-button svg,
+.cfx-review-submit svg,
+.cfx-fast-pix-checkout .cfx-review-submit svg {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button small {
+  color: rgba(18, 9, 0, .72) !important;
+  font-size: clamp(.7rem, 3.2vw, .82rem) !important;
+  font-weight: 800 !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button:hover,
+.public-shell .media-info-block .premium-button:hover,
+.public-shell .cfx-home-page .media-info-block .premium-button:hover,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button:hover,
+.premium-page .media-info-block .premium-button:hover,
+.cfx-review-submit:hover,
+.cfx-fast-pix-checkout .cfx-review-submit:hover {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .24), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+@media (max-width: 640px) {
+  .cfx-detail-buybox .cfx-checkout-row button,
+  .public-shell .media-info-block .premium-button,
+  .public-shell .cfx-home-page .media-info-block .premium-button,
+  .public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+  .premium-page .media-info-block .premium-button,
+  .cfx-review-submit,
+  .cfx-fast-pix-checkout .cfx-review-submit {
+    min-height: 58px !important;
+    border-radius: 16px !important;
+    padding: 12px 14px !important;
+  }
+}
+
+/* Purchase CTA parity: Comprar Agora, Participar agora and Continuar para o recibo. */
+.cfx-mobile-buy-bar button,
+.public-shell .media-info-block .premium-button,
+.public-shell .cfx-home-page .media-info-block .premium-button,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button,
+.cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit {
+  display: inline-flex !important;
+  min-height: 48px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: #FFD700 !important;
+  background-color: #FFD700 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  padding: 0 14px !important;
+  font-size: 12px !important;
+  font-weight: 1000 !important;
+  letter-spacing: .04em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cfx-mobile-buy-bar button *,
+.public-shell .media-info-block .premium-button *,
+.public-shell .cfx-home-page .media-info-block .premium-button *,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button *,
+.premium-page .media-info-block .premium-button *,
+.cfx-review-submit *,
+.cfx-fast-pix-checkout .cfx-review-submit * {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+  fill: none !important;
+}
+
+.cfx-mobile-buy-bar button:hover,
+.public-shell .media-info-block .premium-button:hover,
+.public-shell .cfx-home-page .media-info-block .premium-button:hover,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button:hover,
+.premium-page .media-info-block .premium-button:hover,
+.cfx-review-submit:hover,
+.cfx-fast-pix-checkout .cfx-review-submit:hover {
+  background: #FFD700 !important;
+  background-color: #FFD700 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+/* Final CTA restore: yellow buttons with white text, matching the purchase action style. */
+.public-shell .media-info-block .premium-button,
+.public-shell .cfx-home-page .premium-button,
+.public-shell .cfx-home-premium-v1 .premium-button,
+.public-shell .cfx-raffle-page .cfx-review-actions .premium-button,
+.public-shell .cfx-raffle-page button[type="submit"],
+.public-shell .cfx-raffle-page button:has(.lucide-wallet-cards),
+.premium-page .media-info-block .premium-button,
+.premium-page .cfx-review-actions .premium-button,
+.premium-page button[type="submit"],
+.premium-page button:has(.lucide-wallet-cards) {
+  background: #FFD700 !important;
+  background-color: #FFD700 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.public-shell .media-info-block .premium-button *,
+.public-shell .cfx-home-page .premium-button *,
+.public-shell .cfx-home-premium-v1 .premium-button *,
+.public-shell .cfx-raffle-page .cfx-review-actions .premium-button *,
+.public-shell .cfx-raffle-page button[type="submit"] *,
+.public-shell .cfx-raffle-page button:has(.lucide-wallet-cards) *,
+.premium-page .media-info-block .premium-button *,
+.premium-page .cfx-review-actions .premium-button *,
+.premium-page button[type="submit"] *,
+.premium-page button:has(.lucide-wallet-cards) * {
+  color: #FFFFFF !important;
+  stroke: currentColor !important;
+}
+
+.public-shell .media-info-block .premium-button:hover,
+.public-shell .cfx-home-page .premium-button:hover,
+.public-shell .cfx-home-premium-v1 .premium-button:hover,
+.public-shell .cfx-raffle-page .cfx-review-actions .premium-button:hover,
+.public-shell .cfx-raffle-page button[type="submit"]:hover,
+.public-shell .cfx-raffle-page button:has(.lucide-wallet-cards):hover,
+.premium-page .media-info-block .premium-button:hover,
+.premium-page .cfx-review-actions .premium-button:hover,
+.premium-page button[type="submit"]:hover,
+.premium-page button:has(.lucide-wallet-cards):hover {
+  background: #FFD700 !important;
+  background-color: #FFD700 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Clean yellow CTAs requested: Home "Participar agora" and checkout receipt continuation. */
+.public-shell .media-info-block .premium-button,
+.public-shell .cfx-home-page .premium-button,
+.public-shell .cfx-home-premium-v1 .premium-button,
+.public-shell .cfx-raffle-page .cfx-review-actions .premium-button,
+.public-shell .cfx-raffle-page button[type="submit"],
+.public-shell .cfx-raffle-page button:has(.lucide-wallet-cards),
+.premium-page .media-info-block .premium-button,
+.premium-page .cfx-review-actions .premium-button,
+.premium-page button[type="submit"],
+.premium-page button:has(.lucide-wallet-cards) {
+  background: #FFD700 !important;
+  background-color: #FFD700 !important;
+  background-image: none !important;
+  color: #000000 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.public-shell .media-info-block .premium-button:hover,
+.public-shell .cfx-home-page .premium-button:hover,
+.public-shell .cfx-home-premium-v1 .premium-button:hover,
+.public-shell .cfx-raffle-page .cfx-review-actions .premium-button:hover,
+.public-shell .cfx-raffle-page button[type="submit"]:hover,
+.public-shell .cfx-raffle-page button:has(.lucide-wallet-cards):hover,
+.premium-page .media-info-block .premium-button:hover,
+.premium-page .cfx-review-actions .premium-button:hover,
+.premium-page button[type="submit"]:hover,
+.premium-page button:has(.lucide-wallet-cards):hover {
+  background: #FFD700 !important;
+  background-color: #FFD700 !important;
+  background-image: none !important;
+  color: #000000 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Instagram-like public black mode: no gray surfaces, no glass, no visual effects. */
+:where(.public-shell, .premium-page, .cfx-home-page, .cfx-home-premium-v1, .cfx-raffle-page, .cfx-customer-page, .cfx-my-tickets-page, .affiliate-premium, .affiliate-v2-shell, .checkout-resume-page, .checkout-paid-page, .cfx-pix-premium, .cfx-public-winners-page) {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+:where(.public-shell, .premium-page, .cfx-home-page, .cfx-home-premium-v1, .cfx-raffle-page, .cfx-customer-page, .cfx-my-tickets-page, .affiliate-premium, .affiliate-v2-shell, .checkout-resume-page, .checkout-paid-page, .cfx-pix-premium, .cfx-public-winners-page)
+:is(
+  [class*="bg-"],
+  [class*="from-"],
+  [class*="via-"],
+  [class*="to-"],
+  [class*="card"],
+  [class*="Card"],
+  [class*="panel"],
+  [class*="Panel"],
+  [class*="surface"],
+  [class*="Surface"],
+  [class*="container"],
+  [class*="Container"],
+  [class*="wrapper"],
+  [class*="Wrapper"],
+  [class*="box"],
+  [class*="Box"],
+  section,
+  article,
+  aside,
+  form,
+  table,
+  thead,
+  tbody,
+  tr,
+  th,
+  td,
+  nav,
+  header,
+  footer
+):not(img):not(video):not(canvas):not(svg):not(path):not(.cfx-qr-wrap):not(.cp-qr-wrap):not([class*="qr"]):not([class*="QR"]) {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:where(.public-shell, .premium-page, .cfx-home-page, .cfx-home-premium-v1, .cfx-raffle-page, .cfx-customer-page, .cfx-my-tickets-page, .affiliate-premium, .affiliate-v2-shell, .checkout-resume-page, .checkout-paid-page, .cfx-pix-premium, .cfx-public-winners-page)
+:is(*::before, *::after) {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.premium-site-header,
+.public-mobile-bottom-nav,
+.cfx-home-bottom-nav,
+.affiliate-v2-bottom-nav,
+.cfx-my-tickets-topbar,
+.checkout-paid-header,
+.affiliate-v2-header {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+  border-color: rgba(255, 255, 255, .14) !important;
+  box-shadow: none !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.premium-site-header {
+  border-bottom: 1px solid rgba(255, 255, 255, .14) !important;
+}
+
+.public-mobile-bottom-nav,
+.cfx-home-bottom-nav,
+.affiliate-v2-bottom-nav {
+  border: 1px solid rgba(255, 255, 255, .16) !important;
+}
+
+:where(.public-shell, .premium-page, .cfx-home-page, .cfx-home-premium-v1, .cfx-raffle-page, .cfx-customer-page, .cfx-my-tickets-page, .affiliate-premium, .affiliate-v2-shell, .checkout-resume-page, .checkout-paid-page, .cfx-pix-premium, .cfx-public-winners-page)
+:is(button, a[role="button"], [role="button"], .premium-button, .neon-button, .admin-button-primary, .admin-button-secondary, .premium-button-outline, .cfx-primary-action, .checkout-paid-copy, .checkout-paid-ticket-button, .checkout-paid-minhas-cotas, .cfx-mobile-buy-bar button, .rdp-mobile-purchase button, button[type="submit"]) {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 255, 255, .26) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:where(.public-shell, .premium-page, .cfx-home-page, .cfx-home-premium-v1, .cfx-raffle-page, .cfx-customer-page, .cfx-my-tickets-page, .affiliate-premium, .affiliate-v2-shell, .checkout-resume-page, .checkout-paid-page, .cfx-pix-premium, .cfx-public-winners-page)
+:is(button, a[role="button"], [role="button"], .premium-button, .neon-button, .admin-button-primary, .admin-button-secondary, .premium-button-outline, .cfx-primary-action, .checkout-paid-copy, .checkout-paid-ticket-button, .checkout-paid-minhas-cotas, .cfx-mobile-buy-bar button, .rdp-mobile-purchase button, button[type="submit"]):hover {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 255, 255, .46) !important;
+  transform: none !important;
+}
+
+:where(.public-shell, .premium-page, .cfx-home-page, .cfx-home-premium-v1, .cfx-raffle-page, .cfx-customer-page, .cfx-my-tickets-page, .affiliate-premium, .affiliate-v2-shell, .checkout-resume-page, .checkout-paid-page, .cfx-pix-premium, .cfx-public-winners-page)
+:is(input, textarea, select, .premium-input, .cfx-input, .checkout-paid-linkbox, .affiliate-v2-linkbox) {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 255, 255, .22) !important;
+  box-shadow: none !important;
+}
+
+:where(.public-shell, .premium-page, .cfx-home-page, .cfx-home-premium-v1, .cfx-raffle-page, .cfx-customer-page, .cfx-my-tickets-page, .affiliate-premium, .affiliate-v2-shell, .checkout-resume-page, .checkout-paid-page, .cfx-pix-premium, .cfx-public-winners-page)
+:is(h1, h2, h3, h4, h5, h6, p, span, label, small, li, td, th, strong, em, b) {
+  text-shadow: none !important;
+}
+
+:where(.public-shell, .premium-page, .cfx-home-page, .cfx-home-premium-v1, .cfx-raffle-page, .cfx-customer-page, .cfx-my-tickets-page, .affiliate-premium, .affiliate-v2-shell, .checkout-resume-page, .checkout-paid-page, .cfx-pix-premium, .cfx-public-winners-page)
+:is(.is-active, .active, [aria-current="page"], [aria-selected="true"]) {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 255, 255, .42) !important;
+  box-shadow: none !important;
+}
+
+.cfx-qr-wrap,
+.cp-qr-wrap,
+.cfx-pix-premium .cfx-qr-wrap,
+.cfx-pix-premium .cfx-qr-code,
+.checkout-resume-page [class*="qr"],
+.checkout-resume-page [class*="QR"],
+.affiliate-premium [class*="qr"],
+.affiliate-premium [class*="QR"] {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+/* Pure Black final lock: pages, containers, cards and fields must not show gray/dark surfaces. */
+html,
+body,
+#root,
+#dynamic-bg,
+body *,
+.public-shell,
+.premium-page,
+.admin-shell,
+.superadmin-shell,
+.saas-shell,
+.customer-premium,
+.cfx-home-page,
+.cfx-home-premium-v1,
+.cfx-customer-page,
+.cfx-my-tickets-page,
+.affiliate-premium,
+.affiliate-v2-shell,
+.checkout-resume-page,
+.checkout-paid-page,
+.cfx-pix-premium,
+.cfx-public-winners-page {
+  --theme-bg: #000000 !important;
+  --theme-bg-soft: #000000 !important;
+  --theme-background: #000000 !important;
+  --theme-surface: #000000 !important;
+  --theme-surface-strong: #000000 !important;
+  --theme-surface-soft: #000000 !important;
+  --theme-card: #000000 !important;
+  --admin-bg: #000000 !important;
+  --admin-bg-soft: #000000 !important;
+  --admin-bg-deep: #000000 !important;
+  --admin-surface: #000000 !important;
+  --admin-surface-strong: #000000 !important;
+  --admin-card-muted: #000000 !important;
+  --premium-bg: #000000 !important;
+  --premium-bg-soft: #000000 !important;
+  --premium-surface: #000000 !important;
+  --premium-surface-2: #000000 !important;
+  --premium-surface-3: #000000 !important;
+  --checkout-surface: #000000 !important;
+  --checkout-surface-raised: #000000 !important;
+  --pix-bg: #000000 !important;
+  --rp-bg: #000000 !important;
+  --rp-surface: #000000 !important;
+  --rp-card: #000000 !important;
+  --rp-card-alt: #000000 !important;
+  --rdp-bg: #000000 !important;
+  --rdp-surface: #000000 !important;
+  --rdp-card: #000000 !important;
+  --rdp-card-alt: #000000 !important;
+  --affiliate-bg: #000000 !important;
+  --affiliate-card: #000000 !important;
+  --affiliate-card-2: #000000 !important;
+  --affiliate-card-3: #000000 !important;
+}
+
+html,
+body,
+#root,
+#dynamic-bg,
+main,
+.container,
+.app-content-container,
+.public-shell,
+.premium-page,
+.admin-shell,
+.superadmin-shell,
+.saas-shell,
+.customer-premium,
+.cfx-home-page,
+.cfx-home-premium-v1,
+.cfx-customer-page,
+.cfx-my-tickets-page,
+.affiliate-premium,
+.affiliate-v2-shell,
+.checkout-resume-page,
+.checkout-paid-page,
+.cfx-pix-premium,
+.cfx-public-winners-page,
+.checkout-screen,
+.raffle-reference-page,
+.cfx-v1-shell,
+.checkout-paid-main,
+.checkout-resume-shell,
+.cfx-my-tickets-shell,
+.cfx-customer-shell {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+body [class*="bg-gray-"],
+body [class*="bg-slate-"],
+body [class*="bg-zinc-"],
+body [class*="bg-neutral-"],
+body [class*="bg-stone-"],
+body [class*="bg-white/"],
+body [class*="bg-white["],
+body [class*="bg-black/"],
+body [class*="bg-[#0"],
+body [class*="bg-[#1"],
+body [class*="bg-[var(--theme-surface"],
+body [class*="bg-[var(--admin-surface"],
+body [class*="bg-[var(--premium-surface"],
+body [class*="bg-[var(--checkout-surface"],
+body [class*="hover:bg-gray-"]:hover,
+body [class*="hover:bg-slate-"]:hover,
+body [class*="hover:bg-zinc-"]:hover,
+body [class*="hover:bg-neutral-"]:hover,
+body [class*="hover:bg-stone-"]:hover,
+body [class*="hover:bg-white"]:hover,
+body [class*="hover:bg-black"]:hover {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+.glass-card,
+.glass-panel,
+.premium-card,
+.admin-card,
+.admin-card-strong,
+.cfx-home-progress-card,
+.cfx-campaign-card,
+.cfx-game-card,
+.cfx-winner-card,
+.cfx-affiliate-card,
+.cfx-payment-card,
+.cfx-live-card,
+.cfx-quantity-card,
+.checkout-info-card,
+.checkout-card,
+.checkout-summary-card,
+.customer-identified-card,
+.checkout-pix-card,
+.wallet-balance-card,
+.premium-stats-card,
+.premium-chart-card,
+.cfx-success-card,
+.cfx-review-prize-card,
+.cfx-pix-card,
+.cfx-pix-panel,
+.cfx-pix-trust-card,
+.cfx-pix-qr-card,
+.checkout-resume-summary-card,
+.checkout-resume-timer-card,
+.checkout-paid-receipt,
+.checkout-paid-hero,
+.checkout-paid-share,
+.checkout-paid-affiliate-stats,
+.checkout-paid-details,
+.checkout-paid-numbers,
+.cfx-my-ticket-card,
+.cfx-my-ticket-numbers,
+.cfx-my-tickets-affiliate,
+.cfx-my-tickets-affiliate-stats,
+.affiliate-v2-card,
+.affiliate-v2-section,
+.affiliate-v2-metric-card,
+.cfx-v1-card,
+.rp-home-animal-card,
+.rp-home-dezena-card,
+.rp-home-special-card,
+.public-mobile-bottom-nav,
+.cfx-home-bottom-nav,
+.affiliate-v2-bottom-nav,
+.cfx-mobile-buy-bar,
+.rdp-mobile-purchase,
+.rdp-mobile-countdown,
+.checkout-media-preview,
+.checkout-campaign-media,
+.checkout-media-fallback,
+.fazendinha-checkout-media,
+.pwa-install-prompt > *,
+.checkout-receipt-body,
+.cfx-prepix-receipt,
+.premium-site-header,
+.checkout-paid-header,
+.cfx-my-tickets-topbar,
+.affiliate-v2-header {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+input,
+textarea,
+select,
+.premium-input,
+.admin-input,
+.cfx-input,
+.checkout-paid-linkbox,
+.affiliate-v2-linkbox,
+[class*="input"],
+[class*="Input"],
+[class*="field"],
+[class*="Field"] {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+.cfx-qr-wrap,
+.cp-qr-wrap,
+.cfx-pix-premium .cfx-qr-wrap,
+.cfx-pix-premium .cfx-qr-code,
+.checkout-resume-page [class*="qr"],
+.checkout-resume-page [class*="QR"],
+.affiliate-premium [class*="qr"],
+.affiliate-premium [class*="QR"] {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+/* Black Absolute usability guard: pure black surfaces with visible controls. */
+body,
+.public-shell,
+.premium-page,
+.admin-shell,
+.superadmin-shell,
+.saas-shell {
+  color: #FFFFFF !important;
+}
+
+p,
+span,
+label,
+small,
+li,
+td,
+th,
+dt,
+dd,
+strong,
+em,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: inherit;
+}
+
+body :is(section, article, aside, header, footer, nav, form, dialog, table, thead, tbody, tr),
+body :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .glass-card, .premium-card, .admin-card, .checkout-card, .checkout-info-card, .checkout-summary-card) {
+  border-color: rgba(255, 215, 0, .10) !important;
+}
+
+body :is(.glass-card, .premium-card, .admin-card, .checkout-card, .checkout-info-card, .checkout-summary-card, .checkout-paid-details, .checkout-paid-numbers, .cfx-my-ticket-card, .cfx-my-ticket-numbers, .affiliate-v2-card) {
+  box-shadow: 0 0 0 1px rgba(255, 215, 0, .055), 0 18px 44px rgba(0, 0, 0, .64) !important;
+}
+
+a,
+button,
+[role="button"],
+summary,
+select,
+input,
+textarea {
+  color: inherit;
+}
+
+a:not(.public-mobile-bottom-nav a):not(.cfx-home-bottom-nav a):not(.affiliate-v2-nav-item) {
+  color: #FFD700 !important;
+}
+
+button,
+[role="button"],
+a[href],
+summary,
+select {
+  opacity: 1 !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid rgba(255, 215, 0, .75) !important;
+  outline-offset: 3px !important;
+}
+
+input,
+textarea,
+select {
+  color: #FFFFFF !important;
+  caret-color: #FFD700 !important;
+  border-color: rgba(255, 215, 0, .18) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, .62) !important;
+}
+
+.premium-button,
+.neon-button,
+.admin-button-primary,
+.cfx-primary-action,
+.checkout-paid-copy,
+.checkout-paid-ticket-button,
+.checkout-paid-minhas-cotas,
+.cfx-mobile-buy-bar button,
+.rdp-mobile-purchase button,
+button[type="submit"] {
+  background: linear-gradient(135deg, #FFD700, #FFC107) !important;
+  background-color: #FFD700 !important;
+  color: #000000 !important;
+  border-color: rgba(255, 215, 0, .42) !important;
+  box-shadow: 0 14px 32px rgba(255, 193, 7, .20) !important;
+}
+
+.admin-button-secondary,
+.premium-button-outline,
+.checkout-paid-linkbox button,
+.affiliate-v2-linkbox button,
+.cfx-my-tickets-tabs button,
+.cfx-my-ticket-actions a,
+.cfx-my-ticket-actions button {
+  background: #000000 !important;
+  color: #FFD700 !important;
+  border-color: rgba(255, 215, 0, .32) !important;
+}
+
+[class*="bg-emerald"],
+[class*="bg-green"],
+[class*="bg-red"],
+[class*="bg-rose"],
+[class*="bg-amber"],
+[class*="bg-yellow"],
+[class*="bg-orange"],
+[class*="bg-blue"],
+[class*="bg-cyan"],
+[class*="bg-purple"],
+[class*="bg-violet"],
+[class*="bg-fuchsia"],
+[class*="bg-lime"] {
+  background-image: var(--tw-gradient-stops, none);
+}
+
+[aria-current="page"],
+[aria-selected="true"],
+.is-active,
+.active,
+.public-mobile-bottom-nav a[aria-current="page"],
+.cfx-home-bottom-nav a.is-active,
+.affiliate-v2-nav-item.is-active,
+.cfx-my-tickets-tabs button.is-active {
+  color: #FFD700 !important;
+  border-color: rgba(255, 215, 0, .45) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, .18) !important;
+}
+
+.public-mobile-bottom-nav svg,
+.cfx-home-bottom-nav svg,
+.affiliate-v2-nav-item svg,
+button svg,
+a svg {
+  opacity: 1 !important;
+}
+
+.cfx-qr-wrap,
+.cp-qr-wrap,
+.cfx-pix-premium .cfx-qr-wrap,
+.cfx-pix-premium .cfx-qr-code,
+.checkout-resume-page [class*="qr"],
+.checkout-resume-page [class*="QR"],
+.affiliate-premium [class*="qr"],
+.affiliate-premium [class*="QR"] {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+/* Luxury nav accent: restrained gold separation without glow. */
+.premium-site-header,
+.public-mobile-bottom-nav,
+.cfx-my-tickets-topbar,
+.checkout-paid-header,
+.affiliate-v2-header {
+  border-color: rgba(255, 215, 0, .14) !important;
+  box-shadow: 0 1px 0 rgba(255, 215, 0, .055) !important;
+}
+
+.public-mobile-bottom-nav {
+  box-shadow: 0 0 0 1px rgba(255, 215, 0, .10), 0 18px 48px rgba(0, 0, 0, .58) !important;
+}
+
+/* Absolute black global canvas: remove every inherited gray/mesh/atmosphere behind containers. */
+html,
+body,
+#root,
+#dynamic-bg,
+.public-shell,
+.premium-page,
+.admin-shell,
+.superadmin-shell,
+.saas-shell,
+.customer-premium,
+.cfx-home-page,
+.cfx-home-premium-v1,
+.cfx-customer-page,
+.cfx-my-tickets-page,
+.affiliate-premium,
+.checkout-resume-page,
+.checkout-paid-page,
+.cfx-pix-premium,
+.cfx-public-winners-page,
+.container,
+.app-content-container,
+.cfx-v1-shell,
+.affiliate-v2-shell,
+.checkout-paid-main,
+.checkout-resume-shell,
+.cfx-my-tickets-shell,
+.cfx-customer-shell {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+body,
+.public-shell,
+.public-shell .premium-page,
+.premium-page,
+.admin-shell,
+.superadmin-shell,
+.saas-shell {
+  --theme-bg: #000000 !important;
+  --theme-bg-soft: #000000 !important;
+  --theme-glow: transparent !important;
+  --theme-glow-2: transparent !important;
+  --theme-grid: transparent !important;
+  --admin-bg: #000000 !important;
+  --admin-bg-soft: #000000 !important;
+  --admin-bg-deep: #000000 !important;
+}
+
+.premium-grid,
+.premium-grid::before,
+.premium-grid::after,
+.public-shell::before,
+.public-shell::after,
+.premium-page::before,
+.premium-page::after,
+.cfx-home-page::before,
+.cfx-home-page::after,
+.cfx-home-premium-v1::before,
+.cfx-home-premium-v1::after,
+.cfx-v1-shell::before,
+.cfx-v1-shell::after,
+.affiliate-premium::before,
+.affiliate-premium::after,
+.checkout-resume-page::before,
+.checkout-resume-page::after,
+.checkout-paid-page::before,
+.checkout-paid-page::after,
+.cfx-my-tickets-page::before,
+.cfx-my-tickets-page::after,
+.cfx-customer-page::before,
+.cfx-customer-page::after {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+/* Black Edition Premium: remove gray glass layers inside containers. */
+.public-shell [class*="bg-white/"],
+.public-shell [class*="bg-white["],
+.premium-page [class*="bg-white/"],
+.premium-page [class*="bg-white["],
+.admin-shell [class*="bg-white/"],
+.admin-shell [class*="bg-white["],
+.superadmin-shell [class*="bg-white/"],
+.superadmin-shell [class*="bg-white["],
+.saas-shell [class*="bg-white/"],
+.saas-shell [class*="bg-white["],
+.cfx-home-page [class*="bg-white/"],
+.cfx-home-page [class*="bg-white["],
+.cfx-home-premium-v1 [class*="bg-white/"],
+.cfx-home-premium-v1 [class*="bg-white["],
+.cfx-customer-page [class*="bg-white/"],
+.cfx-customer-page [class*="bg-white["],
+.cfx-my-tickets-page [class*="bg-white/"],
+.cfx-my-tickets-page [class*="bg-white["],
+.checkout-resume-page [class*="bg-white/"],
+.checkout-resume-page [class*="bg-white["],
+.checkout-paid-page [class*="bg-white/"],
+.checkout-paid-page [class*="bg-white["],
+.cfx-pix-premium [class*="bg-white/"],
+.cfx-pix-premium [class*="bg-white["],
+.affiliate-premium [class*="bg-white/"],
+.affiliate-premium [class*="bg-white["],
+.affiliate-v2-shell [class*="bg-white/"],
+.affiliate-v2-shell [class*="bg-white["] {
+  background-color: #0A0A0A !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+.public-shell [class*="hover:bg-white"]:hover,
+.premium-page [class*="hover:bg-white"]:hover,
+.admin-shell [class*="hover:bg-white"]:hover,
+.superadmin-shell [class*="hover:bg-white"]:hover,
+.saas-shell [class*="hover:bg-white"]:hover,
+.cfx-home-page [class*="hover:bg-white"]:hover,
+.cfx-home-premium-v1 [class*="hover:bg-white"]:hover,
+.cfx-customer-page [class*="hover:bg-white"]:hover,
+.cfx-my-tickets-page [class*="hover:bg-white"]:hover,
+.checkout-resume-page [class*="hover:bg-white"]:hover,
+.checkout-paid-page [class*="hover:bg-white"]:hover,
+.cfx-pix-premium [class*="hover:bg-white"]:hover,
+.affiliate-premium [class*="hover:bg-white"]:hover,
+.affiliate-v2-shell [class*="hover:bg-white"]:hover {
+  background-color: #111111 !important;
+  background-image: none !important;
+}
+
+.cfx-home-page :is(.rounded-xl, .rounded-2xl, .rounded-3xl),
+.cfx-home-premium-v1 :is(.rounded-xl, .rounded-2xl, .rounded-3xl),
+.cfx-customer-page :is(.rounded-xl, .rounded-2xl, .rounded-3xl),
+.cfx-my-tickets-page :is(.rounded-xl, .rounded-2xl, .rounded-3xl),
+.checkout-resume-page :is(.rounded-xl, .rounded-2xl, .rounded-3xl),
+.checkout-paid-page :is(.rounded-xl, .rounded-2xl, .rounded-3xl),
+.cfx-pix-premium :is(.rounded-xl, .rounded-2xl, .rounded-3xl),
+.affiliate-premium :is(.rounded-xl, .rounded-2xl, .rounded-3xl),
+.affiliate-v2-shell :is(.rounded-xl, .rounded-2xl, .rounded-3xl),
+.admin-shell :is(.rounded-xl, .rounded-2xl, .rounded-3xl),
+.superadmin-shell :is(.rounded-xl, .rounded-2xl, .rounded-3xl) {
+  border-color: rgba(255, 255, 255, .06);
+}
+
+.glass-card,
+.glass-panel,
+.premium-card,
+.admin-card,
+.admin-card-strong,
+.cfx-home-progress-card,
+.cfx-campaign-card,
+.cfx-game-card,
+.cfx-winner-card,
+.cfx-affiliate-card,
+.cfx-payment-card,
+.cfx-live-card,
+.cfx-quantity-card,
+.checkout-info-card,
+.checkout-card,
+.checkout-summary-card,
+.customer-identified-card,
+.checkout-pix-card,
+.wallet-balance-card,
+.premium-stats-card,
+.premium-chart-card,
+.cfx-success-card,
+.cfx-review-prize-card,
+.cfx-pix-card,
+.cfx-pix-panel,
+.cfx-pix-trust-card,
+.cfx-pix-qr-card,
+.checkout-resume-summary-card,
+.checkout-resume-timer-card,
+.checkout-paid-receipt,
+.checkout-paid-hero,
+.checkout-paid-share,
+.checkout-paid-affiliate-stats,
+.checkout-paid-details,
+.checkout-paid-numbers,
+.cfx-my-ticket-card,
+.cfx-my-ticket-numbers,
+.cfx-my-tickets-affiliate,
+.cfx-my-tickets-affiliate-stats,
+.affiliate-v2-card,
+.affiliate-v2-section,
+.affiliate-v2-metric-card,
+.cfx-v1-card,
+.rp-home-animal-card,
+.rp-home-dezena-card,
+.rp-home-special-card {
+  background: #0A0A0A !important;
+  background-color: #0A0A0A !important;
+  background-image: none !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .45) !important;
+}
+
+.premium-input,
+.admin-input,
+.cfx-input,
+.checkout-paid-linkbox,
+.affiliate-v2-linkbox,
+.public-shell input,
+.public-shell textarea,
+.public-shell select,
+.premium-page input,
+.premium-page textarea,
+.premium-page select,
+.admin-shell input,
+.admin-shell textarea,
+.admin-shell select,
+.superadmin-shell input,
+.superadmin-shell textarea,
+.superadmin-shell select {
+  background: #111111 !important;
+  background-color: #111111 !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+.public-shell [class*="divide-white"] > :not([hidden]) ~ :not([hidden]),
+.premium-page [class*="divide-white"] > :not([hidden]) ~ :not([hidden]),
+.admin-shell [class*="divide-white"] > :not([hidden]) ~ :not([hidden]),
+.superadmin-shell [class*="divide-white"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 255, 255, .06) !important;
+}
+
+.cfx-qr-wrap,
+.cp-qr-wrap,
+.cfx-pix-premium .cfx-qr-wrap,
+.cfx-pix-premium .cfx-qr-code,
+.checkout-resume-page [class*="qr"],
+.checkout-resume-page [class*="QR"] {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+/* Black Absolute Edition EOF lock: all surfaces black, controls still usable. */
+html,
+body,
+#root,
+#dynamic-bg,
+main,
+.container,
+.app-content-container,
+.public-shell,
+.premium-page,
+.admin-shell,
+.superadmin-shell,
+.saas-shell,
+.customer-premium,
+.cfx-home-page,
+.cfx-home-premium-v1,
+.cfx-customer-page,
+.cfx-my-tickets-page,
+.affiliate-premium,
+.affiliate-v2-shell,
+.checkout-resume-page,
+.checkout-paid-page,
+.cfx-pix-premium,
+.cfx-public-winners-page,
+.checkout-screen,
+.raffle-reference-page,
+.cfx-v1-shell,
+.checkout-paid-main,
+.checkout-resume-shell,
+.cfx-my-tickets-shell,
+.cfx-customer-shell,
+.premium-site-header,
+.public-mobile-bottom-nav,
+.cfx-home-bottom-nav,
+.affiliate-v2-bottom-nav,
+.cfx-mobile-buy-bar,
+.rdp-mobile-purchase,
+.rdp-mobile-countdown,
+.checkout-media-preview,
+.checkout-campaign-media,
+.checkout-media-fallback,
+.fazendinha-checkout-media,
+.glass-card,
+.glass-panel,
+.premium-card,
+.admin-card,
+.admin-card-strong,
+.cfx-home-progress-card,
+.cfx-campaign-card,
+.cfx-game-card,
+.cfx-winner-card,
+.cfx-affiliate-card,
+.cfx-payment-card,
+.cfx-live-card,
+.cfx-quantity-card,
+.checkout-info-card,
+.checkout-card,
+.checkout-summary-card,
+.customer-identified-card,
+.checkout-pix-card,
+.wallet-balance-card,
+.premium-stats-card,
+.premium-chart-card,
+.cfx-success-card,
+.cfx-review-prize-card,
+.cfx-pix-card,
+.cfx-pix-panel,
+.cfx-pix-trust-card,
+.checkout-resume-summary-card,
+.checkout-resume-timer-card,
+.checkout-paid-receipt,
+.checkout-paid-hero,
+.checkout-paid-share,
+.checkout-paid-affiliate-stats,
+.checkout-paid-details,
+.checkout-paid-numbers,
+.cfx-my-ticket-card,
+.cfx-my-ticket-numbers,
+.cfx-my-tickets-affiliate,
+.cfx-my-tickets-affiliate-stats,
+.affiliate-v2-card,
+.affiliate-v2-section,
+.affiliate-v2-metric-card,
+.rp-home-animal-card,
+.rp-home-dezena-card,
+.rp-home-special-card {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+input,
+textarea,
+select,
+.premium-input,
+.admin-input,
+.cfx-input,
+.checkout-paid-linkbox,
+.affiliate-v2-linkbox,
+[class*="input"],
+[class*="Input"],
+[class*="field"],
+[class*="Field"] {
+  background: #000000 !important;
+  background-color: #000000 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  caret-color: #FFD700 !important;
+  border-color: rgba(255, 215, 0, .22) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, .68) !important;
+}
+
+body,
+.public-shell,
+.premium-page,
+.admin-shell,
+.superadmin-shell,
+.saas-shell {
+  color: #FFFFFF !important;
+}
+
+a:not(.public-mobile-bottom-nav a):not(.cfx-home-bottom-nav a):not(.affiliate-v2-nav-item),
+[aria-current="page"],
+[aria-selected="true"],
+.is-active,
+.active {
+  color: #FFD700 !important;
+}
+
+button,
+a,
+[role="button"],
+summary,
+[aria-current="page"],
+[aria-selected="true"],
+.is-active,
+.active {
+  opacity: 1 !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid rgba(255, 215, 0, .78) !important;
+  outline-offset: 3px !important;
+}
+
+.premium-button,
+.neon-button,
+.admin-button-primary,
+.cfx-primary-action,
+.checkout-paid-copy,
+.checkout-paid-ticket-button,
+.checkout-paid-minhas-cotas,
+.cfx-mobile-buy-bar button,
+.rdp-mobile-purchase button,
+button[type="submit"] {
+  background: linear-gradient(135deg, #FFD700, #FFC107) !important;
+  background-color: #FFD700 !important;
+  color: #000000 !important;
+  border-color: rgba(255, 215, 0, .42) !important;
+  box-shadow: 0 14px 32px rgba(255, 193, 7, .20) !important;
+}
+
+.admin-button-secondary,
+.premium-button-outline,
+.checkout-paid-linkbox button,
+.affiliate-v2-linkbox button,
+.cfx-my-tickets-tabs button,
+.cfx-my-ticket-actions a,
+.cfx-my-ticket-actions button {
+  background: #000000 !important;
+  color: #FFD700 !important;
+  border-color: rgba(255, 215, 0, .32) !important;
+}
+
+.public-mobile-bottom-nav,
+.premium-site-header,
+.cfx-my-tickets-topbar,
+.checkout-paid-header,
+.affiliate-v2-header {
+  border-color: rgba(255, 215, 0, .14) !important;
+  box-shadow: 0 0 0 1px rgba(255, 215, 0, .08), 0 18px 48px rgba(0, 0, 0, .58) !important;
+}
+
+.glass-card,
+.premium-card,
+.admin-card,
+.checkout-card,
+.checkout-info-card,
+.checkout-summary-card,
+.checkout-paid-details,
+.checkout-paid-numbers,
+.cfx-my-ticket-card,
+.cfx-my-ticket-numbers,
+.affiliate-v2-card {
+  border-color: rgba(255, 215, 0, .10) !important;
+  box-shadow: 0 0 0 1px rgba(255, 215, 0, .055), 0 18px 44px rgba(0, 0, 0, .64) !important;
+}
+
+.cfx-qr-wrap,
+.cp-qr-wrap,
+.cfx-pix-premium .cfx-qr-wrap,
+.cfx-pix-premium .cfx-qr-code,
+.checkout-resume-page [class*="qr"],
+.checkout-resume-page [class*="QR"],
+.affiliate-premium [class*="qr"],
+.affiliate-premium [class*="QR"] {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+/* TRUE FINAL CTA LOCK: matches the large purchase button on mobile and desktop. */
+.cfx-detail-buybox .cfx-checkout-row button,
+.public-shell .media-info-block .premium-button,
+.public-shell .cfx-home-page .media-info-block .premium-button,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button,
+.cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit {
+  display: grid !important;
+  width: 100% !important;
+  min-height: 68px !important;
+  grid-template-columns: 1fr !important;
+  place-items: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  padding: 14px 16px !important;
+  text-align: center !important;
+  letter-spacing: 0 !important;
+  text-decoration: none !important;
+  text-shadow: none !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .24), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button > span,
+.public-shell .media-info-block .premium-button,
+.public-shell .media-info-block .premium-button > span,
+.public-shell .cfx-home-page .media-info-block .premium-button,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button > span,
+.cfx-review-submit,
+.cfx-review-submit > span,
+.cfx-fast-pix-checkout .cfx-review-submit,
+.cfx-fast-pix-checkout .cfx-review-submit > span {
+  color: #FFFFFF !important;
+  font-size: clamp(1.05rem, 5.4vw, 1.45rem) !important;
+  font-weight: 950 !important;
+  line-height: 1.05 !important;
+  text-transform: uppercase !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button svg,
+.public-shell .media-info-block .premium-button svg,
+.public-shell .cfx-home-page .media-info-block .premium-button svg,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button svg,
+.premium-page .media-info-block .premium-button svg,
+.cfx-review-submit svg,
+.cfx-fast-pix-checkout .cfx-review-submit svg {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button small {
+  color: rgba(18, 9, 0, .72) !important;
+  font-size: clamp(.7rem, 3.2vw, .82rem) !important;
+  font-weight: 800 !important;
+}
+
+.cfx-detail-buybox .cfx-checkout-row button:hover,
+.public-shell .media-info-block .premium-button:hover,
+.public-shell .cfx-home-page .media-info-block .premium-button:hover,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button:hover,
+.premium-page .media-info-block .premium-button:hover,
+.cfx-review-submit:hover,
+.cfx-fast-pix-checkout .cfx-review-submit:hover {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 16px 44px rgba(246, 178, 31, .24), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+@media (max-width: 640px) {
+  .cfx-detail-buybox .cfx-checkout-row button,
+  .public-shell .media-info-block .premium-button,
+  .public-shell .cfx-home-page .media-info-block .premium-button,
+  .public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+  .premium-page .media-info-block .premium-button,
+  .cfx-review-submit,
+  .cfx-fast-pix-checkout .cfx-review-submit {
+    min-height: 58px !important;
+    border-radius: 16px !important;
+    padding: 12px 14px !important;
+  }
+}
+
+/* EOF CTA OVERRIDE: single visual source for Participar, Comprar and Continuar. */
+.cfx-main-purchase-cta,
+a.cfx-main-purchase-cta,
+button.cfx-main-purchase-cta,
+.cfx-v1-primary-cta.cfx-main-purchase-cta,
+.cfx-detail-buybox .cfx-checkout-row button.cfx-main-purchase-cta,
+.cfx-review-submit.cfx-main-purchase-cta,
+.checkout-primary-action-button.cfx-main-purchase-cta {
+  display: inline-flex !important;
+  width: 100% !important;
+  min-height: 58px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  padding: 12px 14px !important;
+  font-size: clamp(1rem, 4.6vw, 1.18rem) !important;
+  font-weight: 700 !important;
+  line-height: 1.05 !important;
+  letter-spacing: 0 !important;
+  text-align: center !important;
+  text-decoration: none !important;
+  text-transform: uppercase !important;
+  text-shadow: none !important;
+  box-shadow: 0 14px 32px rgba(246, 178, 31, .22), inset 0 1px 0 rgba(255, 255, 255, .30) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cfx-main-purchase-cta *,
+.cfx-main-purchase-cta > span,
+.cfx-main-purchase-cta small,
+.cfx-main-purchase-cta svg {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  fill: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+  font-size: inherit !important;
+  font-weight: 700 !important;
+  line-height: 1.05 !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+.cfx-main-purchase-cta small {
+  display: none !important;
+}
+
+.cfx-main-purchase-cta:hover,
+a.cfx-main-purchase-cta:hover,
+button.cfx-main-purchase-cta:hover,
+.cfx-main-purchase-cta:active,
+a.cfx-main-purchase-cta:active,
+button.cfx-main-purchase-cta:active {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 14px 32px rgba(246, 178, 31, .22), inset 0 1px 0 rgba(255, 255, 255, .30) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.cfx-main-purchase-cta:focus-visible,
+a.cfx-main-purchase-cta:focus-visible,
+button.cfx-main-purchase-cta:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, .88) !important;
+  outline-offset: 3px !important;
+}
+
+@media (min-width: 641px) {
+  .cfx-main-purchase-cta,
+  a.cfx-main-purchase-cta,
+  button.cfx-main-purchase-cta,
+  .cfx-v1-primary-cta.cfx-main-purchase-cta,
+  .cfx-detail-buybox .cfx-checkout-row button.cfx-main-purchase-cta,
+  .cfx-review-submit.cfx-main-purchase-cta,
+  .checkout-primary-action-button.cfx-main-purchase-cta {
+    min-height: 68px !important;
+    border-radius: 18px !important;
+    padding: 14px 16px !important;
+    font-size: clamp(1.08rem, 1.35vw, 1.45rem) !important;
+  }
+}
+
+/* PUBLIC PRIMARY CTA - DOM-applied class for the three main public flow buttons. */
+.public-primary-cta,
+a.public-primary-cta,
+button.public-primary-cta,
+.checkout-primary-action-button.public-primary-cta,
+.cfx-v1-primary-cta.public-primary-cta,
+.cfx-detail-buybox .cfx-checkout-row button.public-primary-cta,
+.cfx-mobile-buy-bar button.public-primary-cta {
+  display: inline-flex !important;
+  width: 100% !important;
+  min-height: 58px !important;
+  height: auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  padding: 12px 14px !important;
+  font-size: clamp(1rem, 4.6vw, 1.18rem) !important;
+  font-weight: 700 !important;
+  line-height: 1.05 !important;
+  letter-spacing: 0 !important;
+  text-align: center !important;
+  text-decoration: none !important;
+  text-transform: uppercase !important;
+  text-shadow: none !important;
+  box-shadow: 0 14px 32px rgba(246, 178, 31, .22), inset 0 1px 0 rgba(255, 255, 255, .30) !important;
+  filter: none !important;
+  transform: none !important;
+  appearance: none !important;
+}
+
+.public-primary-cta *,
+.public-primary-cta > span,
+.public-primary-cta svg {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  fill: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+  font-size: inherit !important;
+  font-weight: 700 !important;
+  line-height: 1.05 !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+.public-primary-cta small {
+  display: none !important;
+}
+
+.public-primary-cta:hover,
+a.public-primary-cta:hover,
+button.public-primary-cta:hover,
+.checkout-primary-action-button.public-primary-cta:hover,
+.public-primary-cta:active,
+a.public-primary-cta:active,
+button.public-primary-cta:active,
+.checkout-primary-action-button.public-primary-cta:active {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 14px 32px rgba(246, 178, 31, .22), inset 0 1px 0 rgba(255, 255, 255, .30) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.public-primary-cta:focus-visible,
+a.public-primary-cta:focus-visible,
+button.public-primary-cta:focus-visible,
+.checkout-primary-action-button.public-primary-cta:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, .88) !important;
+  outline-offset: 3px !important;
+}
+
+@media (min-width: 641px) {
+  .public-primary-cta,
+  a.public-primary-cta,
+  button.public-primary-cta,
+  .checkout-primary-action-button.public-primary-cta,
+  .cfx-v1-primary-cta.public-primary-cta,
+  .cfx-detail-buybox .cfx-checkout-row button.public-primary-cta,
+  .cfx-mobile-buy-bar button.public-primary-cta {
+    min-height: 68px !important;
+    border-radius: 18px !important;
+    padding: 14px 16px !important;
+    font-size: clamp(1.08rem, 1.35vw, 1.45rem) !important;
+  }
+}
+
+/* FINAL WHITE CTA TEXT LOCK */
+.public-primary-cta,
+a.public-primary-cta,
+button.public-primary-cta,
+.checkout-primary-action-button.public-primary-cta,
+.premium-button.public-primary-cta,
+.public-primary-cta *,
+.public-primary-cta span,
+.public-primary-cta strong,
+.public-primary-cta p,
+.public-primary-cta div,
+.public-primary-cta small,
+.public-primary-cta svg,
+.public-primary-cta svg *,
+.checkout-primary-action-button.public-primary-cta *,
+.checkout-primary-action-button.public-primary-cta svg,
+.checkout-primary-action-button.public-primary-cta svg * {
+  color: #FFFFFF !important;
+  fill: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  text-shadow: none !important;
+}
+
+.public-primary-cta,
+a.public-primary-cta,
+button.public-primary-cta,
+.checkout-primary-action-button.public-primary-cta,
+.premium-button.public-primary-cta {
+  display: inline-flex !important;
+  width: 100% !important;
+  min-height: 58px !important;
+  height: auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  padding: 12px 14px !important;
+  font-size: clamp(1rem, 4.6vw, 1.18rem) !important;
+  font-weight: 700 !important;
+  line-height: 1.05 !important;
+  letter-spacing: 0 !important;
+  text-align: center !important;
+  text-decoration: none !important;
+  text-transform: uppercase !important;
+  box-shadow: 0 14px 32px rgba(246, 178, 31, .22), inset 0 1px 0 rgba(255, 255, 255, .30) !important;
+  filter: none !important;
+  transform: none !important;
+  appearance: none !important;
+}
+
+.public-primary-cta *,
+.public-primary-cta span,
+.public-primary-cta strong,
+.public-primary-cta p,
+.public-primary-cta div,
+.public-primary-cta svg {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  font-size: inherit !important;
+  font-weight: 700 !important;
+  line-height: 1.05 !important;
+  box-shadow: none !important;
+}
+
+.public-primary-cta small {
+  display: none !important;
+}
+
+.public-primary-cta:hover,
+a.public-primary-cta:hover,
+button.public-primary-cta:hover,
+.checkout-primary-action-button.public-primary-cta:hover,
+.premium-button.public-primary-cta:hover,
+.public-primary-cta:active,
+a.public-primary-cta:active,
+button.public-primary-cta:active,
+.checkout-primary-action-button.public-primary-cta:active,
+.premium-button.public-primary-cta:active {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  fill: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  box-shadow: 0 14px 32px rgba(246, 178, 31, .22), inset 0 1px 0 rgba(255, 255, 255, .30) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+@media (min-width: 641px) {
+  .public-primary-cta,
+  a.public-primary-cta,
+  button.public-primary-cta,
+  .checkout-primary-action-button.public-primary-cta,
+  .premium-button.public-primary-cta {
+    min-height: 68px !important;
+    border-radius: 18px !important;
+    padding: 14px 16px !important;
+    font-size: clamp(1.08rem, 1.35vw, 1.45rem) !important;
+  }
+}
+
+/* Receipt continue button: stays at the bottom and keeps pure white icon/text. */
+.cfx-fast-pix-checkout > .public-primary-cta,
+.cfx-fast-pix-checkout > .checkout-primary-action-button.public-primary-cta {
+  order: 99 !important;
+  margin-top: 12px !important;
+  margin-bottom: 0 !important;
+  align-self: stretch !important;
+  position: static !important;
+  top: auto !important;
+  bottom: auto !important;
+}
+
+.public-primary-cta svg,
+.public-primary-cta svg *,
+.checkout-primary-action-button.public-primary-cta svg,
+.checkout-primary-action-button.public-primary-cta svg * {
+  color: #FFFFFF !important;
+  fill: none !important;
+  stroke: #FFFFFF !important;
+  filter: none !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  drop-shadow: none !important;
+  -webkit-filter: none !important;
+}
+
+@media (max-width: 640px) {
+  .cfx-fast-pix-checkout {
+    padding-bottom: calc(5.25rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  .cfx-fast-pix-checkout > .public-primary-cta,
+  .cfx-fast-pix-checkout > .checkout-primary-action-button.public-primary-cta {
+    position: sticky !important;
+    bottom: calc(.75rem + env(safe-area-inset-bottom)) !important;
+    z-index: 35 !important;
+    order: 99 !important;
+    margin-top: 14px !important;
+  }
+}
+
+/* Receipt CTA final cleanup: no icon, no black inner surface, yellow button only. */
+.cfx-fast-pix-checkout > .public-primary-cta,
+.cfx-fast-pix-checkout > .checkout-primary-action-button.public-primary-cta,
+button.checkout-primary-action-button.public-primary-cta {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  background-color: #f6b21f !important;
+  background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+
+.cfx-fast-pix-checkout > .public-primary-cta *,
+.cfx-fast-pix-checkout > .checkout-primary-action-button.public-primary-cta *,
+button.checkout-primary-action-button.public-primary-cta * {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+}

@@ -17,11 +17,11 @@ export function Navbar() {
   const { customer } = useCustomerStore();
   const showAffiliatesPublic = settings?.publicModules?.affiliates !== false;
   const bottomNavItems = [
-    { label: "Início", to: "/", icon: Home, active: location.pathname === "/" && !location.hash },
-    { label: "Sorteios", to: "/sorteios", icon: Ticket, active: location.pathname.startsWith("/raffle") || location.pathname === "/sorteios" },
-    { label: "Ganhadores", to: "/ganhadores", icon: Trophy, active: location.pathname === "/ganhadores" },
-    { label: "Bilhetes", to: "/meus-bilhetes", icon: Ticket, active: ["/meus-bilhetes", "/minhas-cotas", "/meus-numeros", "/meus-jogos"].includes(location.pathname) },
-    { label: "Notific.", to: "/mensagens", icon: Bell, active: location.pathname === "/mensagens" || location.pathname === "/contato" }
+    { label: "Início", to: "/", icon: Home, iconColor: "text-[#38BDF8]", active: location.pathname === "/" && !location.hash },
+    { label: "Sorteios", to: "/sorteios", icon: Ticket, iconColor: "text-[#FFD700]", active: location.pathname.startsWith("/raffle") || location.pathname === "/sorteios" },
+    { label: "Ganhadores", to: "/ganhadores", icon: Trophy, iconColor: "text-[#22C55E]", active: location.pathname === "/ganhadores" },
+    { label: "Bilhetes", to: "/meus-bilhetes", icon: Ticket, iconColor: "text-[#FFD700]", active: ["/meus-bilhetes", "/minhas-cotas", "/meus-numeros", "/meus-jogos"].includes(location.pathname) },
+    { label: "Notific.", to: "/mensagens", icon: Bell, iconColor: "text-[#FB923C]", active: location.pathname === "/mensagens" || location.pathname === "/contato" }
   ];
 
   useEffect(() => {
@@ -112,7 +112,7 @@ export function Navbar() {
 
   return (
     <>
-      <nav className={`premium-site-header sticky top-0 z-[80] h-[68px] border-b border-[var(--theme-border)] bg-[var(--theme-surface-strong)]/90 backdrop-blur-2xl transition-transform duration-300 ${heroVideoCinema && !isAdmin ? "-translate-y-full" : "translate-y-0"}`}>
+      <nav className={`premium-site-header sticky top-0 z-[80] h-[68px] border-b border-white/15 bg-black transition-transform duration-300 ${heroVideoCinema && !isAdmin ? "-translate-y-full" : "translate-y-0"}`}>
         <div className="app-content-container flex h-full items-center justify-between gap-3">
           <Link to="/" onClick={goHomeTop} className="group flex min-w-0 items-center gap-2.5 sm:gap-3" aria-label="Ir para a página principal">
             <PublicBrandMark
@@ -128,7 +128,7 @@ export function Navbar() {
             <div className="relative">
             <button
               onClick={() => setOpen(!open)}
-              className="touch-target w-10 h-10 rounded-full border border-[var(--theme-border)] bg-[var(--theme-surface)] hover:bg-[var(--theme-surface-strong)] flex items-center justify-center text-[var(--theme-text)] transition-colors active:scale-95"
+              className="touch-target w-10 h-10 rounded-full border border-white/25 bg-black flex items-center justify-center text-white transition-colors"
               aria-label="Abrir menu da conta"
               title="Menu da conta"
             >
@@ -141,7 +141,7 @@ export function Navbar() {
             </button>
 
             {open && (
-              <div className="absolute right-0 top-12 w-[min(16rem,calc(100vw-1rem))] rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-surface-strong)] text-[var(--theme-text)] backdrop-blur-2xl shadow-2xl overflow-visible">
+              <div className="absolute right-0 top-12 w-[min(16rem,calc(100vw-1rem))] rounded-2xl border border-white/20 bg-black text-white overflow-visible">
                 {settings?.socialLinks?.group && (
                   <a onClick={() => setOpen(false)} href={settings.socialLinks.group} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white">
                     <Users className="w-4 h-4 text-[var(--theme-primary)]" /> Participar do grupo
@@ -173,15 +173,15 @@ export function Navbar() {
       </nav>
 
       {!isAdmin && !heroVideoCinema && (
-        <nav className="public-mobile-bottom-nav fixed inset-x-3 bottom-3 z-50 rounded-[20px] border border-white/10 bg-[#141417]/92 p-1.5 shadow-[0_22px_70px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:hidden" aria-label="Menu inferior">
+        <nav className="public-mobile-bottom-nav fixed inset-x-3 bottom-3 z-50 rounded-[20px] border border-white/15 bg-black p-1.5 md:hidden" aria-label="Menu inferior">
           <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${bottomNavItems.length}, minmax(0, 1fr))` }}>
             {bottomNavItems.map(item => {
               const Icon = item.icon;
-              const className = `relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-black transition ${item.active ? "border border-amber-300/55 bg-amber-400/15 text-amber-200 shadow-[0_10px_30px_rgba(246,178,31,0.24)]" : "text-[#A1A1AA] hover:bg-amber-400/10 hover:text-white"}`;
+              const className = `relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-black transition ${item.active ? "text-white" : "text-[#F5F5F5] hover:text-white"}`;
               const content = (
                 <>
                   <span className="flex h-5 items-center justify-center">
-                    <Icon className="h-5 w-5" />
+                    <Icon className={`h-5 w-5 ${item.iconColor}`} />
                   </span>
                   <span className="max-w-full truncate">{item.label}</span>
                 </>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { CalendarDays, Camera, CheckCircle2, ChevronRight, Clock3, Coins, FileText, Gift, LockKeyhole, LogOut, Megaphone, MessageCircle, ReceiptText, Save, Sparkles, Ticket, Trophy, UploadCloud, User, Users, WalletCards } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { CalendarDays, Camera, CheckCircle2, ChevronRight, Clock3, Coins, FileText, Gift, LockKeyhole, Megaphone, MessageCircle, ReceiptText, Save, Sparkles, Ticket, Trophy, UploadCloud, User, Users, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { useCustomerStore } from "../store/useCustomerStore";
@@ -27,8 +27,7 @@ function toSafeNumber(value: unknown, fallback = 0) {
 
 export function Dashboard() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { customer, setCustomer, clearCustomer } = useCustomerStore();
+  const { customer, setCustomer } = useCustomerStore();
   const [purchases, setPurchases] = useState<any[]>([]);
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [expandedPurchase, setExpandedPurchase] = useState<string | null>(null);
@@ -194,14 +193,6 @@ export function Dashboard() {
     }
   };
 
-  const logoutCustomer = () => {
-    clearCustomer();
-    setUnlocked(false);
-    setAreaPassword("");
-    toast.success("Você saiu com sucesso");
-    navigate("/", { replace: true });
-  };
-
   const unlockArea = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customer) return;
@@ -267,9 +258,6 @@ export function Dashboard() {
           />
           <button className="cfx-customer-cta mt-5 w-full rounded-xl py-4">
             Entrar
-          </button>
-          <button type="button" onClick={logoutCustomer} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08]">
-            <LogOut className="h-4 w-4" /> Sair
           </button>
         </form>
       </div>
@@ -420,9 +408,6 @@ export function Dashboard() {
             <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/10 border border-amber-300/30 text-amber-200 text-xs font-semibold">
               {Number(customer.totalTickets || 0).toLocaleString("pt-BR")} cotas compradas
             </div>
-            <button type="button" onClick={logoutCustomer} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/[0.08]">
-              <LogOut className="h-4 w-4" /> Sair
-            </button>
           </div>
 
           <div className="cfx-customer-panel overflow-hidden">

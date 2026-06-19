@@ -133,7 +133,10 @@ function SuperAdminLayoutContent() {
                 <ExternalLink className="h-5 w-5" />
               </Link>
               <NotificationBell centerPath="/superadmin/notificacoes" />
-              <button type="button" onClick={() => void signOut()} className="admin-icon-button" title="Sair" aria-label="Sair">
+              <button type="button" onClick={() => void signOut()} className="admin-button-secondary hidden h-10 items-center gap-2 px-3 text-xs sm:inline-flex" title="Logout" aria-label="Logout do Superadmin">
+                <LogOut className="h-4 w-4" /> Logout
+              </button>
+              <button type="button" onClick={() => void signOut()} className="admin-icon-button sm:hidden" title="Logout" aria-label="Logout do Superadmin">
                 <LogOut className="h-5 w-5" />
               </button>
             </div>

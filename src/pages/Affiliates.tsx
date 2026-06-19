@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import {
   Banknote,
@@ -34,6 +35,7 @@ import { useCustomerStore } from "../store/useCustomerStore";
 import type { AffiliateStats } from "../types";
 import { cn } from "../lib/utils";
 import { uploadCustomerProfilePhoto } from "../utils/customerMedia";
+import { PublicBrandMark } from "../components/branding/PublicBrandMark";
 
 type AffiliateCampaignLink = {
   publicId: string;
@@ -449,10 +451,9 @@ export function Affiliates() {
       <div className="affiliate-v2-shell">
         <header className="affiliate-v2-header">
           <button className="affiliate-v2-icon-button" type="button" aria-label="Voltar">‹</button>
-          <div className="text-center">
-            <p className="affiliate-v2-brand">Rifa Pro</p>
-            <p className="affiliate-v2-subbrand">Premium 2.0</p>
-          </div>
+          <Link to="/" className="affiliate-v2-home-brand" aria-label="Ir para a Home">
+            <PublicBrandMark eager inline logoClassName="affiliate-v2-logo" nameClassName="affiliate-v2-brand" />
+          </Link>
           <button className="affiliate-v2-icon-button" type="button" aria-label="Menu">☰</button>
         </header>
 

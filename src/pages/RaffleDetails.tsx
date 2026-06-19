@@ -1044,7 +1044,7 @@ function MobilePurchaseBar({
         <span>{raffle.title}</span>
         <strong>A partir de {formatCurrency(minimumValue)}</strong>
       </div>
-      <button type="button" onClick={onParticipate}>
+      <button type="button" onClick={onParticipate} className="public-primary-cta">
         Comprar Agora
       </button>
     </div>
@@ -1237,7 +1237,7 @@ function NumberSelectionPanel({
         <span><small>Quantidade</small><strong>{tickets.toLocaleString("pt-BR")}</strong></span>
         <span><small>Valor unitário</small><strong>{formatCurrency(unitPrice)}</strong></span>
         <span><small>Total calculado</small><strong>{formatCurrency(totalValue)}</strong></span>
-        <button type="button" onClick={onParticipate} disabled={isSubmitting}>
+        <button type="button" onClick={onParticipate} disabled={isSubmitting} className="public-primary-cta">
           <span><Ticket /> COMPRAR AGORA</span>
           <small><Lock /> Pagamento via PIX 100% seguro</small>
         </button>
@@ -1485,8 +1485,8 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         </div>
       </section>
 
-      <CheckoutPrimaryActionButton type="submit" disabled={props.isSubmitting} className="cfx-review-submit cfx-fast-pix-submit disabled:opacity-45">
-        <WalletCards /> {props.isSubmitting ? "CARREGANDO RECIBO..." : "Continuar para o recibo"}
+      <CheckoutPrimaryActionButton type="submit" disabled={props.isSubmitting} className="public-primary-cta disabled:opacity-45">
+        {props.isSubmitting ? "CARREGANDO RECIBO..." : "Continuar para o recibo"}
       </CheckoutPrimaryActionButton>
     </form>
   );

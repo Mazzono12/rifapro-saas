@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -15,6 +15,7 @@ import {
   Globe2,
   LayoutDashboard,
   ListChecks,
+  LogOut,
   Menu,
   MessageSquare,
   PlaySquare,
@@ -39,12 +40,15 @@ import { cn } from "../../lib/utils";
 import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
 import { supportSessionStorageKey } from "../../lib/authSession";
 import { NotificationBell } from "../../components/notifications/NotificationBell";
+import { useAuth } from "../../context/auth/AuthContext";
 
 // Compatibilidade de auditoria hard: rotas historicas "Rifas", "Relatórios", "CRM" e "Pagamentos PIX" permanecem em App.tsx; menu visivel usa rotulos curtos.
 // mobile-global-layout contract: w-[min(88vw,288px)] overflow-y-auto
 
 function AdminLayoutContent() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const auth = useAuth();
   const { theme } = useAdminTheme();
   const { branding } = useTenantBranding();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("cifher.admin.sidebar") === "collapsed" || localStorage.getItem("rifapro.admin.sidebar") === "collapsed");
@@ -100,6 +104,11 @@ function AdminLayoutContent() {
     localStorage.removeItem(supportSessionStorageKey);
     setSupportSessionId("");
     window.location.href = "/superadmin";
+  }
+
+  async function signOut() {
+    await auth.logout();
+    navigate("/login", { replace: true });
   }
 
   const navItems = useMemo<SidebarNavItem[]>(() => [
@@ -169,6 +178,12 @@ function AdminLayoutContent() {
               <ExternalLink className="h-5 w-5" />
             </Link>
             <NotificationBell />
+            <button type="button" onClick={() => void signOut()} className="admin-button-secondary hidden h-10 items-center gap-2 px-3 text-xs sm:inline-flex" title="Logout" aria-label="Logout do Admin">
+              <LogOut className="h-4 w-4" /> Logout
+            </button>
+            <button type="button" onClick={() => void signOut()} className="admin-icon-button sm:hidden" title="Logout" aria-label="Logout do Admin">
+              <LogOut className="h-5 w-5" />
+            </button>
             <div className="hidden items-center gap-3 rounded-[10px] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-1.5 xl:flex">
               <div className="grid h-8 w-8 place-items-center rounded-[8px] bg-[var(--admin-primary)] text-xs font-semibold text-[var(--admin-button-text)]">AD</div>
               <div className="text-right">

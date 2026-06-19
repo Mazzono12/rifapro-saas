@@ -137,7 +137,7 @@ export function StandardRaffleMediaBlock({
               </span>
             )}
             {href && (
-              <Link to={href} className="premium-button min-h-12 justify-center px-6 py-3 text-sm">
+              <Link to={href} className="public-primary-cta">
                 {ctaLabel}
               </Link>
             )}

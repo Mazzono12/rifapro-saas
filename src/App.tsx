@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import { Navbar } from "./components/Navbar";
 import { PublicBottomNav } from "./components/PublicBottomNav";
@@ -12,6 +12,7 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { PwaInstallPrompt } from "./components/pwa/PwaInstallPrompt";
 import { useCustomerStore } from "./store/useCustomerStore";
 import { AdminSectionBoundary } from "./components/admin/AdminSectionBoundary";
+import { ArrowLeft } from "lucide-react";
 
 // Track Ref Custom Hook
 function GlobalTracking() {
@@ -269,7 +270,18 @@ function CustomerAccessGate({ children }: { children: React.ReactNode }) {
     hydrateCustomer();
   }, [hydrateCustomer]);
 
-  if (customer) return <>{children}</>;
+  if (customer) {
+    return (
+      <>
+        <div className="customer-area-top-actions">
+          <Link to="/" className="customer-area-top-button">
+            <ArrowLeft className="h-4 w-4" /> Início
+          </Link>
+        </div>
+        {children}
+      </>
+    );
+  }
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
