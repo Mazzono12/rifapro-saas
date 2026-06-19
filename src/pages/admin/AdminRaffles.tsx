@@ -241,15 +241,15 @@ export function AdminRaffles() {
   };
 
   return (
-    <div className="space-y-6 fade-in">
-       <div className="flex justify-between items-center">
+    <div className="space-y-5 fade-in">
+       <div className="admin-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
          <div>
-            <h1 className="text-3xl font-display font-bold text-white">Campanhas</h1>
-            <p className="mt-2 text-sm text-slate-400">Crie, publique e acompanhe suas campanhas comerciais.</p>
+            <h1 className="text-2xl font-semibold text-white">Campanhas</h1>
+            <p className="mt-1 text-sm text-[var(--admin-muted)]">Crie, publique e acompanhe suas campanhas.</p>
          </div>
          <button 
            onClick={() => { setCurrentRaffle({ status: 'active', minPurchaseTickets: 1, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, topSellerRewards: normalizeTopSellerRewards(), pixConfig: normalizeRafflePixDraft(), heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", editionLabel: "1ª EDIÇÃO", homeEditionLabel: "1ª EDIÇÃO", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
-           className="bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/50 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
+           className="admin-button inline-flex min-h-11 items-center justify-center gap-2 px-5"
          >
            <Plus className="w-4 h-4" /> Nova campanha
          </button>
@@ -260,7 +260,7 @@ export function AdminRaffles() {
            <div className="glass-card p-5 border border-neon-cyan/20 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
              <div>
                <button onClick={() => { setSelectedRaffle(null); setRaffleAdmin(null); }} className="mb-3 inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white">
-                 <ArrowLeft className="w-4 h-4" /> Voltar para rifas
+                 <ArrowLeft className="w-4 h-4" /> Voltar para campanhas
                </button>
                <h2 className="text-3xl font-display font-bold text-white">{selectedRaffle.title}</h2>
                <p className="text-slate-400 text-sm mt-1">Acompanhamento individual da campanha selecionada.</p>
@@ -822,18 +822,12 @@ export function AdminRaffles() {
        ) : (
           <div className="grid gap-4">
             {raffles.length === 0 ? (
-              <div className="glass-card rounded-3xl border border-emerald-300/15 bg-emerald-300/[0.04] p-8 text-center">
-                <Ticket className="mx-auto h-10 w-10 text-emerald-300" />
-                <h2 className="mt-4 text-2xl font-display font-bold text-white">Nenhuma campanha disponível.</h2>
-                <p className="mx-auto mt-2 max-w-xl text-sm text-slate-400">
-                  Nenhum registro encontrado.
+              <div className="admin-card rounded-2xl p-5 text-center">
+                <Ticket className="mx-auto h-8 w-8 text-[var(--admin-primary)]" />
+                <h2 className="mt-3 text-lg font-semibold text-white">Você ainda não possui campanhas cadastradas.</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm text-[var(--admin-muted)]">
+                  Use o botão Nova campanha no topo para criar a primeira campanha.
                 </p>
-                <button
-                  onClick={() => { setCurrentRaffle({ status: 'active', minPurchaseTickets: 1, lootboxEnabled: true, lootboxConfig: normalizeLootboxConfig(), videoConfig: defaultVideoConfig, topSellerRewards: normalizeTopSellerRewards(), pixConfig: normalizeRafflePixDraft(), heroContentPlacement: "below", heroEyebrow: "Experiência premium", homeTitle: "Sorteios com experiência cinematográfica.", homeSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", homeHighlightText: "", editionLabel: "1ª EDIÇÃO", homeEditionLabel: "1ª EDIÇÃO", heroTitle: "Sorteios com experiência cinematográfica.", heroSubtitle: "Vídeo em tela cheia, ranking ao vivo, Super Cotas, PIX e caixinha surpresa.", heroPrimaryButton: "Participar agora", heroShowStats: true, showHomeText: true, showHomePrice: true }); setIsEditing(true); }}
-                  className="neon-button mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3"
-                >
-                  <Plus className="h-4 w-4" /> Nova campanha
-                </button>
               </div>
             ) : raffles.map(r => (
                <div key={r.id} className="glass-card p-4 rounded-xl border border-white/5 flex flex-col md:flex-row gap-6 items-center">
