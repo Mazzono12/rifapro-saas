@@ -10,10 +10,10 @@ const acceptedMedia = ".jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm,.wmv,.wma,.wmi
 type MediaUsage = "hero" | "story" | "winner" | "card";
 
 const mediaUsageProfiles: Record<MediaUsage, { title: string; size: string; ratio: string; aspect: ResponsiveMediaAspectMode; tone: string }> = {
-  hero: { title: "Banner Hero", size: "1920x1080", ratio: "16:9", aspect: "horizontal", tone: "border-cyan-300/25 bg-cyan-400/10 text-cyan-100" },
-  story: { title: "Story", size: "1080x1920", ratio: "9:16", aspect: "story", tone: "border-violet-300/25 bg-violet-400/10 text-violet-100" },
-  winner: { title: "Ganhador", size: "1080x1080", ratio: "1:1", aspect: "square", tone: "border-amber-300/30 bg-amber-400/10 text-amber-100" },
-  card: { title: "Card", size: "1080x1080", ratio: "1:1", aspect: "square", tone: "border-emerald-300/25 bg-emerald-400/10 text-emerald-100" }
+  hero: { title: "Banner Hero", size: "1920x1080", ratio: "16:9", aspect: "horizontal", tone: "border-blue-100 bg-blue-50 text-slate-700" },
+  story: { title: "Story", size: "1080x1920", ratio: "9:16", aspect: "story", tone: "border-blue-100 bg-blue-50 text-slate-700" },
+  winner: { title: "Ganhador", size: "1080x1080", ratio: "1:1", aspect: "square", tone: "border-slate-200 bg-slate-100 text-slate-600" },
+  card: { title: "Card", size: "1080x1080", ratio: "1:1", aspect: "square", tone: "border-blue-100 bg-blue-50 text-slate-700" }
 };
 
 function detectMediaUsage(label: string, explicit?: MediaUsage): MediaUsage {
@@ -163,7 +163,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
   };
 
   return (
-    <div className="rounded-lg border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-xs font-semibold text-[var(--admin-muted)]">
           <ImagePlus className="h-4 w-4 text-[var(--admin-primary)]" /> {label}
@@ -180,7 +180,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
         </p>
       </div>
       <div className="grid gap-4">
-        <label className="admin-button-secondary inline-flex min-h-12 cursor-pointer items-center justify-center gap-2">
+        <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-blue-200 hover:bg-blue-50">
           <UploadCloud className="h-4 w-4" /> {uploading ? "Enviando..." : "Subir da galeria"}
           <input
             type="file"
@@ -194,20 +194,20 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
             className="sr-only"
           />
         </label>
-        {allowExternalLink && <div className="rounded-lg border border-[var(--admin-border)] p-3">
+        {allowExternalLink && <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
           <label className="block space-y-2">
             <span className="flex items-center gap-2 text-xs font-semibold text-[var(--admin-muted)]">
               <Link2 className="h-4 w-4" /> URL de mídia da campanha
             </span>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex flex-col gap-2 2xl:flex-row">
               <input
                 type="url"
                 value={externalUrl}
                 onChange={event => setExternalUrl(event.target.value)}
                 placeholder={allowExternalVideo ? "Imagem, GIF, vídeo, YouTube/Vimeo ou MediaDelivery" : "Link de imagem .jpg/.png/.webp/.gif"}
-                className="admin-input min-h-12 min-w-0 flex-1"
+                className="admin-input min-h-11 min-w-0 flex-1 bg-white"
               />
-              <button type="button" onClick={applyExternalMedia} className="admin-button-secondary min-h-12 shrink-0">
+              <button type="button" onClick={applyExternalMedia} className="min-h-11 shrink-0 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-blue-200 hover:bg-blue-50">
                 Aplicar link
               </button>
             </div>
@@ -222,37 +222,37 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
       </div>
       {value && (
         <>
-          <div className="mt-3 break-all rounded-lg border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs text-[var(--admin-text)]">
+          <div className="mt-3 break-all rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-slate-700">
             Mídia selecionada: <span className="font-mono">{value}</span>
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <label className="grid gap-1 text-xs font-semibold text-[var(--admin-muted)]">Comportamento
-              <select value={selectedFitMode} onChange={event => updateFitMode(event.target.value as ResponsiveMediaFit)} className="admin-input">
+              <select value={selectedFitMode} onChange={event => updateFitMode(event.target.value as ResponsiveMediaFit)} className="admin-input bg-white">
                 <option value="auto">Automático</option>
                 <option value="cover">Preencher/cortar</option>
                 <option value="contain">Mostrar inteiro</option>
               </select>
             </label>
             <label className="grid gap-1 text-xs font-semibold text-[var(--admin-muted)]">Proporção preferida
-              <select value={selectedAspectPreference} onChange={event => updateAspectPreference(event.target.value as ResponsiveMediaAspectMode)} className="admin-input">
+              <select value={selectedAspectPreference} onChange={event => updateAspectPreference(event.target.value as ResponsiveMediaAspectMode)} className="admin-input bg-white">
                 {aspectOptions.map(option => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
             </label>
           </div>
-          <div className="mt-3 overflow-hidden rounded-lg border border-[var(--admin-border)] bg-black">
+          <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
             <ResponsiveMediaFrame
               src={value}
               type={(mediaType as MediaType) || inferMediaType(value)}
               autoPlay
               preferredFit={selectedFitMode}
               aspectMode={selectedAspectPreference}
-              className="max-h-[360px]"
+              className="max-h-[360px] bg-slate-50"
               onAspectDetected={setDetectedAspect}
             />
           </div>
-          <div className="mt-2 rounded-lg border border-[var(--admin-border)] bg-white/[0.03] px-3 py-2 text-xs text-[var(--admin-muted)]">
+          <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-[var(--admin-muted)]">
             Orientação detectada: <strong className="text-[var(--admin-text)]">{detectedAspect?.orientation || "aguardando mídia"}</strong>
             {detectedAspect && <span> · ratio {detectedAspect.ratio.toFixed(2)} · fit sugerido {detectedAspect.recommendedFit}</span>}
           </div>
@@ -270,3 +270,5 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
     </div>
   );
 }
+
+

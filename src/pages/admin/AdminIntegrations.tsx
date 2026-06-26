@@ -430,7 +430,7 @@ export function AdminIntegrations() {
                     <p className="font-semibold text-[var(--admin-text)]">{friendlyIntegrationName(item)}</p>
                     <p className="text-sm text-[var(--admin-muted)]">{friendlyIntegrationType(item.type)}</p>
                   </div>
-                  <span className="rounded-full border border-amber-300/35 bg-amber-400/10 px-2 py-1 text-xs font-semibold text-amber-200">{friendlyIntegrationStatus(item.status)}</span>
+                  <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{friendlyIntegrationStatus(item.status)}</span>
                 </div>
                 <div className="mt-3 text-xs text-[var(--admin-muted)]">
                   <p>Credenciais protegidas</p>
@@ -633,7 +633,7 @@ export function AdminIntegrations() {
 
           <div className="rounded-lg border border-[var(--admin-border)] p-4">
             <h3 className="mb-2 font-semibold text-[var(--admin-text)]">Enviar teste individual</h3>
-            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">Envio permitido apenas para teste individual. Campanhas e disparos em massa serão configurados em etapa futura.</p>
+            <p className="mb-4 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600">Envio permitido apenas para teste individual. Campanhas e disparos em massa serão configurados em etapa futura.</p>
             <div className="space-y-3">
               <label className="block text-sm text-[var(--admin-muted)]">
                 Número de teste
@@ -1286,3 +1286,4 @@ function friendlyOperationalMessage(value?: unknown) {
   if (/[a-f0-9]{24,}/i.test(text) || /\b(order_id|purchaseid|raffleid|provider|status_code)\b/i.test(text)) return "Detalhes técnicos protegidos pelo sistema.";
   return text.length > 120 ? `${text.slice(0, 117)}...` : text;
 }
+

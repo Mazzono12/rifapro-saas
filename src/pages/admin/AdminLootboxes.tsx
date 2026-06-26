@@ -85,13 +85,13 @@ export function AdminLootboxes() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="flex items-center gap-3 font-display text-3xl font-bold text-white">
-            <Gift className="h-8 w-8 text-amber-300" /> Roleta Premiada Global
+            <Gift className="h-8 w-8 text-slate-600" /> Roleta Premiada Global
           </h1>
           <p className="mt-2 text-sm text-slate-400">
             A mesma regra de liberação da caixinha vale para os giros. Configurações individuais ficam em cada sorteio e modalidade.
           </p>
         </div>
-        <button onClick={save} className="neon-button inline-flex items-center gap-2 rounded-xl px-5 py-3">
+        <button onClick={save} className="admin-action-button inline-flex items-center gap-2 rounded-xl px-5 py-3">
           <Save className="h-4 w-4" /> Salvar
         </button>
       </div>
@@ -99,7 +99,7 @@ export function AdminLootboxes() {
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <section className="glass-card rounded-3xl border border-white/5 p-6">
           <h2 className="mb-5 flex items-center gap-2 font-display text-xl font-bold text-white">
-            <Sparkles className="h-5 w-5 text-amber-300" /> Regras de geração
+            <Sparkles className="h-5 w-5 text-slate-600" /> Regras de geração
           </h2>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -116,7 +116,7 @@ export function AdminLootboxes() {
           <div className="mt-6">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Giros por compra confirmada</h3>
-              <button type="button" onClick={() => updateEconomy({ boxRules: [...(economy.boxRules || []), { tickets: 3, boxes: 1 }] })} className="rounded-lg border border-amber-300/20 px-3 py-1 text-xs text-amber-200">
+              <button type="button" onClick={() => updateEconomy({ boxRules: [...(economy.boxRules || []), { tickets: 3, boxes: 1 }] })} className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-600">
                 <Plus className="mr-1 inline h-3 w-3" /> Regra
               </button>
             </div>
@@ -137,7 +137,7 @@ export function AdminLootboxes() {
         <section className="glass-card rounded-3xl border border-white/5 p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <h2 className="font-display text-xl font-bold text-white">Milestones de premiação</h2>
-            <button type="button" onClick={() => updateEconomy({ milestones: [...(economy.milestones || []), { tier: "mini", everyXTickets: 500, name: "R$ 10", type: "pix", value: 10, currentCounter: 0 }] })} className="rounded-lg border border-amber-300/20 px-3 py-2 text-xs text-amber-200">
+            <button type="button" onClick={() => updateEconomy({ milestones: [...(economy.milestones || []), { tier: "mini", everyXTickets: 500, name: "R$ 10", type: "pix", value: 10, currentCounter: 0 }] })} className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600">
               <Plus className="mr-1 inline h-3 w-3" /> Prêmio
             </button>
           </div>
@@ -199,3 +199,4 @@ function Field({ label, value, onChange, type = "text" }: { label: string; value
     </label>
   );
 }
+

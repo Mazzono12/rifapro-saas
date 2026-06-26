@@ -4,14 +4,14 @@ import { cn } from "../../lib/utils";
 import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingContext";
 
 export function TenantLogo({ className, eager = false }: { className?: string; eager?: boolean }) {
-  const { branding } = useTenantBranding();
+  const { companyName, logoUrl } = useTenantBranding();
   const [failed, setFailed] = useState(false);
-  if (branding.logo_url && !failed) {
+  if (logoUrl && !failed) {
     return (
       <span className={cn("tenant-logo-slot tenant-logo-slot-image", className)}>
         <img
-          src={branding.logo_url}
-          alt={branding.header_name || branding.display_name || branding.company_name || "Logo da marca"}
+          src={logoUrl}
+          alt={companyName || "Logo RifaPro"}
           loading={eager ? "eager" : "lazy"}
           decoding="async"
           className="tenant-logo-img"

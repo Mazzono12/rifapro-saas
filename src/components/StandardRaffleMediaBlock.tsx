@@ -137,8 +137,12 @@ export function StandardRaffleMediaBlock({
               </span>
             )}
             {href && (
-              <Link to={href} className="public-primary-cta">
-                {ctaLabel}
+              <Link
+                to={href}
+                className="home-secondary-raffle-cta"
+                style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
+              >
+                <span className="home-secondary-raffle-cta-label" style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}>{ctaLabel}</span>
               </Link>
             )}
           </div>

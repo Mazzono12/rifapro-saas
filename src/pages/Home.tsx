@@ -29,7 +29,7 @@ import { PublicBrandMark } from "../components/branding/PublicBrandMark";
 
 /* public-home-premium-v1 contract: cfx-home-premium-v1 HomeV1Hero StandardRaffleMediaBlock className="cfx-home-media-block" */
 
-type RankingBuyer = { name: string; phone?: string; tickets?: number; amount?: number };
+type RankingBuyer = { name: string; phone?: string; tickets?: number; amount?: number; position?: number; prizeLabel?: string };
 type TopSellerRankingItem = {
   affiliateId?: string;
   affiliateName?: string;
@@ -643,7 +643,7 @@ function HomeV1FeaturedDraws({ raffles }: { raffles: Raffle[] }) {
               </Link>
               <div>
                 <strong>{raffle.title}</strong>
-                <Link to={`/raffle/${raffle.id}`}>Participar</Link>
+                <Link to={`/raffle/${raffle.id}`} className="home-secondary-action-cta" style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}><span>Participar</span></Link>
               </div>
             </article>
           ))}
@@ -716,7 +716,7 @@ async function loadHomeRankings(raffles: Raffle[]): Promise<RankingBuyer[]> {
     current.amount = Number(current.amount || 0) + Number(buyer.amount || 0);
     byBuyer.set(key, current);
   });
-  return [...byBuyer.values()].sort((a, b) => Number(b.tickets || 0) - Number(a.tickets || 0) || Number(b.amount || 0) - Number(a.amount || 0)).slice(0, 10);
+  return [...byBuyer.values()].sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0) || Number(b.tickets || 0) - Number(a.tickets || 0)).slice(0, 10);
 }
 
 async function loadHomeInstantRewards(raffle: Raffle): Promise<HomeInstantRewardsData> {

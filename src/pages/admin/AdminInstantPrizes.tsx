@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { Plus, Edit2, Trash2, X, Check, Star } from "lucide-react";
+import { FormEvent, useEffect, useState, type ReactNode } from "react";
+import { Check, Edit2, MoreVertical, Plus, Star, Trash2, X } from "lucide-react";
 import type { InstantPrize, Raffle } from "../../types";
+import { AdminBadge, AdminButton, AdminIconButton, AdminInput, AdminPage, AdminPageHeader, AdminSection, AdminSelect, AdminTable } from "../../components/ui/admin/AdminDesignSystem";
 
 export function AdminInstantPrizes() {
   const [prizes, setPrizes] = useState<InstantPrize[]>([]);
@@ -23,125 +24,63 @@ export function AdminInstantPrizes() {
     }).catch(() => null);
   }, []);
 
-  const filteredPrizes = selectedRaffleId === "all"
-    ? prizes
-    : prizes.filter(prize => prize.raffleId === selectedRaffleId);
+  const filteredPrizes = selectedRaffleId === "all" ? prizes : prizes.filter(prize => prize.raffleId === selectedRaffleId);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (event: FormEvent) => {
+    event.preventDefault();
     const method = currentPrize.id ? "PUT" : "POST";
     const url = currentPrize.id ? `/api/admin/instant-prizes/${currentPrize.id}` : "/api/admin/instant-prizes";
-    
+
     await fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(currentPrize)
     });
-    
+
     setIsEditing(false);
     setCurrentPrize({});
     loadPrizes();
   };
 
-  return (
-    <div className="space-y-6 fade-in">
-       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-         <div>
-            <h1 className="text-3xl font-display font-bold text-[var(--admin-text)] flex items-center gap-3">
-               <Star className="w-8 h-8" /> Super Cotas
-            </h1>
-            <p className="text-[var(--admin-muted)] font-mono text-sm tracking-widest uppercase mt-1">Cada sorteio possui sua propria lista de Super Cotas.</p>
-         </div>
-         <div className="flex flex-wrap gap-2">
-           <select value={selectedRaffleId} onChange={e => setSelectedRaffleId(e.target.value)} className="admin-input px-3 py-2">
-             <option value="all">Todos os sorteios</option>
-             {raffles.map(raffle => <option key={raffle.id} value={raffle.id}>{raffle.title}</option>)}
-           </select>
-           <button
-             onClick={() => { setCurrentPrize({ raffleId: selectedRaffleId === "all" ? raffles[0]?.id : selectedRaffleId }); setIsEditing(true); }}
-             className="admin-button"
-           >
-             <Plus className="w-4 h-4" /> Nova Super Cota
-           </button>
-         </div>
-       </div>
+  const rows = filteredPrizes.map(prize => [
+    raffles.find(raffle => raffle.id === prize.raffleId)?.title || prize.raffleId,
+    String(prize.numeroPremiado).padStart(6, "0"),
+    prize.valorPremio.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+    prize.winnerName || "-",
+    <AdminBadge tone={prize.status === "available" ? "success" : "slate"}>{prize.status === "available" ? "Disponivel" : "Resgatado"}</AdminBadge>,
+    <div className="flex justify-end gap-2"><AdminIconButton onClick={() => { setCurrentPrize(prize); setIsEditing(true); }} aria-label="Editar Super Cota"><Edit2 className="h-4 w-4" /></AdminIconButton><AdminIconButton onClick={async () => { await fetch(`/api/admin/instant-prizes/${prize.id}`, { method: "DELETE" }); loadPrizes(); }} aria-label="Excluir Super Cota"><Trash2 className="h-4 w-4" /></AdminIconButton></div>
+  ]);
 
-       {isEditing ? (
-         <div className="admin-card p-6 rounded-2xl border border-amber-400/30">
-            <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
-               <h2 className="text-xl font-bold">{currentPrize.id ? 'Editar Prêmio' : 'Criar Novo Prêmio'}</h2>
-               <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-white"><X className="w-6 h-6" /></button>
-            </div>
-            
-            <form onSubmit={handleSave} className="space-y-4">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-mono text-slate-400 mb-1">Sorteio</label>
-                    <select required className="w-full rounded-lg p-3"
-                           value={currentPrize.raffleId || ''} onChange={e => setCurrentPrize({...currentPrize, raffleId: e.target.value})}>
-                      <option value="">Selecione</option>
-                      {raffles.map(raffle => <option key={raffle.id} value={raffle.id}>{raffle.title}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono text-slate-400 mb-1">Número Premiado</label>
-                    <input required type="number" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-amber-400/50" 
-                           value={currentPrize.numeroPremiado || ''} onChange={e => setCurrentPrize({...currentPrize, numeroPremiado: parseInt(e.target.value)})} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono text-slate-400 mb-1">Valor do Prêmio (R$)</label>
-                    <input required type="number" step="0.01" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-amber-400/50" 
-                           value={currentPrize.valorPremio || ''} onChange={e => setCurrentPrize({...currentPrize, valorPremio: parseFloat(e.target.value)})} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono text-slate-400 mb-1">Nome do Ganhador</label>
-                    <input type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-amber-400/50"
-                           value={currentPrize.winnerName || ''} onChange={e => setCurrentPrize({...currentPrize, winnerName: e.target.value})} />
-                  </div>
-               </div>
-               
-               <div className="flex justify-end pt-4">
-                 <button type="submit" className="bg-amber-400 text-black px-6 py-3 rounded-lg font-bold font-mono tracking-wider flex items-center gap-2 hover:bg-white transition-colors">
-                    <Check className="w-5 h-5" /> Salvar Prêmio
-                 </button>
-               </div>
-            </form>
-         </div>
-       ) : (
-         <div className="admin-card overflow-hidden">
-            <table className="w-full text-left border-collapse whitespace-nowrap">
-              <thead>
-                <tr className="bg-cyber-900/50 text-xs font-mono text-slate-400 tracking-wider">
-                  <th className="font-semibold py-4 px-6 border-b border-white/5">RIFA ID</th>
-                  <th className="font-semibold py-4 px-6 border-b border-white/5">NÚMERO</th>
-                  <th className="font-semibold py-4 px-6 border-b border-white/5">VALOR</th>
-                  <th className="font-semibold py-4 px-6 border-b border-white/5">GANHADOR</th>
-                  <th className="font-semibold py-4 px-6 border-b border-white/5 text-center">STATUS</th>
-                  <th className="font-semibold py-4 px-6 border-b border-white/5 text-right">AÇÕES</th>
-                </tr>
-              </thead>
-              <tbody className="font-mono text-sm">
-                 {filteredPrizes.map((p, i) => (
-                    <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                       <td className="py-4 px-6 text-slate-400">{raffles.find(raffle => raffle.id === p.raffleId)?.title || p.raffleId}</td>
-                       <td className="py-4 px-6 text-amber-400 font-bold text-lg">{String(p.numeroPremiado).padStart(6, '0')}</td>
-                       <td className="py-4 px-6 text-emerald-400 font-bold">{p.valorPremio.toLocaleString('pt-BR', {style: 'currency', currency:'BRL'})}</td>
-                       <td className="py-4 px-6 text-slate-300">{p.winnerName || '—'}</td>
-                       <td className="py-4 px-6 text-center">
-                         <span className={`text-[10px] px-3 py-1 font-bold rounded-sm tracking-widest ${p.status === 'available' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'}`}>
-                           {p.status === 'available' ? 'DISPONÍVEL' : 'RESGATADO'}
-                         </span>
-                       </td>
-                       <td className="py-4 px-6 text-right">
-                          <button onClick={() => { setCurrentPrize(p); setIsEditing(true); }} className="p-2 hover:text-[var(--admin-primary)] text-slate-500 transition-colors"><Edit2 className="w-4 h-4 inline" /></button>
-                          <button onClick={async () => { await fetch(`/api/admin/instant-prizes/${p.id}`, {method: 'DELETE'}); loadPrizes(); }} className="p-2 hover:text-red-500 text-slate-500 transition-colors"><Trash2 className="w-4 h-4 inline" /></button>
-                       </td>
-                    </tr>
-                 ))}
-              </tbody>
-            </table>
-         </div>
-       )}
-    </div>
+  return (
+    <AdminPage>
+      <AdminPageHeader
+        title="Super Cotas"
+        description="Cada sorteio possui sua propria lista de Super Cotas."
+        actions={<><AdminSelect value={selectedRaffleId} onChange={event => setSelectedRaffleId(event.target.value)}><option value="all">Todos os sorteios</option>{raffles.map(raffle => <option key={raffle.id} value={raffle.id}>{raffle.title}</option>)}</AdminSelect><AdminButton onClick={() => { setCurrentPrize({ raffleId: selectedRaffleId === "all" ? raffles[0]?.id : selectedRaffleId }); setIsEditing(true); }}><Plus className="h-4 w-4" />Nova Super Cota</AdminButton></>}
+      />
+
+      {isEditing && <AdminSection title={currentPrize.id ? "Editar premio" : "Criar novo premio"} actions={<AdminIconButton onClick={() => setIsEditing(false)} aria-label="Fechar formulario"><X className="h-4 w-4" /></AdminIconButton>}>
+        <form onSubmit={handleSave} className="grid gap-4">
+          <label className="grid gap-2 text-sm font-semibold text-[var(--rp-muted)]">Sorteio<AdminSelect required value={currentPrize.raffleId || ""} onChange={event => setCurrentPrize({ ...currentPrize, raffleId: event.target.value })}><option value="">Selecione</option>{raffles.map(raffle => <option key={raffle.id} value={raffle.id}>{raffle.title}</option>)}</AdminSelect></label>
+          <label className="grid gap-2 text-sm font-semibold text-[var(--rp-muted)]">Numero premiado<AdminInput required type="number" value={currentPrize.numeroPremiado || ""} onChange={event => setCurrentPrize({ ...currentPrize, numeroPremiado: parseInt(event.target.value) })} /></label>
+          <label className="grid gap-2 text-sm font-semibold text-[var(--rp-muted)]">Valor do premio (R$)<AdminInput required type="number" step="0.01" value={currentPrize.valorPremio || ""} onChange={event => setCurrentPrize({ ...currentPrize, valorPremio: parseFloat(event.target.value) })} /></label>
+          <label className="grid gap-2 text-sm font-semibold text-[var(--rp-muted)]">Nome do ganhador<AdminInput value={currentPrize.winnerName || ""} onChange={event => setCurrentPrize({ ...currentPrize, winnerName: event.target.value })} /></label>
+          <div className="flex justify-end"><AdminButton type="submit"><Check className="h-4 w-4" />Salvar premio</AdminButton></div>
+        </form>
+      </AdminSection>}
+
+      <AdminSection title="Lista de Super Cotas" description="Registros cadastrados por sorteio.">
+        <AdminTable columns={["Rifa", "Numero", "Valor", "Ganhador", "Status", "Acoes"]} rows={rows} empty="Nenhuma Super Cota cadastrada." />
+      </AdminSection>
+
+      <AdminSection title="Resumo operacional">
+        <div className="grid gap-3 md:grid-cols-3"><Summary icon={<Star className="h-4 w-4" />} label="Total" value={filteredPrizes.length} /><Summary label="Disponiveis" value={filteredPrizes.filter(prize => prize.status === "available").length} /><Summary label="Resgatadas" value={filteredPrizes.filter(prize => prize.status !== "available").length} /></div>
+      </AdminSection>
+    </AdminPage>
   );
 }
+
+function Summary({ icon, label, value }: { icon?: ReactNode; label: string; value: string | number }) {
+  return <div className="rounded-lg border border-[var(--rp-border)] bg-white p-4 text-sm"><span className="flex items-center gap-2 text-[var(--rp-muted)]">{icon}{label}</span><strong className="mt-2 block text-xl text-[var(--rp-text)]">{value}</strong></div>;
+}
+

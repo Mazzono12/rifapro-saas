@@ -17,7 +17,7 @@ type NotificationItem = {
 const severityDot: Record<NotificationItem["severity"], string> = {
   info: "bg-cyan-300",
   success: "bg-emerald-300",
-  warning: "bg-amber-300",
+  warning: "bg-slate-100",
   error: "bg-rose-300"
 };
 
@@ -76,54 +76,54 @@ export function NotificationBell({ centerPath = "/admin/notificacoes" }: { cente
 
   return (
     <div ref={wrapperRef} className="relative">
-      <button type="button" onClick={() => setOpen(value => !value)} className="admin-icon-button relative" aria-label="Notificacoes" title="Notificacoes">
+      <button type="button" onClick={() => setOpen(value => !value)} className="rp-admin-icon-button rp-admin-notification-trigger relative" aria-label="Notificacoes" title="Notificacoes">
         <Bell className="h-5 w-5" />
         {unread > 0 && (
-          <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-amber-300 px-1 text-[10px] font-black text-black">
+          <span className="rp-admin-notification-count absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10px] font-black">
             {unread > 99 ? "99+" : unread}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-[min(92vw,380px)] overflow-hidden rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] shadow-2xl backdrop-blur-2xl">
-          <div className="flex items-center justify-between border-b border-[var(--admin-border)] px-4 py-3">
+        <div className="rp-admin-notification-menu absolute right-0 top-12 z-50 w-[min(92vw,380px)] overflow-hidden rounded-[10px] border shadow-xl">
+          <div className="rp-admin-notification-menu-header flex items-center justify-between border-b px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-[var(--admin-text)]">Notificacoes</p>
-              <p className="text-xs text-[var(--admin-muted)]">{unread ? `${unread} nao lida${unread > 1 ? "s" : ""}` : "Tudo em dia"}</p>
+              <p className="text-sm font-semibold text-[var(--rp-text)]">Notificacoes</p>
+              <p className="text-xs text-[var(--rp-muted)]">{unread ? `${unread} nao lida${unread > 1 ? "s" : ""}` : "Tudo em dia"}</p>
             </div>
-            <Link to={centerPath} onClick={() => setOpen(false)} className="admin-button-secondary !h-9 !px-3 text-xs">
+            <Link to={centerPath} onClick={() => setOpen(false)} className="rp-admin-notification-view-all rp-admin-button is-secondary !min-h-9 !px-3 text-xs">
               Ver todas
             </Link>
           </div>
 
-          <div className="max-h-[420px] overflow-y-auto p-2">
+          <div className="rp-admin-notification-list max-h-[420px] overflow-y-auto p-2">
             {visibleItems.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-[var(--admin-muted)]">Nenhum aviso por enquanto.</div>
+              <div className="px-4 py-8 text-center text-sm text-[var(--rp-muted)]">Nenhum aviso por enquanto.</div>
             )}
             {visibleItems.map(item => (
-              <div key={item.id} className={cn("rounded-[8px] border border-transparent p-3", item.status === "unread" ? "bg-white/[0.06]" : "bg-transparent")}>
+              <div key={item.id} className={cn("rp-admin-notification-item rounded-[8px] border p-3", item.status === "unread" ? "is-unread" : "is-read")}>
                 <div className="flex items-start gap-3">
                   <span className={cn("mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full", severityDot[item.severity])} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="line-clamp-1 text-sm font-semibold text-[var(--admin-text)]">{item.title}</p>
-                      <span className="shrink-0 text-[11px] text-[var(--admin-muted)]">{timeLabel(item.createdAt)}</span>
+                      <p className="line-clamp-1 text-sm font-semibold text-[var(--rp-text)]">{item.title}</p>
+                      <span className="shrink-0 text-[11px] text-[var(--rp-muted)]">{timeLabel(item.createdAt)}</span>
                     </div>
-                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--admin-muted)]">{item.message}</p>
+                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--rp-muted)]">{item.message}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       {item.actionUrl && (
-                        <Link to={item.actionUrl} onClick={() => setOpen(false)} className="admin-button-secondary !h-8 !px-2 text-xs">
+                        <Link to={item.actionUrl} onClick={() => setOpen(false)} className="rp-admin-notification-action rp-admin-button is-secondary !min-h-8 !px-2 text-xs">
                           <ExternalLink className="h-3.5 w-3.5" />
                           Abrir
                         </Link>
                       )}
                       {item.status === "unread" && (
-                        <button type="button" onClick={() => void markRead(item.id)} className="admin-icon-button !h-8 !w-8" aria-label="Marcar como lida" title="Marcar como lida">
+                        <button type="button" onClick={() => void markRead(item.id)} className="rp-admin-icon-button !h-8 !w-8" aria-label="Marcar como lida" title="Marcar como lida">
                           <Check className="h-4 w-4" />
                         </button>
                       )}
-                      <button type="button" onClick={() => void archive(item.id)} className="admin-icon-button !h-8 !w-8" aria-label="Arquivar" title="Arquivar">
+                      <button type="button" onClick={() => void archive(item.id)} className="rp-admin-icon-button !h-8 !w-8" aria-label="Arquivar" title="Arquivar">
                         <Archive className="h-4 w-4" />
                       </button>
                     </div>
@@ -137,3 +137,4 @@ export function NotificationBell({ centerPath = "/admin/notificacoes" }: { cente
     </div>
   );
 }
+

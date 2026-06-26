@@ -11,7 +11,6 @@ import { VideoPlaybackProvider } from "./context/video-playback/VideoPlaybackCon
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { PwaInstallPrompt } from "./components/pwa/PwaInstallPrompt";
 import { useCustomerStore } from "./store/useCustomerStore";
-import { AdminSectionBoundary } from "./components/admin/AdminSectionBoundary";
 import { ArrowLeft } from "lucide-react";
 
 // Track Ref Custom Hook
@@ -111,16 +110,28 @@ const NotFoundPage = lazy(() => import("./pages/SystemStatus").then(module => ({
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout").then(module => ({ default: module.AdminLayout })));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard").then(module => ({ default: module.AdminDashboard })));
 const AdminRaffles = lazy(() => import("./pages/admin/AdminRaffles").then(module => ({ default: module.AdminRaffles })));
+const AdminRifas = lazy(() => import("./pages/admin/AdminRifas").then(module => ({ default: module.AdminRifas })));
 const AdminStories = lazy(() => import("./pages/admin/AdminStories").then(module => ({ default: module.AdminStories })));
 const AdminWinners = lazy(() => import("./pages/admin/AdminWinners").then(module => ({ default: module.AdminWinners })));
 const AdminInstantPrizes = lazy(() => import("./pages/admin/AdminInstantPrizes").then(module => ({ default: module.AdminInstantPrizes })));
 const AdminSales = lazy(() => import("./pages/admin/AdminSales").then(module => ({ default: module.AdminSales })));
+const AdminVendas = lazy(() => import("./pages/admin/AdminVendas").then(module => ({ default: module.AdminVendas })));
 const AdminOrderCenter = lazy(() => import("./pages/admin/AdminOrderCenter").then(module => ({ default: module.AdminOrderCenter })));
+const AdminPedidos = lazy(() => import("./pages/admin/AdminPedidos").then(module => ({ default: module.AdminPedidos })));
+const AdminClientes = lazy(() => import("./pages/admin/AdminClientes").then(module => ({ default: module.AdminClientes })));
 const AdminConfig = lazy(() => import("./pages/admin/AdminConfig").then(module => ({ default: module.AdminConfig })));
+const AdminConfiguracoes = lazy(() => import("./pages/admin/AdminConfiguracoes").then(module => ({ default: module.AdminConfiguracoes })));
 const AdminPaymentGateways = lazy(() => import("./pages/admin/AdminPaymentGateways").then(module => ({ default: module.AdminPaymentGateways })));
+const AdminPagamentos = lazy(() => import("./pages/admin/AdminPagamentos").then(module => ({ default: module.AdminPagamentos })));
 const AdminFazendinha = lazy(() => import("./pages/admin/AdminFazendinha").then(module => ({ default: module.AdminFazendinha })));
 const AdminModalidades = lazy(() => import("./pages/admin/AdminModalidades").then(module => ({ default: module.AdminModalidades })));
+const AdminDezena = lazy(() => import("./pages/admin/AdminDezena").then(module => ({ default: module.AdminDezena })));
+const AdminCentena = lazy(() => import("./pages/admin/AdminCentena").then(module => ({ default: module.AdminCentena })));
+const AdminMilhar = lazy(() => import("./pages/admin/AdminMilhar").then(module => ({ default: module.AdminMilhar })));
 const AdminLootboxes = lazy(() => import("./pages/admin/AdminLootboxes").then(module => ({ default: module.AdminLootboxes })));
+const AdminRoletaPremiada = lazy(() => import("./pages/admin/AdminRoletaPremiada").then(module => ({ default: module.AdminRoletaPremiada })));
+const AdminCaixinhaPremiada = lazy(() => import("./pages/admin/AdminCaixinhaPremiada").then(module => ({ default: module.AdminCaixinhaPremiada })));
+const AdminRaspadinha = lazy(() => import("./pages/admin/AdminRaspadinha").then(module => ({ default: module.AdminRaspadinha })));
 const AdminGamification = lazy(() => import("./pages/admin/AdminGamification").then(module => ({ default: module.AdminGamification })));
 const AdminPromotions = lazy(() => import("./pages/admin/AdminPromotions").then(module => ({ default: module.AdminPromotions })));
 const AdminLiveDraw = lazy(() => import("./pages/admin/AdminLiveDraw").then(module => ({ default: module.AdminLiveDraw })));
@@ -129,15 +140,23 @@ const AdminWhatsAppCenter = lazy(() => import("./pages/admin/AdminWhatsAppCenter
 const AdminTickets = lazy(() => import("./pages/admin/AdminTickets").then(module => ({ default: module.AdminTickets })));
 const AdminNotifications = lazy(() => import("./pages/admin/AdminNotifications").then(module => ({ default: module.AdminNotifications })));
 const AdminPushNotifications = lazy(() => import("./pages/admin/AdminPushNotifications").then(module => ({ default: module.AdminPushNotifications })));
-const AdminUsers = lazy(() => import("./pages/admin/AdminCRM").then(module => ({ default: module.AdminUsers })));
+const AdminSupport = lazy(() => import("./pages/admin/AdminSupport").then(module => ({ default: module.AdminSupport })));
+const AdminSuporte = lazy(() => import("./pages/admin/AdminSuporte").then(module => ({ default: module.AdminSuporte })));
+const AdminPixRecovery = lazy(() => import("./pages/admin/AdminPixRecovery").then(module => ({ default: module.AdminPixRecovery })));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers").then(module => ({ default: module.AdminUsers })));
 const AdminCRM = lazy(() => import("./pages/admin/AdminCRM").then(module => ({ default: module.AdminCRM })));
+const AdminAfiliados = lazy(() => import("./pages/admin/AdminAfiliados").then(module => ({ default: module.AdminAfiliados })));
+const AdminAtendimento = lazy(() => import("./pages/admin/AdminAtendimento").then(module => ({ default: module.AdminAtendimento })));
+const AdminWhatsApp = lazy(() => import("./pages/admin/AdminWhatsApp").then(module => ({ default: module.AdminWhatsApp })));
 const AdminReports = lazy(() => import("./pages/admin/AdminReports").then(module => ({ default: module.AdminReports })));
 const AdminOperations = lazy(() => import("./pages/admin/AdminOperations").then(module => ({ default: module.AdminOperations })));
 const AdminIntegrations = lazy(() => import("./pages/admin/AdminIntegrations").then(module => ({ default: module.AdminIntegrations })));
+const AdminIntegracoes = lazy(() => import("./pages/admin/AdminIntegracoes").then(module => ({ default: module.AdminIntegracoes })));
+const AdminSendPulse = lazy(() => import("./pages/admin/AdminSendPulse").then(module => ({ default: module.AdminSendPulse })));
+const AdminAparencia = lazy(() => import("./pages/admin/AdminAparencia").then(module => ({ default: module.AdminAparencia })));
 const AdminAutomations = lazy(() => import("./pages/admin/AdminAutomations").then(module => ({ default: module.AdminAutomations })));
 const AdminDomains = lazy(() => import("./pages/admin/AdminDomains").then(module => ({ default: module.AdminDomains })));
 const AdminComplianceCenter = lazy(() => import("./pages/admin/AdminComplianceCenter").then(module => ({ default: module.AdminComplianceCenter })));
-const AdminMyPlan = lazy(() => import("./pages/admin/AdminMyPlan").then(module => ({ default: module.AdminMyPlan })));
 const AdminPlatformBilling = lazy(() => import("./pages/admin/AdminPlatformBilling").then(module => ({ default: module.AdminPlatformBilling })));
 const SuperAdminLayout = lazy(() => import("./pages/superadmin/SuperAdminLayout").then(module => ({ default: module.SuperAdminLayout })));
 const SuperAdminDashboard = lazy(() => import("./pages/superadmin/SuperAdminDashboard").then(module => ({ default: module.SuperAdminDashboard })));
@@ -151,14 +170,13 @@ const SuperAdminAudit = lazy(() => import("./pages/superadmin/SuperAdminAudit").
 const SuperAdminReports = lazy(() => import("./pages/superadmin/SuperAdminReports").then(module => ({ default: module.SuperAdminReports })));
 const SuperAdminAntifraud = lazy(() => import("./pages/superadmin/SuperAdminAntifraud").then(module => ({ default: module.SuperAdminAntifraud })));
 const SuperAdminTenantDetail = lazy(() => import("./pages/superadmin/SuperAdminTenantDetail").then(module => ({ default: module.SuperAdminTenantDetail })));
-const SuperAdminTenantPlanResources = lazy(() => import("./pages/superadmin/SuperAdminTenantPlanResources").then(module => ({ default: module.SuperAdminTenantPlanResources })));
 const SuperAdminPlatformBilling = lazy(() => import("./pages/superadmin/SuperAdminPlatformBilling").then(module => ({ default: module.SuperAdminPlatformBilling })));
 const SuperAdminWhiteLabel = lazy(() => import("./pages/superadmin/SuperAdminWhiteLabel").then(module => ({ default: module.SuperAdminWhiteLabel })));
 const Transparency = lazy(() => import("./pages/Transparency").then(module => ({ default: module.Transparency })));
 const DrawAudit = lazy(() => import("./pages/DrawAudit").then(module => ({ default: module.DrawAudit })));
 
-function adminSection(section: string, children: React.ReactNode) {
-  return <AdminSectionBoundary section={section}>{children}</AdminSectionBoundary>;
+function adminSection(_section: string, children: React.ReactNode) {
+  return <>{children}</>;
 }
 
 import { useDynamicBackground } from "./hooks/useDynamicBackground";
@@ -237,9 +255,9 @@ function RouteAtmosphere() {
 
 function AdminRouteFallback() {
   return (
-    <div className="min-h-screen grid place-items-center bg-black">
-      <div className="glass-card flex items-center gap-3 rounded-3xl p-5 text-sm text-slate-300">
-        <div className="h-6 w-6 rounded-full border-2 border-cyan-400/20 border-t-cyan-300 animate-spin" />
+    <div className="grid min-h-screen place-items-center bg-[#f8fafc] text-slate-700">
+      <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-5 text-sm shadow-sm">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-100 border-t-blue-600" />
         Carregando painel admin...
       </div>
     </div>
@@ -484,41 +502,62 @@ export default function App() {
               </Route>
               <Route path="/admin" element={<ProtectedRoute roles={["admin"]}><Suspense fallback={<AdminRouteFallback />}><AdminLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={adminSection("Dashboard", <AdminDashboard />)} />
+                <Route path="dashboard" element={adminSection("Dashboard", <AdminDashboard />)} />
                 <Route path="crm" element={adminSection("CRM", <AdminCRM />)} />
+                <Route path="clientes" element={adminSection("Clientes", <AdminClientes />)} />
                 <Route path="crm/:contactId" element={adminSection("CRM", <AdminCRM />)} />
                 <Route path="crm/pipeline" element={adminSection("CRM Pipeline", <AdminCRM />)} />
                 <Route path="crm/segmentos" element={adminSection("CRM Segmentos", <AdminCRM />)} />
                 <Route path="usuarios" element={adminSection("Clientes", <AdminUsers />)} />
-                <Route path="rifas" element={adminSection("Rifas", <AdminRaffles />)} />
+                <Route path="rifas" element={adminSection("Rifa Tradicional", <AdminRifas />)} />
+                <Route path="campanhas" element={adminSection("Campanhas", <AdminRaffles />)} />
                 <Route path="stories" element={adminSection("Stories", <AdminStories />)} />
                 <Route path="ganhadores" element={adminSection("Ganhadores", <AdminWinners />)} />
                 <Route path="cotas" element={adminSection("Super Cotas", <AdminInstantPrizes />)} />
-                <Route path="vendas" element={adminSection("Vendas", <AdminSales />)} />
+                <Route path="vendas" element={adminSection("Vendas", <AdminVendas />)} />
+                <Route path="pedidos" element={adminSection("Pedidos", <AdminPedidos />)} />
                 <Route path="central-pedidos" element={adminSection("Central de Pedidos", <AdminOrderCenter />)} />
-                <Route path="pagamentos" element={adminSection("Pagamentos", <AdminPaymentGateways />)} />
+                <Route path="pagamentos" element={adminSection("Pagamentos", <AdminPagamentos />)} />
+                <Route path="pagamentos-gateways" element={adminSection("Pagamentos", <AdminPaymentGateways />)} />
                 <Route path="fazendinha" element={adminSection("Fazendinha", <AdminFazendinha />)} />
+                <Route path="dezena" element={adminSection("Dezena", <AdminDezena />)} />
+                <Route path="centena" element={adminSection("Centena", <AdminCentena />)} />
+                <Route path="milhar" element={adminSection("Milhar", <AdminMilhar />)} />
+                <Route path="roleta-premiada" element={adminSection("Roleta Premiada", <AdminRoletaPremiada />)} />
+                <Route path="caixinha-premiada" element={adminSection("Caixinha Premiada", <AdminCaixinhaPremiada />)} />
+                <Route path="raspadinha" element={adminSection("Raspadinha", <AdminRaspadinha />)} />
                 <Route path="caixinhas" element={adminSection("Roleta Premiada", <AdminLootboxes />)} />
                 <Route path="gamificacao" element={adminSection("Gamificação", <AdminGamification />)} />
                 <Route path="promocoes" element={adminSection("Promoções", <AdminPromotions />)} />
                 <Route path="modalidades" element={adminSection("Modalidades", <AdminModalidades />)} />
                 <Route path="sorteio" element={adminSection("Sorteio Ao Vivo", <AdminLiveDraw />)} />
+                <Route path="sorteios" element={adminSection("Sorteios", <AdminLiveDraw />)} />
                 <Route path="mensagens" element={adminSection("Mensagens", <AdminMessages />)} />
                 <Route path="tickets" element={adminSection("Tickets", <AdminTickets />)} />
+                <Route path="suporte" element={adminSection("Suporte", <AdminSuporte />)} />
+                <Route path="suporte-legado" element={adminSection("Suporte", <AdminSupport />)} />
+                <Route path="pix-recuperacao" element={adminSection("Recuperação PIX", <AdminPixRecovery />)} />
+                <Route path="atendimento" element={adminSection("Atendimento", <AdminAtendimento />)} />
+                <Route path="whatsapp" element={adminSection("WhatsApp", <AdminWhatsApp />)} />
                 <Route path="whatsapp-center" element={adminSection("Central WhatsApp", <AdminWhatsAppCenter />)} />
                 <Route path="notificacoes" element={adminSection("Notificações", <AdminNotifications />)} />
                 <Route path="push-notifications" element={adminSection("Push Notifications", <AdminPushNotifications />)} />
+                <Route path="afiliados" element={adminSection("Afiliados", <AdminAfiliados />)} />
                 <Route path="relatorios" element={adminSection("Relatórios e Afiliados", <AdminReports />)} />
                 <Route path="operacoes" element={adminSection("Operações", <AdminOperations />)} />
-                <Route path="integracoes" element={adminSection("Integrações", <AdminIntegrations />)} />
+                <Route path="integracoes" element={adminSection("Integrações", <AdminIntegracoes />)} />
+                <Route path="integracoes-legado" element={adminSection("Integrações", <AdminIntegrations />)} />
+                <Route path="sendpulse" element={adminSection("SendPulse", <AdminSendPulse />)} />
                 <Route path="automacoes" element={adminSection("Automações", <AdminAutomations />)} />
                 <Route path="dominios" element={adminSection("Domínios", <AdminDomains />)} />
                 <Route path="auditoria" element={adminSection("Auditoria", <AdminComplianceCenter view="audit" />)} />
                 <Route path="compliance" element={adminSection("Compliance", <AdminComplianceCenter view="compliance" />)} />
                 <Route path="antifraude" element={adminSection("Antifraude", <AdminComplianceCenter view="antifraud" />)} />
                 <Route path="gerenciar-cotas" element={adminSection("Gerenciar Cotas", <AdminComplianceCenter view="tickets" />)} />
-                <Route path="meu-plano" element={adminSection("Meu Plano", <AdminMyPlan />)} />
-                <Route path="custos-plataforma" element={adminSection("Custos da Plataforma", <AdminPlatformBilling />)} />
+                <Route path="custos-plataforma" element={adminSection("Comissão da Plataforma", <AdminPlatformBilling />)} />
                 <Route path="marca-dominio" element={<Navigate to="/admin/config" replace />} />
+                <Route path="aparencia" element={adminSection("Aparência", <AdminAparencia />)} />
+                <Route path="configuracoes" element={adminSection("Configurações", <AdminConfiguracoes />)} />
                 <Route path="config" element={adminSection("Configurações", <AdminConfig />)} />
                 <Route path="config/aparencia" element={<Navigate to="/admin/config" replace />} />
               </Route>
@@ -540,7 +579,6 @@ export default function App() {
                 <Route path="aparencia" element={<Navigate to="/superadmin/white-label" replace />} />
                 <Route path="tenants/:tenantId/financeiro" element={<SuperAdminTenantDetail />} />
                 <Route path="tenants/:tenantId/aparencia" element={<Navigate to="/superadmin/clientes" replace />} />
-                <Route path="tenants/:tenantId/plano" element={<SuperAdminTenantPlanResources />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
               </Routes>
@@ -553,3 +591,6 @@ export default function App() {
     </ThemeProvider>
   );
 }
+
+
+

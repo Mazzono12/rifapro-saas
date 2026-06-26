@@ -1,6 +1,6 @@
-import { Link, useLocation } from "react-router-dom";
+﻿import { Link, useLocation } from "react-router-dom";
 import type React from "react";
-import { ChevronLeft, ChevronRight, Hexagon, X } from "lucide-react";
+import { ChevronsUpDown, Hexagon, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -37,6 +37,7 @@ export function CollapsibleSidebar({
   rootPath,
   logoUrl,
   title,
+  subtitle,
   collapsed,
   mobileOpen,
   onCollapsedChange,
@@ -51,20 +52,28 @@ export function CollapsibleSidebar({
     const minimized = collapsed && !mobile;
     return (
       <aside
+        data-premium-sidebar="true"
         className={cn(
-          "premium-admin-sidebar admin-collapsible-sidebar flex h-dvh flex-col border-r border-[var(--admin-border)] bg-[var(--admin-sidebar)] text-[var(--admin-text)] shadow-[12px_0_36px_rgba(0,0,0,0.18)] transition-[width,transform] duration-300",
-          mobile ? "w-[min(86vw,288px)] px-3" : "fixed left-0 top-0 z-50 hidden px-2 lg:flex",
-          !mobile && (minimized ? "w-[80px]" : "w-[224px]")
+          "premium-admin-sidebar admin-collapsible-sidebar flex h-dvh flex-col border-r border-[var(--admin-border)] bg-[var(--admin-sidebar)] text-[var(--admin-text)] transition-[width,transform] duration-200",
+          mobile ? "w-[min(86vw,288px)] p-2" : "fixed left-0 top-0 z-50 hidden p-2 lg:flex",
+          !mobile && (minimized ? "w-[56px]" : "w-[256px]")
         )}
         data-collapsed={minimized ? "true" : "false"}
       >
-        <div className="flex min-h-[58px] items-center justify-center border-b border-[var(--admin-border)]">
-          <Link
-            to={rootPath}
-            className={cn("admin-sidebar-brand-link shrink-0", minimized && "is-minimized")}
-            aria-label={title}
-          >
-            {logoUrl ? <img src={logoUrl} alt={title} className="admin-sidebar-brand-logo" /> : <Hexagon className="h-7 w-7" />}
+        <div className={cn("flex min-h-12 items-center gap-2", minimized ? "justify-center" : "justify-start")}>
+          <Link to={rootPath} className={cn("admin-sidebar-team-button", minimized && "is-minimized")} aria-label={title}>
+            <span className="admin-sidebar-team-logo">
+              {logoUrl ? <img src={logoUrl} alt={title} className="admin-sidebar-brand-logo" /> : <Hexagon className="h-4 w-4" />}
+            </span>
+            {!minimized && (
+              <>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold leading-tight text-[var(--admin-text)]">{title}</span>
+                  <span className="block truncate text-xs text-[var(--admin-muted)]">{subtitle || "Operacao SaaS"}</span>
+                </span>
+                <ChevronsUpDown className="h-4 w-4 text-[var(--admin-muted)]" />
+              </>
+            )}
           </Link>
           {mobile && (
             <button onClick={() => onMobileOpenChange(false)} className="admin-icon-button ml-auto" aria-label="Fechar menu">
@@ -73,10 +82,10 @@ export function CollapsibleSidebar({
           )}
         </div>
 
-        <nav className={cn("flex-1 overflow-y-auto py-3 cifher-scrollbar custom-scrollbar", minimized ? "space-y-3 overflow-x-visible" : "space-y-3")} aria-label="Menu principal">
+        <nav className={cn("flex-1 overflow-y-auto py-2 cifher-scrollbar custom-scrollbar", minimized ? "space-y-3 overflow-x-visible" : "space-y-3")} aria-label="Menu principal">
           {(Object.entries(grouped) as Array<[string, SidebarNavItem[]]>).map(([group, groupItems]) => (
-            <div key={group}>
-              {!minimized && <p className="mb-1.5 px-2.5 text-[10px] font-bold uppercase text-[var(--admin-muted)]">{group}</p>}
+            <div key={group} className="admin-sidebar-group">
+              {!minimized && <p className="admin-sidebar-group-label">{group}</p>}
               <div className="space-y-1">
                 {groupItems.map(item => {
                   const isActive = location.pathname === item.path || (item.path !== rootPath && location.pathname.startsWith(item.path));
@@ -89,15 +98,15 @@ export function CollapsibleSidebar({
                       title={minimized ? item.name : undefined}
                       onClick={() => onMobileOpenChange(false)}
                       className={cn(
-                        "group/sidebar relative flex min-h-9 items-center gap-2 rounded-[10px] px-2 py-1.5 text-[13px] font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--admin-primary)]",
+                        "admin-sidebar-menu-button group/sidebar relative flex min-h-8 items-center gap-2 rounded-md px-2 text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--admin-primary)]",
                         minimized && "justify-center px-0",
                         isActive
-                          ? "bg-[var(--admin-primary)] text-[var(--admin-button-text)] shadow-[0_10px_28px_var(--admin-glow)]"
-                          : "text-[var(--admin-secondary-text)] hover:bg-[var(--admin-primary)]/10 hover:text-[var(--admin-text)]"
+                          ? "is-active"
+                          : "text-[var(--admin-secondary-text)] hover:bg-[var(--admin-secondary)] hover:text-[var(--admin-text)]"
                       )}
                     >
-                      <span className={cn("grid shrink-0 place-items-center rounded-[8px]", minimized ? "h-9 w-9" : "h-7 w-7", isActive ? "bg-black/10" : "bg-[var(--admin-primary)]/10")}>
-                        <item.icon className={minimized ? "h-5 w-5" : "h-4.5 w-4.5"} />
+                      <span className={cn("grid shrink-0 place-items-center", minimized ? "h-8 w-8" : "h-4 w-4")}>
+                        <item.icon className="h-4 w-4" />
                       </span>
                       {!minimized && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
                       {minimized && (
@@ -113,10 +122,10 @@ export function CollapsibleSidebar({
           ))}
         </nav>
 
-        <div className="space-y-2 border-t border-[var(--admin-border)] py-3">
+        <div className="space-y-2 border-t border-[var(--admin-border)] pt-2">
           {!mobile && (
             <button onClick={() => onCollapsedChange(!collapsed)} className="admin-sidebar-toggle mx-auto" aria-label={minimized ? "Expandir menu" : "Recolher menu"} title={minimized ? "Expandir menu" : "Recolher menu"}>
-              {minimized ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              {minimized ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
             </button>
           )}
           {footer}
@@ -138,3 +147,6 @@ export function CollapsibleSidebar({
     </>
   );
 }
+
+
+

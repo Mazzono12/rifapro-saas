@@ -38,13 +38,13 @@ export class AdminSectionBoundary extends Component<
     }
 
     return (
-      <section className="admin-card mx-auto max-w-3xl border-amber-300/30 bg-amber-300/10 p-6 text-[var(--admin-text)] shadow-2xl shadow-black/20">
+      <section className="admin-card mx-auto max-w-3xl border-slate-200 bg-slate-100 p-6 text-[var(--admin-text)] shadow-2xl shadow-black/20">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-amber-300/30 bg-amber-300/15 text-amber-200">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-slate-100 text-slate-600">
             <AlertTriangle className="h-6 w-6" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-200">Painel administrativo</p>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-600">Painel administrativo</p>
             <h2 className="mt-2 text-2xl font-black text-[var(--admin-text)]">Não foi possível carregar esta seção</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--admin-muted)]">
               A seção {this.props.section} encontrou uma instabilidade ao montar os dados. O restante do painel continua disponível.
@@ -67,3 +67,4 @@ export class AdminSectionBoundary extends Component<
     );
   }
 }
+

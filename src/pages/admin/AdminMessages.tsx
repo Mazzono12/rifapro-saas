@@ -153,15 +153,15 @@ export function AdminMessages() {
             <input value={form.ctaLabel} onChange={e => setForm({ ...form, ctaLabel: e.target.value })} placeholder="Texto do botão" className="p-3" />
             <input value={form.ctaUrl} onChange={e => setForm({ ...form, ctaUrl: e.target.value })} placeholder="/raffle/1" className="p-3" />
           </div>
-          <button disabled={sending} className="neon-button inline-flex rounded-xl px-6 py-3 disabled:opacity-50">
+          <button disabled={sending} className="admin-action-button inline-flex rounded-xl px-6 py-3 disabled:opacity-50">
             <Send className="mr-2 h-4 w-4" /> {sending ? "Enviando..." : "Enviar para todos os clientes"}
           </button>
         </div>
 
         <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
           <p className="text-xs font-mono uppercase tracking-widest text-slate-500">Prévia da notificação</p>
-          <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5">
-            {form.type === "promotion" ? <Megaphone className="mb-3 h-6 w-6 text-amber-300" /> : <Info className="mb-3 h-6 w-6 text-cyan-300" />}
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-100 p-5">
+            {form.type === "promotion" ? <Megaphone className="mb-3 h-6 w-6 text-slate-600" /> : <Info className="mb-3 h-6 w-6 text-cyan-300" />}
             {form.mediaUrl && (
               <div className="mb-4 aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black/30">
                 <MessageVideoPlayer mediaUrl={form.mediaUrl} mediaType={form.mediaType as any} config={form.videoConfig} className="h-full w-full" />
@@ -208,3 +208,4 @@ function VideoToggle({ label, checked, onChange }: { label: string; checked: boo
     </label>
   );
 }
+

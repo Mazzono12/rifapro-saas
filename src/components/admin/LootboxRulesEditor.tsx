@@ -123,7 +123,7 @@ export function LootboxRulesEditor({
   };
 
   return (
-    <section className="rounded-3xl border border-amber-300/15 bg-amber-300/[0.03] p-5">
+    <section className="rounded-3xl border border-slate-200 bg-slate-100 p-5">
       <div className="mb-4">
         <h3 className="font-display text-lg font-bold text-white">{title}</h3>
         <p className="mt-1 text-xs text-slate-400">A compra confirmada libera jogos pela quantidade comprada pelo cliente. O prêmio nasce pela quantidade total vendida nesta ação e fica reservado ao próximo jogo validamente liberado.</p>
@@ -146,7 +146,7 @@ export function LootboxRulesEditor({
       <div className="mt-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Direito de jogar por compra confirmada</p>
-          <button type="button" onClick={() => update({ boxRules: [...config.boxRules, { tickets: 3, boxes: 1 }] })} className="rounded-lg border border-amber-300/20 px-3 py-1 text-xs text-amber-200">
+          <button type="button" onClick={() => update({ boxRules: [...config.boxRules, { tickets: 3, boxes: 1 }] })} className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-600">
             <Plus className="mr-1 inline h-3 w-3" /> Regra
           </button>
         </div>
@@ -168,7 +168,7 @@ export function LootboxRulesEditor({
           <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
             {config.rewardModes?.wheel ? "Prêmios da caixinha e fallback da roleta sem paleta premiada" : "Prêmios por vendas totais desta ação"}
           </p>
-          <button type="button" onClick={() => update({ milestones: [...config.milestones, { tier: "mini", everyXTickets: 500, name: "R$ 10", type: "pix", value: 10, currentCounter: 0 }] })} className="rounded-lg border border-amber-300/20 px-3 py-1 text-xs text-amber-200">
+          <button type="button" onClick={() => update({ milestones: [...config.milestones, { tier: "mini", everyXTickets: 500, name: "R$ 10", type: "pix", value: 10, currentCounter: 0 }] })} className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-600">
             <Plus className="mr-1 inline h-3 w-3" /> Prêmio
           </button>
         </div>
@@ -209,7 +209,7 @@ export function LootboxRulesEditor({
               type="button"
               onClick={addSegment}
               disabled={(config.wheelSegments || defaultWheelSegments).length >= MAX_WHEEL_SEGMENTS}
-              className="rounded-lg border border-amber-300/20 px-3 py-1 text-xs text-amber-200 disabled:cursor-not-allowed disabled:opacity-45"
+              className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-600 disabled:cursor-not-allowed disabled:opacity-45"
             >
               <Plus className="mr-1 inline h-3 w-3" /> Adicionar paleta
             </button>
@@ -248,7 +248,7 @@ export function LootboxRulesEditor({
                     onChange={imageUrl => updateSegment(index, { imageUrl })}
                   />
                 </div>
-                <label className="mt-3 flex items-center gap-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-3">
+                <label className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-100 p-3">
                   <input
                     type="checkbox"
                     checked={Boolean(segment.rewardEnabled)}
@@ -267,7 +267,7 @@ export function LootboxRulesEditor({
                   <span className="text-sm text-[var(--admin-text)]">Esta paleta entrega prêmio</span>
                 </label>
                 {segment.rewardEnabled && (
-                  <div className="mt-3 space-y-2 rounded-xl border border-amber-300/15 bg-amber-300/[0.03] p-3">
+                  <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-100 p-3">
                     <div className="grid gap-2 md:grid-cols-2">
                       <Field label="Cotas vendidas no total" type="number" value={String(segment.reward?.everyXTickets || 500)} onChange={value => updateSegmentReward(index, "everyXTickets", Math.max(1, Number(value)))} />
                       <Field label="Contador atual" type="number" value={String(segment.reward?.currentCounter || 0)} onChange={value => updateSegmentReward(index, "currentCounter", Math.max(0, Number(value)))} />
@@ -332,12 +332,12 @@ export function RewardExperienceSelector({
             className={cn(
               "rounded-xl border p-3 text-left transition-colors",
               rewardModes[option.id]
-                ? "border-amber-400/60 bg-amber-400/10 text-[var(--admin-text)]"
-                : "border-[var(--admin-border)] bg-[var(--admin-surface)] text-[var(--admin-text)] hover:border-amber-400/30"
+                ? "border-slate-200 bg-slate-100 text-[var(--admin-text)]"
+                : "border-[var(--admin-border)] bg-[var(--admin-surface)] text-[var(--admin-text)] hover:border-slate-200"
             )}
           >
             <span className="flex items-center gap-2 text-sm font-semibold">
-              <span className={cn("h-3 w-3 rounded-sm border", rewardModes[option.id] ? "border-amber-300 bg-amber-300" : "border-[var(--admin-border)]")} />
+              <span className={cn("h-3 w-3 rounded-sm border", rewardModes[option.id] ? "border-slate-200 bg-slate-100" : "border-[var(--admin-border)]")} />
               {option.label}
             </span>
             <span className="mt-1 block text-xs text-[var(--admin-muted)]">{option.detail}</span>
@@ -359,3 +359,4 @@ function Field({ label, value, onChange, type = "text" }: { label: string; value
     </label>
   );
 }
+

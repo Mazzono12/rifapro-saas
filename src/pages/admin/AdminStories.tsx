@@ -47,19 +47,19 @@ export function AdminStories() {
        <div className="flex justify-between items-center">
          <div>
             <h1 className="text-3xl font-display font-bold text-white flex items-center gap-3">
-               <PlaySquare className="w-8 h-8 text-neon-purple" /> Gerenciar Stories
+               <PlaySquare className="w-8 h-8 text-slate-700" /> Gerenciar Stories
             </h1>
          </div>
          <button 
            onClick={() => { setCurrentStory({}); setIsEditing(true); }}
-           className="bg-neon-purple/20 hover:bg-neon-purple/30 text-neon-purple border border-neon-purple/50 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
+           className="bg-slate-100 hover:bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-mono text-xs tracking-wider flex items-center gap-2 transition-colors"
          >
            <Plus className="w-4 h-4" /> Novo Story
          </button>
        </div>
 
        {isEditing ? (
-         <div className="glass-card p-6 rounded-2xl border border-neon-purple/30">
+         <div className="glass-card p-6 rounded-2xl border border-slate-200">
             <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
                <h2 className="text-xl font-bold">{currentStory.id ? 'Editar Story' : 'Criar Novo Story'}</h2>
                <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-white"><X className="w-6 h-6" /></button>
@@ -69,18 +69,18 @@ export function AdminStories() {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-mono text-slate-400 mb-1">Título</label>
-                    <input required type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-neon-purple/50" 
+                    <input required type="text" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-slate-200" 
                            value={currentStory.title || ''} onChange={e => setCurrentStory({...currentStory, title: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-xs font-mono text-slate-400 mb-1">Ordem</label>
-                    <input type="number" min="0" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-neon-purple/50"
+                    <input type="number" min="0" className="w-full bg-cyber-900 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-slate-200"
                            value={currentStory.order ?? 0} onChange={e => setCurrentStory({...currentStory, order: Number(e.target.value || 0)})} />
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-xs font-mono text-slate-400 mb-1">Link opcional</label>
-                    <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-cyber-900 px-3 focus-within:border-neon-purple/50">
-                      <LinkIcon className="h-4 w-4 text-neon-cyan" />
+                    <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-cyber-900 px-3 focus-within:border-slate-200">
+                      <LinkIcon className="h-4 w-4 text-slate-700" />
                       <input type="url" placeholder="https://..." className="w-full bg-transparent py-3 text-white outline-none"
                              value={currentStory.link || ''} onChange={e => setCurrentStory({...currentStory, link: e.target.value})} />
                     </div>
@@ -98,17 +98,17 @@ export function AdminStories() {
                   <button
                     type="button"
                     onClick={() => setCurrentStory({...currentStory, active: currentStory.active === false})}
-                    className="md:col-span-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-white transition-colors hover:border-neon-purple/40"
+                    className="md:col-span-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-white transition-colors hover:border-slate-200"
                   >
                     <span>
                       <strong className="block text-sm">Ativo/Inativo</strong>
                       <small className="text-slate-400">Quando ativo, aparece na Home pública.</small>
                     </span>
-                    {currentStory.active === false ? <ToggleLeft className="h-7 w-7 text-slate-500" /> : <ToggleRight className="h-7 w-7 text-neon-cyan" />}
+                    {currentStory.active === false ? <ToggleLeft className="h-7 w-7 text-slate-500" /> : <ToggleRight className="h-7 w-7 text-slate-700" />}
                   </button>
                </div>
                <div className="flex justify-end pt-4">
-                 <button type="submit" className="bg-neon-purple text-white px-6 py-3 rounded-lg font-bold font-mono tracking-wider flex items-center gap-2 hover:bg-white hover:text-black transition-colors">
+                 <button type="submit" className="bg-slate-100 text-white px-6 py-3 rounded-lg font-bold font-mono tracking-wider flex items-center gap-2 hover:bg-white hover:text-black transition-colors">
                     <Check className="w-5 h-5" /> Salvar Story
                  </button>
                </div>
@@ -128,7 +128,7 @@ export function AdminStories() {
                        <span className={s.active === false ? "text-slate-500" : "text-emerald-300"}>{s.active === false ? "Inativo" : "Ativo"}</span>
                      </div>
                      <div className="flex gap-2">
-                        <button onClick={() => { setCurrentStory(s); setIsEditing(true); }} className="flex-1 bg-white/10 hover:bg-neon-purple/20 text-white rounded py-1 text-xs transition-colors flex justify-center"><Edit2 className="w-3 h-3" /></button>
+                        <button onClick={() => { setCurrentStory(s); setIsEditing(true); }} className="flex-1 bg-white/10 hover:bg-slate-100 text-white rounded py-1 text-xs transition-colors flex justify-center"><Edit2 className="w-3 h-3" /></button>
                         <button onClick={async () => { await fetch(`/api/admin/stories/${s.id}`, {method: 'DELETE'}); loadStories(); }} className="p-1 bg-white/10 hover:bg-red-500/20 text-white rounded text-xs transition-colors"><Trash2 className="w-3 h-3" /></button>
                      </div>
                   </div>
@@ -139,3 +139,4 @@ export function AdminStories() {
     </div>
   );
 }
+

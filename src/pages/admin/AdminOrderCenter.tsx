@@ -7,7 +7,6 @@ import {
   Copy,
   Download,
   ExternalLink,
-  FileSearch,
   Grid3X3,
   List,
   Loader2,
@@ -63,6 +62,16 @@ type OrderCenterDetail = {
   ajustes: Array<Record<string, any>>;
   auditoria: Array<Record<string, any>>;
 };
+
+type OrderStatusFilter = "all" | "paid" | "pending" | "cancelled" | "winner";
+
+const FILTERS: Array<{ id: OrderStatusFilter; label: string }> = [
+  { id: "all", label: "Todos" },
+  { id: "paid", label: "Pagos" },
+  { id: "pending", label: "Pendentes" },
+  { id: "cancelled", label: "Cancelados" },
+  { id: "winner", label: "Premiados" }
+];
 
 const emptyRow: OrderCenterRow = {
   id: "",
@@ -198,19 +207,28 @@ function dateTime(value: unknown) {
   return date.toLocaleString("pt-BR");
 }
 
+function shortDate(value: unknown) {
+  if (!value) return "-";
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+}
+
 function statusLabel(value: unknown) {
   const raw = String(value || "pendente");
   const normalized = raw.toLowerCase();
   if (["paid", "confirmed", "received", "recebido", "confirmado"].some(item => normalized.includes(item))) return "Pago";
   if (["cancelled", "canceled", "rejected", "failed"].some(item => normalized.includes(item))) return "Cancelado";
+  if (["expired", "expirado"].some(item => normalized.includes(item))) return "Expirado";
+  if (["winner", "premiado"].some(item => normalized.includes(item))) return "Premiado";
   if (["reserved", "pending"].some(item => normalized.includes(item))) return "Pendente";
   return raw;
 }
 
 function StatusPill({ value }: { value: unknown }) {
   const label = statusLabel(value);
-  const tone = label === "Pago" ? "text-emerald-300 border-emerald-400/30 bg-emerald-400/10" : label === "Cancelado" ? "text-red-300 border-red-400/30 bg-red-400/10" : "text-amber-200 border-amber-300/30 bg-amber-300/10";
-  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${tone}`}>{label}</span>;
+  const tone = label === "Pago" ? "text-emerald-300 border-emerald-400/30 bg-emerald-400/10" : label === "Cancelado" || label === "Expirado" ? "text-red-300 border-red-400/30 bg-red-400/10" : label === "Premiado" ? "text-sky-200 border-sky-300/30 bg-sky-300/10" : "text-slate-600 border-slate-200 bg-slate-100";
+  return <span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold ${tone}`}>{label}</span>;
 }
 
 function copyText(label: string, text: string) {
@@ -282,13 +300,10 @@ function InfoLine({ label, value, copyable }: { label: string; value: unknown; c
   );
 }
 
-function TruncateText({ value, className = "" }: { value: unknown; className?: string }) {
-  const text = value === undefined || value === null || value === "" ? "-" : String(value);
-  return <span className={`block min-w-0 truncate ${className}`} title={text}>{text}</span>;
-}
-
 export function AdminOrderCenter() {
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("all");
+  const [visibleCount, setVisibleCount] = useState(50);
   const [orders, setOrders] = useState<OrderCenterRow[]>([]);
   const [metrics, setMetrics] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -352,6 +367,10 @@ export function AdminOrderCenter() {
   }, [query]);
 
   useEffect(() => {
+    setVisibleCount(50);
+  }, [query, statusFilter, orders.length]);
+
+  useEffect(() => {
     const logRenderIssue = (event: ErrorEvent | PromiseRejectionEvent) => {
       console.warn("[ORDER_CENTER_RENDER_ERROR]", "reason" in event ? event.reason : event.error);
     };
@@ -363,21 +382,37 @@ export function AdminOrderCenter() {
     };
   }, []);
 
-  const visibleOrders = useMemo(() => orders.slice(0, 500), [orders]);
+  const filteredOrders = useMemo(() => {
+    if (statusFilter === "all") return orders;
+    return orders.filter(order => {
+      const label = statusLabel(order.statusPagamento || order.statusPedido);
+      if (statusFilter === "paid") return label === "Pago";
+      if (statusFilter === "pending") return label === "Pendente";
+      if (statusFilter === "cancelled") return label === "Cancelado" || label === "Expirado";
+      return label === "Premiado";
+    });
+  }, [orders, statusFilter]);
+  const visibleOrders = useMemo(() => filteredOrders.slice(0, visibleCount), [filteredOrders, visibleCount]);
   const selectedOrder = useMemo(() => orders.find(order => order.orderId === selectedId), [orders, selectedId]);
+  const summary = useMemo(() => {
+    const paidOrders = orders.filter(order => statusLabel(order.statusPagamento || order.statusPedido) === "Pago");
+    const pendingOrders = orders.filter(order => statusLabel(order.statusPagamento || order.statusPedido) === "Pendente");
+    const cancelledOrders = orders.filter(order => ["Cancelado", "Expirado"].includes(statusLabel(order.statusPagamento || order.statusPedido)));
+    return {
+      total: Number(metrics.total ?? orders.length),
+      paid: Number(metrics.paid ?? paidOrders.length),
+      pending: Number(metrics.pending ?? pendingOrders.length),
+      cancelled: Number(metrics.cancelled ?? cancelledOrders.length),
+      amount: Number(metrics.amount ?? paidOrders.reduce((sum, order) => sum + Number(order.valor || 0), 0))
+    };
+  }, [metrics, orders]);
 
-  async function runAction(action: "reprocess" | "reconcile" | "swap") {
+  async function runAction(action: "reprocess" | "swap") {
     if (!detail) return;
     setBusy(action);
     try {
       let response: Response;
-      if (action === "reconcile") {
-        response = await authFetch("/api/admin/payments/asaas/reconcile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: detail.row.orderId, paymentId: detail.row.paymentId })
-        });
-      } else if (action === "reprocess") {
+      if (action === "reprocess") {
         response = await authFetch(`/api/admin/order-center/${encodeURIComponent(detail.row.orderId)}/reprocess-webhook`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -401,38 +436,27 @@ export function AdminOrderCenter() {
     }
   }
 
-  function exportAudit() {
-    if (!detail) return;
-    downloadText(`auditoria-${detail.row.orderId}.json`, JSON.stringify(detail, null, 2));
-  }
-
   return (
-    <div className="min-w-0 space-y-5">
-      <section className="admin-card min-w-0 p-4 sm:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="min-w-0 space-y-6">
+      <section className="min-w-0">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--admin-muted)]">Operação</p>
-            <h1 className="mt-1 truncate text-2xl font-black text-[var(--admin-text)]">Central de Pedidos</h1>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--admin-muted)]">Localize cliente, pagamento, cotas, webhook e auditoria em uma tela.</p>
+            <p className="admin-kicker">Operação</p>
+            <h1 className="admin-dashboard-title mt-1 truncate font-semibold text-[var(--admin-text)]">Central de Pedidos</h1>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--admin-muted)]">Encontre pedido, cliente, pagamento e cotas em poucos segundos.</p>
           </div>
-          <button type="button" className="admin-button-secondary h-11 shrink-0 justify-center" onClick={() => void loadOrders()} disabled={loading}>
+          <button type="button" className="admin-button-secondary h-10 shrink-0 justify-center px-4" onClick={() => void loadOrders()} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Atualizar
           </button>
         </div>
-        <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <InfoLine label="Pedidos" value={metrics.total || 0} />
-          <InfoLine label="Filtrados" value={metrics.filtered || 0} />
-          <InfoLine label="Pagos" value={metrics.paid || 0} />
-          <InfoLine label="Volume" value={money(metrics.amount || 0)} />
-        </div>
-        <div className="relative mt-5">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
+        <div className="relative mt-5 max-w-3xl">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
           <input
-            className="admin-input h-12 w-full pl-11"
+            className="admin-input h-10 w-full pl-9"
             value={query}
             onChange={event => setQuery(event.target.value)}
-            placeholder="Buscar por pedido, cliente, CPF, telefone, e-mail, Payment ID, PIX, cota ou numero vencedor"
+            placeholder="Buscar por pedido, cliente, CPF, telefone, Payment ID ou cota"
           />
         </div>
         {loadMessage && !loading && (
@@ -440,80 +464,87 @@ export function AdminOrderCenter() {
         )}
       </section>
 
-      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <SummaryCard label="Total de pedidos" value={summary.total} icon={<Ticket className="h-5 w-5" />} />
+        <SummaryCard label="Pagos" value={summary.paid} icon={<CheckCircle2 className="h-5 w-5" />} />
+        <SummaryCard label="Pendentes" value={summary.pending} icon={<Clock className="h-5 w-5" />} />
+        <SummaryCard label="Cancelados" value={summary.cancelled} icon={<AlertTriangle className="h-5 w-5" />} />
+        <SummaryCard label="Volume pago" value={money(summary.amount)} icon={<Wallet className="h-5 w-5" />} />
+      </div>
+
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,0.92fr)_minmax(420px,1.08fr)]">
         <section className="admin-card min-w-0 overflow-hidden p-0">
-          <div className="hidden overflow-x-auto lg:block">
-            <table className="w-full table-fixed text-left text-sm">
-              <colgroup>
-                <col className="w-[120px]" />
-                <col className="w-[150px]" />
-                <col className="w-[130px]" />
-                <col className="w-[120px]" />
-                <col className="w-[180px]" />
-                <col className="w-[80px]" />
-                <col className="w-[105px]" />
-                <col className="w-[115px]" />
-                <col className="w-[135px]" />
-                <col className="w-[120px]" />
-              </colgroup>
-              <thead className="border-b border-[var(--admin-border)] text-xs uppercase tracking-[0.12em] text-[var(--admin-muted)]">
-                <tr>
-                  {["Pedido", "Cliente", "Telefone", "CPF", "Campanha", "Cotas", "Valor", "Status", "Data", ""].map((header, index) => (
-                    <th key={`${header || "actions"}-${index}`} className="px-4 py-3 font-bold">{header}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--admin-border)]">
-                {loading ? (
-                  <tr><td colSpan={10} className="px-4 py-10 text-center text-[var(--admin-muted)]">Carregando pedidos...</td></tr>
-                ) : visibleOrders.length ? visibleOrders.map(order => (
-                  <tr key={`${order.source}-${order.orderId}`} className={selectedId === order.orderId ? "bg-[var(--admin-primary)]/10" : "hover:bg-[var(--admin-surface)]"}>
-                    <td className="px-4 py-3 font-mono font-bold text-[var(--admin-text)]"><TruncateText value={order.orderId} /></td>
-                    <td className="px-4 py-3 font-semibold text-[var(--admin-text)]"><TruncateText value={order.cliente} /></td>
-                    <td className="px-4 py-3 font-mono text-[var(--admin-muted)]"><TruncateText value={order.telefone || "-"} /></td>
-                    <td className="px-4 py-3 font-mono text-[var(--admin-muted)]"><TruncateText value={order.cpf || "-"} /></td>
-                    <td className="px-4 py-3 text-[var(--admin-muted)]"><TruncateText value={order.campanha} /></td>
-                    <td className="px-4 py-3 font-bold text-[var(--admin-text)]">{order.quantidadeCotas}</td>
-                    <td className="px-4 py-3 font-bold text-[var(--admin-text)]"><TruncateText value={money(order.valor)} /></td>
-                    <td className="px-4 py-3"><StatusPill value={order.statusPagamento || order.statusPedido} /></td>
-                    <td className="px-4 py-3 text-[var(--admin-muted)]"><TruncateText value={dateTime(order.dataCompra)} /></td>
-                    <td className="px-4 py-3">
-                      <button type="button" className="admin-button-secondary h-9 justify-center px-3 py-2 text-xs" onClick={() => void loadDetail(order.orderId)}>
-                        <FileSearch className="h-4 w-4" />
-                        Detalhes
-                      </button>
-                    </td>
-                  </tr>
-                )) : (
-                  <tr><td colSpan={10} className="px-4 py-10 text-center text-[var(--admin-muted)]">Nenhum pedido encontrado.</td></tr>
-                )}
-              </tbody>
-            </table>
+          <div className="border-b border-[var(--admin-border)] p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <h2 className="admin-card-heading truncate">Pedidos</h2>
+                <p className="text-xs text-[var(--admin-muted)]">Lista operacional compacta para alto volume</p>
+              </div>
+              <span className="shrink-0 rounded-md border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 py-1 text-xs font-medium text-[var(--admin-muted)]">
+                {visibleOrders.length} de {filteredOrders.length} exibidos
+              </span>
+            </div>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {FILTERS.map(filter => (
+                <button
+                  key={filter.id}
+                  type="button"
+                  onClick={() => setStatusFilter(filter.id)}
+                  className={statusFilter === filter.id ? "admin-button-primary h-9 shrink-0 px-3 py-2 text-xs" : "admin-button-secondary h-9 shrink-0 px-3 py-2 text-xs"}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="grid gap-3 p-3 lg:hidden">
+
+          <div className="hidden border-b border-[var(--admin-border)] px-4 py-2 text-xs font-medium text-[var(--admin-muted)] lg:grid lg:grid-cols-[112px_minmax(150px,1.15fr)_128px_96px_104px_82px_92px] lg:items-center lg:gap-3">
+            <span>Pedido</span>
+            <span>Cliente</span>
+            <span>Telefone</span>
+            <span>Valor</span>
+            <span>Status</span>
+            <span>Data</span>
+            <span className="text-right">Ação</span>
+          </div>
+
+          <div className="max-h-[720px] overflow-y-auto">
             {loading ? (
-              <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 text-center text-sm text-[var(--admin-muted)]">Carregando pedidos...</div>
+              <div className="p-5 text-center text-sm text-[var(--admin-muted)]">Carregando pedidos...</div>
             ) : visibleOrders.length ? visibleOrders.map(order => (
-              <button key={`${order.source}-${order.orderId}-mobile`} type="button" onClick={() => void loadDetail(order.orderId)} className="min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4 text-left transition hover:border-[var(--admin-primary)]/40">
-                <div className="flex min-w-0 items-start justify-between gap-3">
+              <div
+                key={`${order.source}-${order.orderId}`}
+                className={`border-b border-[var(--admin-border)] px-3 py-3 transition last:border-b-0 sm:px-4 ${selectedId === order.orderId ? "bg-[var(--admin-primary)]/10" : "bg-[var(--admin-surface)] hover:bg-[var(--admin-primary)]/5"}`}
+              >
+                <div className="grid min-w-0 gap-2 lg:grid-cols-[112px_minmax(150px,1.15fr)_128px_96px_104px_82px_92px] lg:items-center lg:gap-3">
+                  <button type="button" onClick={() => void loadDetail(order.orderId)} className="min-w-0 text-left font-mono text-sm font-black text-[var(--admin-primary)]">
+                    <span className="block truncate" title={order.orderId}>{order.orderId}</span>
+                  </button>
                   <div className="min-w-0">
-                    <p className="truncate font-mono text-sm font-black text-[var(--admin-text)]" title={order.orderId}>{order.orderId}</p>
-                    <p className="mt-1 truncate text-sm font-semibold text-[var(--admin-text)]" title={order.cliente}>{order.cliente}</p>
-                    <p className="mt-1 truncate text-xs text-[var(--admin-muted)]" title={order.campanha}>{order.campanha}</p>
+                    <p className="truncate text-sm font-semibold text-[var(--admin-text)]" title={order.cliente}>{order.cliente || "Cliente nao informado"}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-[var(--admin-muted)] lg:hidden" title={order.telefone}>{order.telefone || "Telefone nao informado"}</p>
                   </div>
+                  <span className="hidden truncate font-mono text-xs text-[var(--admin-muted)] lg:block" title={order.telefone}>{order.telefone || "-"}</span>
+                  <strong className="whitespace-nowrap text-sm text-[var(--admin-text)]">{money(order.valor)}</strong>
                   <StatusPill value={order.statusPagamento || order.statusPedido} />
+                  <span className="text-xs text-[var(--admin-muted)]">{shortDate(order.dataCompra)}</span>
+                  <button type="button" className="admin-button-secondary h-9 justify-center px-3 py-2 text-xs lg:justify-self-end" onClick={() => void loadDetail(order.orderId)}>
+                    Ver mais
+                  </button>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--admin-muted)]">
-                  <span className="truncate" title={order.telefone}>Tel: {order.telefone || "-"}</span>
-                  <span className="truncate" title={order.cpf}>CPF: {order.cpf || "-"}</span>
-                  <span>Cotas: <strong className="text-[var(--admin-text)]">{order.quantidadeCotas}</strong></span>
-                  <span className="font-bold text-[var(--admin-text)]">{money(order.valor)}</span>
-                </div>
-              </button>
+              </div>
             )) : (
-              <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 text-center text-sm text-[var(--admin-muted)]">Nenhum pedido encontrado.</div>
+              <div className="p-5 text-center text-sm text-[var(--admin-muted)]">Nenhum pedido encontrado.</div>
             )}
           </div>
+
+          {!loading && visibleOrders.length < filteredOrders.length && (
+            <div className="border-t border-[var(--admin-border)] p-3 text-center">
+              <button type="button" className="admin-button-secondary h-10 justify-center px-4 py-2 text-sm" onClick={() => setVisibleCount(count => count + 50)}>
+                Carregar mais
+              </button>
+            </div>
+          )}
         </section>
 
         <aside className="admin-card min-w-0 overflow-hidden p-0 2xl:min-h-[720px]">
@@ -521,7 +552,7 @@ export function AdminOrderCenter() {
             <div className="grid h-full min-h-[420px] place-items-center p-8 text-center">
               <div>
                 <ShieldCheck className="mx-auto h-10 w-10 text-[var(--admin-primary)]" />
-                <h2 className="mt-3 text-lg font-black text-[var(--admin-text)]">Selecione um pedido</h2>
+                  <h2 className="mt-3 text-lg font-semibold text-[var(--admin-text)]">Selecione um pedido</h2>
                 <p className="mt-2 text-sm text-[var(--admin-muted)]">Os detalhes operacionais aparecem aqui.</p>
               </div>
             </div>
@@ -531,8 +562,8 @@ export function AdminOrderCenter() {
             <div className="min-w-0 space-y-5 p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--admin-muted)]">Pedido</p>
-                  <h2 className="truncate text-xl font-black text-[var(--admin-text)] sm:text-2xl" title={detail.row.orderId}>{detail.row.orderId}</h2>
+                  <p className="admin-kicker">Pedido</p>
+                  <h2 className="truncate text-xl font-semibold text-[var(--admin-text)] sm:text-2xl" title={detail.row.orderId}>{detail.row.orderId}</h2>
                   <p className="truncate text-sm text-[var(--admin-muted)]" title={selectedOrder?.campanha || detail.row.campanha}>{selectedOrder?.campanha || detail.row.campanha}</p>
                 </div>
                 <button type="button" className="admin-icon-button" onClick={() => { setSelectedId(""); setDetail(null); }} aria-label="Fechar detalhe"><X className="h-4 w-4" /></button>
@@ -595,7 +626,7 @@ export function AdminOrderCenter() {
               </Section>
 
               <Section title="Alterar cotas" icon={<Shuffle className="h-4 w-4" />}>
-                <div className="rounded-[8px] border border-amber-300/25 bg-amber-300/10 p-3 text-xs text-amber-100">
+                <div className="rounded-[8px] border border-slate-200 bg-slate-100 p-3 text-xs text-slate-600">
                   <AlertTriangle className="mr-2 inline h-4 w-4" /> A troca exige cotas livres e bloqueia cotas premiadas, reservadas, vendidas ou sorteadas. O historico nunca e apagado.
                 </div>
                 <textarea className="admin-input mt-3 min-h-24 w-full resize-y font-mono text-xs" value={swapForm.newNumbers} onChange={event => setSwapForm({ ...swapForm, newNumbers: event.target.value })} placeholder="Uma cota por linha" />
@@ -630,11 +661,10 @@ export function AdminOrderCenter() {
 
               <Section title="Ações administrativas" icon={<ShieldCheck className="h-4 w-4" />}>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <button type="button" className="admin-button-secondary h-10 justify-center" disabled={busy === "reconcile"} onClick={() => void runAction("reconcile")}><RefreshCw className="h-4 w-4" /> Reconciliar</button>
                   <button type="button" className="admin-button-secondary h-10 justify-center" disabled={busy === "reprocess"} onClick={() => void runAction("reprocess")}><RefreshCw className="h-4 w-4" /> Reprocessar</button>
-                  <button type="button" className="admin-button-secondary h-10 justify-center" onClick={() => copyText("Pedido", detail.row.orderId)}><Copy className="h-4 w-4" /> Copiar pedido</button>
-                  <button type="button" className="admin-button-secondary h-10 justify-center" onClick={exportAudit}><Download className="h-4 w-4" /> Exportar</button>
-                  <a className="admin-button-secondary h-10 justify-center sm:col-span-2" href={`/checkout/pedido/${encodeURIComponent(detail.row.orderId)}`} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Abrir página pública</a>
+                  <a className="admin-button-secondary h-10 justify-center" href={`/admin/suporte?pedido=${encodeURIComponent(detail.row.orderId)}`}><ExternalLink className="h-4 w-4" /> Abrir suporte</a>
+                  <a className="admin-button-secondary h-10 justify-center" href={`/admin/pix-recuperacao?pedido=${encodeURIComponent(detail.row.orderId)}`}><ExternalLink className="h-4 w-4" /> Recuperação PIX</a>
+                  <a className="admin-button-secondary h-10 justify-center" href={`/checkout/pedido/${encodeURIComponent(detail.row.orderId)}`} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Abrir recibo</a>
                 </div>
               </Section>
             </div>
@@ -645,11 +675,27 @@ export function AdminOrderCenter() {
   );
 }
 
+function SummaryCard({ label, value, icon }: { label: string; value: ReactNode; icon: ReactNode }) {
+  return (
+    <article className="admin-card min-w-0 p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-[var(--admin-muted)]" title={label}>{label}</p>
+          <strong className="mt-2 block truncate text-2xl font-semibold tracking-tight text-[var(--admin-text)]" title={String(value)}>{value}</strong>
+        </div>
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-[var(--admin-border)] bg-[var(--admin-primary)]/15 text-[var(--admin-primary)]">
+          {icon}
+        </span>
+      </div>
+    </article>
+  );
+}
+
 function Section({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   return (
-    <section className="min-w-0 rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] p-4">
-      <div className="mb-3 flex min-w-0 items-center gap-2 text-sm font-black text-[var(--admin-text)]">
-        <span className="grid h-8 w-8 place-items-center rounded-[8px] bg-[var(--admin-primary)]/15 text-[var(--admin-primary)]">{icon}</span>
+    <section className="min-w-0 rounded-md border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
+      <div className="mb-3 flex min-w-0 items-center gap-2 text-sm font-semibold text-[var(--admin-text)]">
+        <span className="grid h-8 w-8 place-items-center rounded-md bg-[var(--admin-primary)]/15 text-[var(--admin-primary)]">{icon}</span>
         <span className="min-w-0 truncate" title={title}>{title}</span>
       </div>
       {children}
@@ -665,3 +711,4 @@ function CompactList({ items, empty }: { items: string[]; empty: string }) {
     </div>
   );
 }
+

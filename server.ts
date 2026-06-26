@@ -1057,12 +1057,14 @@ async function startServer() {
     current.company_name = legacyBrandNames.has(String(current.company_name || "").trim()) ? "" : String(current.company_name || "").trim().slice(0, 120);
     current.display_name = legacyBrandNames.has(String(current.display_name || "").trim()) ? "" : String(current.display_name || "").trim().slice(0, 80);
     current.footer_text = normalizeLegacyFooterText(current.footer_text);
+    current.logo_url = sanitizeBrandingImageUrl(current.logo_url);
+    current.favicon_url = sanitizeBrandingImageUrl(current.favicon_url);
     if (!String(current.slogan || "").trim() || current.slogan === "Sorteios premium com PIX automatico") current.slogan = defaultPrimeSlogan;
-    current.login_logo_url ||= current.logo_url || "";
+    current.login_logo_url = sanitizeBrandingImageUrl(current.login_logo_url) || current.logo_url || "";
     current.login_title = String(current.login_title || "").trim() || defaultLoginTitle;
     current.login_subtitle = String(current.login_subtitle || "").trim() || defaultLoginSubtitle;
     current.login_support_text = String(current.login_support_text || "").trim() || defaultLoginSupportText;
-    current.login_background_url ||= "";
+    current.login_background_url = sanitizeBrandingImageUrl(current.login_background_url);
     current.login_primary_color = isHexColor(current.login_primary_color) ? current.login_primary_color : current.primary_color;
     current.login_accent_color = isHexColor(current.login_accent_color) ? current.login_accent_color : "#f5c451";
     current.accent_color = isHexColor(current.accent_color) ? current.accent_color : current.login_accent_color;
@@ -1210,6 +1212,24 @@ async function startServer() {
     }
   }
 
+  function sanitizeBrandingImageUrl(value: unknown) {
+    const url = String(value || "").trim();
+    if (!url) return "";
+    if (/[\u0000-\u001f<>]/.test(url)) return "";
+    if (/^(javascript|data|vbscript|file|blob):/i.test(url)) return "";
+    if (url.startsWith("/") && !url.startsWith("//")) {
+      return /^(\/uploads\/|\/assets\/|\/icons\/)/.test(url) ? url.slice(0, 600) : "";
+    }
+    try {
+      const parsed = new URL(url);
+      if (!["http:", "https:"].includes(parsed.protocol)) return "";
+      if (!/\.(avif|gif|jpe?g|png|svg|webp)(\?.*)?$/i.test(parsed.pathname)) return "";
+      return url.slice(0, 600);
+    } catch {
+      return "";
+    }
+  }
+
   function sanitizeHomeBranding(value: unknown, current: unknown = {}) {
     const source = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
     const fallback = current && typeof current === "object" && !Array.isArray(current) ? current as Record<string, unknown> : {};
@@ -1342,13 +1362,20 @@ async function startServer() {
 
   function normalizeTenantBranding(tenantId: string, incoming: Record<string, unknown>, current = getTenantBranding(tenantId)) {
     const themeMode = String(incoming.theme_mode || current.theme_mode || "vimeu_dark");
-    const hasHeaderName = Object.prototype.hasOwnProperty.call(incoming, "header_name");
-    const hasDisplayName = Object.prototype.hasOwnProperty.call(incoming, "display_name");
-    const hasCompanyName = Object.prototype.hasOwnProperty.call(incoming, "company_name");
-    const headerName = sanitizeWhiteLabelText(hasHeaderName ? incoming.header_name : current.header_name ?? "", 80);
+    const hasHeaderName = Object.prototype.hasOwnProperty.call(incoming, "header_name") || Object.prototype.hasOwnProperty.call(incoming, "headerName");
+    const hasDisplayName = Object.prototype.hasOwnProperty.call(incoming, "display_name") || Object.prototype.hasOwnProperty.call(incoming, "displayName");
+    const hasCompanyName = Object.prototype.hasOwnProperty.call(incoming, "company_name") || Object.prototype.hasOwnProperty.call(incoming, "companyName");
+    const incomingHeaderName = incoming.header_name ?? incoming.headerName;
+    const incomingDisplayName = incoming.display_name ?? incoming.displayName;
+    const incomingCompanyName = incoming.company_name ?? incoming.companyName;
+    const incomingLogoUrl = incoming.logo_url ?? incoming.logoUrl;
+    const incomingFaviconUrl = incoming.favicon_url ?? incoming.faviconUrl;
+    const incomingLoginLogoUrl = incoming.login_logo_url ?? incoming.loginLogoUrl;
+    const incomingLoginBackgroundUrl = incoming.login_background_url ?? incoming.loginBackgroundUrl;
+    const headerName = sanitizeWhiteLabelText(hasHeaderName ? incomingHeaderName : current.header_name ?? "", 80);
     const clearNamesFromHeader = hasHeaderName && !headerName && !hasDisplayName && !hasCompanyName;
-    const displayName = sanitizeWhiteLabelText(hasDisplayName ? incoming.display_name : clearNamesFromHeader ? "" : current.display_name ?? "", 80);
-    const companyName = sanitizeWhiteLabelText(hasCompanyName ? incoming.company_name : clearNamesFromHeader ? "" : current.company_name ?? "", 120);
+    const displayName = sanitizeWhiteLabelText(hasDisplayName ? incomingDisplayName : clearNamesFromHeader ? "" : current.display_name ?? "", 80);
+    const companyName = sanitizeWhiteLabelText(hasCompanyName ? incomingCompanyName : clearNamesFromHeader ? "" : current.company_name ?? "", 120);
     const incomingMetadata = incoming.metadata && typeof incoming.metadata === "object" && !Array.isArray(incoming.metadata) ? incoming.metadata as Record<string, unknown> : {};
     const currentMetadata = current.metadata && typeof current.metadata === "object" && !Array.isArray(current.metadata) ? current.metadata : {};
     const homeBranding = sanitizeHomeBranding(
@@ -1360,9 +1387,9 @@ async function startServer() {
       company_name: companyName,
       display_name: displayName,
       header_name: headerName,
-      logo_url: String(incoming.logo_url ?? current.logo_url ?? "").trim(),
+      logo_url: sanitizeBrandingImageUrl(incomingLogoUrl ?? current.logo_url),
       logo_mime_type: String(incoming.logo_mime_type ?? current.logo_mime_type ?? "").trim(),
-      favicon_url: String(incoming.favicon_url ?? current.favicon_url ?? "").trim(),
+      favicon_url: sanitizeBrandingImageUrl(incomingFaviconUrl ?? current.favicon_url),
       primary_color: isHexColor(incoming.primary_color) ? String(incoming.primary_color) : current.primary_color,
       secondary_color: isHexColor(incoming.secondary_color) ? String(incoming.secondary_color) : current.secondary_color,
       cta_color: isHexColor(incoming.cta_color) ? String(incoming.cta_color) : current.cta_color,
@@ -1375,11 +1402,11 @@ async function startServer() {
       slogan: String(incoming.slogan ?? current.slogan ?? "").trim().slice(0, 140),
       support_whatsapp: String(incoming.support_whatsapp ?? current.support_whatsapp ?? "").trim().slice(0, 80),
       footer_text: String(incoming.footer_text ?? current.footer_text ?? "").trim().slice(0, 280),
-      login_logo_url: String(incoming.login_logo_url ?? current.login_logo_url ?? current.logo_url ?? "").trim().slice(0, 600),
+      login_logo_url: sanitizeBrandingImageUrl(incomingLoginLogoUrl ?? current.login_logo_url ?? current.logo_url),
       login_title: String(incoming.login_title ?? current.login_title ?? "").trim().slice(0, 80) || defaultLoginTitle,
       login_subtitle: String(incoming.login_subtitle ?? current.login_subtitle ?? "").trim().slice(0, 180) || defaultLoginSubtitle,
       login_support_text: String(incoming.login_support_text ?? current.login_support_text ?? "").trim().slice(0, 260) || defaultLoginSupportText,
-      login_background_url: String(incoming.login_background_url ?? current.login_background_url ?? "").trim().slice(0, 600),
+      login_background_url: sanitizeBrandingImageUrl(incomingLoginBackgroundUrl ?? current.login_background_url),
       login_primary_color: isHexColor(incoming.login_primary_color) ? String(incoming.login_primary_color) : current.login_primary_color || current.primary_color,
       login_accent_color: isHexColor(incoming.login_accent_color) ? String(incoming.login_accent_color) : current.login_accent_color || current.cta_color,
       login_button_text: String(incoming.login_button_text ?? current.login_button_text ?? "").trim().slice(0, 80) || defaultLoginButtonText,
@@ -1809,7 +1836,7 @@ async function startServer() {
   type WhatsAppCloudLogRecord = {
     id: string;
     tenant_id: string;
-    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "template_sent" | "crm_campaign_created" | "crm_campaign_preview" | "crm_campaign_enqueued" | "crm_campaign_cancelled" | "crm_campaign_send_requested" | "crm_campaign_sent" | "crm_campaign_failed" | "crm_campaign_skipped" | "whatsapp_automation_rule_created" | "whatsapp_automation_rule_updated" | "whatsapp_automation_rule_deleted" | "whatsapp_automation_scheduled" | "whatsapp_automation_sent" | "whatsapp_automation_skipped" | "whatsapp_automation_failed" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "manual_reply_sent" | "manual_reply_failed" | "manual_template_sent" | "manual_template_failed" | "webhook_validate" | "webhook_received" | "webhook_signature_missing" | "webhook_signature_invalid" | "credential_error" | "meta_api_error";
+    action: "settings_saved" | "test_connection" | "phone_info" | "list_templates" | "templates_synced" | "template_test_requested" | "template_test_sent" | "template_sent" | "crm_campaign_created" | "crm_campaign_preview" | "crm_campaign_enqueued" | "crm_campaign_cancelled" | "crm_campaign_send_requested" | "crm_campaign_sent" | "crm_campaign_failed" | "crm_campaign_skipped" | "whatsapp_automation_rule_created" | "whatsapp_automation_rule_updated" | "whatsapp_automation_rule_deleted" | "whatsapp_automation_scheduled" | "whatsapp_automation_sent" | "whatsapp_automation_skipped" | "whatsapp_automation_failed" | "raffle_automation_enqueued" | "raffle_automation_skipped" | "pix_recovery_settings_saved" | "pix_recovery_preview" | "pix_recovery_enqueued" | "pix_recovery_sent" | "pix_recovery_skipped" | "purchase_confirmation_settings_saved" | "purchase_confirmation_event" | "purchase_confirmation_enqueued" | "purchase_confirmation_send_requested" | "purchase_confirmation_sent" | "purchase_confirmation_failed" | "purchase_confirmation_skipped" | "manual_reply_sent" | "manual_reply_failed" | "manual_template_sent" | "manual_template_failed" | "webhook_validate" | "webhook_received" | "webhook_signature_missing" | "webhook_signature_invalid" | "credential_error" | "meta_api_error";
     status: "success" | "error" | "skipped";
     message: string;
     metadata: Record<string, unknown>;
@@ -3051,10 +3078,17 @@ async function startServer() {
       heroPrimaryButton: "Participar agora",
       heroSecondaryText: "",
       heroShowStats: true,
+      topBuyerRankingEnabled: true,
+      topSellerRankingEnabled: true,
+      topBuyerRewards: [
+        { position: 1, type: "other" as const, label: "", description: "", enabled: false },
+        { position: 2, type: "other" as const, label: "", description: "", enabled: false },
+        { position: 3, type: "other" as const, label: "", description: "", enabled: false }
+      ],
       topSellerRewards: [
-        { position: 1, label: "Moto Pop 110", enabled: true },
-        { position: 2, label: "iPhone", enabled: true },
-        { position: 3, label: "R$ 1.000 Pix", enabled: true }
+        { position: 1, type: "product" as const, label: "Moto Pop 110", description: "Moto Pop 110", enabled: true },
+        { position: 2, type: "product" as const, label: "iPhone", description: "iPhone", enabled: true },
+        { position: 3, type: "money" as const, label: "R$ 1.000 Pix", description: "R$ 1.000 Pix", enabled: true }
       ],
       status: "active",
       drawDate: "2026-10-15T20:00:00Z",
@@ -3868,10 +3902,6 @@ async function startServer() {
       res.status(403).json({ error: "Tenant indisponivel para API" });
       return;
     }
-    if (!tenantHasFeature(record.tenant_id, "public_api")) {
-      res.status(403).json({ error: "API publica bloqueada pelo plano atual", feature: "public_api", upgradeRequired: true });
-      return;
-    }
     record.last_used_at = new Date().toISOString();
     (req as express.Request & { apiKeyAuth?: TenantApiKeyAuth }).apiKeyAuth = {
       tenantId: record.tenant_id,
@@ -4186,7 +4216,7 @@ async function startServer() {
       logo_url: String(row.logo_url || ""),
       cor_primaria: String(row.cor_primaria || "#06b6d4"),
       plano: getTenantPlan(String(row.plano || "pro")).id,
-      percentual_plataforma: Number(row.percentual_plataforma || 0),
+      percentual_plataforma: Number(row.percentual_plataforma ?? 10) || 10,
       criado_em: String(row.criado_em || row.created_at || now),
       atualizado_em: String(row.atualizado_em || row.updated_at || row.created_at || now)
     };
@@ -4722,13 +4752,11 @@ async function startServer() {
   }
 
   function getTenantFeatures(tenantId: string) {
-    const plan = getTenantPlan(tenantId);
-    const enabled = Object.fromEntries(allTenantFeatureFlags.map(flag => [flag, plan.included_features.includes(flag)])) as Record<TenantFeatureFlag, boolean>;
-    return { ...enabled, ...(tenantFeatureOverrides[tenantId] || {}) };
+    return Object.fromEntries(allTenantFeatureFlags.map(flag => [flag, true])) as Record<TenantFeatureFlag, boolean>;
   }
 
-  function tenantHasFeature(tenantId: string, feature: TenantFeatureFlag) {
-    return Boolean(getTenantFeatures(tenantId)[feature]);
+  function tenantHasFeature(_tenantId: string, _feature: TenantFeatureFlag) {
+    return true;
   }
 
   function assertTenantOperationalForCheckout(tenant: TenantRecord | undefined | null) {
@@ -4742,8 +4770,8 @@ async function startServer() {
     throw new Error("Tenant inativo ou indisponivel para compras");
   }
 
-  function tenantCanUseIntegration(tenantId: string, provider: IntegrationProviderId) {
-    return getTenantPlan(tenantId).integracoes_liberadas.includes(provider);
+  function tenantCanUseIntegration(_tenantId: string, _provider: IntegrationProviderId) {
+    return true;
   }
 
   function recordSecurityEvent(input: Omit<SecurityLog, "id" | "date">) {
@@ -5568,21 +5596,22 @@ async function startServer() {
     res.json({
       periodStart,
       periodEnd,
-      addonCatalog: platformAddonCatalog,
       totals: {
         grossRevenue: rows.reduce((sum, row) => sum + row.grossRevenue, 0),
         revenueShareAmount: rows.reduce((sum, row) => sum + row.revenueShareAmount, 0),
-        addOnsAmount: rows.reduce((sum, row) => sum + row.addOnsAmount, 0),
-        totalDue: rows.reduce((sum, row) => sum + row.totalDue, 0)
+        tenantNetAmount: rows.reduce((sum, row) => sum + Number((row.grossRevenue - row.revenueShareAmount).toFixed(2)), 0),
+        addOnsAmount: 0,
+        totalDue: rows.reduce((sum, row) => sum + row.revenueShareAmount, 0)
       },
       tenants: rows.map(row => ({
         tenant: row.tenant ? buildTenantSummary(row.tenant) : null,
         settings: row.settings,
         grossRevenue: row.grossRevenue,
         revenueShareAmount: row.revenueShareAmount,
-        addOnsAmount: row.addOnsAmount,
-        totalDue: row.totalDue,
-        activeAddons: row.addonSubscriptions.filter(item => item.enabled),
+        tenantNetAmount: Number((row.grossRevenue - row.revenueShareAmount).toFixed(2)),
+        addOnsAmount: 0,
+        totalDue: row.revenueShareAmount,
+        activeAddons: [],
         statement: row.statement
       }))
     });
@@ -5593,14 +5622,14 @@ async function startServer() {
     if (!tenant) return res.status(404).json({ error: "Tenant not found" });
     const { periodStart, periodEnd } = platformBillingPeriod({ periodStart: String(req.query.periodStart || ""), periodEnd: String(req.query.periodEnd || "") });
     const summary = buildPlatformBillingSummary(tenant.id, periodStart, periodEnd);
-    res.json({ ...summary, tenant: buildTenantSummary(tenant), addonCatalog: platformAddonCatalog, statements: platformBillingStatements.filter(item => item.tenant_id === tenant.id) });
+    res.json({ ...summary, tenant: buildTenantSummary(tenant), addonCatalog: [], addonSubscriptions: [], addonCharges: [], statements: platformBillingStatements.filter(item => item.tenant_id === tenant.id) });
   });
 
   app.put("/api/superadmin/platform-billing/tenants/:tenantId/settings", (req, res) => {
     const tenant = tenants.find(item => item.id === req.params.tenantId);
     if (!tenant) return res.status(404).json({ error: "Tenant not found" });
-    tenant.platformCommissionEnabled = Boolean(req.body.platformCommissionEnabled);
-    tenant.platformCommissionRate = Math.max(0, Math.min(100, Number(req.body.platformCommissionRate ?? req.body.commissionRate ?? tenant.percentual_plataforma ?? 0)));
+    tenant.platformCommissionEnabled = true;
+    tenant.platformCommissionRate = Math.max(0, Math.min(100, Number(req.body.platformCommissionRate ?? req.body.commissionRate ?? tenant.percentual_plataforma ?? 10) || 10));
     tenant.platformCommissionMode = normalizePlatformCommissionMode(req.body.platformCommissionMode);
     tenant.percentual_plataforma = tenant.platformCommissionRate;
     tenant.atualizado_em = new Date().toISOString();
@@ -5609,22 +5638,6 @@ async function startServer() {
     res.json({ tenant: buildTenantSummary(tenant), settings: getTenantPlatformBillingSettings(tenant) });
   });
 
-  app.put("/api/superadmin/platform-billing/tenants/:tenantId/addons", (req, res) => {
-    const tenant = tenants.find(item => item.id === req.params.tenantId);
-    if (!tenant) return res.status(404).json({ error: "Tenant not found" });
-    const addons = Array.isArray(req.body.addons) ? req.body.addons : [req.body];
-    try {
-      const updated = addons.map((addon: any) => upsertPlatformAddonSubscription(tenant.id, String(addon.addOnKey || addon.addonKey) as PlatformAddonKey, {
-        enabled: Boolean(addon.enabled),
-        monthly_price: Number(addon.monthlyPrice ?? addon.monthly_price ?? 0),
-        billing_status: String(addon.billingStatus || addon.billing_status || (addon.enabled ? "active" : "cancelled")) as PlatformAddonBillingStatus
-      }));
-      recordSuperadminAudit(req, "PLATFORM_BILLING_ADDONS_UPDATED", { tenant_id: tenant.id, metadata: { addons: updated.map(item => item.addon_key) } });
-      res.json({ addons: updated });
-    } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : "Addon invalido" });
-    }
-  });
 
   app.post("/api/superadmin/platform-billing/statements/generate", (req, res) => {
     const { periodStart, periodEnd } = platformBillingPeriod({ periodStart: req.body.periodStart, periodEnd: req.body.periodEnd });
@@ -5658,9 +5671,6 @@ async function startServer() {
     res.json(tenants);
   });
 
-  app.get("/api/superadmin/plans", (req, res) => {
-    res.json(getSuperadminPlanCatalog());
-  });
 
   app.get("/api/superadmin/tenants/:tenantId/admins", (req, res) => {
     const tenant = tenants.find(item => item.id === req.params.tenantId && isActiveTenantRecord(item));
@@ -5678,7 +5688,7 @@ async function startServer() {
   app.post("/api/superadmin/tenants", async (req, res) => {
     const nome = String(req.body.nome || "").trim();
     const slug = String(req.body.slug || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
-    const percentualPlataforma = Number(req.body.percentual_plataforma ?? 0);
+    const percentualPlataforma = Number(req.body.percentual_plataforma ?? 10);
     if (nome.length < 2 || slug.length < 2) {
       res.status(400).json({ error: "Nome e slug do tenant sao obrigatorios" });
       return;
@@ -5688,8 +5698,6 @@ async function startServer() {
       return;
     }
     const now = new Date().toISOString();
-    const requestedPlan = String(req.body.plano || "starter").trim().toLowerCase();
-    const plan = getTenantPlan(requestedPlan);
     const tenant: TenantRecord = {
       id: String(req.body.id || createPublicId("TENANT_")),
       nome,
@@ -5698,8 +5706,8 @@ async function startServer() {
       status: operationalTenantStatuses.includes(String(req.body.status) as TenantRecord["status"]) ? req.body.status : "active",
       logo_url: String(req.body.logo_url || "").trim(),
       cor_primaria: String(req.body.cor_primaria || "#06b6d4"),
-      plano: plan.id,
-      percentual_plataforma: req.body.percentual_plataforma !== undefined ? percentualPlataforma : plan.percentual_comissao,
+      plano: String(req.body.plano || "legacy").trim() || "legacy",
+      percentual_plataforma: percentualPlataforma,
       criado_em: now,
       atualizado_em: now
     };
@@ -5904,11 +5912,9 @@ async function startServer() {
     tenant.nome = nome;
     tenant.slug = slug;
     const oldDomain = tenant.dominio_customizado;
-    const oldPlan = tenant.plano;
     tenant.dominio_customizado = req.body.dominio_customizado !== undefined ? String(req.body.dominio_customizado).trim() : tenant.dominio_customizado;
     tenant.logo_url = req.body.logo_url !== undefined ? String(req.body.logo_url).trim() : tenant.logo_url;
     tenant.cor_primaria = req.body.cor_primaria !== undefined ? String(req.body.cor_primaria) : tenant.cor_primaria;
-    tenant.plano = req.body.plano !== undefined ? getTenantPlan(String(req.body.plano)).id : tenant.plano;
     tenant.percentual_plataforma = percentualPlataforma;
     if (operationalTenantStatuses.includes(String(req.body.status) as TenantRecord["status"])) {
       tenant.status = req.body.status;
@@ -5917,18 +5923,7 @@ async function startServer() {
     if (oldDomain !== tenant.dominio_customizado) {
       recordSecurityEvent({ tenant_id: tenant.id, action: "DOMAIN_CHANGED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "WARN", severity: "medium", actor: getAuthSession(req)?.email, detail: `${oldDomain || "(vazio)"} -> ${tenant.dominio_customizado || "(vazio)"}` });
     }
-    if (oldPlan !== tenant.plano) {
-      recordSecurityEvent({ tenant_id: tenant.id, action: "PLAN_CHANGED", ip: String(req.ip || req.socket.remoteAddress || ""), status: "INFO", severity: "low", actor: getAuthSession(req)?.email, detail: `${oldPlan} -> ${tenant.plano}` });
-    }
-    if (oldPlan !== tenant.plano) {
-      try {
-        await persistTenantPlanRecord(tenant, "superadmin-tenant-edit-plan");
-      } catch (error) {
-        Object.assign(tenant, before);
-        res.status(500).json({ error: error instanceof Error ? error.message : "Falha ao persistir plano do cliente" });
-        return;
-      }
-    }
+
     res.json(tenant);
   });
 
@@ -6301,11 +6296,7 @@ async function startServer() {
       paidRevenue,
       platformCommission: commissionAmount,
       pendingPix: purchases.filter(purchase => purchase.tenant_id === tenant.id && purchase.status === "pending").length,
-      webhookErrors: paymentWebhookLogs.filter(log => log.tenant_id === tenant.id && ["failed", "invalid"].includes(log.status)).length,
-      planUsage: {
-        raffles: `${raffles.filter(raffle => raffle.tenant_id === tenant.id).length}/${plan.limite_rifas}`,
-        sales: `${purchases.filter(purchase => purchase.tenant_id === tenant.id).length}/${plan.limite_vendas_mes}`
-      }
+      webhookErrors: paymentWebhookLogs.filter(log => log.tenant_id === tenant.id && ["failed", "invalid"].includes(log.status)).length
     };
   }
 
@@ -6349,7 +6340,7 @@ async function startServer() {
       charts: globalRevenue.charts,
       tenants: tenantSummaries,
       ranking: tenantRanking,
-      plans: getSuperadminPlanCatalog()
+      commercialModel: "platform_fee_percent"
     });
   });
 
@@ -6842,37 +6833,12 @@ async function startServer() {
     });
   });
 
-  app.get("/api/superadmin/tenants/:tenantId/plan", (req, res) => {
-    const tenant = tenants.find(item => item.id === req.params.tenantId);
-    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
-    recordSuperadminAudit(req, "TENANT_PLAN_VIEW", { tenant_id: tenant.id, resource_type: "tenant", resource_id: tenant.id });
-    res.json({ tenant: buildTenantSummary(tenant), plan: getTenantPlan(tenant.id), plans: getSuperadminPlanCatalog() });
-  });
-
-  app.put("/api/superadmin/tenants/:tenantId/plan", async (req, res) => {
-    const tenant = tenants.find(item => item.id === req.params.tenantId);
-    if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
-    const before = deepClone(tenant);
-    tenant.plano = getTenantPlan(String(req.body.planId || req.body.plano || tenant.plano)).id;
-    if (req.body.status) tenant.status = String(req.body.status) as TenantRecord["status"];
-    tenant.atualizado_em = new Date().toISOString();
-    try {
-      await persistTenantPlanRecord(tenant, "superadmin-tenant-plan-updated");
-    } catch (error) {
-      Object.assign(tenant, before);
-      res.status(500).json({ error: error instanceof Error ? error.message : "Falha ao persistir plano do cliente" });
-      return;
-    }
-    recordSuperadminAudit(req, "TENANT_PLAN_UPDATED", { tenant_id: tenant.id, resource_type: "tenant", resource_id: tenant.id, metadata: { plan: tenant.plano, status: tenant.status } });
-    recordAuditLedger(req, { tenant_id: tenant.id, action: "TENANT_PLAN_UPDATED", resource_type: "tenant", resource_id: tenant.id, before_data: before, after_data: tenant, reason: String(req.body.reason || "Alteracao de plano e governanca pelo superadmin") });
-    res.json({ tenant: buildTenantSummary(tenant), plan: getTenantPlan(tenant.id) });
-  });
 
   app.get("/api/superadmin/tenants/:tenantId/features", (req, res) => {
     const tenant = tenants.find(item => item.id === req.params.tenantId);
     if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
     recordSuperadminAudit(req, "TENANT_FEATURES_VIEW", { tenant_id: tenant.id, resource_type: "tenant_features", resource_id: tenant.id });
-    res.json({ tenant_id: tenant.id, plan: getTenantPlan(tenant.id).id, features: getTenantFeatures(tenant.id), overrides: tenantFeatureOverrides[tenant.id] || {}, available: allTenantFeatureFlags });
+    res.json({ tenant_id: tenant.id, commercialModel: "platform_fee_percent", features: getTenantFeatures(tenant.id), overrides: tenantFeatureOverrides[tenant.id] || {}, available: allTenantFeatureFlags });
   });
 
   app.put("/api/superadmin/tenants/:tenantId/features", (req, res) => {
@@ -6888,7 +6854,7 @@ async function startServer() {
     const after = getTenantFeatures(tenant.id);
     recordSuperadminAudit(req, "TENANT_FEATURES_UPDATED", { tenant_id: tenant.id, resource_type: "tenant_features", resource_id: tenant.id, metadata: { overrides: tenantFeatureOverrides[tenant.id] } });
     recordAuditLedger(req, { tenant_id: tenant.id, action: "TENANT_FEATURES_UPDATED", resource_type: "tenant_features", resource_id: tenant.id, before_data: before, after_data: after, reason: String(req.body.reason || "Alteracao de feature flags pelo superadmin") });
-    res.json({ tenant_id: tenant.id, plan: getTenantPlan(tenant.id).id, features: after, overrides: tenantFeatureOverrides[tenant.id] });
+    res.json({ tenant_id: tenant.id, commercialModel: "platform_fee_percent", features: after, overrides: tenantFeatureOverrides[tenant.id] });
   });
 
   app.get("/api/superadmin/domains", (_req, res) => {
@@ -8344,25 +8310,7 @@ async function startServer() {
   });
 
   app.use("/api/admin", rateLimiter, requireTenantAdmin);
-  const adminFeatureRoutes: Array<{ pattern: RegExp; feature: TenantFeatureFlag }> = [
-    { pattern: /^\/crm/, feature: "crm" },
-    { pattern: /^\/customers/, feature: "crm" },
-    { pattern: /^\/messages/, feature: "whatsapp_automation" },
-    { pattern: /^\/reports/, feature: "reports_pdf" },
-    { pattern: /^\/affiliates/, feature: "advanced_affiliates" },
-    { pattern: /^\/wallet-ledger/, feature: "wallet" },
-    { pattern: /^\/integrations/, feature: "automations" },
-    { pattern: /^\/automations/, feature: "automations" }
-  ];
-  app.use("/api/admin", (req, res, next) => {
-    if (["/plan", "/features", "/me", "/dashboard"].includes(req.path)) return next();
-    const matched = adminFeatureRoutes.find(item => item.pattern.test(req.path));
-    if (matched && !tenantHasFeature(resolveRequestTenantId(req), matched.feature)) {
-      res.status(403).json({ error: "Recurso bloqueado pelo plano atual", feature: matched.feature, upgradeRequired: true });
-      return;
-    }
-    next();
-  });
+  // Fase 9: sem feature gates por plano; o tenant ativo acessa todos os módulos administrativos.
   app.use("/api/admin", (req, res, next) => {
     res.on("finish", () => {
       if (req.method !== "GET") {
@@ -8377,8 +8325,6 @@ async function startServer() {
     if (!tenant) return res.status(404).json({ error: "Tenant nao encontrado" });
     res.json({
       status: tenant.status,
-      plan: getTenantPlan(tenant.id).id,
-      features: getTenantFeatures(tenant.id),
       checkoutAllowed: ["trial", "active"].includes(tenant.status),
       maintenance: tenant.status === "maintenance",
       blocked: ["suspended", "overdue", "blocked", "canceled", "inactive"].includes(tenant.status)
@@ -8417,18 +8363,18 @@ async function startServer() {
   app.get("/api/admin/platform-billing/summary", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const { periodStart, periodEnd } = platformBillingPeriod({ periodStart: String(req.query.periodStart || ""), periodEnd: String(req.query.periodEnd || "") });
-    generatePlatformAddonCharges(tenantId, periodStart, periodEnd);
     const summary = buildPlatformBillingSummary(tenantId, periodStart, periodEnd);
     res.json({
       periodStart,
       periodEnd,
       grossRevenue: summary.grossRevenue,
-      platformCommissionRate: summary.settings?.platformCommissionRate || 0,
+      platformCommissionRate: summary.settings?.platformCommissionRate || 10,
       platformCommissionMode: summary.settings?.platformCommissionMode || "gross_revenue",
       revenueShareAmount: summary.revenueShareAmount,
-      addOnsAmount: summary.addOnsAmount,
-      totalDue: summary.totalDue,
-      activeAddons: summary.addonSubscriptions.filter(item => item.enabled),
+      tenantNetAmount: Number((summary.grossRevenue - summary.revenueShareAmount).toFixed(2)),
+      addOnsAmount: 0,
+      totalDue: summary.revenueShareAmount,
+      activeAddons: [],
       statement: summary.statement
     });
   });
@@ -8442,15 +8388,6 @@ async function startServer() {
     });
   });
 
-  app.get("/api/admin/platform-billing/addons", (req, res) => {
-    const tenantId = resolveRequestTenantId(req);
-    res.json({
-      addonCatalog: platformAddonCatalog,
-      addons: platformAddonSubscriptions.filter(item => item.tenant_id === tenantId),
-      charges: platformAddonCharges.filter(item => item.tenant_id === tenantId)
-    });
-  });
-
   app.get("/api/admin/platform-billing/statements", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     res.json({
@@ -8460,26 +8397,6 @@ async function startServer() {
     });
   });
 
-  app.get("/api/admin/plan", (req, res) => {
-    const tenantId = resolveRequestTenantId(req);
-    const tenant = tenants.find(item => item.id === tenantId);
-    const plan = getTenantPlan(tenantId);
-    res.json({
-      tenant: tenant ? buildTenantSummary(tenant) : null,
-      plan,
-      limits: {
-        campaigns: `${raffles.filter(raffle => raffle.tenant_id === tenantId).length}/${plan.max_campaigns}`,
-        customers: `${Object.values(customersByPhone).filter(customer => customer.tenant_id === tenantId).length}/${plan.max_customers}`,
-        adminUsers: `${authUsers.filter(user => user.tenant_id === tenantId && ["admin", "operador", "tenant_admin"].includes(user.role)).length}/${plan.max_admin_users}`,
-        whatsappMessagesMonth: `${whatsappMessageQueue.filter(message => message.tenant_id === tenantId).length}/${plan.max_whatsapp_messages_month}`
-      }
-    });
-  });
-
-  app.get("/api/admin/features", (req, res) => {
-    const tenantId = resolveRequestTenantId(req);
-    res.json({ tenant_id: tenantId, plan: getTenantPlan(tenantId).id, features: getTenantFeatures(tenantId), upgradeUrl: "/admin/meu-plano" });
-  });
 
   app.get("/api/admin/api-keys", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
@@ -8488,10 +8405,7 @@ async function startServer() {
 
   app.post("/api/admin/api-keys", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
-    if (!tenantHasFeature(tenantId, "public_api")) {
-      res.status(403).json({ error: "API publica bloqueada pelo plano atual", feature: "public_api", upgradeRequired: true });
-      return;
-    }
+
     const name = String(req.body.name || "").trim().slice(0, 80);
     const scopes = normalizeTenantApiScopes(req.body.scopes);
     if (!name || scopes.length === 0) {
@@ -9610,8 +9524,8 @@ async function startServer() {
       ? Number(tenant.platformCommissionRate)
       : Number(tenant.percentual_plataforma || 0);
     return {
-      platformCommissionEnabled: tenant.platformCommissionEnabled ?? rate > 0,
-      platformCommissionRate: Math.max(0, Math.min(100, rate)),
+      platformCommissionEnabled: true,
+      platformCommissionRate: Math.max(0, Math.min(100, rate || 10)),
       platformCommissionMode: normalizePlatformCommissionMode(tenant.platformCommissionMode)
     };
   }
@@ -9813,13 +9727,7 @@ async function startServer() {
       .filter(entry => entry.status === "active")
       .reduce((sum, entry) => sum + Number(entry.gross_amount || 0), 0);
     const revenueShareAmount = commissionEntries.reduce((sum, entry) => sum + Number(entry.commission_amount || 0), 0);
-    const addonCharges = platformAddonCharges.filter(charge =>
-      charge.tenant_id === tenantId &&
-      charge.period_start === periodStart &&
-      charge.period_end === periodEnd &&
-      charge.status !== "cancelled"
-    );
-    const addOnsAmount = addonCharges.reduce((sum, charge) => sum + Number(charge.amount || 0), 0);
+    const addonCharges: PlatformAddonCharge[] = [];
     const tenant = tenants.find(item => item.id === tenantId);
     return {
       tenant,
@@ -9827,10 +9735,10 @@ async function startServer() {
       periodEnd,
       grossRevenue: Number(grossRevenue.toFixed(2)),
       revenueShareAmount: Number(revenueShareAmount.toFixed(2)),
-      addOnsAmount: Number(addOnsAmount.toFixed(2)),
-      totalDue: Number((revenueShareAmount + addOnsAmount).toFixed(2)),
+      addOnsAmount: 0,
+      totalDue: Number(revenueShareAmount.toFixed(2)),
       commissionEntries,
-      addonSubscriptions: platformAddonSubscriptions.filter(item => item.tenant_id === tenantId),
+      addonSubscriptions: [],
       addonCharges,
       settings: tenant ? getTenantPlatformBillingSettings(tenant) : null,
       statement: platformBillingStatements.find(item => item.tenant_id === tenantId && item.period_start === periodStart && item.period_end === periodEnd) || null
@@ -9838,7 +9746,6 @@ async function startServer() {
   }
 
   function generatePlatformBillingStatement(tenantId: string, periodStart: string, periodEnd: string) {
-    generatePlatformAddonCharges(tenantId, periodStart, periodEnd);
     const summary = buildPlatformBillingSummary(tenantId, periodStart, periodEnd);
     const now = new Date().toISOString();
     let statement = platformBillingStatements.find(item => item.tenant_id === tenantId && item.period_start === periodStart && item.period_end === periodEnd);
@@ -9850,7 +9757,7 @@ async function startServer() {
         period_end: periodEnd,
         gross_revenue: summary.grossRevenue,
         revenue_share_amount: summary.revenueShareAmount,
-        add_ons_amount: summary.addOnsAmount,
+        add_ons_amount: 0,
         total_due: summary.totalDue,
         status: "closed",
         created_at: now,
@@ -9860,7 +9767,7 @@ async function startServer() {
     } else {
       statement.gross_revenue = summary.grossRevenue;
       statement.revenue_share_amount = summary.revenueShareAmount;
-      statement.add_ons_amount = summary.addOnsAmount;
+      statement.add_ons_amount = 0;
       statement.total_due = summary.totalDue;
       statement.status = statement.status === "paid" ? "paid" : "closed";
       statement.closed_at = statement.closed_at || now;
@@ -10270,10 +10177,6 @@ async function startServer() {
     if (!phone || phone.length < 10) throw new Error("Telefone inválido");
     if (!cpf || cpf.length !== 11) throw new Error("CPF inválido");
     if (!accessPassword) throw new Error("Senha de 6 dígitos obrigatória");
-    const plan = getTenantPlan(tenantId);
-    const currentCustomers = Object.values(customersByPhone).filter(customer => customer.tenant_id === tenantId).length;
-    if (currentCustomers >= plan.max_customers) throw new Error(`Plano ${plan.nome} permite ate ${plan.max_customers} cliente(s)`);
-
     const customer: CustomerRecord = {
       id: createPublicId("C_"),
       tenant_id: tenantId,
@@ -11658,26 +11561,72 @@ async function startServer() {
     };
   }
 
-  function getBuyerRanking(tenantId: string, raffleId: string, metric: "tickets" | "amount" = "tickets", limit = 10) {
+  function isPaidRankingStatus(value: unknown) {
+    return ["paid", "confirmed", "approved", "completed", "received"].includes(String(value || "").toLowerCase());
+  }
+
+  function rankingBuyerIdentity(tenantId: string, purchase: typeof purchases[number]) {
+    const customer = purchase.customer as any;
+    const phone = normalizePhone(customer?.phone || purchase.contact || "");
+    const document = String(customer?.cpf || customer?.document || customer?.documento || "").replace(/\D/g, "");
+    const email = String(customer?.email || "").trim().toLowerCase();
+    const fallback = String(customer?.id || purchase.contact || purchase.purchaseId || "").trim().toLowerCase();
+    return `${tenantId}:${phone ? `phone:${phone}` : document ? `doc:${document}` : email ? `email:${email}` : `fallback:${fallback}`}`;
+  }
+
+  function getBuyerRanking(tenantId: string, raffleId: string, metricOrLimit: "tickets" | "amount" | number = "amount", limit = 10) {
+    const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === raffleId);
+    if (raffle && (raffle as any).topBuyerRankingEnabled === false) return [];
+    const resolvedLimit = typeof metricOrLimit === "number" ? metricOrLimit : limit;
+    const rewards = topBuyerRewardsByPosition(raffle);
     const ranking = purchases
-      .filter(purchase => purchase.tenant_id === tenantId && purchase.raffleId === raffleId && purchase.status === "paid")
-      .reduce<Record<string, { customerId: string; name: string; phone: string; tickets: number; amount: number }>>((acc, purchase) => {
-        const key = purchase.customer?.id || purchase.contact;
+      .filter(purchase => purchase.tenant_id === tenantId && purchase.raffleId === raffleId && isPaidRankingStatus(purchase.status))
+      .reduce<Record<string, {
+        customerId: string;
+        name: string;
+        phone: string;
+        email: string;
+        document: string;
+        tickets: number;
+        amount: number;
+        orderCount: number;
+        lastPurchaseAt: string;
+      }>>((acc, purchase) => {
+        const key = rankingBuyerIdentity(tenantId, purchase);
+        const customer = purchase.customer as any;
         if (!acc[key]) {
           acc[key] = {
             customerId: key,
-            name: purchase.customer?.name || `Cliente ${purchase.contact.slice(-4)}`,
-            phone: purchase.contact,
+            name: customer?.name || `Cliente ${String(purchase.contact || "").slice(-4)}`,
+            phone: normalizePhone(customer?.phone || purchase.contact || ""),
+            email: String(customer?.email || ""),
+            document: String(customer?.cpf || customer?.document || customer?.documento || ""),
             tickets: 0,
-            amount: 0
+            amount: 0,
+            orderCount: 0,
+            lastPurchaseAt: purchase.createdAt
           };
         }
-        acc[key].tickets += purchase.tickets;
-        acc[key].amount += purchase.amount;
+        acc[key].tickets += Number(purchase.tickets || 0);
+        acc[key].amount = Number((acc[key].amount + Number(purchase.amount || 0)).toFixed(2));
+        acc[key].orderCount += 1;
+        if (String(purchase.createdAt || "").localeCompare(acc[key].lastPurchaseAt || "") > 0) acc[key].lastPurchaseAt = purchase.createdAt;
         return acc;
       }, {});
-    const sorted = Object.values(ranking).sort((a, b) => metric === "amount" ? b.amount - a.amount : b.tickets - a.tickets);
-    return sorted.slice(0, limit);
+    return Object.values(ranking)
+      .sort((a, b) => b.amount - a.amount || b.orderCount - a.orderCount || String(b.lastPurchaseAt || "").localeCompare(String(a.lastPurchaseAt || "")))
+      .slice(0, Math.max(1, Math.min(100, Number(resolvedLimit || 10))))
+      .map((item, index) => {
+        const position = index + 1;
+        const reward = rewards.get(position);
+        return {
+          position,
+          ...item,
+          prizeLabel: reward?.enabled && reward.label ? reward.label : undefined,
+          prizeType: reward?.enabled ? reward.type : undefined,
+          prizeDescription: reward?.enabled && reward.description ? reward.description : undefined
+        };
+      });
   }
 
   function maskDisplayName(name?: string) {
@@ -11765,14 +11714,22 @@ async function startServer() {
     const now = Date.now();
     const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
     const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
-    const safeBuyer = (item: { name: string; tickets: number; amount: number }) => ({ name: maskDisplayName(item.name), tickets: item.tickets, amount: item.amount });
+    const safeBuyer = (item: { position?: number; name: string; tickets: number; amount: number; prizeLabel?: string; prizeType?: string; prizeDescription?: string }) => ({
+      position: item.position,
+      name: maskDisplayName(item.name),
+      tickets: item.tickets,
+      amount: item.amount,
+      prizeLabel: item.prizeLabel,
+      prizeType: item.prizeType,
+      prizeDescription: item.prizeDescription
+    });
     const byPeriod = (since: number) => purchases
-      .filter(purchase => purchase.tenant_id === tenantId && purchase.raffleId === raffleId && purchase.status === "paid" && new Date(purchase.createdAt).getTime() >= since)
+      .filter(purchase => purchase.tenant_id === tenantId && purchase.raffleId === raffleId && isPaidRankingStatus(purchase.status) && new Date(purchase.createdAt).getTime() >= since)
       .reduce<Record<string, { name: string; tickets: number; amount: number }>>((acc, purchase) => {
-        const key = purchase.customer?.id || purchase.contact;
+        const key = rankingBuyerIdentity(tenantId, purchase);
         acc[key] ||= { name: purchase.customer?.name || "Cliente", tickets: 0, amount: 0 };
-        acc[key].tickets += purchase.tickets;
-        acc[key].amount += purchase.amount;
+        acc[key].tickets += Number(purchase.tickets || 0);
+        acc[key].amount = Number((acc[key].amount + Number(purchase.amount || 0)).toFixed(2));
         return acc;
       }, {});
     const winnerRows = gamificationWinners
@@ -11782,19 +11739,25 @@ async function startServer() {
         const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === winner.purchaseId);
         return { name: maskDisplayName(purchase?.customer?.name), prize: winner.prize, value: winner.value };
       });
-    const affiliateRows = Object.values(affiliates)
-      .filter(affiliate => affiliate.tenant_id === tenantId)
-      .sort((a, b) => b.conversions - a.conversions || b.revenue - a.revenue)
-      .slice(0, 5)
-      .map(affiliate => {
-        const customer = Object.values(customersByPhone).find(item => item.tenant_id === tenantId && item.id === affiliate.customerId);
-        return { name: maskDisplayName(customer?.name), conversions: affiliate.conversions, revenue: affiliate.revenue };
-      });
+    const affiliateRows = buildAffiliateSellerRanking(tenantId, { type: "raffle", id: raffleId }, 5)
+      .map(item => ({
+        position: item.position,
+        name: maskDisplayName(item.affiliateName || item.affiliate || item.refCode),
+        affiliateName: maskDisplayName(item.affiliateName || item.affiliate || item.refCode),
+        refCode: item.refCode,
+        sales: item.sales,
+        buyers: item.buyers,
+        totalSold: item.totalSold,
+        revenue: item.totalSold,
+        prizeLabel: item.prizeLabel,
+        prizeType: item.prizeType,
+        prizeDescription: item.prizeDescription
+      }));
     return {
       enabled: true,
-      top_buyers: getBuyerRanking(tenantId, raffleId, "tickets", 10).map(safeBuyer),
-      weekly_buyers: Object.values(byPeriod(weekAgo)).sort((a, b) => b.tickets - a.tickets).slice(0, 5).map(safeBuyer),
-      monthly_buyers: Object.values(byPeriod(monthAgo)).sort((a, b) => b.tickets - a.tickets).slice(0, 5).map(safeBuyer),
+      top_buyers: getBuyerRanking(tenantId, raffleId, 10).map(safeBuyer),
+      weekly_buyers: Object.values(byPeriod(weekAgo)).sort((a, b) => b.amount - a.amount || b.tickets - a.tickets).slice(0, 5).map((item, index) => safeBuyer({ ...item, position: index + 1 })),
+      monthly_buyers: Object.values(byPeriod(monthAgo)).sort((a, b) => b.amount - a.amount || b.tickets - a.tickets).slice(0, 5).map((item, index) => safeBuyer({ ...item, position: index + 1 })),
       top_affiliates: affiliateRows,
       top_winners: winnerRows
     };
@@ -12005,24 +11968,56 @@ async function startServer() {
     };
   }
 
-  type TopSellerRewardConfig = { position: number; label: string; enabled: boolean };
+  type RankingRewardType = "money" | "product" | "bonus" | "other";
+  type TopSellerRewardConfig = { position: number; type: RankingRewardType; label: string; description: string; enabled: boolean };
 
-  function normalizeTopSellerRewards(input: unknown, current: unknown = []) {
+  function normalizeRankingRewardType(value: unknown): RankingRewardType {
+    const normalized = String(value || "").toLowerCase();
+    return ["money", "product", "bonus", "other"].includes(normalized) ? normalized as RankingRewardType : "other";
+  }
+
+  function normalizeRankingRewards(input: unknown, current: unknown = []) {
     const source = Array.isArray(input) ? input : Array.isArray(current) ? current : [];
     const byPosition = new Map<number, TopSellerRewardConfig>();
     source.forEach(item => {
       if (!item || typeof item !== "object") return;
       const record = item as Record<string, unknown>;
       const position = Math.floor(Number(record.position || 0));
-      if (![1, 2, 3].includes(position)) return;
-      const label = String(record.label || "").trim().slice(0, 120);
-      byPosition.set(position, { position, label, enabled: record.enabled !== false });
+      if (!Number.isFinite(position) || position < 1 || position > 50) return;
+      const description = String(record.description || record.label || "").trim().slice(0, 180);
+      const label = String(record.label || description).trim().slice(0, 120);
+      byPosition.set(position, {
+        position,
+        type: normalizeRankingRewardType(record.type),
+        label,
+        description,
+        enabled: record.enabled !== false && Boolean(label || description)
+      });
     });
-    return [1, 2, 3].map(position => byPosition.get(position) || { position, label: "", enabled: false });
+    [1, 2, 3].forEach(position => {
+      if (!byPosition.has(position)) byPosition.set(position, { position, type: "other", label: "", description: "", enabled: false });
+    });
+    return [...byPosition.values()].sort((left, right) => left.position - right.position);
+  }
+
+  function normalizeTopSellerRewards(input: unknown, current: unknown = []) {
+    return normalizeRankingRewards(input, current);
+  }
+
+  function normalizeTopBuyerRewards(input: unknown, current: unknown = []) {
+    return normalizeRankingRewards(input, current);
+  }
+
+  function rankingRewardsByPosition(input: unknown) {
+    return new Map(normalizeRankingRewards(input).map(reward => [reward.position, reward]));
   }
 
   function topSellerRewardsByPosition(raffle?: Partial<typeof raffles[number]> | null) {
-    return new Map(normalizeTopSellerRewards(raffle?.topSellerRewards).map(reward => [reward.position, reward]));
+    return rankingRewardsByPosition(raffle?.topSellerRewards);
+  }
+
+  function topBuyerRewardsByPosition(raffle?: Partial<typeof raffles[number]> | null) {
+    return rankingRewardsByPosition(raffle?.topBuyerRewards);
   }
 
   function isFazendinhaReservationExpired(purchase: FazendinhaPurchase) {
@@ -12188,6 +12183,9 @@ async function startServer() {
     const salesExpired = isRaffleSalesExpired(raffle);
     return {
       ...normalizedRaffle,
+      topBuyerRankingEnabled: (raffle as any).topBuyerRankingEnabled !== false,
+      topSellerRankingEnabled: (raffle as any).topSellerRankingEnabled !== false,
+      topBuyerRewards: normalizeTopBuyerRewards((raffle as any).topBuyerRewards),
       topSellerRewards: normalizeTopSellerRewards((raffle as any).topSellerRewards),
       salesDeadline,
       salesExpired,
@@ -12222,6 +12220,9 @@ async function startServer() {
     const normalizedRaffle = normalizeRaffleMediaPayload(safeRaffle, raffle);
     return {
       ...normalizedRaffle,
+      topBuyerRankingEnabled: (raffle as any).topBuyerRankingEnabled !== false,
+      topSellerRankingEnabled: (raffle as any).topSellerRankingEnabled !== false,
+      topBuyerRewards: normalizeTopBuyerRewards((raffle as any).topBuyerRewards),
       topSellerRewards: normalizeTopSellerRewards((raffle as any).topSellerRewards),
       salesDeadline: getRaffleSalesDeadline(raffle),
       salesExpired: isRaffleSalesExpired(raffle)
@@ -12247,7 +12248,7 @@ async function startServer() {
     try {
       const base = normalizeIntegrationPayload(req);
       if (!tenantCanUseIntegration(base.tenant_id, base.provider)) {
-        res.status(403).json({ error: `Plano atual nao libera a integracao ${base.provider}` });
+        res.status(403).json({ error: `Integracao ${base.provider} indisponivel para este tenant` });
         return;
       }
       const integration: IntegrationRecord = { id: createPublicId("INT_"), ...base };
@@ -12628,13 +12629,14 @@ async function startServer() {
   app.get("/api/raffles/:id/ranking", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const config = getGamificationConfig(tenantId, req.params.id);
-    res.json(getBuyerRanking(tenantId, req.params.id, config.buyerRanking.metric, config.buyerRanking.limit));
+    res.json(getBuyerRanking(tenantId, req.params.id, config.buyerRanking.limit));
   });
 
   app.get("/api/raffles/:id/top-sellers", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const raffle = raffles.find(item => item.tenant_id === tenantId && item.id === req.params.id);
     if (!raffle) return res.status(404).json({ error: "Raffle not found" });
+    if ((raffle as any).topSellerRankingEnabled === false) return res.json([]);
     res.json(buildAffiliateSellerRanking(tenantId, { type: "raffle", id: raffle.id }, Math.max(1, Math.min(50, Number(req.query.limit || 10)))));
   });
 
@@ -18327,7 +18329,7 @@ async function startServer() {
   }
 
   function getWhatsAppAutomationLogs(tenantId: string, ruleId?: string) {
-    const actions = new Set(["whatsapp_automation_rule_created", "whatsapp_automation_rule_updated", "whatsapp_automation_rule_deleted", "whatsapp_automation_scheduled", "whatsapp_automation_sent", "whatsapp_automation_skipped", "whatsapp_automation_failed"]);
+    const actions = new Set(["whatsapp_automation_rule_created", "whatsapp_automation_rule_updated", "whatsapp_automation_rule_deleted", "whatsapp_automation_scheduled", "whatsapp_automation_sent", "whatsapp_automation_skipped", "whatsapp_automation_failed", "raffle_automation_enqueued", "raffle_automation_skipped"]);
     return whatsappCloudLogs
       .filter(log => log.tenant_id === tenantId && actions.has(log.action) && (!ruleId || log.metadata?.ruleId === ruleId))
       .slice(0, 200);
@@ -18928,7 +18930,7 @@ async function startServer() {
   }
 
   function scheduleAutomation(triggerType: AutomationTriggerType | string, input: { tenant_id: string; customer_id?: string; order_id?: string; purchase?: PurchaseRecord; customer?: CustomerRecord }) {
-    if (!tenantHasFeature(input.tenant_id, "automations")) return [];
+    
     const flows = ensureAutomationFlows(input.tenant_id).filter(flow => flow.enabled && flow.trigger_type === triggerType);
     const created: AutomationRunRecord[] = [];
     flows.forEach(flow => {
@@ -19793,6 +19795,7 @@ async function startServer() {
     const campaignRaffle = campaign.type === "raffle"
       ? raffles.find(raffle => raffle.tenant_id === tenantId && raffle.id === campaign.id)
       : undefined;
+    if (campaignRaffle && (campaignRaffle as any).topSellerRankingEnabled === false) return [];
     const rewards = topSellerRewardsByPosition(campaignRaffle);
     return Object.values(affiliates)
       .filter(affiliate => affiliate.tenant_id === tenantId)
@@ -19822,7 +19825,9 @@ async function startServer() {
         return {
           position,
           ...item,
-          prizeLabel: reward?.enabled && reward.label ? reward.label : undefined
+          prizeLabel: reward?.enabled && reward.label ? reward.label : undefined,
+          prizeType: reward?.enabled ? reward.type : undefined,
+          prizeDescription: reward?.enabled && reward.description ? reward.description : undefined
         };
       });
   }
@@ -23197,7 +23202,6 @@ async function startServer() {
 
   app.post("/api/admin/automations", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
-    if (!tenantHasFeature(tenantId, "automations")) return res.status(403).json({ error: "Plano atual nao libera automacoes" });
     const now = new Date().toISOString();
     const flow: AutomationFlowRecord = {
       id: createPublicId("AUTO_"),
@@ -24434,7 +24438,6 @@ async function startServer() {
   function ensureDrawAuditPrepared(req: express.Request, raffle: typeof raffles[number]) {
     const existing = raffleDrawAudits.find(item => item.tenant_id === raffle.tenant_id && item.raffle_id === raffle.id);
     if (existing) return existing;
-    if (!tenantHasFeature(raffle.tenant_id, "provably_fair")) throw new Error("Plano atual nao libera sorteio provably fair");
     const eligibleNumbers = getEligibleDrawNumbers(raffle);
     if (!eligibleNumbers.length) throw new Error("Nao ha cotas pagas elegiveis para travar");
     const serverSeed = randomBytes(32).toString("hex");
@@ -24919,6 +24922,192 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  type RaffleWhatsAppRecipient = { customerId?: string; name: string; phone: string; source: "buyer" | "affiliate"; refCode?: string };
+
+  function buildPublicRaffleLink(raffle: typeof raffles[number], suffix = "") {
+    return `/raffle/${encodeURIComponent(raffle.id)}${suffix}`;
+  }
+
+  function getTenantCompanyName(tenantId: string) {
+    const tenant = tenants.find(item => item.id === tenantId);
+    const branding = getTenantSettings(tenantId).branding || {};
+    return String((branding as any).companyName || (branding as any).company_name || tenant?.nome || "RifaPro");
+  }
+
+  function addRaffleWhatsAppRecipient(map: Map<string, RaffleWhatsAppRecipient>, tenantId: string, input: Partial<RaffleWhatsAppRecipient>) {
+    const phone = normalizeBrazilianPhone(input.phone || "");
+    if (!isValidBrazilianWhatsAppPhone(phone)) return;
+    if (customerHasWhatsAppOptOut(tenantId, phone)) return;
+    if (map.has(phone)) return;
+    map.set(phone, { customerId: input.customerId, name: String(input.name || "Cliente"), phone, source: input.source || "buyer", refCode: input.refCode });
+  }
+
+  function buildNewRaffleWhatsAppRecipients(tenantId: string) {
+    const recipients = new Map<string, RaffleWhatsAppRecipient>();
+    purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.status === "paid").forEach(purchase => addRaffleWhatsAppRecipient(recipients, tenantId, { customerId: purchase.customer?.id, name: purchase.customer?.name, phone: purchase.customer?.phone || purchase.contact, source: "buyer" }));
+    Object.values(affiliates).filter(affiliate => affiliate.tenant_id === tenantId && affiliate.enabled).forEach(affiliate => {
+      const owner = affiliate.customerId ? Object.values(customersByPhone).find(customer => customer.tenant_id === tenantId && customer.id === affiliate.customerId) : undefined;
+      addRaffleWhatsAppRecipient(recipients, tenantId, { customerId: owner?.id, name: owner?.name || affiliate.refCode, phone: owner?.phone, source: "affiliate", refCode: affiliate.refCode });
+    });
+    return [...recipients.values()];
+  }
+
+  function buildRaffleResultWhatsAppRecipients(tenantId: string, raffleId: string) {
+    const recipients = new Map<string, RaffleWhatsAppRecipient>();
+    purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.raffleId === raffleId && purchase.status === "paid").forEach(purchase => addRaffleWhatsAppRecipient(recipients, tenantId, { customerId: purchase.customer?.id, name: purchase.customer?.name, phone: purchase.customer?.phone || purchase.contact, source: "buyer" }));
+    const refCodes = new Set(purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.raffleId === raffleId && purchase.status === "paid" && purchase.refCode).map(purchase => purchase.refCode!));
+    refCodes.forEach(refCode => {
+      const affiliate = affiliates[tenantCustomerKey(tenantId, refCode)];
+      if (!affiliate || !affiliate.enabled) return;
+      const owner = affiliate.customerId ? Object.values(customersByPhone).find(customer => customer.tenant_id === tenantId && customer.id === affiliate.customerId) : undefined;
+      addRaffleWhatsAppRecipient(recipients, tenantId, { customerId: owner?.id, name: owner?.name || affiliate.refCode, phone: owner?.phone, source: "affiliate", refCode: affiliate.refCode });
+    });
+    return [...recipients.values()];
+  }
+
+  function enqueueRaffleWhatsAppAutomation(input: { tenantId: string; raffle: typeof raffles[number]; automation: "new_raffle" | "raffle_result" | "raffle_ending" | "affiliate_invite"; recipients: RaffleWhatsAppRecipient[]; winnerName?: string; link: string }) {
+    const companyName = getTenantCompanyName(input.tenantId);
+    const campaign = String(input.raffle.title || input.raffle.id);
+    const templateMap: Record<typeof input.automation, string> = { new_raffle: "new_raffle_announcement", raffle_result: "winner_announcement", raffle_ending: "raffle_ending_reminder", affiliate_invite: "affiliate_invite" };
+    const templateName = templateMap[input.automation];
+    const eventMap: Record<typeof input.automation, string> = { new_raffle: "new_raffle_announcement", raffle_result: "raffle_result_announcement", raffle_ending: "raffle_ending_reminder", affiliate_invite: "affiliate_invite" };
+    const eventType = eventMap[input.automation];
+    let queued = 0;
+    let skipped = 0;
+    const now = new Date().toISOString();
+    for (const recipient of input.recipients) {
+      const idempotencyKey = `whatsapp-raffle-automation:${input.tenantId}:${input.raffle.id}:${input.automation}:${recipient.phone}`;
+      if (whatsappMessageQueue.some(message => message.idempotency_key === idempotencyKey)) { skipped += 1; continue; }
+      const body = input.automation === "new_raffle"
+        ? `Ola ${recipient.name}! A ${companyName} acabou de lancar um novo sorteio: ${campaign}. Participe agora: ${input.link}`
+        : input.automation === "raffle_result"
+          ? `Ola ${recipient.name}! O resultado do sorteio ${campaign} ja esta disponivel. Confira o ganhador e detalhes aqui: ${input.link}`
+          : input.automation === "raffle_ending"
+            ? `Ola ${recipient.name}! A campanha ${campaign} esta chegando ao fim. Garanta sua participacao antes do encerramento: ${input.link}`
+            : `Ola ${recipient.name}! Quer ganhar indicando a campanha ${campaign}? Acesse seu link de afiliado ou solicite seu cadastro: ${input.link}`;
+      const message: WhatsAppMessageQueueRecord = { id: createPublicId("WAPP_"), tenant_id: input.tenantId, customer_id: recipient.customerId, phone: recipient.phone, message_type: "whatsapp_raffle_automation", message_body: body, provider: "meta_cloud", status: "queued", attempts: 0, max_attempts: 3, last_error: "", reason: "", template_name: templateName, language: "pt_BR", event_type: eventType, payload: { automation: input.automation, raffleId: input.raffle.id, campaign, companyName, link: input.link, drawDate: input.raffle.drawDate || "", winnerName: input.winnerName || "", source: recipient.source, refCode: recipient.refCode || "" }, created_at: now, updated_at: now, idempotency_key: idempotencyKey };
+      try { attachWhatsAppSendingNumberToQueueJob(message, "raffle_automation"); } catch (error) { skipped += 1; recordWhatsAppCloudLog(input.tenantId, { action: "raffle_automation_skipped", status: "skipped", message: error instanceof Error ? error.message : "Numero WhatsApp indisponivel", metadata: { raffleId: input.raffle.id, automation: input.automation, to: maskPhone(recipient.phone), templateName } }); continue; }
+      whatsappMessageQueue.unshift(message);
+      queued += 1;
+    }
+    whatsappMessageQueue = whatsappMessageQueue.slice(0, 5000);
+    recordWhatsAppCloudLog(input.tenantId, { action: "raffle_automation_enqueued", status: "success", message: "Automacao WhatsApp de campanha enfileirada", metadata: { raffleId: input.raffle.id, automation: input.automation, queued, skipped, templateName, eventType } });
+    schedulePersistentStateSave("whatsapp-raffle-automation-enqueued");
+    return { queued, skipped, total: input.recipients.length, eventType, templateName };
+  }
+
+  app.post("/api/admin/raffles/:id/whatsapp/new-raffle", (req, res) => {
+    const raffle = raffles.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!raffle) return res.status(404).json({ error: "Campanha nao encontrada" });
+    if (raffle.status !== "active") return res.status(409).json({ error: "Novo sorteio so pode ser avisado para campanha ativa/publicada" });
+    const recipients = buildNewRaffleWhatsAppRecipients(raffle.tenant_id);
+    const result = enqueueRaffleWhatsAppAutomation({ tenantId: raffle.tenant_id, raffle, automation: "new_raffle", recipients, link: buildPublicRaffleLink(raffle) });
+    res.json({ ...result, raffleId: raffle.id, recipients: recipients.length });
+  });
+
+  app.post("/api/admin/raffles/:id/whatsapp/result", (req, res) => {
+    const raffle = raffles.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    const audit = raffle ? raffleDrawAudits.find(item => item.tenant_id === raffle.tenant_id && item.raffle_id === raffle.id) : null;
+    if (!raffle || !audit) return res.status(404).json({ error: "Resultado de sorteio nao encontrado" });
+    if (raffle.status !== "completed" && audit.status !== "published" && audit.status !== "executed") return res.status(409).json({ error: "Resultado so pode ser enviado para campanha concluida ou sorteio executado/publicado" });
+    const number = Number(audit.winning_number);
+    const winnerPurchase = purchases.find(purchase => purchase.tenant_id === raffle.tenant_id && purchase.raffleId === raffle.id && purchase.status === "paid" && purchase.numeros.includes(number));
+    if (!winnerPurchase?.customer) return res.status(409).json({ error: "Resultado exige ganhador pago definido" });
+    const recipients = buildRaffleResultWhatsAppRecipients(raffle.tenant_id, raffle.id);
+    const result = enqueueRaffleWhatsAppAutomation({ tenantId: raffle.tenant_id, raffle, automation: "raffle_result", recipients, winnerName: winnerPurchase.customer.name, link: buildPublicRaffleLink(raffle, "?resultado=1") });
+    res.json({ ...result, raffleId: raffle.id, winner: winnerPurchase.customer.name, recipients: recipients.length });
+  });
+  function buildRaffleEndingWhatsAppRecipients(tenantId: string, raffleId: string) {
+    const recipients = new Map<string, RaffleWhatsAppRecipient>();
+    purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.raffleId === raffleId && purchase.status === "paid").forEach(purchase => addRaffleWhatsAppRecipient(recipients, tenantId, { customerId: purchase.customer?.id, name: purchase.customer?.name, phone: purchase.customer?.phone || purchase.contact, source: "buyer" }));
+    Object.values(affiliates).filter(affiliate => affiliate.tenant_id === tenantId && affiliate.enabled).forEach(affiliate => {
+      const owner = affiliate.customerId ? Object.values(customersByPhone).find(customer => customer.tenant_id === tenantId && customer.id === affiliate.customerId) : undefined;
+      addRaffleWhatsAppRecipient(recipients, tenantId, { customerId: owner?.id, name: owner?.name || affiliate.refCode, phone: owner?.phone, source: "affiliate", refCode: affiliate.refCode });
+    });
+    return [...recipients.values()];
+  }
+
+  function buildAffiliateInviteWhatsAppRecipients(tenantId: string) {
+    const recipients = new Map<string, RaffleWhatsAppRecipient>();
+    purchases.filter(purchase => purchase.tenant_id === tenantId && purchase.status === "paid").forEach(purchase => addRaffleWhatsAppRecipient(recipients, tenantId, { customerId: purchase.customer?.id, name: purchase.customer?.name, phone: purchase.customer?.phone || purchase.contact, source: "buyer" }));
+    Object.values(customersByPhone).filter(customer => customer.tenant_id === tenantId && customer.totalTickets > 0).forEach(customer => addRaffleWhatsAppRecipient(recipients, tenantId, { customerId: customer.id, name: customer.name, phone: customer.phone, source: "buyer" }));
+    return [...recipients.values()];
+  }
+
+  app.post("/api/admin/raffles/:id/whatsapp/ending", (req, res) => {
+    const raffle = raffles.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!raffle) return res.status(404).json({ error: "Campanha nao encontrada" });
+    if (raffle.status !== "active") return res.status(409).json({ error: "Rifa encerrando exige campanha ativa" });
+    const recipients = buildRaffleEndingWhatsAppRecipients(raffle.tenant_id, raffle.id);
+    const result = enqueueRaffleWhatsAppAutomation({ tenantId: raffle.tenant_id, raffle, automation: "raffle_ending", recipients, link: buildPublicRaffleLink(raffle) });
+    res.json({ ...result, raffleId: raffle.id, recipients: recipients.length });
+  });
+
+  app.post("/api/admin/raffles/:id/whatsapp/affiliate-invite", (req, res) => {
+    const raffle = raffles.find(item => item.id === req.params.id && adminCanAccessTenant(req, item.tenant_id));
+    if (!raffle) return res.status(404).json({ error: "Campanha nao encontrada" });
+    const recipients = buildAffiliateInviteWhatsAppRecipients(raffle.tenant_id);
+    const result = enqueueRaffleWhatsAppAutomation({ tenantId: raffle.tenant_id, raffle, automation: "affiliate_invite", recipients, link: buildTenantPublicPath(raffle.tenant_id, "/afiliados") });
+    res.json({ ...result, raffleId: raffle.id, recipients: recipients.length });
+  });
+
+  type OrderWhatsAppAutomation = "failed_payment_retry" | "pix_expired";
+
+  function isFailedPaymentRetryCandidate(purchase: PurchaseRecord) {
+    if (purchase.status === "paid" || purchase.status === "cancelled") return false;
+    return Boolean(purchase.rejectedReason || purchase.paymentHistory?.some(item => /fail|erro|rejeitad|cancelad/i.test(`${item.status} ${item.label}`)));
+  }
+
+  function isPixExpiredRetryCandidate(purchase: PurchaseRecord) {
+    if (purchase.status === "paid" || purchase.status === "cancelled") return false;
+    const raffle = raffles.find(item => item.tenant_id === purchase.tenant_id && item.id === purchase.raffleId);
+    return Boolean(raffle?.status === "active" && isPastReservationExpiry(purchase.pixExpiresAt || purchase.reservedUntil));
+  }
+
+  function enqueueOrderWhatsAppAutomation(input: { tenantId: string; automation: OrderWhatsAppAutomation; orders: PurchaseRecord[] }) {
+    const companyName = getTenantCompanyName(input.tenantId);
+    const templateName = input.automation === "failed_payment_retry" ? "failed_payment_retry" : "pix_expired_retry";
+    const eventType = input.automation === "failed_payment_retry" ? "failed_payment_retry" : "pix_expired_retry";
+    let queued = 0;
+    let skipped = 0;
+    const now = new Date().toISOString();
+    for (const purchase of input.orders) {
+      const raffle = raffles.find(item => item.tenant_id === input.tenantId && item.id === purchase.raffleId);
+      const customer = purchase.customer || Object.values(customersByPhone).find(item => item.tenant_id === input.tenantId && item.id === purchase.customer?.id);
+      const phone = normalizeBrazilianPhone(customer?.phone || purchase.contact || "");
+      const link = buildPublicCheckoutOrderResumeUrl(input.tenantId, purchase.purchaseId);
+      if (!link || !isValidBrazilianWhatsAppPhone(phone) || customerHasWhatsAppOptOut(input.tenantId, phone)) { skipped += 1; continue; }
+      const idempotencyKey = `whatsapp-order-automation:${input.tenantId}:${purchase.purchaseId}:${input.automation}:${phone}`;
+      if (whatsappMessageQueue.some(message => message.idempotency_key === idempotencyKey)) { skipped += 1; continue; }
+      const campaign = raffle?.title || "campanha";
+      const name = customer?.name || purchase.customer?.name || "Cliente";
+      const body = input.automation === "failed_payment_retry"
+        ? `Ola ${name}! Seu pagamento da campanha ${campaign} nao foi concluido. Voce pode tentar novamente por aqui: ${link}`
+        : `Ola ${name}! Seu PIX da campanha ${campaign} expirou, mas voce ainda pode tentar novamente aqui: ${link}`;
+      const message: WhatsAppMessageQueueRecord = { id: createPublicId("WAPP_"), tenant_id: input.tenantId, order_id: purchase.purchaseId, customer_id: customer?.id || purchase.customer?.id, phone, message_type: "whatsapp_order_recovery_automation", message_body: body, provider: "meta_cloud", status: "queued", attempts: 0, max_attempts: 3, last_error: "", reason: "", template_name: templateName, language: "pt_BR", event_type: eventType, payload: { automation: input.automation, raffleId: purchase.raffleId, campaign, companyName, amount: purchase.amount, orderId: purchase.purchaseId, link }, created_at: now, updated_at: now, idempotency_key: idempotencyKey };
+      try { attachWhatsAppSendingNumberToQueueJob(message, "order_recovery_automation"); } catch (error) { skipped += 1; recordWhatsAppCloudLog(input.tenantId, { action: "raffle_automation_skipped", status: "skipped", message: error instanceof Error ? error.message : "Numero WhatsApp indisponivel", metadata: { orderId: purchase.purchaseId, automation: input.automation, to: maskPhone(phone), templateName } }); continue; }
+      whatsappMessageQueue.unshift(message);
+      queued += 1;
+    }
+    whatsappMessageQueue = whatsappMessageQueue.slice(0, 5000);
+    recordWhatsAppCloudLog(input.tenantId, { action: "raffle_automation_enqueued", status: "success", message: "Automacao WhatsApp de pedido enfileirada", metadata: { automation: input.automation, queued, skipped, templateName, eventType } });
+    schedulePersistentStateSave("whatsapp-order-automation-enqueued");
+    return { queued, skipped, total: input.orders.length, eventType, templateName };
+  }
+
+  app.post("/api/admin/whatsapp/failed-payment-retry", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    const orders = purchases.filter(purchase => purchase.tenant_id === tenantId && isFailedPaymentRetryCandidate(purchase) && buildPublicCheckoutOrderResumeUrl(tenantId, purchase.purchaseId));
+    res.json(enqueueOrderWhatsAppAutomation({ tenantId, automation: "failed_payment_retry", orders }));
+  });
+
+  app.post("/api/admin/whatsapp/pix-expired", (req, res) => {
+    const tenantId = resolveRequestTenantId(req);
+    if (!requestHasAdminSession(req, tenantId)) return res.status(403).json({ error: "Acesso administrativo obrigatorio" });
+    const orders = purchases.filter(purchase => purchase.tenant_id === tenantId && isPixExpiredRetryCandidate(purchase) && buildPublicCheckoutOrderResumeUrl(tenantId, purchase.purchaseId));
+    res.json(enqueueOrderWhatsAppAutomation({ tenantId, automation: "pix_expired", orders }));
+  });
   // Admin: Raffles CRUD
   app.get("/api/admin/raffles", (req, res) => {
     res.json(scoped(raffles, req).map(sanitizeRaffleForAdmin));
@@ -24926,12 +25115,6 @@ async function startServer() {
 
   app.post("/api/admin/raffles", (req, res) => {
     const tenantId = resolveRequestTenantId(req);
-    const plan = getTenantPlan(tenantId);
-    const currentRaffles = raffles.filter(raffle => raffle.tenant_id === tenantId).length;
-    if (currentRaffles >= plan.limite_rifas) {
-      res.status(403).json({ error: `Plano ${plan.nome} permite ate ${plan.limite_rifas} rifa(s)` });
-      return;
-    }
     const newRaffle = {
       id: createPublicId("R_"),
       soldNumbers: new Set<number>(),
@@ -24941,6 +25124,9 @@ async function startServer() {
       ...normalizeRaffleMinPurchasePayload(req.body),
       ...normalizeRaffleCountdownPayload(req.body),
       ...normalizeRaffleConversionPayload(req.body),
+      topBuyerRankingEnabled: req.body.topBuyerRankingEnabled !== false,
+      topSellerRankingEnabled: req.body.topSellerRankingEnabled !== false,
+      topBuyerRewards: normalizeTopBuyerRewards(req.body.topBuyerRewards),
       topSellerRewards: normalizeTopSellerRewards(req.body.topSellerRewards),
       manuallyClosedAt: req.body.status && req.body.status !== "active" ? new Date().toISOString() : "",
       pixConfig: normalizeRafflePixConfigForStorage(req.body.pixConfig),
@@ -24978,6 +25164,9 @@ async function startServer() {
         ...normalizeRaffleMinPurchasePayload(req.body, raffles[index]),
         ...nextCountdown,
         ...normalizeRaffleConversionPayload(req.body, raffles[index]),
+        topBuyerRankingEnabled: req.body.topBuyerRankingEnabled !== undefined ? Boolean(req.body.topBuyerRankingEnabled) : (raffles[index] as any).topBuyerRankingEnabled !== false,
+        topSellerRankingEnabled: req.body.topSellerRankingEnabled !== undefined ? Boolean(req.body.topSellerRankingEnabled) : (raffles[index] as any).topSellerRankingEnabled !== false,
+        topBuyerRewards: normalizeTopBuyerRewards(req.body.topBuyerRewards, (raffles[index] as any).topBuyerRewards),
         topSellerRewards: normalizeTopSellerRewards(req.body.topSellerRewards, (raffles[index] as any).topSellerRewards),
         manuallyClosedAt: statusChangedToActive ? "" : statusChangedToClosed ? new Date().toISOString() : raffles[index].manuallyClosedAt,
         pixConfig: normalizeRafflePixConfigForStorage(req.body.pixConfig, raffles[index].pixConfig),
@@ -27459,3 +27648,19 @@ async function startServer() {
 }
 
 startServer();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

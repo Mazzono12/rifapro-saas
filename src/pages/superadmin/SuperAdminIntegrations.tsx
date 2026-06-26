@@ -28,7 +28,7 @@ export function SuperAdminIntegrations() {
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
         <div className="admin-card"><PlugZap className="mb-3 h-5 w-5 text-[var(--admin-primary)]" /><p className="text-sm text-[var(--admin-muted)]">Integrações ativas</p><p className="text-3xl font-semibold">{data.integrations.filter((item: any) => item.status === "active").length}</p></div>
-        <div className="admin-card"><AlertTriangle className="mb-3 h-5 w-5 text-amber-500" /><p className="text-sm text-[var(--admin-muted)]">Erros recentes</p><p className="text-3xl font-semibold">{logs.filter((item: any) => !item.success).length}</p></div>
+        <div className="admin-card"><AlertTriangle className="mb-3 h-5 w-5 text-slate-6000" /><p className="text-sm text-[var(--admin-muted)]">Erros recentes</p><p className="text-3xl font-semibold">{logs.filter((item: any) => !item.success).length}</p></div>
         <div className="admin-card"><Activity className="mb-3 h-5 w-5 text-emerald-500" /><p className="text-sm text-[var(--admin-muted)]">Chamadas registradas</p><p className="text-3xl font-semibold">{logs.length}</p></div>
       </div>
 
@@ -116,3 +116,4 @@ function MiniMetric({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
+

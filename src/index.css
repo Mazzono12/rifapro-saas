@@ -7063,7 +7063,7 @@ html[data-theme="vimeo-original"] .public-shell .border-white\/10 {
   opacity: .55;
 }
 
-.admin-shell .neon-button {
+.admin-shell .admin-button-primary {
   background: var(--admin-button, #465fff) !important;
   color: var(--admin-button-text, #ffffff) !important;
   border: 1px solid color-mix(in srgb, var(--admin-button, #465fff) 35%, var(--admin-border, #e4e7ec)) !important;
@@ -7084,8 +7084,8 @@ html[data-theme="vimeo-original"] .public-shell .border-white\/10 {
   color: #065f46 !important;
 }
 
-.admin-shell button[class*="text-amber"],
-.admin-shell button[class*="text-yellow"] {
+.admin-shell button[class*="text-slate"],
+.admin-shell button[class*="text-slate"] {
   background-color: #fffbeb !important;
   border-color: #fcd34d !important;
   color: #92400e !important;
@@ -7304,7 +7304,7 @@ html[data-theme="vimeo-original"] .public-shell .border-white\/10 {
 
 .admin-shell .admin-button,
 .admin-shell .admin-button-secondary,
-.admin-shell .neon-button {
+.admin-shell .admin-button-primary {
   min-height: 3rem;
   border-radius: .75rem !important;
   padding-inline: 1rem;
@@ -7896,7 +7896,7 @@ html[data-theme="vimeo-original"] .public-shell .border-white\/10 {
 
 .admin-shell .text-cyan-200,
 .admin-shell .text-cyan-300,
-.admin-shell .text-neon-cyan,
+.admin-shell .text-slate-700,
 .admin-shell .text-emerald-200,
 .admin-shell .text-emerald-300,
 .admin-shell .text-emerald-400,
@@ -7935,7 +7935,7 @@ html[data-theme="vimeo-original"] .public-shell .border-white\/10 {
 
 .admin-button,
 .admin-button-primary,
-.admin-shell .neon-button,
+.admin-shell .admin-button-primary,
 .premium-page .neon-button,
 .premium-page .premium-button,
 .premium-page .premium-floating-cta,
@@ -7970,7 +7970,7 @@ html[data-theme="vimeo-original"] .public-shell .border-white\/10 {
 
 .admin-button:hover,
 .admin-button-primary:hover,
-.admin-shell .neon-button:hover,
+.admin-shell .admin-button-primary:hover,
 .premium-page .neon-button:hover,
 .premium-page .premium-button:hover,
 .premium-page button[class*="bg-cyan"]:hover,
@@ -8072,7 +8072,7 @@ html[data-theme="black-white"] .admin-button,
 html[data-theme="black-white"] .admin-button-primary,
 html[data-admin-theme="black-white"] .admin-button,
 html[data-admin-theme="black-white"] .admin-button-primary,
-html[data-admin-theme="black-white"] .admin-shell .neon-button {
+html[data-admin-theme="black-white"] .admin-shell .admin-button-primary {
   border-color: rgba(255,255,255,0.42) !important;
   background: linear-gradient(90deg, #ffffff, #d4d4d8) !important;
   color: #030407 !important;
@@ -8086,7 +8086,7 @@ html[data-theme="black-white"] .premium-button:hover,
 html[data-theme="black-white"] .neon-button:hover,
 html[data-admin-theme="black-white"] .admin-button:hover,
 html[data-admin-theme="black-white"] .admin-button-primary:hover,
-html[data-admin-theme="black-white"] .admin-shell .neon-button:hover {
+html[data-admin-theme="black-white"] .admin-shell .admin-button-primary:hover {
   box-shadow:
     0 0 0 1px rgba(255,255,255,0.18) inset,
     0 22px 56px rgba(255,255,255,0.22),
@@ -8163,8 +8163,8 @@ html[data-theme="black-white"] .premium-cta-bg {
   box-shadow: 18px 0 80px rgba(0,0,0,0.28) !important;
 }
 
-.admin-shell .text-neon-cyan,
-.admin-shell .text-neon-purple,
+.admin-shell .text-slate-700,
+.admin-shell .text-slate-700,
 .admin-shell .text-emerald-100,
 .admin-shell .text-emerald-200,
 .admin-shell .text-emerald-300,
@@ -8198,7 +8198,7 @@ html[data-theme="black-white"] .premium-cta-bg {
 .admin-shell button[class*="bg-neon"],
 .admin-shell button[class*="bg-emerald"],
 .admin-shell button[class*="bg-cyan"],
-.admin-shell button[class*="from-neon"],
+.admin-shell button[class*="from-slate"],
 .admin-shell button[class*="from-emerald"],
 .admin-shell button[class*="from-cyan"],
 .admin-shell a[class*="bg-neon"],
@@ -9661,8 +9661,8 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
 .admin-shell .border-white\/\[0\.06\],
 .admin-shell .border-white\/\[0\.1\],
 .admin-shell .border-cyan-300\/10,
-.admin-shell .border-neon-cyan\/20,
-.admin-shell .border-neon-purple\/30 {
+.admin-shell .border-slate-200\/20,
+.admin-shell .border-slate-200\/30 {
   border-color: var(--admin-border) !important;
 }
 
@@ -9702,7 +9702,7 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
 
 .admin-button,
 .admin-button-primary,
-.admin-shell .neon-button {
+.admin-shell .admin-button-primary {
   display: inline-flex;
   min-height: 40px;
   align-items: center;
@@ -9720,7 +9720,7 @@ body .public-shell .premium-page .text-\[var\(--theme-text\)\] {
 
 .admin-button:hover,
 .admin-button-primary:hover,
-.admin-shell .neon-button:hover {
+.admin-shell .admin-button-primary:hover {
   box-shadow: 0 18px 34px var(--admin-glow);
   transform: translateY(-1px);
 }
@@ -9976,7 +9976,7 @@ html[data-admin-theme="system"] .admin-shell {
 
 .admin-button,
 .admin-button-primary,
-.admin-shell .neon-button {
+.admin-shell .admin-button-primary {
   min-height: 40px !important;
   border-radius: 12px !important;
   border-color: color-mix(in srgb, var(--admin-primary) 42%, transparent) !important;
@@ -10109,7 +10109,7 @@ html[data-admin-theme="light"] .admin-shell {
 .admin-button,
 .admin-button-primary,
 .admin-button-secondary,
-.admin-shell .neon-button {
+.admin-shell .admin-button-primary {
   min-height: var(--admin-control-height) !important;
   border-radius: 8px !important;
   gap: .5rem;
@@ -16370,7 +16370,7 @@ html[data-admin-theme="light"] .admin-shell {
 }
 
 .cfx-instant-rewards .cfx-reward-card div:nth-child(2) strong::before {
-  content: "Prêmio: ";
+  content: "PrÃªmio: ";
   color: rgba(7, 9, 19, .5);
   font-weight: 900;
 }
@@ -20765,7 +20765,7 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
 .cfx-pix-premium .cfx-copy-pix-button {
   border: 0 !important;
   background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
-  color: #120900 !important;
+  color: #ffffff !important;
   box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
 }
 
@@ -20964,7 +20964,7 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
   border: 0 !important;
   border-radius: 14px !important;
   background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
-  color: #120900 !important;
+  color: #ffffff !important;
   box-shadow: 0 16px 44px rgba(246, 178, 31, .24), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
 }
 
@@ -21136,13 +21136,13 @@ body[data-checkout-open="true"] .public-mobile-bottom-nav {
 .checkout-resume-page .checkout-pix-copy-button {
   border: 0 !important;
   background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
-  color: #120900 !important;
+  color: #ffffff !important;
   box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
 }
 
 .checkout-resume-page .premium-button svg,
 .checkout-resume-page .checkout-pix-copy-button svg {
-  color: #120900 !important;
+  color: #ffffff !important;
 }
 
 /* Public Home logo final size lock: larger brand presence without changing header height. */
@@ -21698,7 +21698,7 @@ html body .checkout-resume-page .checkout-pix-card .pix-copy-gold-button.checkou
   background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
   background-color: #f6a90f !important;
   background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
-  color: #120900 !important;
+  color: #ffffff !important;
   box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
 }
 
@@ -21707,7 +21707,7 @@ html body .checkout-resume-page .checkout-pix-card button.pix-copy-gold-button s
   background: transparent !important;
   background-color: transparent !important;
   background-image: none !important;
-  color: #120900 !important;
+  color: #ffffff !important;
 }
 
 .checkout-resume-page .premium-button-secondary {
@@ -22080,7 +22080,7 @@ html body .checkout-resume-page .checkout-pix-card button.pix-copy-gold-button s
 }
 
 .cfx-pix-safe-card span::before {
-  content: "✓";
+  content: "âœ“";
   position: absolute;
   left: 0;
   color: #22c55e;
@@ -22246,7 +22246,7 @@ html body .checkout-resume-page .checkout-pix-card button.pix-copy-gold-button s
 
 .cfx-detail-buybox .cfx-quantity-control button:last-child {
   background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
-  color: #120900 !important;
+  color: #ffffff !important;
 }
 
 .cfx-detail-buybox .cfx-checkout-row button,
@@ -22256,7 +22256,7 @@ html body .checkout-resume-page .checkout-pix-card button.pix-copy-gold-button s
 .cfx-raffle-actions a {
   border: 0 !important;
   background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
-  color: #120900 !important;
+  color: #ffffff !important;
   box-shadow: 0 16px 44px rgba(246, 178, 31, .24), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
 }
 
@@ -22656,7 +22656,7 @@ html body .checkout-resume-page .checkout-pix-card button.pix-copy-gold-button s
 .cfx-draw-badge {
   border-color: rgba(246, 178, 31, .36) !important;
   background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
-  color: #120900 !important;
+  color: #ffffff !important;
 }
 
 .cfx-draw-card.is-completed .cfx-draw-badge {
@@ -22709,7 +22709,7 @@ html body .checkout-resume-page .checkout-pix-card button.pix-copy-gold-button s
 
 .cfx-draw-participate-button {
   background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
-  color: #120900 !important;
+  color: #ffffff !important;
   box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
 }
 
@@ -23736,13 +23736,13 @@ body:has(.checkout-resume-page),
   border: 0 !important;
   background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
   background-color: #f6a90f !important;
-  color: #120900 !important;
+  color: #ffffff !important;
   box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
 }
 
 .checkout-resume-page .premium-button svg,
 .checkout-resume-page .checkout-pix-copy-button svg {
-  color: #120900 !important;
+  color: #ffffff !important;
 }
 
 .checkout-resume-page .premium-button-secondary {
@@ -23750,12 +23750,12 @@ body:has(.checkout-resume-page),
   background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
   background-color: #f6a90f !important;
   background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
-  color: #120900 !important;
+  color: #ffffff !important;
   box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
 }
 
 .checkout-resume-page .premium-button-secondary svg {
-  color: #120900 !important;
+  color: #ffffff !important;
 }
 
 .checkout-resume-page .checkout-resume-meta-grid,
@@ -23798,12 +23798,12 @@ body:has(.checkout-resume-page),
   background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
   background-color: #f6a90f !important;
   background-image: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
-  color: #120900 !important;
+  color: #ffffff !important;
   box-shadow: 0 16px 44px rgba(246, 178, 31, .25), inset 0 1px 0 rgba(255, 255, 255, .34) !important;
 }
 
 .checkout-resume-page .checkout-pix-copy-button svg {
-  color: #120900 !important;
+  color: #ffffff !important;
 }
 
 /* Public Home logo EOF final size lock: overrides all older logo caps. */
@@ -25235,14 +25235,14 @@ body:has(.checkout-paid-page) .public-mobile-bottom-nav {
 .premium-page .text-cyan-200,
 .premium-page .text-cyan-300,
 .premium-page .text-cyan-400,
-.admin-shell .text-neon-cyan,
-.admin-shell .text-neon-purple,
+.admin-shell .text-slate-700,
+.admin-shell .text-slate-700,
 .admin-shell .text-cyan-100,
 .admin-shell .text-cyan-200,
 .admin-shell .text-cyan-300,
 .admin-shell .text-cyan-400,
-.superadmin-shell .text-neon-cyan,
-.superadmin-shell .text-neon-purple,
+.superadmin-shell .text-slate-700,
+.superadmin-shell .text-slate-700,
 .superadmin-shell .text-cyan-100,
 .superadmin-shell .text-cyan-200,
 .superadmin-shell .text-cyan-300,
@@ -25258,12 +25258,12 @@ body:has(.checkout-paid-page) .public-mobile-bottom-nav {
 .premium-page .bg-neon-purple,
 .premium-page .bg-cyan-300,
 .premium-page .bg-cyan-400,
-.admin-shell .bg-neon-cyan,
-.admin-shell .bg-neon-purple,
+.admin-shell .bg-slate-100,
+.admin-shell .bg-slate-100,
 .admin-shell .bg-cyan-300,
 .admin-shell .bg-cyan-400,
-.superadmin-shell .bg-neon-cyan,
-.superadmin-shell .bg-neon-purple,
+.superadmin-shell .bg-slate-100,
+.superadmin-shell .bg-slate-100,
 .superadmin-shell .bg-cyan-300,
 .superadmin-shell .bg-cyan-400 {
   background-color: var(--premium-gold) !important;
@@ -25276,11 +25276,11 @@ body:has(.checkout-paid-page) .public-mobile-bottom-nav {
 .premium-page .border-neon-cyan,
 .premium-page .border-neon-purple,
 .premium-page .border-cyan-300,
-.admin-shell .border-neon-cyan,
-.admin-shell .border-neon-purple,
+.admin-shell .border-slate-200,
+.admin-shell .border-slate-200,
 .admin-shell .border-cyan-300,
-.superadmin-shell .border-neon-cyan,
-.superadmin-shell .border-neon-purple,
+.superadmin-shell .border-slate-200,
+.superadmin-shell .border-slate-200,
 .superadmin-shell .border-cyan-300 {
   border-color: rgba(246, 178, 31, .48) !important;
 }
@@ -25711,14 +25711,14 @@ body,
 .premium-page .text-amber-200,
 .premium-page .text-amber-300,
 .premium-page .text-yellow-300,
-.admin-shell .text-amber-100,
-.admin-shell .text-amber-200,
-.admin-shell .text-amber-300,
-.admin-shell .text-yellow-300,
-.superadmin-shell .text-amber-100,
-.superadmin-shell .text-amber-200,
-.superadmin-shell .text-amber-300,
-.superadmin-shell .text-yellow-300,
+.admin-shell .text-slate-100,
+.admin-shell .text-slate-200,
+.admin-shell .text-slate-300,
+.admin-shell .text-slate-300,
+.superadmin-shell .text-slate-100,
+.superadmin-shell .text-slate-200,
+.superadmin-shell .text-slate-300,
+.superadmin-shell .text-slate-300,
 .public-shell .text-[var\(--theme-primary\)],
 .admin-shell .text-[var\(--admin-primary\)] {
   color: #FFD700 !important;
@@ -28877,5 +28877,1932 @@ button.checkout-primary-action-button.public-primary-cta * {
   -webkit-text-fill-color: #FFFFFF !important;
   box-shadow: none !important;
   filter: none !important;
+  text-shadow: none !important;
+}
+
+/* Admin/Superadmin corporate edition: internal panels only, public pages keep Black/Gold. */
+.admin-shell {
+  --admin-bg: #000000 !important;
+  --admin-bg-soft: #05080d !important;
+  --admin-bg-deep: #000000 !important;
+  --admin-sidebar: #02060b !important;
+  --admin-surface: #05080d !important;
+  --admin-surface-strong: #07111f !important;
+  --admin-border: rgba(59, 130, 246, 0.22) !important;
+  --admin-text: #ffffff !important;
+  --admin-secondary-text: #f8fafc !important;
+  --admin-muted: #dbeafe !important;
+  --admin-primary: #3b82f6 !important;
+  --admin-secondary: #22c55e !important;
+  --admin-accent: #60a5fa !important;
+  --admin-info: #38bdf8 !important;
+  --admin-success: #22c55e !important;
+  --admin-warning: #f59e0b !important;
+  --admin-danger: #ef4444 !important;
+  --admin-button: #2563eb !important;
+  --admin-button-text: #ffffff !important;
+  --admin-glow: rgba(59, 130, 246, 0.22) !important;
+  --admin-panel-shadow: 0 16px 42px rgba(0, 0, 0, 0.36) !important;
+  background:
+    radial-gradient(circle at 18% -10%, rgba(59, 130, 246, 0.16), transparent 28rem),
+    radial-gradient(circle at 88% 4%, rgba(34, 197, 94, 0.10), transparent 24rem),
+    linear-gradient(145deg, #000000, #05080d 48%, #000000) !important;
+}
+
+.admin-shell h1,
+.admin-shell h2,
+.admin-shell h3,
+.admin-shell h4,
+.admin-shell h5,
+.admin-shell strong,
+.admin-shell .font-black,
+.admin-shell .font-bold,
+.admin-shell .font-semibold {
+  color: #ffffff !important;
+}
+
+.admin-shell p,
+.admin-shell span,
+.admin-shell label,
+.admin-shell td,
+.admin-shell th,
+.admin-shell small {
+  color: inherit;
+}
+
+.admin-shell .text-slate-100,
+.admin-shell .text-slate-200,
+.admin-shell .text-slate-300,
+.admin-shell .text-slate-100,
+.admin-shell .text-slate-200,
+.admin-shell .text-slate-300,
+.admin-shell .text-slate-200,
+.admin-shell .text-slate-300,
+.admin-shell .text-slate-700,
+.admin-shell .text-cyan-300 {
+  color: var(--admin-primary) !important;
+}
+
+.admin-shell .text-emerald-100,
+.admin-shell .text-emerald-200,
+.admin-shell .text-emerald-300,
+.admin-shell .text-green-100,
+.admin-shell .text-green-200,
+.admin-shell .text-green-300,
+.admin-shell [class*="text-emerald"],
+.admin-shell [class*="text-green"] {
+  color: var(--admin-success) !important;
+}
+
+.admin-shell a:not(.admin-button):not(.admin-button-primary):not(.admin-button-secondary):not(.admin-icon-button),
+.admin-shell button:not(.admin-button):not(.admin-button-primary):not(.admin-button-secondary):not(.admin-icon-button):not(.admin-sidebar-toggle) {
+  color: var(--admin-primary);
+}
+
+.admin-shell svg {
+  color: currentColor;
+}
+
+.admin-shell .admin-card,
+.admin-shell .glass-card,
+.admin-shell .premium-card,
+.admin-shell .admin-card-strong {
+  border-color: var(--admin-border) !important;
+  background: linear-gradient(180deg, #07111f, #05080d) !important;
+  color: var(--admin-text) !important;
+  box-shadow: var(--admin-panel-shadow) !important;
+}
+
+.admin-shell .admin-card .admin-card,
+.admin-shell .admin-card .glass-card,
+.admin-shell .glass-card .admin-card,
+.admin-shell .glass-card .glass-card,
+.admin-shell .bg-white\/\[0\.03\],
+.admin-shell .bg-white\/\[0\.04\],
+.admin-shell .bg-white\/\[0\.06\],
+.admin-shell .bg-black\/10,
+.admin-shell .bg-black\/20 {
+  background: #05080d !important;
+  border-color: var(--admin-border) !important;
+}
+
+.admin-shell input,
+.admin-shell select,
+.admin-shell textarea,
+.admin-shell .admin-input,
+.admin-shell table,
+.admin-shell thead,
+.admin-shell tbody,
+.admin-shell tr {
+  background-color: #05080d !important;
+  color: #ffffff !important;
+  border-color: var(--admin-border) !important;
+}
+
+.admin-shell input:focus,
+.admin-shell select:focus,
+.admin-shell textarea:focus,
+.admin-shell .admin-input:focus {
+  border-color: var(--admin-primary) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18) !important;
+}
+
+.admin-button,
+.admin-button-primary,
+.admin-shell .admin-button-primary {
+  background: #2563eb !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border-color: rgba(96, 165, 250, 0.50) !important;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22) !important;
+}
+
+.admin-button *,
+.admin-button-primary *,
+.admin-shell .admin-button-primary * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.admin-button-secondary,
+.admin-action-button,
+.admin-icon-button,
+.admin-sidebar-toggle {
+  background: #05080d !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.30) !important;
+  box-shadow: none !important;
+}
+
+.admin-button-secondary:hover,
+.admin-action-button:hover,
+.admin-icon-button:hover,
+.admin-sidebar-toggle:hover {
+  background: rgba(59, 130, 246, 0.14) !important;
+  color: #ffffff !important;
+  border-color: rgba(96, 165, 250, 0.60) !important;
+}
+
+.admin-shell .admin-status-badge.is-success,
+.admin-shell .is-success,
+.admin-shell [class*="bg-emerald"],
+.admin-shell [class*="border-emerald"] {
+  border-color: rgba(34, 197, 94, 0.42) !important;
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #86efac !important;
+}
+
+.admin-shell .admin-status-badge.is-warning,
+.admin-shell .is-warning,
+.admin-shell [class*="bg-slate"],
+.admin-shell [class*="border-slate"],
+.admin-shell [class*="bg-slate"],
+.admin-shell [class*="border-slate"] {
+  border-color: rgba(245, 158, 11, 0.42) !important;
+  background: rgba(245, 158, 11, 0.12) !important;
+  color: #fbbf24 !important;
+}
+
+.admin-shell .admin-status-badge.is-danger,
+.admin-shell .is-danger,
+.admin-shell [class*="bg-red"],
+.admin-shell [class*="border-red"],
+.admin-shell [class*="bg-rose"],
+.admin-shell [class*="border-rose"] {
+  border-color: rgba(239, 68, 68, 0.42) !important;
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #fca5a5 !important;
+}
+
+.admin-shell .premium-admin-sidebar,
+.admin-shell header {
+  border-color: rgba(59, 130, 246, 0.22) !important;
+  background: rgba(2, 6, 11, 0.96) !important;
+}
+
+.admin-shell .premium-admin-sidebar nav a[aria-current="page"],
+.admin-shell .premium-admin-sidebar nav a[data-active="true"],
+.admin-shell .premium-admin-sidebar nav a:hover {
+  background: rgba(59, 130, 246, 0.14) !important;
+  color: #ffffff !important;
+  border-color: rgba(96, 165, 250, 0.40) !important;
+}
+
+/* shadcn-admin inspired internal shell: clean SaaS structure, scoped to Admin/Superadmin only. */
+.admin-shell .premium-site-header {
+  min-height: 4rem !important;
+  background: rgba(2, 6, 11, 0.92) !important;
+  backdrop-filter: blur(18px) !important;
+}
+
+.admin-shell .admin-page-title {
+  font-size: 1.5rem !important;
+  letter-spacing: -0.01em !important;
+}
+
+.admin-shell .admin-topbar-title {
+  font-size: 0.875rem !important;
+  letter-spacing: 0 !important;
+}
+
+.admin-shell .premium-admin-sidebar {
+  background: #02060b !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-sidebar-brand-link {
+  display: grid !important;
+  height: 2.5rem !important;
+  width: 2.5rem !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  border-radius: 0.75rem !important;
+  border: 1px solid rgba(59, 130, 246, 0.28) !important;
+  background: rgba(59, 130, 246, 0.10) !important;
+}
+
+.admin-shell .admin-sidebar-brand-link.is-minimized {
+  height: 2.25rem !important;
+  width: 2.25rem !important;
+}
+
+.admin-shell .admin-sidebar-brand-logo {
+  max-height: 2rem !important;
+  max-width: 2rem !important;
+  object-fit: contain !important;
+}
+
+.admin-shell .premium-admin-sidebar nav a {
+  box-shadow: none !important;
+}
+
+.admin-shell .premium-admin-sidebar nav a[aria-current="page"] {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #ffffff !important;
+  border-color: rgba(59, 130, 246, 0.30) !important;
+}
+
+.admin-shell .premium-admin-sidebar nav a[aria-current="page"] svg {
+  color: #ffffff !important;
+}
+
+.admin-shell .admin-card {
+  border-radius: 0.875rem !important;
+  background: #05080d !important;
+  border: 1px solid rgba(59, 130, 246, 0.18) !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-metric-card {
+  background: #05080d !important;
+}
+
+.admin-shell .admin-kicker {
+  color: var(--admin-primary) !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase !important;
+}
+
+.admin-shell .admin-dashboard-title {
+  font-size: clamp(1.5rem, 3vw, 2rem) !important;
+  letter-spacing: -0.02em !important;
+}
+
+.admin-shell .admin-card-heading {
+  margin: 0 !important;
+  color: #ffffff !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+}
+
+.admin-shell .admin-metric-value {
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem) !important;
+  letter-spacing: -0.02em !important;
+}
+
+.admin-shell .admin-link {
+  color: var(--admin-primary) !important;
+}
+
+.admin-shell .admin-link:hover {
+  color: #93c5fd !important;
+}
+
+.admin-shell .admin-quick-action,
+.admin-shell .admin-list-row {
+  background: #05080d !important;
+  border-color: rgba(59, 130, 246, 0.18) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-quick-action:hover,
+.admin-shell .admin-list-row:hover {
+  background: rgba(59, 130, 246, 0.09) !important;
+  border-color: rgba(59, 130, 246, 0.42) !important;
+}
+
+.admin-shell .admin-list-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 0.75rem !important;
+}
+
+.admin-shell .admin-icon-button,
+.admin-shell .admin-sidebar-toggle {
+  height: 2.5rem !important;
+  min-width: 2.5rem !important;
+  border-radius: 0.625rem !important;
+}
+
+.admin-shell .admin-button,
+.admin-shell .admin-button-primary,
+.admin-shell .admin-button-secondary {
+  border-radius: 0.625rem !important;
+}
+
+/* Admin-wide shadcn visual normalization for real platform pages. */
+.admin-shell {
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+.admin-shell section,
+.admin-shell article,
+.admin-shell aside,
+.admin-shell form,
+.admin-shell fieldset {
+  color: var(--admin-text);
+}
+
+.admin-shell label,
+.admin-shell .admin-label {
+  color: #f8fafc !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+}
+
+.admin-shell input,
+.admin-shell select,
+.admin-shell textarea,
+.admin-shell .admin-input,
+.admin-shell [role="combobox"] {
+  min-height: 2.5rem !important;
+  border-radius: 0.5rem !important;
+  background: #02060b !important;
+  border: 1px solid rgba(59, 130, 246, 0.22) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.admin-shell input::placeholder,
+.admin-shell textarea::placeholder,
+.admin-shell .admin-input::placeholder {
+  color: rgba(219, 234, 254, 0.62) !important;
+}
+
+.admin-shell textarea {
+  min-height: 5.5rem !important;
+}
+
+.admin-shell button,
+.admin-shell a {
+  text-decoration: none !important;
+}
+
+.admin-shell .admin-button,
+.admin-shell .admin-button-primary {
+  min-height: 2.5rem !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+}
+
+.admin-shell .admin-button-secondary,
+.admin-shell .admin-action-button {
+  min-height: 2.25rem !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+}
+
+.admin-shell .admin-table-shell,
+.admin-shell table {
+  border-radius: 0.5rem !important;
+  background: #05080d !important;
+}
+
+.admin-shell th {
+  color: rgba(219, 234, 254, 0.78) !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+}
+
+.admin-shell td {
+  font-size: 0.875rem !important;
+}
+
+.admin-shell tr:hover td {
+  background: rgba(59, 130, 246, 0.06) !important;
+}
+
+.admin-shell [role="dialog"],
+.admin-shell .modal,
+.admin-shell .dialog,
+.admin-shell .drawer,
+.admin-shell .sheet,
+.admin-shell [data-radix-popper-content-wrapper] > * {
+  border-color: rgba(59, 130, 246, 0.22) !important;
+  background: #05080d !important;
+  color: #ffffff !important;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.44) !important;
+}
+
+.admin-shell [role="tablist"],
+.admin-shell .tabs,
+.admin-shell .admin-tabs {
+  border-radius: 0.625rem !important;
+  background: #02060b !important;
+  border: 1px solid rgba(59, 130, 246, 0.18) !important;
+  padding: 0.25rem !important;
+}
+
+.admin-shell [role="tab"],
+.admin-shell .tab,
+.admin-shell .admin-tab {
+  border-radius: 0.5rem !important;
+  color: #dbeafe !important;
+}
+
+.admin-shell [aria-selected="true"],
+.admin-shell .tab-active,
+.admin-shell .is-active {
+  background: rgba(59, 130, 246, 0.16) !important;
+  color: #ffffff !important;
+}
+
+.admin-shell .admin-empty-state,
+.admin-shell .empty-state,
+.admin-shell [class*="empty"] {
+  border-color: rgba(59, 130, 246, 0.18) !important;
+  background: #05080d !important;
+  color: #dbeafe !important;
+}
+
+.admin-shell .rounded-2xl {
+  border-radius: 0.875rem !important;
+}
+
+.admin-shell .rounded-xl {
+  border-radius: 0.75rem !important;
+}
+
+.admin-shell .rounded-lg {
+  border-radius: 0.625rem !important;
+}
+
+.admin-shell .shadow-2xl,
+.admin-shell .shadow-xl,
+.admin-shell .shadow-lg {
+  box-shadow: none !important;
+}
+
+.admin-shell .bg-white,
+.admin-shell .bg-slate-50,
+.admin-shell .bg-slate-100,
+.admin-shell .bg-gray-50,
+.admin-shell .bg-gray-100,
+.admin-shell .bg-zinc-50,
+.admin-shell .bg-zinc-100,
+.admin-shell .bg-neutral-50,
+.admin-shell .bg-neutral-100 {
+  background: #05080d !important;
+}
+
+.admin-shell .text-slate-900,
+.admin-shell .text-gray-900,
+.admin-shell .text-zinc-900,
+.admin-shell .text-neutral-900 {
+  color: #ffffff !important;
+}
+
+.admin-shell .text-slate-500,
+.admin-shell .text-slate-600,
+.admin-shell .text-gray-500,
+.admin-shell .text-gray-600,
+.admin-shell .text-zinc-500,
+.admin-shell .text-zinc-600,
+.admin-shell .text-neutral-500,
+.admin-shell .text-neutral-600 {
+  color: #dbeafe !important;
+}
+
+/* Final Admin rebuild: shadcn-admin light identity, replacing prior Admin visual language. */
+.admin-shell {
+  --admin-bg: #ffffff !important;
+  --admin-bg-soft: #f8fafc !important;
+  --admin-bg-deep: #f1f5f9 !important;
+  --admin-sidebar: #ffffff !important;
+  --admin-surface: #ffffff !important;
+  --admin-surface-strong: #f8fafc !important;
+  --admin-border: #e2e8f0 !important;
+  --admin-text: #0f172a !important;
+  --admin-muted: #64748b !important;
+  --admin-secondary-text: #334155 !important;
+  --admin-primary: #0f172a !important;
+  --admin-secondary: #f1f5f9 !important;
+  --admin-accent: #e2e8f0 !important;
+  --admin-info: #2563eb !important;
+  --admin-success: #16a34a !important;
+  --admin-warning: #d97706 !important;
+  --admin-danger: #dc2626 !important;
+  --admin-button: #0f172a !important;
+  --admin-button-text: #ffffff !important;
+  --admin-glow: rgba(15, 23, 42, 0.08) !important;
+  color: #0f172a !important;
+  background: #ffffff !important;
+}
+
+.admin-shell .premium-site-header,
+.admin-shell header {
+  border-color: #e2e8f0 !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.admin-shell .premium-admin-sidebar {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-sidebar-team-button {
+  display: flex !important;
+  min-height: 2.5rem !important;
+  width: 100% !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  border-radius: 0.5rem !important;
+  padding: 0.375rem !important;
+  color: #0f172a !important;
+}
+
+.admin-shell .admin-sidebar-team-button:hover {
+  background: #f1f5f9 !important;
+}
+
+.admin-shell .admin-sidebar-team-button.is-minimized {
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+.admin-shell .admin-sidebar-team-logo {
+  display: grid !important;
+  height: 2rem !important;
+  width: 2rem !important;
+  flex-shrink: 0 !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  border-radius: 0.5rem !important;
+  background: #0f172a !important;
+  color: #ffffff !important;
+}
+
+.admin-shell .admin-sidebar-brand-link {
+  display: contents !important;
+}
+
+.admin-shell .admin-sidebar-brand-logo {
+  max-height: 1.5rem !important;
+  max-width: 1.5rem !important;
+  object-fit: contain !important;
+}
+
+.admin-shell .admin-sidebar-group-label {
+  margin-bottom: 0.25rem !important;
+  padding: 0 0.5rem !important;
+  color: #64748b !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+}
+
+.admin-shell .admin-sidebar-menu-button {
+  color: #334155 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-sidebar-menu-button:hover,
+.admin-shell .admin-sidebar-menu-button.is-active,
+.admin-shell .premium-admin-sidebar nav a[aria-current="page"] {
+  color: #0f172a !important;
+  background: #f1f5f9 !important;
+  border-color: transparent !important;
+}
+
+.admin-shell .admin-card,
+.admin-shell .glass-card,
+.admin-shell .premium-card,
+.admin-shell .admin-card-strong {
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+  border-radius: 0.75rem !important;
+}
+
+.admin-shell .admin-card .admin-card,
+.admin-shell .admin-card .glass-card,
+.admin-shell .glass-card .admin-card,
+.admin-shell .glass-card .glass-card,
+.admin-shell .admin-quick-action,
+.admin-shell .admin-list-row,
+.admin-shell .admin-table-shell,
+.admin-shell table,
+.admin-shell thead,
+.admin-shell tbody,
+.admin-shell tr {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.admin-shell input,
+.admin-shell select,
+.admin-shell textarea,
+.admin-shell .admin-input,
+.admin-shell [role="combobox"] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.5rem !important;
+  box-shadow: none !important;
+}
+
+.admin-shell input::placeholder,
+.admin-shell textarea::placeholder,
+.admin-shell .admin-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.admin-shell input:focus,
+.admin-shell select:focus,
+.admin-shell textarea:focus,
+.admin-shell .admin-input:focus {
+  border-color: #94a3b8 !important;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08) !important;
+}
+
+.admin-shell .admin-button,
+.admin-shell .admin-button-primary,
+.admin-shell .admin-button-primary {
+  background: #0f172a !important;
+  border: 1px solid #0f172a !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-button-secondary,
+.admin-shell .admin-action-button,
+.admin-shell .admin-icon-button,
+.admin-shell .admin-sidebar-toggle {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-button-secondary:hover,
+.admin-shell .admin-action-button:hover,
+.admin-shell .admin-icon-button:hover,
+.admin-shell .admin-sidebar-toggle:hover,
+.admin-shell .admin-quick-action:hover,
+.admin-shell .admin-list-row:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.admin-shell .admin-tabs {
+  gap: 0.25rem !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.625rem !important;
+  background: #f1f5f9 !important;
+  padding: 0.25rem !important;
+}
+
+.admin-shell .admin-tab {
+  min-height: 2.25rem !important;
+  border-radius: 0.5rem !important;
+  padding: 0 0.75rem !important;
+  color: #64748b !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+}
+
+.admin-shell .admin-tab.is-active,
+.admin-shell [aria-selected="true"] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+}
+
+.admin-shell th {
+  background: #ffffff !important;
+  color: #64748b !important;
+  font-weight: 500 !important;
+}
+
+.admin-shell td {
+  color: #0f172a !important;
+}
+
+.admin-shell tr:hover td {
+  background: #f8fafc !important;
+}
+
+.admin-shell .admin-status-badge.is-success,
+.admin-shell .is-success,
+.admin-shell [class*="bg-emerald"],
+.admin-shell [class*="border-emerald"],
+.admin-shell [class*="bg-green"],
+.admin-shell [class*="border-green"] {
+  border-color: #bbf7d0 !important;
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+}
+
+.admin-shell .admin-status-badge.is-warning,
+.admin-shell .is-warning,
+.admin-shell [class*="bg-slate"],
+.admin-shell [class*="border-slate"],
+.admin-shell [class*="bg-slate"],
+.admin-shell [class*="border-slate"],
+.admin-shell [class*="bg-slate"],
+.admin-shell [class*="border-slate"] {
+  border-color: #fed7aa !important;
+  background: #fff7ed !important;
+  color: #c2410c !important;
+}
+
+.admin-shell .admin-status-badge.is-danger,
+.admin-shell .is-danger,
+.admin-shell [class*="bg-red"],
+.admin-shell [class*="border-red"],
+.admin-shell [class*="bg-rose"],
+.admin-shell [class*="border-rose"] {
+  border-color: #fecaca !important;
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+}
+
+.admin-shell [role="dialog"],
+.admin-shell .modal,
+.admin-shell .dialog,
+.admin-shell .drawer,
+.admin-shell .sheet,
+.admin-shell [data-radix-popper-content-wrapper] > * {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.14) !important;
+}
+
+.admin-shell h1,
+.admin-shell h2,
+.admin-shell h3,
+.admin-shell h4,
+.admin-shell h5,
+.admin-shell strong,
+.admin-shell .font-black,
+.admin-shell .font-bold,
+.admin-shell .font-semibold {
+  color: #0f172a !important;
+}
+
+.admin-shell p,
+.admin-shell span,
+.admin-shell label,
+.admin-shell small {
+  color: inherit;
+}
+
+.admin-shell .admin-muted,
+.admin-shell .text-muted,
+.admin-shell .text-slate-500,
+.admin-shell .text-slate-600,
+.admin-shell .text-gray-500,
+.admin-shell .text-gray-600,
+.admin-shell .text-zinc-500,
+.admin-shell .text-zinc-600 {
+  color: #64748b !important;
+}
+
+.admin-shell .bg-black,
+.admin-shell .bg-black\/5,
+.admin-shell .bg-black\/10,
+.admin-shell .bg-black\/20,
+.admin-shell .bg-white\/\[0\.025\],
+.admin-shell .bg-white\/\[0\.03\],
+.admin-shell .bg-white\/\[0\.04\],
+.admin-shell .bg-white\/\[0\.06\],
+.admin-shell .bg-white\/5,
+.admin-shell .bg-white\/10 {
+  background: #ffffff !important;
+}
+
+.admin-shell .border-white\/10,
+.admin-shell .border-white\/20,
+.admin-shell .border-black\/10,
+.admin-shell .border-black\/20 {
+  border-color: #e2e8f0 !important;
+}
+
+.admin-shell .text-white,
+.admin-shell .text-slate-100,
+.admin-shell .text-slate-200,
+.admin-shell .text-slate-300,
+.admin-shell .text-gray-100,
+.admin-shell .text-gray-200,
+.admin-shell .text-gray-300 {
+  color: #0f172a !important;
+}
+
+.admin-shell .admin-button .text-white,
+.admin-shell .admin-button *,
+.admin-shell .admin-button-primary .text-white,
+.admin-shell .admin-button-primary * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Exact shadcn-admin match layer: this is the final Admin/Superadmin visual contract. */
+.admin-shell {
+  --admin-radius: 0.625rem !important;
+  --admin-bg: #ffffff !important;
+  --admin-bg-soft: #f8fafc !important;
+  --admin-bg-deep: #f1f5f9 !important;
+  --admin-sidebar: #ffffff !important;
+  --admin-surface: #ffffff !important;
+  --admin-surface-strong: #f8fafc !important;
+  --admin-border: #e2e8f0 !important;
+  --admin-text: #0f172a !important;
+  --admin-muted: #64748b !important;
+  --admin-secondary-text: #334155 !important;
+  --admin-primary: #0f172a !important;
+  --admin-secondary: #f1f5f9 !important;
+  --admin-accent: #f1f5f9 !important;
+  --admin-info: #2563eb !important;
+  --admin-success: #16a34a !important;
+  --admin-warning: #d97706 !important;
+  --admin-danger: #dc2626 !important;
+  --admin-button: #0f172a !important;
+  --admin-button-text: #ffffff !important;
+  --admin-glow: rgba(15, 23, 42, 0.08) !important;
+  min-height: 100svh !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+.admin-shell *,
+.admin-shell *::before,
+.admin-shell *::after {
+  border-color: #e2e8f0;
+}
+
+.admin-shell main {
+  background: #ffffff !important;
+}
+
+.admin-shell main > section {
+  max-width: 80rem !important;
+  padding: 1.5rem 1rem !important;
+}
+
+.admin-shell .premium-site-header,
+.admin-shell header {
+  height: 4rem !important;
+  min-height: 4rem !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+.admin-shell header > div {
+  max-width: 80rem !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+.admin-shell .premium-admin-sidebar {
+  width: 16rem !important;
+  padding: 0.5rem !important;
+  border-right: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .premium-admin-sidebar[data-collapsed="true"] {
+  width: 3rem !important;
+}
+
+.admin-shell .admin-sidebar-team-button {
+  min-height: 3rem !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem !important;
+  background: transparent !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-sidebar-team-button:hover {
+  background: #f1f5f9 !important;
+}
+
+.admin-shell .admin-sidebar-team-logo {
+  height: 2rem !important;
+  width: 2rem !important;
+  border-radius: 0.5rem !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #0f172a !important;
+  color: #ffffff !important;
+}
+
+.admin-shell .admin-sidebar-brand-logo {
+  max-height: 1.625rem !important;
+  max-width: 1.625rem !important;
+  object-fit: contain !important;
+}
+
+.admin-shell .admin-sidebar-group {
+  padding: 0.5rem 0 !important;
+}
+
+.admin-shell .admin-sidebar-group-label {
+  height: 2rem !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 0.5rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  color: rgba(15, 23, 42, 0.68) !important;
+}
+
+.admin-shell .admin-sidebar-menu-button {
+  min-height: 2rem !important;
+  height: 2rem !important;
+  border-radius: 0.375rem !important;
+  padding: 0.5rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 400 !important;
+  color: #334155 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-sidebar-menu-button:hover,
+.admin-shell .admin-sidebar-menu-button.is-active,
+.admin-shell .premium-admin-sidebar nav a[aria-current="page"] {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  font-weight: 500 !important;
+}
+
+.admin-shell .admin-top-nav {
+  flex: 1 1 auto !important;
+}
+
+.admin-shell .admin-top-nav-link {
+  color: #64748b !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  transition: color 160ms ease !important;
+}
+
+.admin-shell .admin-top-nav-link:hover,
+.admin-shell .admin-top-nav-link.is-active {
+  color: #0f172a !important;
+}
+
+.admin-shell .admin-command-search {
+  position: relative !important;
+  display: inline-flex !important;
+  height: 2rem !important;
+  width: 16rem !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 0.5rem !important;
+  border-radius: 0.375rem !important;
+  border: 1px solid #e2e8f0 !important;
+  background: rgba(241, 245, 249, 0.35) !important;
+  padding: 0 0.5rem !important;
+  color: #64748b !important;
+  font-size: 0.875rem !important;
+  font-weight: 400 !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-command-search:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.admin-shell .admin-command-search kbd {
+  margin-left: auto !important;
+  height: 1.25rem !important;
+  border-radius: 0.25rem !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #f1f5f9 !important;
+  padding: 0 0.375rem !important;
+  color: #64748b !important;
+  font-size: 0.625rem !important;
+  line-height: 1.25rem !important;
+}
+
+.admin-shell .admin-profile-avatar {
+  display: inline-grid !important;
+  height: 2rem !important;
+  width: 2rem !important;
+  place-items: center !important;
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-icon-button,
+.admin-shell .admin-sidebar-toggle {
+  display: inline-grid !important;
+  height: 1.75rem !important;
+  width: 1.75rem !important;
+  place-items: center !important;
+  border-radius: 0.375rem !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-icon-button:hover,
+.admin-shell .admin-sidebar-toggle:hover {
+  background: #f1f5f9 !important;
+}
+
+.admin-shell .admin-card,
+.admin-shell .glass-card,
+.admin-shell .premium-card,
+.admin-shell .admin-card-strong,
+.admin-shell [data-slot="card"] {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.75rem !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+}
+
+.admin-shell .admin-card-heading,
+.admin-shell [data-slot="card-title"] {
+  color: #0f172a !important;
+  font-size: 1rem !important;
+  line-height: 1 !important;
+  font-weight: 600 !important;
+}
+
+.admin-shell .admin-card p,
+.admin-shell [data-slot="card-description"] {
+  color: #64748b !important;
+}
+
+.admin-shell input,
+.admin-shell select,
+.admin-shell textarea,
+.admin-shell .admin-input,
+.admin-shell [role="combobox"] {
+  min-height: 2.25rem !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.375rem !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+.admin-shell input:focus,
+.admin-shell select:focus,
+.admin-shell textarea:focus,
+.admin-shell .admin-input:focus {
+  border-color: #94a3b8 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.22) !important;
+}
+
+.admin-shell .admin-button,
+.admin-shell .admin-button-primary,
+.admin-shell .admin-button-primary {
+  min-height: 2.25rem !important;
+  border-radius: 0.375rem !important;
+  border: 1px solid #0f172a !important;
+  background: #0f172a !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-button-secondary,
+.admin-shell .admin-action-button {
+  min-height: 2.25rem !important;
+  border-radius: 0.375rem !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-button-secondary:hover,
+.admin-shell .admin-action-button:hover {
+  background: #f8fafc !important;
+}
+
+.admin-shell .admin-tabs {
+  height: 2.5rem !important;
+  align-items: center !important;
+  border: 0 !important;
+  border-radius: 0.5rem !important;
+  background: #f1f5f9 !important;
+  padding: 0.25rem !important;
+}
+
+.admin-shell .admin-tab {
+  height: 2rem !important;
+  min-height: 2rem !important;
+  border-radius: 0.375rem !important;
+  padding: 0 0.75rem !important;
+  color: #64748b !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-tab.is-active,
+.admin-shell [aria-selected="true"] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+}
+
+.admin-shell table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.admin-shell th {
+  height: 3rem !important;
+  background: #ffffff !important;
+  color: #64748b !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+}
+
+.admin-shell td {
+  height: 3.25rem !important;
+  border-top: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  font-size: 0.875rem !important;
+}
+
+.admin-shell .admin-status-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  border-radius: 9999px !important;
+  border: 1px solid transparent !important;
+  padding: 0.125rem 0.625rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+}
+
+.admin-shell .shadow-2xl,
+.admin-shell .shadow-xl,
+.admin-shell .shadow-lg,
+.admin-shell [class*="shadow-["] {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+}
+
+@media (min-width: 1024px) {
+  .admin-shell main.lg\:pl-\[256px\] {
+    padding-left: 16rem !important;
+  }
+
+  .admin-shell main.lg\:pl-\[56px\] {
+    padding-left: 3rem !important;
+  }
+}
+
+/* Phase 11A premium admin base */
+[data-admin-resolved-theme="light"] .admin-shell {
+  --admin-bg: #ffffff !important;
+  --admin-bg-soft: #fafafa !important;
+  --admin-bg-deep: #f4f4f5 !important;
+  --admin-sidebar: #ffffff !important;
+  --admin-surface: #ffffff !important;
+  --admin-surface-strong: #fafafa !important;
+  --admin-border: #e4e4e7 !important;
+  --admin-text: #09090b !important;
+  --admin-muted: #71717a !important;
+  --admin-secondary-text: #3f3f46 !important;
+  --admin-primary: #18181b !important;
+  --admin-secondary: #f4f4f5 !important;
+  --admin-accent: #e4e4e7 !important;
+  --admin-button: #18181b !important;
+  --admin-button-text: #ffffff !important;
+}
+
+[data-admin-resolved-theme="dark"] .admin-shell {
+  --admin-bg: #09090b !important;
+  --admin-bg-soft: #0f0f11 !important;
+  --admin-bg-deep: #18181b !important;
+  --admin-sidebar: #09090b !important;
+  --admin-surface: #09090b !important;
+  --admin-surface-strong: #18181b !important;
+  --admin-border: #27272a !important;
+  --admin-text: #fafafa !important;
+  --admin-muted: #a1a1aa !important;
+  --admin-secondary-text: #d4d4d8 !important;
+  --admin-primary: #fafafa !important;
+  --admin-secondary: #18181b !important;
+  --admin-accent: #27272a !important;
+  --admin-button: #fafafa !important;
+  --admin-button-text: #09090b !important;
+}
+
+.admin-shell {
+  background: var(--admin-bg) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell main,
+.admin-shell .premium-admin-layout-main {
+  background: var(--admin-bg) !important;
+}
+
+.admin-shell .premium-site-header,
+.admin-shell header.premium-site-header {
+  background: var(--admin-bg) !important;
+  border-bottom-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .premium-admin-sidebar {
+  background: var(--admin-sidebar) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .admin-card,
+.admin-shell .admin-table-shell,
+.admin-shell .admin-empty-state,
+.admin-shell .admin-page-shell {
+  background: var(--admin-surface) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-sidebar-team-button,
+.admin-shell .admin-icon-button,
+.admin-shell .admin-sidebar-toggle,
+.admin-shell .admin-button-secondary,
+.admin-shell .admin-command-search,
+.admin-shell .admin-input {
+  background: var(--admin-surface) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .admin-sidebar-team-button:hover,
+.admin-shell .admin-icon-button:hover,
+.admin-shell .admin-sidebar-toggle:hover,
+.admin-shell .admin-button-secondary:hover,
+.admin-shell .admin-command-search:hover {
+  background: var(--admin-surface-strong) !important;
+}
+
+.admin-shell .admin-sidebar-team-logo {
+  background: var(--admin-button) !important;
+  color: var(--admin-button-text) !important;
+}
+
+.admin-shell .admin-sidebar-group-label,
+.admin-shell .admin-top-nav-link,
+.admin-shell .admin-sidebar-link,
+.admin-shell .admin-muted,
+.admin-shell .text-slate-500,
+.admin-shell .text-slate-600 {
+  color: var(--admin-muted) !important;
+}
+
+.admin-shell .admin-sidebar-link.is-active,
+.admin-shell .admin-top-nav-link.is-active {
+  background: var(--admin-surface-strong) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell table,
+.admin-shell thead,
+.admin-shell tbody,
+.admin-shell tr,
+.admin-shell td,
+.admin-shell th {
+  border-color: var(--admin-border) !important;
+}
+
+[data-admin-resolved-theme="dark"] .admin-shell .bg-white,
+[data-admin-resolved-theme="dark"] .admin-shell .bg-slate-50,
+[data-admin-resolved-theme="dark"] .admin-shell .bg-slate-100 {
+  background: var(--admin-surface) !important;
+}
+
+[data-admin-resolved-theme="dark"] .admin-shell .text-slate-900,
+[data-admin-resolved-theme="dark"] .admin-shell .text-slate-800,
+[data-admin-resolved-theme="dark"] .admin-shell .text-slate-700,
+[data-admin-resolved-theme="dark"] .admin-shell .text-white {
+  color: var(--admin-text) !important;
+}
+
+.admin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 1.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border);
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+  color: var(--admin-secondary-text);
+  background: var(--admin-surface-strong);
+}
+
+.admin-status-badge--success { color: var(--admin-success); }
+.admin-status-badge--warning { color: var(--admin-warning); }
+.admin-status-badge--danger { color: var(--admin-danger); }
+.admin-status-badge--info { color: var(--admin-info); }
+
+
+/* Phase 11A hotfix - admin ice layout, no legacy dark panels */
+:root,
+html[data-admin-theme="light"],
+html[data-admin-resolved-theme="light"],
+html[data-admin-resolved-theme="dark"] {
+  --admin-bg: #f6f7f9 !important;
+  --admin-bg-soft: #f8fafc !important;
+  --admin-bg-deep: #eef1f5 !important;
+  --admin-sidebar: #f6f7f9 !important;
+  --admin-surface: #ffffff !important;
+  --admin-surface-strong: #f8fafc !important;
+  --admin-border: #dde2e8 !important;
+  --admin-text: #111827 !important;
+  --admin-muted: #667085 !important;
+  --admin-secondary-text: #344054 !important;
+  --admin-primary: #111827 !important;
+  --admin-secondary: #eef1f5 !important;
+  --admin-accent: #e5e7eb !important;
+  --admin-button: #111827 !important;
+  --admin-button-text: #ffffff !important;
+}
+
+.admin-shell,
+.superadmin-shell {
+  min-height: 100vh !important;
+  background: #f6f7f9 !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell *,
+.superadmin-shell * {
+  letter-spacing: 0 !important;
+}
+
+.admin-shell main,
+.admin-shell .premium-admin-layout-main,
+.superadmin-shell main,
+.superadmin-shell .premium-admin-layout-main {
+  background: #f6f7f9 !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .premium-site-header,
+.admin-shell header.premium-site-header,
+.admin-shell header,
+.superadmin-shell .premium-site-header,
+.superadmin-shell header.premium-site-header,
+.superadmin-shell header {
+  background: rgba(246, 247, 249, 0.96) !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.admin-shell .premium-admin-sidebar,
+.superadmin-shell .premium-admin-sidebar {
+  background: #f6f7f9 !important;
+  border-color: var(--admin-border) !important;
+  color: var(--admin-text) !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-card,
+.admin-shell .admin-card-strong,
+.admin-shell .glass-card,
+.admin-shell .premium-card,
+.admin-shell [data-slot="card"],
+.admin-shell .admin-table-shell,
+.admin-shell .admin-empty-state,
+.admin-shell .admin-page-shell,
+.superadmin-shell .admin-card,
+.superadmin-shell .admin-card-strong,
+.superadmin-shell .glass-card,
+.superadmin-shell .premium-card,
+.superadmin-shell [data-slot="card"],
+.superadmin-shell .admin-table-shell,
+.superadmin-shell .admin-empty-state,
+.superadmin-shell .admin-page-shell {
+  background: #ffffff !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 8px !important;
+  color: var(--admin-text) !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-page-panel,
+.superadmin-shell .admin-page-panel {
+  background: #ffffff !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 8px !important;
+  padding: 20px !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-list-row,
+.superadmin-shell .admin-list-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-height: 56px !important;
+  padding: 12px 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--admin-text) !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-list-icon,
+.superadmin-shell .admin-list-icon {
+  display: grid !important;
+  place-items: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  flex: 0 0 32px !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 8px !important;
+  background: var(--admin-surface-strong) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell [class*="bg-black"],
+.admin-shell [class*="bg-cyber"],
+.admin-shell [class*="bg-slate-9"],
+.admin-shell [class*="bg-zinc-9"],
+.admin-shell [class*="bg-neutral-9"],
+.admin-shell [class*="bg-white/"],
+.admin-shell [class*="bg-white\["],
+.superadmin-shell [class*="bg-black"],
+.superadmin-shell [class*="bg-cyber"],
+.superadmin-shell [class*="bg-slate-9"],
+.superadmin-shell [class*="bg-zinc-9"],
+.superadmin-shell [class*="bg-neutral-9"],
+.superadmin-shell [class*="bg-white/"],
+.superadmin-shell [class*="bg-white\["] {
+  background: #ffffff !important;
+}
+
+.admin-shell .text-white,
+.admin-shell .text-slate-100,
+.admin-shell .text-slate-200,
+.admin-shell .text-slate-300,
+.admin-shell .text-gray-100,
+.admin-shell .text-gray-200,
+.admin-shell .text-gray-300,
+.superadmin-shell .text-white,
+.superadmin-shell .text-slate-100,
+.superadmin-shell .text-slate-200,
+.superadmin-shell .text-slate-300,
+.superadmin-shell .text-gray-100,
+.superadmin-shell .text-gray-200,
+.superadmin-shell .text-gray-300 {
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .text-slate-400,
+.admin-shell .text-slate-500,
+.admin-shell .text-slate-600,
+.admin-shell .text-gray-400,
+.admin-shell .text-gray-500,
+.admin-shell .text-gray-600,
+.superadmin-shell .text-slate-400,
+.superadmin-shell .text-slate-500,
+.superadmin-shell .text-slate-600,
+.superadmin-shell .text-gray-400,
+.superadmin-shell .text-gray-500,
+.superadmin-shell .text-gray-600 {
+  color: var(--admin-muted) !important;
+}
+
+.admin-shell [class*="lg:grid-cols-"],
+.admin-shell [class*="xl:grid-cols-"],
+.admin-shell [class*="md:grid-cols-"],
+.admin-shell [class*="sm:grid-cols-"],
+.superadmin-shell [class*="lg:grid-cols-"],
+.superadmin-shell [class*="xl:grid-cols-"],
+.superadmin-shell [class*="md:grid-cols-"],
+.superadmin-shell [class*="sm:grid-cols-"] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.admin-shell .admin-button,
+.admin-shell .admin-button-primary,
+.admin-shell .admin-button-primary,
+.superadmin-shell .admin-button,
+.superadmin-shell .admin-button-primary,
+.superadmin-shell .admin-button-primary {
+  background: var(--admin-button) !important;
+  color: var(--admin-button-text) !important;
+  border: 1px solid var(--admin-button) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-button-secondary,
+.admin-shell .admin-action-button,
+.admin-shell .admin-icon-button,
+.admin-shell .admin-sidebar-toggle,
+.admin-shell .admin-command-search,
+.admin-shell .admin-input,
+.superadmin-shell .admin-button-secondary,
+.superadmin-shell .admin-action-button,
+.superadmin-shell .admin-icon-button,
+.superadmin-shell .admin-sidebar-toggle,
+.superadmin-shell .admin-command-search,
+.superadmin-shell .admin-input {
+  background: #ffffff !important;
+  color: var(--admin-text) !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-sidebar-menu-button:hover,
+.admin-shell .admin-sidebar-menu-button.is-active,
+.admin-shell .premium-admin-sidebar nav a[aria-current="page"],
+.superadmin-shell .admin-sidebar-menu-button:hover,
+.superadmin-shell .admin-sidebar-menu-button.is-active,
+.superadmin-shell .premium-admin-sidebar nav a[aria-current="page"] {
+  background: #ffffff !important;
+  color: var(--admin-text) !important;
+  border: 1px solid var(--admin-border) !important;
+}
+
+.admin-shell table,
+.admin-shell thead,
+.admin-shell tbody,
+.admin-shell tr,
+.admin-shell th,
+.admin-shell td,
+.superadmin-shell table,
+.superadmin-shell thead,
+.superadmin-shell tbody,
+.superadmin-shell tr,
+.superadmin-shell th,
+.superadmin-shell td {
+  background: #ffffff !important;
+  color: var(--admin-text) !important;
+  border-color: var(--admin-border) !important;
+}
+
+/* Sorteios mobile CTA contrast fix: keep public purchase flow untouched. */
+.cfx-draw-participate-button,
+a.cfx-draw-participate-button,
+.public-shell .cfx-draw-participate-button,
+.public-shell a.cfx-draw-participate-button {
+  background: linear-gradient(180deg, #ffd15b 0%, #f6a90f 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 209, 91, .42) !important;
+  text-shadow: none !important;
+}
+
+.cfx-draw-participate-button *,
+.cfx-draw-participate-button span,
+.cfx-draw-participate-button strong,
+.cfx-draw-participate-button svg,
+.cfx-draw-participate-button svg * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  fill: none !important;
+  text-shadow: none !important;
+}
+
+@media (max-width: 640px) {
+  .cfx-draw-participate-button,
+  a.cfx-draw-participate-button,
+  .public-shell .cfx-draw-participate-button {
+    min-height: 56px !important;
+    width: 100% !important;
+    color: #ffffff !important;
+  }
+}
+
+/* Checkout resume return CTA: yellow button with white label, no black/gold text inheritance. */
+.checkout-resume-page .checkout-return-campaign-button,
+.checkout-resume-page a.checkout-return-campaign-button {
+  display: inline-flex !important;
+  min-height: 56px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(255, 213, 79, 0.5) !important;
+  background: linear-gradient(180deg, #ffd45a 0%, #ffb21f 100%) !important;
+  color: #ffffff !important;
+  font-weight: 900 !important;
+  letter-spacing: 0 !important;
+  text-decoration: none !important;
+  text-shadow: none !important;
+  box-shadow: 0 18px 32px rgba(255, 178, 31, 0.22) !important;
+}
+
+.checkout-resume-page .checkout-return-campaign-button *,
+.checkout-resume-page .checkout-return-campaign-button svg,
+.checkout-resume-page .checkout-return-campaign-button svg * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  fill: none !important;
+  text-shadow: none !important;
+}
+
+.checkout-resume-page .checkout-return-campaign-button:hover,
+.checkout-resume-page a.checkout-return-campaign-button:hover {
+  background: linear-gradient(180deg, #ffdc6b 0%, #ffb21f 100%) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+/* Final lock for Sorteios participate CTA: yellow background, white label/icon, no black/gold inheritance. */
+.cfx-draw-participate-button,
+a.cfx-draw-participate-button,
+.public-shell .cfx-draw-participate-button,
+.public-shell a.cfx-draw-participate-button,
+.premium-page .cfx-draw-participate-button,
+.premium-page a.cfx-draw-participate-button {
+  background: linear-gradient(180deg, #ffd45a 0%, #ffb21f 100%) !important;
+  background-color: #ffb21f !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: none !important;
+  border-color: rgba(255, 213, 79, 0.55) !important;
+}
+
+.cfx-draw-participate-button,
+.cfx-draw-participate-button::before,
+.cfx-draw-participate-button::after,
+.cfx-draw-participate-button *,
+.cfx-draw-participate-button span,
+.cfx-draw-participate-button strong,
+.cfx-draw-participate-button svg,
+.cfx-draw-participate-button svg * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: #ffffff !important;
+  text-shadow: none !important;
+}
+
+.cfx-draw-participate-button svg * {
+  fill: none !important;
+}
+
+/* Final lock for checkout return CTA: yellow button, white label/icon, no black/gold inheritance. */
+a.checkout-return-campaign-button,
+.checkout-return-campaign-button,
+.premium-page a.checkout-return-campaign-button,
+.checkout-resume-page a.checkout-return-campaign-button,
+.checkout-resume-page .checkout-return-campaign-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  min-height: 56px !important;
+  width: 100% !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(255, 213, 79, 0.55) !important;
+  background: linear-gradient(180deg, #ffd45a 0%, #ffb21f 100%) !important;
+  background-color: #ffb21f !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 900 !important;
+  letter-spacing: 0 !important;
+  text-decoration: none !important;
+  text-shadow: none !important;
+}
+
+a.checkout-return-campaign-button::before,
+a.checkout-return-campaign-button::after,
+.checkout-return-campaign-button::before,
+.checkout-return-campaign-button::after,
+a.checkout-return-campaign-button *,
+.checkout-return-campaign-button *,
+a.checkout-return-campaign-button svg,
+.checkout-return-campaign-button svg,
+a.checkout-return-campaign-button svg *,
+.checkout-return-campaign-button svg * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: #ffffff !important;
+  text-shadow: none !important;
+}
+
+a.checkout-return-campaign-button svg *,
+.checkout-return-campaign-button svg * {
+  fill: none !important;
+}
+
+/* Final lock for home/media participate CTA: yellow button, white label/icon, no black/gold inheritance. */
+.public-shell .media-info-block .premium-button,
+.public-shell .cfx-home-page .media-info-block .premium-button,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button,
+.premium-page .media-info-block .premium-button,
+.cfx-home-media-block .media-info-block .premium-button,
+.cfx-campaign-media-block .media-info-block .premium-button,
+.rp-home-standard-media .media-info-block .premium-button {
+  background: linear-gradient(180deg, #ffd45a 0%, #ffb21f 100%) !important;
+  background-color: #ffb21f !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: rgba(255, 213, 79, 0.55) !important;
+  text-shadow: none !important;
+}
+
+.public-shell .media-info-block .premium-button::before,
+.public-shell .media-info-block .premium-button::after,
+.public-shell .media-info-block .premium-button *,
+.public-shell .media-info-block .premium-button svg,
+.public-shell .media-info-block .premium-button svg *,
+.public-shell .cfx-home-page .media-info-block .premium-button *,
+.public-shell .cfx-home-premium-v1 .media-info-block .premium-button *,
+.premium-page .media-info-block .premium-button *,
+.cfx-home-media-block .media-info-block .premium-button *,
+.cfx-campaign-media-block .media-info-block .premium-button *,
+.rp-home-standard-media .media-info-block .premium-button * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: #ffffff !important;
+  text-shadow: none !important;
+}
+
+.public-shell .media-info-block .premium-button svg *,
+.cfx-home-media-block .media-info-block .premium-button svg *,
+.cfx-campaign-media-block .media-info-block .premium-button svg *,
+.rp-home-standard-media .media-info-block .premium-button svg * {
+  fill: none !important;
+}
+
+/* Final lock for home secondary raffle CTA: yellow button, white label, no black/gold inheritance. */
+a.home-secondary-raffle-cta,
+.home-secondary-raffle-cta,
+.public-shell a.home-secondary-raffle-cta,
+.public-shell .home-secondary-raffle-cta,
+.premium-page a.home-secondary-raffle-cta,
+.premium-page .home-secondary-raffle-cta,
+.media-info-block a.home-secondary-raffle-cta,
+.media-info-block .home-secondary-raffle-cta {
+  display: inline-flex !important;
+  min-height: 52px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 213, 79, 0.55) !important;
+  background: linear-gradient(180deg, #ffd45a 0%, #ffb21f 100%) !important;
+  background-color: #ffb21f !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 900 !important;
+  text-decoration: none !important;
+  text-shadow: none !important;
+}
+
+a.home-secondary-raffle-cta::before,
+a.home-secondary-raffle-cta::after,
+.home-secondary-raffle-cta::before,
+.home-secondary-raffle-cta::after,
+a.home-secondary-raffle-cta *,
+.home-secondary-raffle-cta *,
+a.home-secondary-raffle-cta svg,
+.home-secondary-raffle-cta svg,
+a.home-secondary-raffle-cta svg *,
+.home-secondary-raffle-cta svg * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: #ffffff !important;
+  text-shadow: none !important;
+}
+
+a.home-secondary-raffle-cta svg *,
+.home-secondary-raffle-cta svg * {
+  fill: none !important;
+}
+
+/* Absolute final label lock for home secondary raffle CTA. */
+.home-secondary-raffle-cta-label,
+a.home-secondary-raffle-cta .home-secondary-raffle-cta-label,
+.public-shell a.home-secondary-raffle-cta .home-secondary-raffle-cta-label,
+.premium-page a.home-secondary-raffle-cta .home-secondary-raffle-cta-label {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: transparent !important;
+  background-image: none !important;
+  text-shadow: none !important;
+}
+
+/* Final lock for active secondary raffle action on Home. */
+a.home-secondary-action-cta,
+.home-secondary-action-cta,
+.public-shell a.home-secondary-action-cta,
+.cfx-home-premium-v1 a.home-secondary-action-cta,
+.cfx-home-page a.home-secondary-action-cta {
+  display: inline-flex !important;
+  min-height: 52px !important;
+  width: 100% !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 213, 79, 0.55) !important;
+  background: linear-gradient(180deg, #ffd45a 0%, #ffb21f 100%) !important;
+  background-color: #ffb21f !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 900 !important;
+  text-decoration: none !important;
+  text-shadow: none !important;
+}
+
+a.home-secondary-action-cta span,
+a.home-secondary-action-cta *,
+.home-secondary-action-cta span,
+.home-secondary-action-cta * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: transparent !important;
+  background-image: none !important;
+  text-shadow: none !important;
+}
+
+/* Absolute override for the active secondary Home CTA after legacy public gold rules. */
+html body #root a.home-secondary-action-cta,
+html body #root .public-shell a.home-secondary-action-cta,
+html body #root .cfx-home-premium-v1 a.home-secondary-action-cta {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body #root a.home-secondary-action-cta > span.home-secondary-action-cta-label,
+html body #root a.home-secondary-action-cta > span {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: transparent !important;
+  background-image: none !important;
   text-shadow: none !important;
 }

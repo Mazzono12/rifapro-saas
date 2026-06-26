@@ -60,7 +60,7 @@ export function AdminAutomations() {
     const response = await fetch("/api/admin/automations");
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      toast.error(payload.error || "Plano atual nao libera automacoes");
+      toast.error(payload.error || "Nao foi possivel carregar automacoes");
       return;
     }
     const nextMetrics = payload.metrics && typeof payload.metrics === "object" ? payload.metrics : {};
@@ -186,7 +186,7 @@ export function AdminAutomations() {
             run.id,
             run.order_id || "-",
             run.customer_id || "-",
-            <span className={run.status === "failed" ? "text-rose-300" : run.status === "completed" ? "text-emerald-300" : "text-amber-200"}>{run.status}</span>,
+            <span className={run.status === "failed" ? "text-rose-300" : run.status === "completed" ? "text-emerald-300" : "text-slate-600"}>{run.status}</span>,
             run.attempts,
             Number.isNaN(new Date(run.scheduled_at).getTime()) ? "-" : new Date(run.scheduled_at).toLocaleString("pt-BR"),
             <span className="max-w-xs truncate text-xs text-[var(--admin-muted)]">{run.last_error || "-"}</span>
@@ -196,3 +196,5 @@ export function AdminAutomations() {
     </div>
   );
 }
+
+

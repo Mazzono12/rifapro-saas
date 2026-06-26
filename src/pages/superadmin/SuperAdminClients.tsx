@@ -1,9 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Building2, CreditCard, Eye, LogIn, Pencil, Plus, RefreshCw, SlidersHorizontal, Ticket, X } from "lucide-react";
+import { Building2, CreditCard, Eye, LogIn, Pencil, Plus, RefreshCw, Ticket, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminDataTable, AdminLoadingSkeleton, MetricCard } from "../../components/admin/AdminPremium";
-import { formatPlanName } from "../../lib/planLabels";
 
 type TenantStatus = "trial" | "active" | "suspended" | "overdue" | "maintenance" | "blocked" | "canceled" | "inactive";
 type Tenant = {
@@ -13,15 +12,12 @@ type Tenant = {
   dominio_customizado: string;
   status: TenantStatus;
   cor_primaria: string;
-  plano: string;
-  plan?: { id: string; nome: string };
   percentual_plataforma: number;
   raffleCount: number;
   purchaseCount: number;
   paidRevenue: number;
   platformCommission: number;
 };
-type Plan = { id: string; nome: string; percentual_comissao: number };
 type SuperadminUser = { id: string; nome: string; email: string; role: string; tenant_id: string | null; ativo: boolean };
 type TenantForm = {
   id?: string;
@@ -29,7 +25,6 @@ type TenantForm = {
   slug: string;
   dominio_customizado: string;
   status: TenantStatus;
-  plano: string;
   percentual_plataforma: number;
   cor_primaria: string;
   initialAdmin?: {
@@ -44,8 +39,7 @@ const emptyForm: TenantForm = {
   slug: "",
   dominio_customizado: "",
   status: "active",
-  plano: "starter",
-  percentual_plataforma: 0,
+  percentual_plataforma: 10,
   cor_primaria: "#06b6d4",
   initialAdmin: {
     nome: "",
@@ -69,7 +63,7 @@ function statusBadge(status: string) {
   const className = status === "active"
     ? "bg-emerald-100 text-emerald-800"
     : status === "trial" || status === "maintenance"
-      ? "bg-amber-100 text-amber-800"
+      ? "bg-slate-100 text-slate-600"
       : "bg-rose-100 text-rose-800";
   const label = {
     active: "Ativo",
@@ -86,7 +80,6 @@ function statusBadge(status: string) {
 
 export function SuperAdminClients() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [plans, setPlans] = useState<Plan[]>([]);
   const [users, setUsers] = useState<SuperadminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<TenantForm | null>(null);
@@ -107,7 +100,6 @@ export function SuperAdminClients() {
       const overview = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(overview.error || "Nao foi possivel carregar clientes.");
       setTenants(Array.isArray(overview.tenants) ? overview.tenants : []);
-      setPlans(Array.isArray(overview.plans) ? overview.plans : []);
       setUsers(usersResponse.ok ? await usersResponse.json() : []);
     } catch (error) {
       toast.error("Falha ao carregar clientes", { description: error instanceof Error ? error.message : "Tente novamente." });
@@ -149,7 +141,6 @@ export function SuperAdminClients() {
         slug: form.slug,
         dominio_customizado: form.dominio_customizado,
         status: form.status,
-        plano: form.plano,
         percentual_plataforma: form.percentual_plataforma,
         cor_primaria: form.cor_primaria,
         ...(initialAdmin ? { admin: initialAdmin } : {})
@@ -261,7 +252,7 @@ export function SuperAdminClients() {
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
           <div className="min-w-0">
             <h2 className="text-2xl font-semibold leading-tight text-[var(--admin-text)]">Clientes</h2>
-            <p className="mt-1 text-sm text-[var(--admin-muted)]">Gestao individual de contas, planos, dominios e acesso assistido.</p>
+            <p className="mt-1 text-sm text-[var(--admin-muted)]">Gestao individual de contas, dominios, taxa percentual e acesso assistido.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => void loadData()} className="admin-button-secondary h-10 px-3 text-sm">
@@ -286,18 +277,18 @@ export function SuperAdminClients() {
       <section className="admin-card overflow-hidden p-0">
         <div className="border-b border-[var(--admin-border)] p-4">
           <h2 className="text-lg font-semibold text-[var(--admin-text)]">Lista de clientes</h2>
-            <p className="mt-1 text-sm text-[var(--admin-muted)]">Gerencie contas, acesso, aparência e planos em um só lugar.</p>
+            <p className="mt-1 text-sm text-[var(--admin-muted)]">Gerencie contas, acesso, aparência e taxa da plataforma em um só lugar.</p>
         </div>
         <AdminDataTable
           minWidth="980px"
-          columns={["Cliente", "Status", "Plano", "Domínio", "Campanhas", "Vendas", "Faturamento", "Ações"]}
+          columns={["Cliente", "Status", "Taxa", "Domínio", "Campanhas", "Vendas", "Faturamento", "Ações"]}
           rows={tenants.map(tenant => [
             <div key={tenant.id} className="min-w-48">
               <p className="font-semibold">{tenant.nome}</p>
               <p className="text-xs text-[var(--admin-muted)]">Conta em gestao individual</p>
             </div>,
             statusBadge(tenant.status),
-            formatPlanName(tenant.plan || tenant.plano),
+            `${Number(tenant.percentual_plataforma ?? 10)}%`,
             tenant.dominio_customizado || "Sem domínio",
             tenant.raffleCount,
             tenant.purchaseCount,
@@ -332,16 +323,6 @@ export function SuperAdminClients() {
               <label className="space-y-1 text-sm text-[var(--admin-muted)]">Domínio personalizado
                 <input className="admin-input w-full" value={form.dominio_customizado} onChange={event => setForm({ ...form, dominio_customizado: event.target.value })} />
               </label>
-              <label className="space-y-1 text-sm text-[var(--admin-muted)]">Plano
-                <select className="admin-input w-full" value={form.plano} onChange={event => {
-                  const plan = plans.find(item => item.id === event.target.value);
-                  setForm({ ...form, plano: event.target.value, percentual_plataforma: plan?.percentual_comissao ?? form.percentual_plataforma });
-                }}>
-                  {(plans.length ? plans : [{ id: "starter", nome: "Básico", percentual_comissao: 10 }]).map(plan => (
-                    <option key={plan.id} value={plan.id}>{formatPlanName(plan)}</option>
-                  ))}
-                </select>
-              </label>
               <label className="space-y-1 text-sm text-[var(--admin-muted)]">Status
                 <select className="admin-input w-full" value={form.status} onChange={event => setForm({ ...form, status: event.target.value as TenantStatus })}>
                   <option value="active">Ativo</option>
@@ -353,7 +334,7 @@ export function SuperAdminClients() {
                   <option value="inactive">Inativo</option>
                 </select>
               </label>
-              <label className="space-y-1 text-sm text-[var(--admin-muted)]">Percentual operacional
+              <label className="space-y-1 text-sm text-[var(--admin-muted)]">Taxa da plataforma (%)
                 <input className="admin-input w-full" type="number" min="0" max="100" step="0.01" value={form.percentual_plataforma} onChange={event => setForm({ ...form, percentual_plataforma: Number(event.target.value) })} />
               </label>
               <label className="space-y-1 text-sm text-[var(--admin-muted)]">Cor primária
@@ -495,15 +476,19 @@ function ClientActions({
       <button type="button" className="admin-action-button" title="Editar cliente" onClick={onEdit}>
         <Pencil className="h-4 w-4" /> Editar
       </button>
-      <Link className="admin-icon-button" title="Plano e Recursos" to={`/superadmin/tenants/${tenant.id}/plano`}><SlidersHorizontal className="h-4 w-4" /></Link>
       <button type="button" className="admin-action-button" onClick={onToggle}>
         {tenant.status === "suspended" ? "Reativar" : "Suspender"}
       </button>
       {needsInitialAdmin && (
-        <button type="button" className="admin-action-button border-amber-400/60 text-amber-300" onClick={onCreateInitialAdmin}>
+        <button type="button" className="admin-action-button border-slate-200 text-slate-600" onClick={onCreateInitialAdmin}>
           Criar Administrador Inicial
         </button>
       )}
     </div>
   );
 }
+
+
+
+
+

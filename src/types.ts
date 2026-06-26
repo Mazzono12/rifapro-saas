@@ -1,16 +1,24 @@
 export interface Raffle {
   id: string;
   title: string;
+  name?: string;
+  subtitle?: string;
+  fullDescription?: string;
   description: string;
   price: number;
   totalTickets: number;
+  totalNumbers?: number;
+  quantity?: number;
   soldTickets: number;
+  soldNumbers?: number;
   minPurchaseTickets?: number;
   minimumTickets?: number;
   minQuantity?: number;
+  minPurchase?: number;
   reservationMinutes?: number;
   image: string; // Fallback or main image
   imageUrl?: string;
+  cardImage?: string;
   bannerUrl?: string;
   coverImageUrl?: string;
   thumbnailUrl?: string;
@@ -29,6 +37,7 @@ export interface Raffle {
   heroContentPlacement?: 'overlay' | 'below';
   heroEyebrow?: string;
   heroTitle?: string;
+  heroText?: string;
   heroSubtitle?: string;
   homeTitle?: string;
   homeSubtitle?: string;
@@ -42,15 +51,45 @@ export interface Raffle {
   showHomeText?: boolean;
   showLivePurchaseFeed?: boolean;
   showSocialProofToast?: boolean;
+  showPurchaseFeed?: boolean;
+  showSocialProof?: boolean;
+  featuredOnHome?: boolean;
   conversionProgressEnabled?: boolean;
   conversionProgressGoal?: number;
   conversionProgressLabel?: string;
+  goalAmount?: number;
+  goalText?: string;
+  showProgressBar?: boolean;
+  topBuyerRankingEnabled?: boolean;
+  topSellerRankingEnabled?: boolean;
+  topBuyerRewards?: TopSellerRewardConfig[];
   topSellerRewards?: TopSellerRewardConfig[];
+  standardizedLifecycle?: StandardizedModalityLifecycle;
+  mainPrizeTitle?: string;
+  mainPrizeImage?: string;
+  mainPrizeDescription?: string;
+  estimatedPrizeValue?: number;
+  sponsorPrize?: Partial<StandardizedPrizeConfig>;
+  gatewayMode?: string;
+  campaignGateway?: PixGatewayId | string;
+  pixExpirationMinutes?: number;
+  releaseExpiredReservations?: boolean;
+  enableSuperCotas?: boolean;
+  enableCaixinha?: boolean;
+  enableRoleta?: boolean;
+  enableRaspadinha?: boolean;
+  enableBilhetePremiado?: boolean;
+  enableHoraPremiada?: boolean;
+  enableChanceEmDobro?: boolean;
+  enableTopCompradores?: boolean;
+  enableTopVendedores?: boolean;
+  rankingPrizes?: { buyers?: TopSellerRewardConfig[]; sellers?: TopSellerRewardConfig[] };
   status: 'active' | 'completed' | 'draft' | 'paused' | 'cancelled';
   drawDate: string;
   countdownEnabled?: boolean;
   countdownEndAt?: string;
   salesEndAt?: string;
+  salesEndDate?: string;
   manuallyClosedAt?: string;
   progressOverride?: number;
   countdownLabel?: string;
@@ -62,8 +101,68 @@ export interface Raffle {
 
 export interface TopSellerRewardConfig {
   position: number;
+  type?: RankingRewardType;
   label: string;
+  description?: string;
   enabled: boolean;
+}
+
+export type RankingRewardType = 'money' | 'product' | 'bonus' | 'other';
+export interface StandardizedPrizeConfig {
+  enabled?: boolean;
+  name: string;
+  description: string;
+  imageUrl: string;
+  estimatedValue: number;
+  status: string;
+}
+
+export interface StandardizedWinnerRecord {
+  name: string;
+  phone: string;
+  city: string;
+  state: string;
+  prizeReceived: string;
+  date: string;
+  deliveryStatus: string;
+  notes: string;
+  photos: string[];
+  receipts: string[];
+}
+
+export interface StandardizedSponsorWinnerRecord extends StandardizedWinnerRecord {
+  affiliateName: string;
+  referredCustomer: string;
+}
+
+export interface StandardizedClosureRecord {
+  closedAt: string;
+  reason: string;
+  notes: string;
+  photos: string[];
+  receipts: string[];
+  status: string;
+}
+
+export interface StandardizedLifecycleHistoryItem {
+  campaign: string;
+  mainPrize: string;
+  sponsorPrize: string;
+  mainWinner: string;
+  sponsorWinner: string;
+  topBuyers: string;
+  topAffiliates: string;
+  date: string;
+  status: string;
+}
+
+export interface StandardizedModalityLifecycle {
+  mainPrize: StandardizedPrizeConfig;
+  sponsorPrize: StandardizedPrizeConfig;
+  mainWinner: StandardizedWinnerRecord;
+  sponsorWinner: StandardizedSponsorWinnerRecord;
+  closure: StandardizedClosureRecord;
+  history: StandardizedLifecycleHistoryItem[];
 }
 
 export interface VideoPlayerConfig {
@@ -454,6 +553,11 @@ export interface FazendinhaConfig {
   description: string;
   pricePerGroup: number;
   mainPrize: string;
+  standardizedLifecycle?: StandardizedModalityLifecycle;
+  topBuyerRankingEnabled?: boolean;
+  topSellerRankingEnabled?: boolean;
+  topBuyerRewards?: TopSellerRewardConfig[];
+  topSellerRewards?: TopSellerRewardConfig[];
   drawDate: string;
   resultNumber?: string;
   resultSource?: string;
@@ -575,6 +679,11 @@ export interface NumberModeConfig {
   digits: number;
   price: number;
   prize: string;
+  standardizedLifecycle?: StandardizedModalityLifecycle;
+  topBuyerRankingEnabled?: boolean;
+  topSellerRankingEnabled?: boolean;
+  topBuyerRewards?: TopSellerRewardConfig[];
+  topSellerRewards?: TopSellerRewardConfig[];
   drawDate: string;
   resultNumber: string;
   status: GameRoundStatus;
@@ -622,3 +731,4 @@ export interface ModalidadesState {
   fazendinha: FazendinhaConfig & { id: 'fazendinha'; mediaUrl: string; mediaType: 'image' | 'video' | 'youtube' | 'vimeo' | 'bunny'; ranking: any[] };
   numberModes: Array<NumberModeConfig & { ranking: any[] }>;
 }
+

@@ -1,0 +1,1010 @@
+/* Official RifaPro Admin UI system based on docs/admin-ui */
+.rp-admin-shell {
+  --rp-bg: #f8f8fb;
+  --rp-surface: #ffffff;
+  --rp-border: #e5e7ef;
+  --rp-text: #060b2f;
+  --rp-muted: #667097;
+  --rp-primary: #641cff;
+  --rp-green: #13b66b;
+  min-height: 100vh;
+  display: flex;
+  background: var(--rp-bg);
+  color: var(--rp-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+.rp-admin-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 60; width: 232px; display: flex; flex-direction: column; border-right: 1px solid var(--rp-border); background: #ffffff; color: #334155; box-shadow: 0 1px 2px rgba(15,23,42,.04); transition: width .18s ease, transform .18s ease; }
+.rp-admin-sidebar.is-collapsed { width: 72px; }
+.rp-admin-brand { min-height: 72px; display: flex; align-items: center; gap: 10px; padding: 18px 16px; }
+.rp-admin-brand-mark { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; overflow: hidden; border-radius: 10px; background: var(--rp-primary-soft); color: var(--rp-primary); font-weight: 900; }
+.rp-admin-brand-mark img { width: 100%; height: 100%; object-fit: contain; }
+.rp-admin-brand strong { min-width: 0; font-size: 26px; line-height: 1; font-weight: 800; color: var(--rp-primary); }
+.rp-admin-brand-pill { border: 1px solid #dbe3ef; border-radius: 7px; padding: 4px 7px; font-size: 11px; font-weight: 700; color: #334155; }
+.rp-admin-nav { flex: 1; overflow-y: auto; padding: 0 12px 18px; }
+.rp-admin-nav-group { display: grid; gap: 4px; margin-bottom: 16px; }
+.rp-admin-nav-group p { margin: 8px 12px; font-size: 11px; font-weight: 800; color: #8d97ad; text-transform: uppercase; }
+.rp-admin-nav-link { display: flex; align-items: center; gap: 12px; min-height: 44px; border-radius: 8px; padding: 0 12px; color: #475569; font-size: 14px; font-weight: 600; text-decoration: none; transition: background .16s ease; }
+.rp-admin-nav-link:hover { background: #f8fafc; }
+.rp-admin-nav-link.is-active { background: var(--rp-primary-soft); color: var(--rp-primary); box-shadow: none; }
+.rp-admin-sidebar.is-collapsed .rp-admin-nav-link { justify-content: center; padding: 0; }
+.rp-admin-plan-card { margin: 12px; border: 1px solid var(--rp-border); border-radius: 10px; background: #ffffff; padding: 16px; }
+.rp-admin-plan-card span,.rp-admin-plan-card small { display: block; color: var(--rp-muted); font-size: 12px; }
+.rp-admin-plan-card strong { display: block; margin: 6px 0; color: var(--rp-text); font-size: 16px; }
+.rp-admin-plan-card button { width: 100%; min-height: 36px; margin-top: 14px; border: 1px solid #dbeafe; border-radius: 7px; background: #ffffff; color: var(--rp-primary); font-size: 12px; }
+.rp-admin-mobile-close,.rp-admin-sidebar-backdrop { display: none; }
+.rp-admin-main { width: 100%; min-width: 0; padding-left: 232px; transition: padding .18s ease; }
+.rp-admin-shell--collapsed .rp-admin-main { padding-left: 72px; }
+.rp-admin-topbar { position: sticky; top: 0; z-index: 40; height: 72px; display: flex; align-items: center; gap: 18px; border-bottom: 1px solid var(--rp-border); background: rgba(255,255,255,.96); padding: 0 28px; backdrop-filter: blur(16px); }
+.rp-admin-topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.rp-admin-content { width: min(100%,1660px); margin: 0 auto; padding: 24px 28px 32px; }
+.rp-admin-search { width: min(100%,490px); min-height: 40px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--rp-border); border-radius: 8px; background: #fff; padding: 0 12px; color: var(--rp-muted); box-shadow: 0 8px 22px rgba(15,23,42,.03); }
+.rp-admin-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--rp-text); font-size: 14px; }
+.rp-admin-search kbd { border-radius: 6px; background: #f3f4f8; padding: 3px 7px; font-size: 11px; color: #7c849b; }
+.rp-admin-icon-button,.rp-admin-notification { width: 38px; height: 38px; display: inline-grid; place-items: center; position: relative; border: 0; border-radius: 8px; background: transparent; color: #11183d; }
+.rp-admin-icon-button:hover,.rp-admin-notification:hover { background: #f3f4fa; }
+.rp-admin-notification span { position: absolute; top: 3px; right: 4px; display: grid; place-items: center; min-width: 17px; height: 17px; border-radius: 999px; background: var(--rp-primary); color: #fff; font-size: 10px; font-weight: 800; }
+.rp-admin-profile { display: flex; align-items: center; gap: 10px; border: 0; background: transparent; color: var(--rp-text); }
+.rp-admin-profile strong,.rp-admin-profile small { display: block; text-align: left; line-height: 1.1; }
+.rp-admin-profile strong { font-size: 13px; }
+.rp-admin-profile small { color: var(--rp-muted); font-size: 11px; }
+.rp-admin-avatar { width: 36px; height: 36px; display: inline-grid; place-items: center; border-radius: 999px; background: #dfe8ff; color: #18214b; font-size: 12px; font-weight: 800; }
+.rp-admin-page { display: grid; gap: 22px; }
+.rp-admin-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.rp-admin-page-header h1 { color: var(--rp-text); font-size: 28px; line-height: 1.1; font-weight: 800; }
+.rp-admin-page-header p { margin-top: 9px; color: var(--rp-muted); font-size: 14px; }
+.rp-admin-eyebrow { margin-bottom: 8px; color: var(--rp-primary); font-size: 12px; font-weight: 800; }
+.rp-admin-page-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+.rp-admin-section,.rp-admin-card { border: 1px solid var(--rp-border); border-radius: 10px; background: var(--rp-surface); box-shadow: 0 12px 32px rgba(15,23,42,.035); }
+.rp-admin-section { padding: 18px; }
+.rp-admin-section-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+.rp-admin-section-header h2 { font-size: 16px; font-weight: 800; color: var(--rp-text); }
+.rp-admin-section-header p { margin-top: 5px; color: var(--rp-muted); font-size: 13px; }
+.rp-admin-card { padding: 16px; }
+.rp-admin-metrics { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 16px; }
+.rp-admin-metric-card { min-height: 106px; display: flex; align-items: center; gap: 16px; }
+.rp-admin-metric-card p { color: var(--rp-muted); font-size: 13px; font-weight: 600; }
+.rp-admin-metric-card strong { display: block; margin-top: 5px; color: var(--rp-text); font-size: 22px; font-weight: 850; }
+.rp-admin-metric-card small { display: block; margin-top: 5px; color: var(--rp-green); font-size: 12px; }
+.rp-admin-metric-icon { width: 44px; height: 44px; display: grid; place-items: center; flex: 0 0 44px; border-radius: 10px; }
+.tone-blue { background: #eaf2ff; color: #2c68ff; } .tone-purple { background: #f0e9ff; color: #641cff; } .tone-green { background: #e7f8ef; color: #0e9f61; } .tone-orange { background: #fff3df; color: #e88900; } .tone-red { background: #ffe8ea; color: #e23548; } .tone-slate { background: #eef1f6; color: #536079; }
+.rp-admin-button { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; padding: 0 18px; font-size: 14px; font-weight: 800; }
+.rp-admin-button.is-primary { border: 1px solid var(--rp-primary); background: var(--rp-primary); color: #fff; box-shadow: 0 8px 18px rgba(37,99,235,.16); }
+.rp-admin-button.is-secondary,.rp-admin-button.is-ghost { border: 1px solid var(--rp-border); background: #fff; color: #151c44; }
+.rp-admin-input { min-height: 42px; width: 100%; border: 1px solid var(--rp-border); border-radius: 8px; background: #fff; padding: 0 13px; color: var(--rp-text); font-size: 14px; outline: none; }
+.rp-admin-input:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+.rp-admin-toolbar,.rp-admin-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.rp-admin-filters { padding: 18px; }
+.rp-admin-tabs { display: flex; align-items: center; gap: 26px; border-bottom: 1px solid var(--rp-border); }
+.rp-admin-tabs button { min-height: 48px; border: 0; border-bottom: 3px solid transparent; color: #454f79; font-size: 14px; font-weight: 700; }
+.rp-admin-tabs button.is-active { border-color: var(--rp-primary); color: var(--rp-primary); }
+.rp-admin-table-wrap { overflow-x: auto; }
+.rp-admin-table { width: 100%; border-collapse: collapse; color: var(--rp-text); font-size: 13px; }
+.rp-admin-table th,.rp-admin-table td { height: 48px; border-top: 1px solid var(--rp-border); padding: 0 16px; text-align: left; white-space: nowrap; }
+.rp-admin-table th { height: 44px; border-top: 0; color: #596382; font-size: 12px; font-weight: 800; }
+.rp-admin-table td { font-weight: 600; }
+.rp-admin-table-empty { height: 92px !important; text-align: center !important; color: var(--rp-muted); }
+.rp-admin-badge { display: inline-flex; align-items: center; min-height: 24px; border-radius: 6px; padding: 0 8px; font-size: 12px; font-weight: 800; }
+.rp-admin-badge.tone-success { background: #e7f8ef; color: #07874f; } .rp-admin-badge.tone-warning { background: #fff3df; color: #b56a00; } .rp-admin-badge.tone-danger { background: #ffe8ea; color: #d82239; } .rp-admin-badge.tone-info { background: #eaf2ff; color: #2563eb; } .rp-admin-badge.tone-purple { background: #f0e9ff; color: #641cff; } .rp-admin-badge.tone-slate { background: #eef1f6; color: #536079; }
+.rp-admin-grid-2 { display: grid; grid-template-columns: 1.15fr .85fr; gap: 16px; } .rp-admin-grid-3 { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; } .rp-admin-grid-4 { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; }
+.rp-admin-progress { display: block; width: 100%; height: 7px; overflow: hidden; border-radius: 999px; background: #edf0f6; }
+.rp-admin-progress i { display: block; height: 100%; border-radius: inherit; background: var(--rp-primary); }
+.rp-admin-pagination { display: flex; justify-content: center; gap: 8px; padding: 16px; }
+.rp-admin-pagination button { min-width: 32px; height: 32px; border: 1px solid var(--rp-border); border-radius: 7px; background: #fff; color: #1d2555; font-weight: 700; }
+.rp-admin-pagination button.is-active { background: var(--rp-primary); color: #fff; }
+.rp-admin-empty,.rp-admin-alert { display: grid; place-items: center; min-height: 130px; border: 1px dashed var(--rp-border); border-radius: 10px; color: var(--rp-muted); text-align: center; }
+.rp-admin-timeline { display: grid; gap: 12px; }
+.rp-admin-timeline div { display: grid; grid-template-columns: 10px minmax(0,1fr); gap: 10px; }
+.rp-admin-timeline span { width: 9px; height: 9px; margin-top: 5px; border-radius: 999px; background: var(--rp-primary); }
+.rp-admin-skeleton { min-height: 120px; border-radius: 10px; background: #f2f4f8; animation: rp-admin-skeleton 1.2s linear infinite; }
+@keyframes rp-admin-skeleton { to { opacity: .62; } }
+@media (max-width: 1280px) { .rp-admin-metrics { grid-template-columns: repeat(3,minmax(0,1fr)); } .rp-admin-grid-4 { grid-template-columns: repeat(2,minmax(0,1fr)); } .rp-admin-grid-2 { grid-template-columns: 1fr; } }
+@media (max-width: 1023px) { .rp-admin-sidebar { transform: translateX(-100%); } .rp-admin-sidebar.is-open { transform: translateX(0); } .rp-admin-sidebar.is-collapsed { width: 232px; } .rp-admin-mobile-close { display: inline-grid; margin-left: auto; color: #334155; } .rp-admin-sidebar-backdrop.is-open { display: block; position: fixed; inset: 0; z-index: 55; background: rgba(2,6,23,.45); } .rp-admin-main,.rp-admin-shell--collapsed .rp-admin-main { padding-left: 0; } .rp-admin-content { padding: 18px; } .rp-admin-search { display: none; } }
+@media (max-width: 760px) { .rp-admin-topbar { height: 64px; padding: 0 14px; } .rp-admin-topbar-actions { gap: 6px; } .rp-admin-profile span:not(.rp-admin-avatar) { display: none; } .rp-admin-page-header { align-items: flex-start; flex-direction: column; } .rp-admin-page-actions { width: 100%; justify-content: flex-start; } .rp-admin-metrics,.rp-admin-grid-3,.rp-admin-grid-4 { grid-template-columns: 1fr; } }
+
+
+/* Phase Admin UI 1: white premium shell override */
+.rp-admin-shell { --rp-bg:#f8fafc; --rp-surface:#ffffff; --rp-border:#e5e7ef; --rp-text:#0f172a; --rp-muted:#64748b; --rp-primary:#2563eb; --rp-green:#059669; background:#f8fafc !important; color:#0f172a !important; }
+.rp-admin-sidebar { background:#ffffff !important; color:#334155 !important; border-right:1px solid #e5e7ef !important; box-shadow:0 1px 2px rgba(15,23,42,.04) !important; }
+.rp-admin-brand { border-bottom:1px solid #eef2f7 !important; }
+.rp-admin-brand-mark { background:#eff6ff !important; color:#2563eb !important; box-shadow:none !important; }
+.rp-admin-brand strong { color:#2563eb !important; }
+.rp-admin-brand-pill { border-color:#dbe3ef !important; color:#334155 !important; background:#ffffff !important; }
+.rp-admin-nav-group p { color:#64748b !important; }
+.rp-admin-nav-link { color:#475569 !important; background:transparent !important; box-shadow:none !important; }
+.rp-admin-nav-link:hover { background:#f8fafc !important; color:#1e293b !important; }
+.rp-admin-nav-link.is-active { background:#eff6ff !important; color:#2563eb !important; box-shadow:none !important; }
+.rp-admin-plan-card { background:#ffffff !important; border:1px solid #e5e7ef !important; box-shadow:0 1px 2px rgba(15,23,42,.04) !important; }
+.rp-admin-plan-card span,.rp-admin-plan-card small { color:#64748b !important; }
+.rp-admin-plan-card strong { color:#0f172a !important; }
+.rp-admin-plan-card button { border-color:#dbeafe !important; color:#2563eb !important; background:#ffffff !important; }
+.rp-admin-topbar { background:rgba(255,255,255,.96) !important; border-bottom:1px solid #e5e7ef !important; box-shadow:none !important; }
+.rp-admin-main { background:#f8fafc !important; }
+.rp-admin-content { background:#f8fafc !important; }
+.rp-admin-button.is-primary { border-color:#2563eb !important; background:#2563eb !important; color:#ffffff !important; box-shadow:0 8px 18px rgba(37,99,235,.16) !important; }
+.rp-admin-icon-button,.rp-admin-notification { color:#334155 !important; background:transparent !important; border:0 !important; }
+.rp-admin-icon-button:hover,.rp-admin-notification:hover { background:#f1f5f9 !important; }
+.rp-admin-notification span { background:#ef4444 !important; }
+.rp-admin-search { background:#ffffff !important; border-color:#e5e7ef !important; }
+.rp-admin-mobile-close { color:#334155 !important; }
+
+/* Dashboard premium layout */
+.rp-dashboard-page { gap: 22px; }
+.rp-dashboard-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+.rp-dashboard-kpi { min-height: 96px; display: flex; align-items: center; gap: 15px; padding: 16px; }
+.rp-dashboard-kpi-icon { width: 42px; height: 42px; display: grid; place-items: center; flex: 0 0 42px; border-radius: 10px; }
+.rp-dashboard-kpi p { color: var(--rp-muted); font-size: 12px; font-weight: 700; }
+.rp-dashboard-kpi strong { display: block; margin-top: 5px; color: var(--rp-text); font-size: 21px; line-height: 1.15; font-weight: 850; }
+.rp-dashboard-kpi small { display: block; margin-top: 5px; color: var(--rp-green); font-size: 12px; }
+.rp-dashboard-main-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, .95fr) minmax(280px, .95fr); gap: 16px; align-items: stretch; }
+.rp-dashboard-bottom-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(320px, .9fr); gap: 16px; }
+.rp-dashboard-side-stack { display: grid; gap: 16px; align-content: start; }
+.rp-dashboard-filter { display: inline-flex; align-items: center; min-height: 32px; border: 1px solid var(--rp-border); border-radius: 7px; padding: 0 10px; color: var(--rp-muted); font-size: 12px; font-weight: 700; }
+.rp-dashboard-chart-value { display: block; margin-bottom: 14px; color: var(--rp-text); font-size: 26px; line-height: 1; }
+.rp-dashboard-revenue-chart { min-height: 230px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: end; gap: 12px; border-top: 1px dashed var(--rp-border); padding-top: 18px; }
+.rp-dashboard-bar { min-width: 0; height: 210px; display: grid; grid-template-rows: 26px 1fr 22px; gap: 6px; align-items: end; text-align: center; }
+.rp-dashboard-bar span { overflow: hidden; color: var(--rp-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.rp-dashboard-bar i { width: 100%; min-height: 8px; border-radius: 8px 8px 3px 3px; background: var(--rp-primary); opacity: .88; }
+.rp-dashboard-bar small { color: var(--rp-muted); font-size: 11px; text-transform: capitalize; }
+.rp-dashboard-campaign-sales { min-height: 230px; display: grid; grid-template-columns: 150px minmax(0,1fr); gap: 18px; align-items: center; }
+.rp-dashboard-donut { width: 142px; height: 142px; border-radius: 999px; background: conic-gradient(#2563eb 0 35%, #35b879 35% 62%, #f59e0b 62% 78%, #1d4ed8 78% 91%, #94a3b8 91% 100%); position: relative; }
+.rp-dashboard-donut::after { content: ""; position: absolute; inset: 34px; border-radius: inherit; background: #fff; box-shadow: inset 0 0 0 1px var(--rp-border); }
+.rp-dashboard-campaign-list { display: grid; gap: 11px; }
+.rp-dashboard-legend { display: grid; grid-template-columns: 10px minmax(0,1fr); gap: 10px; align-items: start; }
+.rp-dashboard-legend i { width: 9px; height: 9px; margin-top: 4px; border-radius: 999px; }
+.rp-dashboard-legend strong { display: block; overflow: hidden; color: var(--rp-text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.rp-dashboard-legend small { display: block; color: var(--rp-muted); font-size: 12px; }
+.rp-dashboard-status-list { display: grid; gap: 12px; }
+.rp-dashboard-status-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px 12px; align-items: center; color: var(--rp-text); font-size: 13px; }
+.rp-dashboard-status-row > span { display: flex; min-width: 0; align-items: center; gap: 9px; }
+.rp-dashboard-status-row small { grid-column: 1 / -1; color: var(--rp-muted); font-size: 11px; }
+.rp-dashboard-table-wrap { overflow-x: auto; }
+.rp-dashboard-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rp-dashboard-table th, .rp-dashboard-table td { height: 52px; border-top: 1px solid var(--rp-border); padding: 0 12px; text-align: left; white-space: nowrap; }
+.rp-dashboard-table th { height: 40px; border-top: 0; color: var(--rp-muted); font-size: 12px; font-weight: 800; }
+.rp-dashboard-table strong { display: block; color: var(--rp-text); }
+.rp-dashboard-table small { display: block; color: var(--rp-muted); font-size: 11px; }
+.rp-dashboard-progress-cell { width: 150px; display: grid; grid-template-columns: minmax(80px,1fr) 38px; gap: 8px; align-items: center; }
+.rp-dashboard-progress-cell span { color: var(--rp-muted); font-size: 12px; }
+.rp-dashboard-link { color: var(--rp-primary); font-size: 13px; font-weight: 800; text-decoration: none; }
+.rp-dashboard-orders { display: grid; gap: 12px; }
+.rp-dashboard-order { display: grid; grid-template-columns: minmax(0,1fr) auto auto auto; gap: 10px; align-items: center; font-size: 12px; }
+.rp-dashboard-order strong { display: block; color: var(--rp-text); }
+.rp-dashboard-order small { display: block; color: var(--rp-muted); }
+.rp-dashboard-shortcuts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.rp-dashboard-shortcuts a { display: grid; justify-items: center; gap: 8px; color: var(--rp-text); font-size: 12px; font-weight: 700; text-align: center; text-decoration: none; }
+.rp-dashboard-shortcuts span { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--rp-border); border-radius: 10px; background: var(--rp-primary-soft); color: var(--rp-primary); }
+.rp-dashboard-mini-summary { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 16px; color: var(--rp-muted); font-size: 12px; }
+.rp-dashboard-mini-summary strong { color: var(--rp-text); }
+@media (max-width: 1400px) { .rp-dashboard-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } .rp-dashboard-main-grid, .rp-dashboard-bottom-grid { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .rp-dashboard-kpis { grid-template-columns: 1fr; } .rp-dashboard-campaign-sales { grid-template-columns: 1fr; } .rp-dashboard-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rp-dashboard-order { grid-template-columns: 1fr auto; } }
+
+/* Phase Admin UI 3: hard white admin shell and reports */
+.rp-admin-shell, .rp-admin-main, .rp-admin-content { background: #f8fafc !important; color: #111827 !important; }
+.rp-admin-sidebar { background: #ffffff !important; color: #334155 !important; border-right: 1px solid #e5e7eb !important; }
+.rp-admin-topbar { background: rgba(255,255,255,.96) !important; color: #111827 !important; border-bottom: 1px solid #e5e7eb !important; }
+.rp-admin-topbar-actions { background: transparent !important; }
+.rp-admin-profile, .rp-admin-icon-button, .rp-admin-notification { background: transparent !important; color: #334155 !important; }
+.rp-admin-profile:hover, .rp-admin-icon-button:hover, .rp-admin-notification:hover { background: #f1f5f9 !important; }
+.rp-admin-plan-card { display: none !important; }
+.rp-admin-nav-link svg { color: currentColor !important; }
+.rp-admin-nav-link.is-active { background: #eff6ff !important; color: #2563eb !important; }
+.rp-admin-section, .rp-admin-card { background: #ffffff !important; color: #111827 !important; border-color: #e5e7eb !important; box-shadow: 0 8px 24px rgba(15,23,42,.035) !important; }
+.rp-admin-table th, .rp-admin-table td { color: #111827; }
+.rp-reports-page { gap: 18px; }
+.rp-reports-filters { display: grid; grid-template-columns: minmax(160px,.8fr) minmax(130px,.55fr) minmax(220px,1fr) auto auto; gap: 12px; align-items: center; }
+.rp-reports-filters .rp-admin-input { min-width: 0; }
+.rp-reports-options { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+.rp-reports-options button { min-height: 120px; border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; padding: 16px; text-align: left; box-shadow: 0 8px 24px rgba(15,23,42,.035); }
+.rp-reports-options button.is-active { border-color: #2563eb; background: #eff6ff; }
+.rp-reports-options span { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #111827; }
+.rp-reports-options b { border-radius: 999px; background: #eef2f7; padding: 3px 8px; color: #2563eb; font-size: 12px; }
+.rp-reports-options small { display: block; margin-top: 12px; color: #64748b; font-size: 12px; line-height: 1.45; }
+.rp-reports-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, .8fr); gap: 16px; }
+.rp-reports-bars { display: grid; gap: 13px; }
+.rp-reports-bars > div { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(160px, 2fr) 110px; gap: 12px; align-items: center; color: #111827; font-size: 13px; }
+.rp-reports-bars span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-reports-bars strong { text-align: right; font-size: 12px; }
+.rp-reports-status-list { display: grid; gap: 12px; }
+.rp-reports-status-list > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #111827; font-size: 14px; }
+@media (max-width: 1280px) { .rp-reports-options { grid-template-columns: repeat(3, minmax(0, 1fr)); } .rp-reports-grid { grid-template-columns: 1fr; } .rp-reports-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .rp-reports-options, .rp-reports-filters { grid-template-columns: 1fr; } .rp-reports-bars > div { grid-template-columns: 1fr; } .rp-reports-bars strong { text-align: left; } }
+
+/* Phase Admin UI 4: remove legacy route wrapper bleed */
+html:has(.rp-admin-shell),
+body:has(.rp-admin-shell),
+#root:has(.rp-admin-shell) {
+  background: #f8fafc !important;
+  color: #111827 !important;
+}
+.rp-admin-shell,
+.rp-admin-shell * {
+  border-color: #e5e7eb;
+}
+.rp-admin-shell [class*="bg-black"],
+.rp-admin-shell [class*="bg-cyber"],
+.rp-admin-shell [class*="bg-slate-9"],
+.rp-admin-shell [class*="bg-zinc-9"],
+.rp-admin-shell [class*="bg-neutral-9"] {
+  background: #ffffff !important;
+}
+.rp-admin-shell [class*="text-yellow"],
+.rp-admin-shell [class*="text-amber"],
+.rp-admin-shell [class*="text-white"],
+.rp-admin-shell [class*="text-slate-100"],
+.rp-admin-shell [class*="text-slate-200"],
+.rp-admin-shell [class*="text-slate-300"] {
+  color: #111827 !important;
+}
+.rp-admin-sidebar,
+.rp-admin-sidebar * {
+  background-image: none !important;
+  text-shadow: none !important;
+}
+.rp-admin-sidebar {
+  background: #ffffff !important;
+}
+.rp-admin-sidebar svg,
+.rp-admin-nav-link svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+.rp-admin-nav-link {
+  color: #475569 !important;
+}
+.rp-admin-nav-link.is-active,
+.rp-admin-nav-link:hover {
+  background: #eff6ff !important;
+  color: #2563eb !important;
+}
+.rp-admin-page,
+.rp-dashboard-page,
+.rp-reports-page {
+  background: transparent !important;
+}
+/* Phase Admin UI 4.1: neutralize old yellow/orange admin tones */
+.rp-admin-shell .tone-orange,
+.rp-admin-shell .rp-admin-badge.tone-warning {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+}
+.rp-admin-shell [class*="yellow"],
+.rp-admin-shell [class*="amber"] {
+  color: #475569 !important;
+  background-color: #ffffff !important;
+  border-color: #e5e7eb !important;
+}
+.rp-admin-shell .rp-admin-input,
+.rp-admin-shell input.rp-admin-input,
+.rp-admin-shell select.rp-admin-input,
+.rp-admin-shell textarea.rp-admin-input {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+  color-scheme: light !important;
+}
+.rp-admin-shell .rp-admin-page-header,
+.rp-admin-shell .rp-admin-page-header *:not(button):not(svg) {
+  background: transparent !important;
+}
+/* Phase Admin UI 4.2: legacy admin component white reset */
+.rp-admin-shell .admin-card,
+.rp-admin-shell .admin-page-panel,
+.rp-admin-shell section.admin-card,
+.rp-admin-shell article.admin-card {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035) !important;
+}
+.rp-admin-shell .admin-card *,
+.rp-admin-shell .admin-page-panel * {
+  text-shadow: none !important;
+}
+.rp-admin-shell .admin-card h1,
+.rp-admin-shell .admin-card h2,
+.rp-admin-shell .admin-card h3,
+.rp-admin-shell .admin-card p,
+.rp-admin-shell .admin-card span,
+.rp-admin-shell .admin-page-panel h1,
+.rp-admin-shell .admin-page-panel h2,
+.rp-admin-shell .admin-page-panel h3,
+.rp-admin-shell .admin-page-panel p,
+.rp-admin-shell .admin-page-panel span {
+  color: inherit;
+}
+.rp-admin-shell .admin-input,
+.rp-admin-shell input.admin-input,
+.rp-admin-shell select.admin-input,
+.rp-admin-shell textarea.admin-input,
+.rp-admin-shell .admin-card input,
+.rp-admin-shell .admin-card select,
+.rp-admin-shell .admin-card textarea,
+.rp-admin-shell .admin-page-panel input,
+.rp-admin-shell .admin-page-panel select,
+.rp-admin-shell .admin-page-panel textarea {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #e5e7eb !important;
+  color-scheme: light !important;
+}
+.rp-admin-shell .admin-button,
+.rp-admin-shell .admin-button-primary {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border: 1px solid #2563eb !important;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.16) !important;
+}
+.rp-admin-shell .admin-button-secondary {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: none !important;
+}
+.rp-admin-shell .admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: #ffffff !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+.rp-admin-shell .admin-tab {
+  min-height: 40px;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  background: transparent !important;
+  color: #475569 !important;
+  padding: 0 10px;
+  font-weight: 700;
+}
+.rp-admin-shell .admin-tab.is-active {
+  border-color: #2563eb !important;
+  color: #2563eb !important;
+}
+.rp-admin-shell table,
+.rp-admin-shell thead,
+.rp-admin-shell tbody,
+.rp-admin-shell tr,
+.rp-admin-shell th,
+.rp-admin-shell td {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+}
+
+
+
+/* Phase Admin UI 4.3: final light-only admin cleanup */
+.rp-admin-shell,
+.rp-admin-shell--dark,
+.rp-admin-shell--collapsed,
+.rp-admin-shell .rp-admin-main,
+.rp-admin-shell .rp-admin-content,
+.rp-admin-shell main,
+.rp-admin-shell aside,
+.rp-admin-shell header,
+.rp-admin-shell nav {
+  background-color: #f8fafc !important;
+  background-image: none !important;
+  color-scheme: light !important;
+}
+
+.rp-admin-shell .rp-admin-sidebar,
+.rp-admin-shell .rp-admin-sidebar.is-open,
+.rp-admin-shell .rp-admin-sidebar.is-collapsed,
+.rp-admin-shell .rp-admin-brand,
+.rp-admin-shell .rp-admin-nav,
+.rp-admin-shell .rp-admin-nav-group {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #475569 !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell .rp-admin-sidebar::before,
+.rp-admin-shell .rp-admin-sidebar::after,
+.rp-admin-shell .rp-admin-main::before,
+.rp-admin-shell .rp-admin-main::after,
+.rp-admin-shell .rp-admin-content::before,
+.rp-admin-shell .rp-admin-content::after,
+.rp-admin-shell .rp-admin-topbar::before,
+.rp-admin-shell .rp-admin-topbar::after {
+  content: none !important;
+  display: none !important;
+  background: transparent !important;
+}
+
+.rp-admin-shell .rp-admin-nav-link,
+.rp-admin-shell .rp-admin-nav-link:visited,
+.rp-admin-shell .rp-admin-nav-link span,
+.rp-admin-shell .rp-admin-nav-link svg {
+  color: #475569 !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  background: transparent !important;
+}
+
+.rp-admin-shell .rp-admin-nav-link.is-active,
+.rp-admin-shell .rp-admin-nav-link.is-active span,
+.rp-admin-shell .rp-admin-nav-link.is-active svg,
+.rp-admin-shell .rp-admin-nav-link:hover,
+.rp-admin-shell .rp-admin-nav-link:hover span,
+.rp-admin-shell .rp-admin-nav-link:hover svg {
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  stroke: currentColor !important;
+}
+
+.rp-admin-shell .rp-admin-nav-group p,
+.rp-admin-shell .rp-admin-brand-pill {
+  color: #64748b !important;
+  background: transparent !important;
+}
+
+.rp-admin-shell .rp-admin-topbar,
+.rp-admin-shell .rp-admin-topbar-actions,
+.rp-admin-shell .rp-admin-profile,
+.rp-admin-shell .rp-admin-search,
+.rp-admin-shell .rp-admin-search *:not(kbd),
+.rp-admin-shell .rp-admin-icon-button,
+.rp-admin-shell .rp-admin-notification {
+  background-image: none !important;
+  box-shadow: none;
+}
+
+.rp-admin-shell .rp-admin-topbar {
+  background: rgba(255, 255, 255, 0.96) !important;
+  background-color: rgba(255, 255, 255, 0.96) !important;
+}
+
+.rp-admin-shell .rp-admin-search {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-color: #e5e7eb !important;
+  color: #64748b !important;
+}
+
+.rp-admin-shell .rp-admin-search input,
+.rp-admin-shell input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+.rp-admin-shell select,
+.rp-admin-shell textarea,
+.rp-admin-shell .rp-admin-input,
+.rp-admin-shell .admin-input {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+  box-shadow: none !important;
+  caret-color: #2563eb !important;
+  color-scheme: light !important;
+}
+
+.rp-admin-shell .rp-admin-search input {
+  border: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.rp-admin-shell input::placeholder,
+.rp-admin-shell textarea::placeholder,
+.rp-admin-shell .rp-admin-search input::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+.rp-admin-shell ::selection,
+.rp-admin-shell input::selection,
+.rp-admin-shell textarea::selection {
+  background: #dbeafe !important;
+  color: #111827 !important;
+}
+
+.rp-admin-shell [class*="bg-black"],
+.rp-admin-shell [class*="bg-cyber"],
+.rp-admin-shell [class*="bg-neutral"],
+.rp-admin-shell [class*="bg-zinc"],
+.rp-admin-shell [class*="bg-slate-9"],
+.rp-admin-shell [class*="glass"],
+.rp-admin-shell [class*="neon"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035) !important;
+}
+
+.rp-admin-shell [class*="yellow"],
+.rp-admin-shell [class*="amber"],
+.rp-admin-shell [class*="gold"] {
+  color: #475569 !important;
+  border-color: #e5e7eb !important;
+  background-color: transparent !important;
+}
+
+.rp-admin-shell [class*="text-white"],
+.rp-admin-shell [class*="text-slate-100"],
+.rp-admin-shell [class*="text-slate-200"],
+.rp-admin-shell [class*="text-slate-300"] {
+  color: #111827 !important;
+}
+
+.rp-admin-shell::-webkit-scrollbar,
+.rp-admin-shell *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.rp-admin-shell::-webkit-scrollbar-track,
+.rp-admin-shell *::-webkit-scrollbar-track {
+  background: #ffffff !important;
+}
+
+.rp-admin-shell::-webkit-scrollbar-thumb,
+.rp-admin-shell *::-webkit-scrollbar-thumb {
+  background: #cbd5e1 !important;
+  border: 2px solid #ffffff !important;
+  border-radius: 999px !important;
+}
+
+.rp-admin-shell .rp-admin-sidebar-backdrop:not(.is-open) {
+  display: none !important;
+  background: transparent !important;
+}
+
+/* Phase Admin UI 4.4: remove remaining black points from admin header and structural pages */
+.rp-admin-shell .rp-admin-topbar button,
+.rp-admin-shell .rp-admin-topbar a,
+.rp-admin-shell .rp-admin-topbar .rp-admin-profile,
+.rp-admin-shell .rp-admin-topbar .rp-admin-icon-button,
+.rp-admin-shell .rp-admin-topbar .rp-admin-notification,
+.rp-admin-shell .rp-admin-topbar [class*="notification"],
+.rp-admin-shell .rp-admin-topbar [class*="bell"],
+.rp-admin-shell .rp-admin-topbar [class*="badge"] {
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #334155 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell .rp-admin-topbar button:hover,
+.rp-admin-shell .rp-admin-topbar a:hover,
+.rp-admin-shell .rp-admin-topbar .rp-admin-profile:hover,
+.rp-admin-shell .rp-admin-topbar .rp-admin-icon-button:hover,
+.rp-admin-shell .rp-admin-topbar .rp-admin-notification:hover {
+  background-color: #f1f5f9 !important;
+  color: #2563eb !important;
+}
+
+.rp-admin-shell .rp-admin-topbar .rp-admin-notification span,
+.rp-admin-shell .rp-admin-topbar [class*="badge"] span,
+.rp-admin-shell .rp-admin-topbar span[class*="absolute"],
+.rp-admin-shell .rp-admin-topbar span[class*="rounded-full"] {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+.rp-admin-shell [style*="background: black"],
+.rp-admin-shell [style*="background:black"],
+.rp-admin-shell [style*="background-color: black"],
+.rp-admin-shell [style*="background-color:black"],
+.rp-admin-shell [style*="background: #000"],
+.rp-admin-shell [style*="background:#000"],
+.rp-admin-shell [style*="background-color: #000"],
+.rp-admin-shell [style*="background-color:#000"],
+.rp-admin-shell [style*="background: rgb(0, 0, 0)"],
+.rp-admin-shell [style*="background-color: rgb(0, 0, 0)"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+}
+
+.rp-admin-shell .admin-card > div:first-child[class*="grid"][class*="h-10"],
+.rp-admin-shell .admin-card > span:first-child[class*="grid"],
+.rp-admin-shell article > div:first-child[class*="grid"][class*="h-10"],
+.rp-admin-shell article > span:first-child[class*="grid"],
+.rp-admin-shell .rp-admin-card > div:first-child[class*="grid"][class*="h-10"],
+.rp-admin-shell .rp-admin-card > span:first-child[class*="grid"] {
+  background: #eff6ff !important;
+  background-color: #eff6ff !important;
+  border-color: #dbeafe !important;
+  color: #2563eb !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell .admin-card > div:first-child[class*="grid"] svg,
+.rp-admin-shell .admin-card > span:first-child[class*="grid"] svg,
+.rp-admin-shell article > div:first-child[class*="grid"] svg,
+.rp-admin-shell article > span:first-child[class*="grid"] svg,
+.rp-admin-shell .rp-admin-card > div:first-child[class*="grid"] svg,
+.rp-admin-shell .rp-admin-card > span:first-child[class*="grid"] svg {
+  color: #2563eb !important;
+  stroke: #2563eb !important;
+}
+
+.rp-admin-shell .admin-card,
+.rp-admin-shell .rp-admin-card,
+.rp-admin-shell .rp-admin-section,
+.rp-admin-shell .rp-admin-alert,
+.rp-admin-shell .rp-admin-empty,
+.rp-admin-shell .rounded-2xl,
+.rp-admin-shell .rounded-xl,
+.rp-admin-shell .rounded-\[8px\] {
+  background-image: none !important;
+}
+
+.rp-admin-shell .rp-admin-alert,
+.rp-admin-shell [class*="migration"],
+.rp-admin-shell [class*="warning"],
+.rp-admin-shell [class*="notice"] {
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  color: #64748b !important;
+  border-color: #e5e7eb !important;
+}
+
+.rp-admin-shell .admin-card .rounded-2xl,
+.rp-admin-shell .admin-card .rounded-xl,
+.rp-admin-shell .admin-card .rounded-\[8px\],
+.rp-admin-shell .rp-admin-card .rounded-2xl,
+.rp-admin-shell .rp-admin-card .rounded-xl,
+.rp-admin-shell .rp-admin-card .rounded-\[8px\] {
+  background-color: #ffffff !important;
+  border-color: #e5e7eb !important;
+  color: #111827 !important;
+}
+
+.rp-admin-shell .admin-button-secondary,
+.rp-admin-shell button.admin-button-secondary,
+.rp-admin-shell button:not(.rp-admin-button):not(.rp-admin-icon-button):not(.rp-admin-notification):not(.admin-button-primary) {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell .admin-button-primary,
+.rp-admin-shell button.admin-button-primary,
+.rp-admin-shell .rp-admin-button.is-primary {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+}
+
+.rp-admin-shell .rp-admin-content::after {
+  content: "";
+  display: block !important;
+  min-height: 1px;
+  background: transparent !important;
+}
+
+/* Phase Admin UI 4.5: explicit sidebar toggles and checkbox labels */
+.rp-admin-shell .rp-admin-sidebar-toggle,
+.rp-admin-shell button.rp-admin-sidebar-toggle {
+  width: 40px !important;
+  height: 40px !important;
+  border: 1px solid #dbeafe !important;
+  border-radius: 8px !important;
+  background: #eff6ff !important;
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell .rp-admin-sidebar-toggle svg,
+.rp-admin-shell button.rp-admin-sidebar-toggle svg {
+  color: #2563eb !important;
+  stroke: #2563eb !important;
+  fill: none !important;
+}
+
+.rp-admin-shell .rp-admin-sidebar-toggle:hover,
+.rp-admin-shell button.rp-admin-sidebar-toggle:hover {
+  background: #dbeafe !important;
+  background-color: #dbeafe !important;
+  color: #1d4ed8 !important;
+}
+
+.rp-admin-shell label:has(input[type="checkbox"]),
+.rp-admin-shell label:has(input[type="radio"]),
+.rp-admin-shell .admin-page-panel label:has(input[type="checkbox"]),
+.rp-admin-shell .admin-card label:has(input[type="checkbox"]),
+.rp-admin-shell .rp-admin-card label:has(input[type="checkbox"]) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell label:has(input[type="checkbox"]) span,
+.rp-admin-shell label:has(input[type="radio"]) span {
+  color: #111827 !important;
+}
+
+.rp-admin-shell input[type="checkbox"],
+.rp-admin-shell input[type="radio"] {
+  accent-color: #2563eb !important;
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #2563eb !important;
+}
+
+.rp-admin-shell .admin-page-panel,
+.rp-admin-shell section.admin-page-panel {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035) !important;
+}
+
+.rp-admin-shell .admin-page-panel > div,
+.rp-admin-shell .admin-page-panel > section,
+.rp-admin-shell .admin-page-panel > article {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+}
+
+.rp-admin-shell .rounded-md:has(input[type="checkbox"]),
+.rp-admin-shell .rounded-lg:has(input[type="checkbox"]),
+.rp-admin-shell .rounded-xl:has(input[type="checkbox"]),
+.rp-admin-shell .rounded-2xl:has(input[type="checkbox"]) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+}
+
+/* Phase Admin UI 4.6: notification dropdown and last dark-point cleanup */
+.rp-admin-shell .rp-admin-sidebar-toggle,
+.rp-admin-shell .rp-admin-sidebar-toggle:hover,
+.rp-admin-shell .rp-admin-sidebar-toggle:focus,
+.rp-admin-shell button.rp-admin-sidebar-toggle,
+.rp-admin-shell button.rp-admin-sidebar-toggle:hover,
+.rp-admin-shell button.rp-admin-sidebar-toggle:focus {
+  background: #eff6ff !important;
+  background-color: #eff6ff !important;
+  background-image: none !important;
+  color: #2563eb !important;
+  border: 1px solid #dbeafe !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell .rp-admin-sidebar-toggle svg,
+.rp-admin-shell button.rp-admin-sidebar-toggle svg,
+.rp-admin-shell .rp-admin-sidebar-toggle svg *,
+.rp-admin-shell button.rp-admin-sidebar-toggle svg * {
+  color: #2563eb !important;
+  stroke: #2563eb !important;
+  fill: none !important;
+}
+
+.rp-admin-shell .rp-admin-notification-trigger,
+.rp-admin-shell button.rp-admin-notification-trigger {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell .rp-admin-notification-trigger:hover,
+.rp-admin-shell button.rp-admin-notification-trigger:hover {
+  background: #f1f5f9 !important;
+  background-color: #f1f5f9 !important;
+  color: #2563eb !important;
+}
+
+.rp-admin-shell .rp-admin-notification-count,
+.rp-admin-shell .rp-admin-notification span,
+.rp-admin-shell .rp-admin-topbar .rp-admin-notification-count {
+  background: #ef4444 !important;
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell .rp-admin-notification-menu,
+.rp-admin-shell .rp-admin-notification-menu * {
+  color-scheme: light !important;
+  text-shadow: none !important;
+}
+
+.rp-admin-shell .rp-admin-notification-menu {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.16) !important;
+}
+
+.rp-admin-shell .rp-admin-notification-menu-header,
+.rp-admin-shell .rp-admin-notification-list {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-color: #e5e7eb !important;
+  color: #111827 !important;
+}
+
+.rp-admin-shell .rp-admin-notification-item,
+.rp-admin-shell .rp-admin-notification-item.is-unread,
+.rp-admin-shell .rp-admin-notification-item.is-read {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell .rp-admin-notification-item.is-unread {
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+}
+
+.rp-admin-shell .rp-admin-notification-menu p,
+.rp-admin-shell .rp-admin-notification-menu span,
+.rp-admin-shell .rp-admin-notification-menu small,
+.rp-admin-shell .rp-admin-notification-menu strong {
+  color: #111827 !important;
+}
+
+.rp-admin-shell .rp-admin-notification-menu p[class*="text-\[var\(--rp-muted\)\]"],
+.rp-admin-shell .rp-admin-notification-menu .text-\[var\(--rp-muted\)\] {
+  color: #64748b !important;
+}
+
+.rp-admin-shell .rp-admin-notification-view-all,
+.rp-admin-shell .rp-admin-notification-action,
+.rp-admin-shell .rp-admin-notification-menu a,
+.rp-admin-shell .rp-admin-notification-menu button {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #2563eb !important;
+  border-color: #dbeafe !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell .rp-admin-notification-menu a:hover,
+.rp-admin-shell .rp-admin-notification-menu button:hover {
+  background: #eff6ff !important;
+  background-color: #eff6ff !important;
+  color: #1d4ed8 !important;
+}
+
+.rp-admin-shell .admin-tabs,
+.rp-admin-shell .admin-tabs button,
+.rp-admin-shell .admin-tab,
+.rp-admin-shell [role="tablist"],
+.rp-admin-shell [role="tab"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell .admin-tab.is-active,
+.rp-admin-shell [role="tab"][aria-selected="true"] {
+  color: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+.rp-admin-shell :is(div, section, article, aside, header, nav, label, button, a)[class*="bg-black"],
+.rp-admin-shell :is(div, section, article, aside, header, nav, label, button, a)[class*="bg-cyber"],
+.rp-admin-shell :is(div, section, article, aside, header, nav, label, button, a)[class*="bg-slate-950"],
+.rp-admin-shell :is(div, section, article, aside, header, nav, label, button, a)[class*="bg-slate-900"],
+.rp-admin-shell :is(div, section, article, aside, header, nav, label, button, a)[class*="bg-zinc-950"],
+.rp-admin-shell :is(div, section, article, aside, header, nav, label, button, a)[class*="bg-zinc-900"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035) !important;
+}
+
+.rp-admin-shell :is(div, section, article, aside, header, nav, label, button, a)[class*="text-yellow"],
+.rp-admin-shell :is(div, section, article, aside, header, nav, label, button, a)[class*="text-amber"],
+.rp-admin-shell :is(div, section, article, aside, header, nav, label, button, a)[class*="text-gold"] {
+  color: #2563eb !important;
+}
+
+/* Phase Admin UI 4.7: fill short admin pages and eliminate remaining dark underlay */
+html:has(.rp-admin-shell),
+body:has(.rp-admin-shell),
+#root:has(.rp-admin-shell) {
+  min-height: 100% !important;
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  background-image: none !important;
+  color-scheme: light !important;
+}
+
+.rp-admin-shell,
+.rp-admin-shell .rp-admin-main,
+.rp-admin-shell .rp-admin-content {
+  min-height: 100vh !important;
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  background-image: none !important;
+  color: #111827 !important;
+}
+
+.rp-admin-shell .rp-admin-content {
+  min-height: calc(100vh - 72px) !important;
+}
+
+.rp-admin-shell .rp-admin-page,
+.rp-admin-shell .admin-page-panel,
+.rp-admin-shell .rp-admin-page > * {
+  background-image: none !important;
+}
+
+.rp-admin-shell .rp-admin-page {
+  min-height: calc(100vh - 128px) !important;
+  align-content: start !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.rp-admin-shell::before,
+.rp-admin-shell::after,
+.rp-admin-shell .rp-admin-main::before,
+.rp-admin-shell .rp-admin-main::after,
+.rp-admin-shell .rp-admin-content::before,
+.rp-admin-shell .rp-admin-content::after,
+.rp-admin-shell .rp-admin-page::before,
+.rp-admin-shell .rp-admin-page::after {
+  content: none !important;
+  display: none !important;
+}
+
+.rp-admin-shell .rp-admin-topbar .rp-admin-sidebar-toggle,
+.rp-admin-shell .rp-admin-topbar button.rp-admin-sidebar-toggle,
+.rp-admin-shell .rp-admin-sidebar-toggle,
+.rp-admin-shell button.rp-admin-sidebar-toggle {
+  appearance: none !important;
+  background: #eff6ff !important;
+  background-color: #eff6ff !important;
+  background-image: none !important;
+  border: 1px solid #bfdbfe !important;
+  color: #2563eb !important;
+  box-shadow: none !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+.rp-admin-shell .rp-admin-topbar .rp-admin-sidebar-toggle svg,
+.rp-admin-shell .rp-admin-topbar button.rp-admin-sidebar-toggle svg,
+.rp-admin-shell .rp-admin-sidebar-toggle svg,
+.rp-admin-shell button.rp-admin-sidebar-toggle svg {
+  color: #2563eb !important;
+  stroke: #2563eb !important;
+  fill: none !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+.rp-admin-shell .admin-page-panel + *,
+.rp-admin-shell .rp-admin-page > .bg-black,
+.rp-admin-shell .rp-admin-page > [class*="bg-black"],
+.rp-admin-shell .rp-admin-page > [class*="bg-slate-950"],
+.rp-admin-shell .rp-admin-page > [class*="bg-zinc-950"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+}

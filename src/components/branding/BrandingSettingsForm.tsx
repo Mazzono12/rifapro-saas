@@ -1,12 +1,14 @@
 import { BrandingPreview } from "./BrandingPreview";
 import { ColorPicker } from "./ColorPicker";
 import { LogoUploader } from "./LogoUploader";
+import { sanitizeBrandingImageUrl } from "../../utils/tenantBranding";
 
 export function BrandingSettingsForm({
   value,
   onChange,
   onSave,
   onReset,
+  onUploadComplete,
   logoEndpoint,
   faviconEndpoint
 }: {
@@ -14,6 +16,7 @@ export function BrandingSettingsForm({
   onChange: (value: any) => void;
   onSave: () => void;
   onReset: () => void;
+  onUploadComplete?: () => void;
   logoEndpoint: string;
   faviconEndpoint: string;
 }) {
@@ -47,6 +50,7 @@ export function BrandingSettingsForm({
         }
       }
     });
+    onUploadComplete?.();
   };
   const setBrandName = (nextValue: string) => {
     onChange({
@@ -83,6 +87,7 @@ export function BrandingSettingsForm({
       }
     });
   };
+  const logoUrlIsInvalid = Boolean(value.logo_url) && !sanitizeBrandingImageUrl(value.logo_url);
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="premium-card grid gap-4 p-5">
@@ -91,7 +96,11 @@ export function BrandingSettingsForm({
         <label className="grid gap-2 text-sm font-semibold text-slate-300">WhatsApp suporte<input value={value.support_whatsapp || ""} onChange={event => set("support_whatsapp", event.target.value)} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-semibold text-slate-300">Texto do rodape<textarea value={value.footer_text || ""} onChange={event => set("footer_text", event.target.value)} className="admin-input min-h-24" /></label>
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="grid gap-2 text-sm font-semibold text-slate-300">Logo principal por URL<input value={value.logo_url || ""} onChange={event => set("logo_url", event.target.value)} className="admin-input" placeholder="https://cdn.suaempresa.com/logo.png" /></label>
+          <label className="grid gap-2 text-sm font-semibold text-slate-300">
+            Logo principal por URL
+            <input value={value.logo_url || ""} onChange={event => set("logo_url", event.target.value)} className="admin-input" placeholder="https://cdn.suaempresa.com/logo.png" />
+            {logoUrlIsInvalid && <span className="text-xs font-semibold text-slate-600">Use uma URL http/https de imagem ou um arquivo enviado em /uploads.</span>}
+          </label>
           <label className="grid gap-2 text-sm font-semibold text-slate-300">Favicon por URL<input value={value.favicon_url || ""} onChange={event => set("favicon_url", event.target.value)} className="admin-input" placeholder="https://cdn.suaempresa.com/favicon.png" /></label>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
@@ -99,13 +108,13 @@ export function BrandingSettingsForm({
           <ColorPicker label="Cor secundaria" value={value.secondary_color || "#0f2d1d"} onChange={next => set("secondary_color", next)} />
           <ColorPicker label="Cor CTA" value={value.cta_color || "#00d66b"} onChange={next => set("cta_color", next)} />
         </div>
-        <div className="mt-2 grid gap-4 rounded-2xl border border-amber-300/20 bg-amber-300/[0.04] p-4">
+        <div className="mt-2 grid gap-4 rounded-2xl border border-slate-200 bg-slate-100 p-4">
           <div>
             <p className="text-sm font-black text-white">Branding Home</p>
             <p className="mt-1 text-xs text-slate-400">Configure a marca e os canais exibidos dentro da Home Premium V1.</p>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm font-bold ${homeBranding.showName !== false ? "border-amber-300/50 bg-amber-300/10 text-white" : "border-white/10 bg-black/20 text-slate-300"}`}>
+            <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm font-bold ${homeBranding.showName !== false ? "border-slate-200 bg-slate-100 text-white" : "border-white/10 bg-black/20 text-slate-300"}`}>
               <input
                 type="checkbox"
                 checked={homeBranding.showName !== false}
@@ -113,7 +122,7 @@ export function BrandingSettingsForm({
               />
               Exibir nome junto da logo
             </label>
-            <div className="flex items-center gap-3 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm font-bold text-white">
+            <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-100 p-3 text-sm font-bold text-white">
               Logo e nome sempre alinhados à esquerda na Home.
             </div>
           </div>
@@ -152,7 +161,8 @@ export function BrandingSettingsForm({
         <div className="flex flex-wrap gap-3">
           <LogoUploader endpoint={logoEndpoint} onUploaded={mergeUploadedBranding} label="Enviar logo/GIF" />
           <LogoUploader endpoint={faviconEndpoint} onUploaded={mergeUploadedBranding} label="Enviar favicon/GIF" />
-          <button type="button" onClick={onSave} className="premium-button rounded-xl px-5 py-3">Salvar marca</button>
+          <button type="button" onClick={() => onChange({ ...value, logo_url: "", login_logo_url: "" })} className="premium-button-ghost min-h-12 rounded-xl px-5 py-3 text-sm font-bold">Remover/trocar logo</button>
+          <button type="button" onClick={onSave} disabled={logoUrlIsInvalid} className="premium-button rounded-xl px-5 py-3 disabled:cursor-not-allowed disabled:opacity-50">Salvar marca</button>
           <button type="button" onClick={onReset} className="premium-button-ghost min-h-12 rounded-xl px-5 py-3 text-sm font-bold">Resetar padrão</button>
         </div>
         <p className="text-xs font-semibold text-slate-400">Logo compatível com PNG, JPG, WEBP, SVG e GIF animado.</p>
@@ -161,3 +171,4 @@ export function BrandingSettingsForm({
     </div>
   );
 }
+

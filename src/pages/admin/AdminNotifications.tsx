@@ -24,7 +24,7 @@ const filters = [
 const severityClass: Record<NotificationItem["severity"], string> = {
   info: "border-cyan-300/30 bg-cyan-300/10 text-cyan-100",
   success: "border-emerald-300/30 bg-emerald-300/10 text-emerald-100",
-  warning: "border-amber-300/30 bg-amber-300/10 text-amber-100",
+  warning: "border-slate-200 bg-slate-100 text-slate-600",
   error: "border-rose-300/30 bg-rose-300/10 text-rose-100"
 };
 
@@ -119,7 +119,7 @@ export function AdminNotifications() {
                   <span className={cn("rounded-[8px] border px-2 py-1 text-xs font-semibold", severityClass[item.severity])}>
                     {item.severity === "error" ? "Erro" : item.severity === "warning" ? "Importante" : item.severity === "success" ? "Resolvido" : "Aviso"}
                   </span>
-                  {item.status === "unread" && <span className="rounded-[8px] bg-amber-300 px-2 py-1 text-xs font-black text-black">Nova</span>}
+                  {item.status === "unread" && <span className="rounded-[8px] bg-slate-100 px-2 py-1 text-xs font-black text-black">Nova</span>}
                   <span className="text-xs text-[var(--admin-muted)]">{dateLabel(item.createdAt)}</span>
                 </div>
                 <h2 className="mt-3 text-base font-semibold text-[var(--admin-text)]">{item.title}</h2>
@@ -153,3 +153,4 @@ export function AdminNotifications() {
     </div>
   );
 }
+

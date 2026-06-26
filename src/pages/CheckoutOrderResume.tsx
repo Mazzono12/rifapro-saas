@@ -199,13 +199,13 @@ export function CheckoutOrderResume() {
         {loading ? (
           <StateCard icon={<RefreshCw className="h-7 w-7 animate-spin" />} title="Carregando pedido" description="Estamos buscando o PIX salvo para este pedido." />
         ) : error ? (
-          <StateCard icon={<XCircle className="h-7 w-7" />} title="Pedido nao encontrado" description={error} action={<Link to="/" className="premium-button mt-4 w-full">Voltar para campanhas</Link>} />
+          <StateCard icon={<XCircle className="h-7 w-7" />} title="Pedido nao encontrado" description={error} action={<Link to="/" className="checkout-return-campaign-button mt-4 w-full">Voltar para campanhas</Link>} />
         ) : status?.expired ? (
           <StateCard
             icon={<XCircle className="h-8 w-8" />}
             title="Reserva expirada"
             description="O prazo desse PIX terminou. Para participar, volte para a campanha e faça uma nova compra."
-            action={<Link to={campaignPath} className="premium-button mt-4 w-full">Voltar a campanha</Link>}
+            action={<Link to={campaignPath} className="checkout-return-campaign-button mt-4 w-full">Voltar a campanha</Link>}
             tone="danger"
           />
         ) : (

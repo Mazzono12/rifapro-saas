@@ -16,7 +16,7 @@ function isCheckoutSurfaceBlocked() {
 }
 
 export function PwaInstallPrompt() {
-  const { branding } = useTenantBranding();
+  const { branding, companyName } = useTenantBranding();
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem("rifapro:pwa-install-dismissed") === "true");
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -87,7 +87,7 @@ export function PwaInstallPrompt() {
             <Download className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold">Instalar {branding.header_name || "CIFHER Ambiente Premium"}</p>
+            <p className="font-bold">Instalar {companyName || branding.header_name || "RifaPro"}</p>
             <p className="text-xs text-slate-300">Acesso rapido para rifas, bilhetes, afiliado e painel.</p>
           </div>
           <button onClick={install} className="min-h-10 rounded-xl bg-[var(--tenant-cta)] px-3 text-xs font-black text-[var(--tenant-cta-text)]">

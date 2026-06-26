@@ -525,7 +525,7 @@ export function AdminWhatsAppCenter() {
                     <AlertTriangle className="h-4 w-4" /> Opt-out registrado {contact.optOutAt ? formatDate(contact.optOutAt) : ""}
                   </div>
                 )}
-                <div className={`inline-flex items-center gap-2 rounded-[8px] border px-3 py-2 text-xs font-semibold ${windowState.expired ? "border-amber-400/40 bg-amber-400/10 text-amber-100" : "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"}`}>
+                <div className={`inline-flex items-center gap-2 rounded-[8px] border px-3 py-2 text-xs font-semibold ${windowState.expired ? "border-slate-200 bg-slate-100 text-slate-600" : "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"}`}>
                   {windowState.expired ? <Clock3 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />} {windowState.label}
                 </div>
               </div>
@@ -538,7 +538,7 @@ export function AdminWhatsAppCenter() {
                     message.direction === "inbound"
                       ? "border-[var(--admin-border)] bg-[var(--admin-surface)] text-[var(--admin-text)]"
                       : message.direction === "internal_note"
-                        ? "border-amber-300/30 bg-amber-300/10 text-amber-50"
+                        ? "border-slate-200 bg-slate-100 text-slate-600"
                         : "border-emerald-300/30 bg-emerald-300/10 text-emerald-50"
                   }`}>
                     <div className="mb-1 flex items-center gap-2 text-[11px] uppercase text-[var(--admin-muted)]">
@@ -577,7 +577,7 @@ export function AdminWhatsAppCenter() {
                     </button>
                   </div>
                   {windowState.expired && (
-                    <p className="rounded-[8px] border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-100">
+                    <p className="rounded-[8px] border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">
                       A janela de atendimento expirou. Utilize um template aprovado.
                     </p>
                   )}
@@ -613,7 +613,7 @@ export function AdminWhatsAppCenter() {
                           <option key={template.id} value={template.id}>{template.name} · {template.language}</option>
                         ))}
                       </select>
-                      {!templates.length && <p className="rounded-[8px] border border-amber-400/40 bg-amber-400/10 p-3 text-xs font-semibold text-amber-100">Nenhum template aprovado sincronizado.</p>}
+                      {!templates.length && <p className="rounded-[8px] border border-slate-200 bg-slate-100 p-3 text-xs font-semibold text-slate-600">Nenhum template aprovado sincronizado.</p>}
                       <div className="rounded-[8px] border border-[var(--admin-border)] bg-black/10 p-3">
                         <p className="mb-2 text-xs font-semibold uppercase text-[var(--admin-muted)]">Botoes aprovados</p>
                         <div className="space-y-2">
@@ -1135,7 +1135,7 @@ function AdminWhatsAppAutomations({ templates }: { templates: Template[] }) {
             <Play className="h-4 w-4" /> Executar fila
           </button>
         </div>
-        <p className="mt-3 rounded-[8px] border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm font-medium text-amber-100">
+        <p className="mt-3 rounded-[8px] border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600">
           As automações criam execuções programadas e filas com segurança. Nesta etapa, o envio é processado ao clicar em Executar fila. Para execução automática contínua, configure um orquestrador/cron chamando /api/admin/whatsapp-center/automations/run.
         </p>
       </section>
@@ -1444,7 +1444,7 @@ function AdminWhatsAppCampaigns() {
                 {templates.map(template => <option key={template.id} value={template.id}>{template.name} · {template.language}</option>)}
               </select>
             </label>
-            {!templates.length && <p className="rounded-[8px] border border-amber-400/40 bg-amber-400/10 p-3 text-xs font-semibold text-amber-100">Nenhum template aprovado sincronizado.</p>}
+            {!templates.length && <p className="rounded-[8px] border border-slate-200 bg-slate-100 p-3 text-xs font-semibold text-slate-600">Nenhum template aprovado sincronizado.</p>}
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-[var(--admin-muted)]">Limite diario</span>
@@ -1592,3 +1592,4 @@ function campaignStatusLabel(value: CampaignStatus) {
 function StatusPill({ status }: { status: string }) {
   return <span className="inline-flex w-fit items-center rounded-[8px] border border-[var(--admin-border)] px-2 py-1 text-xs font-semibold text-[var(--admin-text)]">{status}</span>;
 }
+

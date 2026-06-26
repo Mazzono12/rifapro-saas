@@ -528,7 +528,7 @@ export function AdminPaymentGateways() {
 
        <form onSubmit={handleSave} className="space-y-8">
          {hasPendingChanges && (
-           <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
+           <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4 text-sm text-slate-600">
              Alterações pendentes — clique em Salvar para aplicar.
            </div>
          )}
@@ -584,7 +584,7 @@ export function AdminPaymentGateways() {
                   <p className="mt-1 text-sm text-slate-400">Gateway principal recomendado para gerar PIX real em produção.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-lg border px-2 py-1 text-[10px] font-mono uppercase ${asaasConfigured ? "border-emerald-400/30 text-emerald-200" : "border-amber-400/30 text-amber-200"}`}>
+                  <span className={`rounded-lg border px-2 py-1 text-[10px] font-mono uppercase ${asaasConfigured ? "border-emerald-400/30 text-emerald-200" : "border-slate-200 text-slate-600"}`}>
                     {asaasConfigured ? "Chave informada" : "Informe a chave"}
                   </span>
                   <button type="button" onClick={() => setActiveGateway("asaas")} className="rounded-lg border border-emerald-400/30 px-3 py-2 text-[10px] font-mono uppercase text-emerald-200 hover:bg-emerald-400/10">
@@ -862,7 +862,7 @@ export function AdminPaymentGateways() {
                             setHasPendingChanges(true);
                           }} />
                         </label>
-                        <p className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-xs text-amber-100">
+                        <p className="rounded-xl border border-slate-200 bg-slate-100 p-3 text-xs text-slate-600">
                           Banco Cora pode exigir CoraPro/Integração Direta com certificado e chave.
                         </p>
                         <div>
@@ -886,7 +886,7 @@ export function AdminPaymentGateways() {
          </div>
          
          <div className="flex justify-end pt-4">
-           <button type="submit" disabled={saving} className="neon-button px-8 py-4 rounded-xl flex items-center gap-2 text-sm uppercase tracking-widest font-bold !shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:!shadow-[0_0_30px_rgba(16,185,129,0.5)] !border-emerald-500/50 disabled:opacity-60">
+           <button type="submit" disabled={saving} className="admin-action-button px-8 py-4 rounded-xl flex items-center gap-2 text-sm uppercase tracking-widest font-bold !shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:!shadow-[0_0_30px_rgba(16,185,129,0.5)] !border-emerald-500/50 disabled:opacity-60">
               <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar recebimentos"}
            </button>
          </div>
@@ -1023,9 +1023,9 @@ function GatewayTest({ gateway, result, testing, onTest }: { gateway: string; re
       </div>
       {result && (
         <div className="mt-3 space-y-2 text-xs">
-          <p className={result.ok ? "text-emerald-300" : "text-amber-300"}>{result.ok ? "Configuração coerente" : "Ajustes necessários"}</p>
+          <p className={result.ok ? "text-emerald-300" : "text-slate-600"}>{result.ok ? "Configuração coerente" : "Ajustes necessários"}</p>
           <p className="text-slate-500">Canal de notificação validado pelo sistema.</p>
-          {!!issues.length && <p className="text-amber-200">{issues.join(" • ")}</p>}
+          {!!issues.length && <p className="text-slate-600">{issues.join(" • ")}</p>}
         </div>
       )}
     </div>
@@ -1046,3 +1046,4 @@ function GatewayInput({ label, value, onChange, type = "text", help }: { key?: R
     </div>
   );
 }
+

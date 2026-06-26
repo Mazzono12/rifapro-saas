@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, Download, Palette, Search } from "lucide-react";
 import { adminThemes, AdminThemeId, useAdminTheme } from "../../context/admin/AdminThemeContext";
@@ -9,10 +9,10 @@ export function AdminPageTransition({ children }: { children: React.ReactNode })
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        initial={{ opacity: 0, y: 14, filter: "blur(10px)" }}
-        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-        exit={{ opacity: 0, y: -8, filter: "blur(8px)" }}
-        transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4 }}
+        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
       >
         {children}
       </motion.div>
@@ -72,7 +72,7 @@ export function AdminThemeSwitcher({
               >
                 <span
                   className="h-8 w-8 shrink-0 rounded-lg border border-white/10"
-                  style={{ background: `linear-gradient(135deg, ${theme.variables["--admin-bg"]}, ${theme.variables["--admin-primary"]}, ${theme.variables["--admin-secondary"]})` }}
+                  style={{ background: theme.variables["--admin-surface"], borderColor: theme.variables["--admin-border"] }}
                 />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{theme.name}</span>
@@ -91,13 +91,92 @@ export function AdminThemeSwitcher({
 export function AdminSearchBox({ placeholder = "Buscar usuarios, cotas, vendas, sorteios..." }: { placeholder?: string }) {
   return (
     <label className="relative block w-full">
-      <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
       <input
-        className="admin-input h-10 w-full rounded-[10px] pl-11 pr-4"
+        className="admin-input h-10 w-full rounded-md pl-9 pr-3"
         placeholder={placeholder}
       />
     </label>
   );
+}
+
+
+export function PageContainer({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn("admin-page-container min-w-0 space-y-6", className)}>{children}</div>;
+}
+
+export function PageHeader({
+  title,
+  description,
+  eyebrow,
+  actions,
+  className
+}: {
+  title: string;
+  description?: string;
+  eyebrow?: string;
+  actions?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <header className={cn("admin-page-header flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between", className)}>
+      <div className="min-w-0 space-y-1">
+        {eyebrow && <p className="text-xs font-medium uppercase tracking-normal text-[var(--admin-muted)]">{eyebrow}</p>}
+        <h1 className="truncate text-2xl font-semibold tracking-normal text-[var(--admin-text)]">{title}</h1>
+        {description && <p className="max-w-3xl text-sm leading-6 text-[var(--admin-muted)]">{description}</p>}
+      </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+    </header>
+  );
+}
+
+export function KPICard(props: React.ComponentProps<typeof MetricCard>) {
+  return <MetricCard {...props} />;
+}
+
+export function TableWrapper({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("admin-table-shell min-w-0 overflow-hidden rounded-md border border-[var(--admin-border)] bg-[var(--admin-surface)]", className)}>
+      {children}
+    </div>
+  );
+}
+
+export function EmptyState({
+  title,
+  description,
+  icon: Icon = Search,
+  action,
+  className
+}: {
+  title: string;
+  description?: string;
+  icon?: React.ElementType;
+  action?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("admin-empty-state flex min-h-48 flex-col items-center justify-center rounded-md border border-dashed border-[var(--admin-border)] bg-[var(--admin-surface)] p-8 text-center", className)}>
+      <span className="mb-3 grid h-10 w-10 place-items-center rounded-md border border-[var(--admin-border)] bg-[var(--admin-surface-strong)] text-[var(--admin-muted)]">
+        <Icon className="h-5 w-5" />
+      </span>
+      <h2 className="text-sm font-semibold text-[var(--admin-text)]">{title}</h2>
+      {description && <p className="mt-1 max-w-md text-sm leading-6 text-[var(--admin-muted)]">{description}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
+export function StatusBadge({
+  children,
+  tone = "neutral",
+  className
+}: {
+  children: React.ReactNode;
+  tone?: "neutral" | "success" | "warning" | "danger" | "info";
+  className?: string;
+}) {
+  return <span className={cn("admin-status-badge", `admin-status-badge--${tone}`, className)}>{children}</span>;
 }
 
 export function MetricCard({
@@ -122,28 +201,27 @@ export function MetricCard({
   }[tone];
 
   return (
-    <motion.article whileHover={{ y: -2 }} className="admin-card group relative flex h-full min-h-[136px] overflow-hidden p-4">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--admin-primary)]/50 to-transparent" />
+    <article className="admin-card group relative flex h-full min-h-[124px] overflow-hidden p-5">
       <div className="flex w-full items-start justify-between gap-4">
         <div className="flex min-w-0 flex-1 flex-col justify-between self-stretch">
-          <p className="truncate text-[11px] font-bold uppercase text-[var(--admin-muted)]">{label}</p>
-          <div className="mt-3 min-h-8 break-words text-2xl font-semibold leading-tight text-[var(--admin-text)]">{value}</div>
-          {trend && <p className="mt-3 line-clamp-1 text-sm leading-snug" style={{ color: toneVar }}>{trend}</p>}
+          <p className="truncate text-sm font-medium text-[var(--admin-muted)]">{label}</p>
+          <div className="mt-2 min-h-8 break-words text-2xl font-semibold leading-tight tracking-tight text-[var(--admin-text)]">{value}</div>
+          {trend && <p className="mt-2 line-clamp-1 text-xs leading-snug" style={{ color: toneVar }}>{trend}</p>}
         </div>
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" style={{ color: toneVar, background: `${toneVar}18` }}>
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-[var(--admin-border)]" style={{ color: toneVar, background: `${toneVar}18` }}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
-    </motion.article>
+    </article>
   );
 }
 
 export function ChartCard({ title, description, action, children }: { title: string; description?: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="admin-card min-w-0 p-4">
-      <div className="mb-4 flex items-center justify-between gap-3 border-b border-[var(--admin-border)] pb-3">
+    <section className="admin-card min-w-0 p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="mb-0 truncate text-base font-semibold text-[var(--admin-text)]">{title}</h2>
+          <h2 className="admin-card-heading truncate">{title}</h2>
           {description && <p className="mt-1 line-clamp-1 text-sm text-[var(--admin-muted)]">{description}</p>}
         </div>
         {action}
@@ -170,7 +248,7 @@ export function AdminLoadingSkeleton() {
   return (
     <div className="grid gap-4 md:grid-cols-4">
       {Array.from({ length: 8 }).map((_, index) => (
-        <div key={index} className="admin-card h-32 animate-pulse bg-white/[0.06]" />
+        <div key={index} className="admin-card h-32 animate-pulse bg-[var(--admin-surface)]" />
       ))}
     </div>
   );
@@ -188,18 +266,18 @@ export function AdminDataTable({
   minWidth?: string;
 }) {
   return (
-    <div className="min-w-0 overflow-hidden rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)]">
+    <div className="admin-table-shell min-w-0 overflow-hidden rounded-md border border-[var(--admin-border)] bg-[var(--admin-surface)]">
       <div className="overflow-x-auto cifher-scrollbar">
         <table className="w-full text-left text-sm" style={{ minWidth }}>
-          <thead className="border-b border-[var(--admin-border)] bg-[var(--admin-surface-strong)] text-xs text-[var(--admin-muted)]">
-            <tr>{columns.map(column => <th key={column} className="sticky top-0 px-4 py-2.5 font-semibold">{column}</th>)}</tr>
+          <thead className="border-b border-[var(--admin-border)] bg-[var(--admin-surface)] text-xs text-[var(--admin-muted)]">
+            <tr>{columns.map(column => <th key={column} className="sticky top-0 h-10 px-4 text-left align-middle font-medium">{column}</th>)}</tr>
           </thead>
           <tbody className="divide-y divide-[var(--admin-border)]">
             {rows.length === 0 ? (
               <tr><td className="px-4 py-8 text-center text-[var(--admin-muted)]" colSpan={columns.length}><PremiumEmptyState title={empty} description="" /></td></tr>
             ) : rows.map((row, index) => (
               <tr key={index} className="transition hover:bg-[var(--admin-primary)]/10">
-                {row.map((cell, cellIndex) => <td key={cellIndex} className="px-4 py-2.5 text-[var(--admin-text)]">{cell}</td>)}
+                {row.map((cell, cellIndex) => <td key={cellIndex} className="px-4 py-3 align-middle text-[var(--admin-text)]">{cell}</td>)}
               </tr>
             ))}
           </tbody>
@@ -208,3 +286,4 @@ export function AdminDataTable({
     </div>
   );
 }
+

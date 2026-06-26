@@ -7,12 +7,12 @@ import { useTenantBranding } from "../../context/tenant-branding/TenantBrandingC
 /* ui-contrast contract: Acesso seguro */
 
 export function AuthShell({ title, subtitle, children }: { title?: string; subtitle?: string; children: React.ReactNode }) {
-  const { branding } = useTenantBranding();
-  const loginTitle = title || branding.login_title || "CIFHER Prime";
+  const { branding, companyName, logoUrl: tenantLogoUrl } = useTenantBranding();
+  const loginTitle = title || branding.login_title || companyName || "RifaPro";
   const loginSubtitle = subtitle || branding.login_subtitle || "Acesse seu ambiente exclusivo com segurança, controle e alta performance.";
   const supportText = branding.login_support_text || "Tecnologia premium para gestão inteligente, operação avançada e crescimento profissional.";
   const footerText = branding.login_footer_text || "Ambiente protegido • Acesso autorizado";
-  const logoUrl = branding.login_logo_url || branding.logo_url;
+  const logoUrl = branding.login_logo_url || tenantLogoUrl;
   const primaryColor = branding.login_primary_color || branding.colors.primary || "#00d66b";
   const accentColor = branding.login_accent_color || branding.colors.cta || "#f5c451";
   const highlights = [
@@ -45,7 +45,7 @@ export function AuthShell({ title, subtitle, children }: { title?: string; subti
             <div className="relative flex h-full flex-col justify-between">
               <div className="flex items-center gap-3">
                 <div className="auth-brand-logo-slot">
-                  {logoUrl ? <img src={logoUrl} alt={loginTitle} className="auth-brand-logo-img" /> : <span className="text-xl font-black" style={{ color: accentColor }}>C</span>}
+                  {logoUrl ? <img src={logoUrl} alt={loginTitle} className="auth-brand-logo-img" /> : <span className="text-xl font-black" style={{ color: accentColor }}>R</span>}
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">{loginTitle}</p>
@@ -75,7 +75,7 @@ export function AuthShell({ title, subtitle, children }: { title?: string; subti
             <div className="mb-9">
               <div className="mb-7 flex items-center gap-3 lg:hidden">
                 <div className="auth-brand-logo-slot is-mobile">
-                  {logoUrl ? <img src={logoUrl} alt={loginTitle} className="auth-brand-logo-img" /> : <span className="text-lg font-black" style={{ color: accentColor }}>C</span>}
+                  {logoUrl ? <img src={logoUrl} alt={loginTitle} className="auth-brand-logo-img" /> : <span className="text-lg font-black" style={{ color: accentColor }}>R</span>}
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">{loginTitle}</p>

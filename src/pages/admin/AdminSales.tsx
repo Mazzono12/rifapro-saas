@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { CheckCircle2, Clock, Copy, Download, ExternalLink, FileJson, Users, Search, Save, TicketCheck, XCircle, Wallet, Trophy, UserPlus, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
@@ -604,6 +606,64 @@ export function AdminSales() {
     toast.success("Resposta enviada ao cliente");
   };
 
+  if (shouldUseSeparatedSalesLayout()) return (
+    <div className="space-y-5">
+      <section className="admin-card p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--admin-muted)]">Operação</p>
+            <h1 className="mt-1 flex items-center gap-3 text-2xl font-black text-[var(--admin-text)]">
+              <Wallet className="h-7 w-7 text-[var(--admin-primary)]" /> Vendas
+            </h1>
+            <p className="mt-1 text-sm text-[var(--admin-muted)]">Área enxuta para acessar consultas e serviços comerciais sem misturar rotinas operacionais.</p>
+          </div>
+          <Link to="/admin/central-pedidos" className="admin-button h-11 justify-center px-5">
+            Abrir Central de Pedidos
+          </Link>
+        </div>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        <SalesServiceCard
+          icon={<TicketCheck className="h-5 w-5" />}
+          title="Pedidos e pagamentos"
+          text="Consulte pedidos, cliente, pagamento, status e cotas em uma lista operacional compacta."
+          to="/admin/central-pedidos"
+        />
+        <SalesServiceCard
+          icon={<Clock className="h-5 w-5" />}
+          title="Recuperação PIX"
+          text="Acompanhe PIX pendente, expirado e rotinas de recuperação em uma página própria."
+          to="/admin/pix-recuperacao"
+        />
+        <SalesServiceCard
+          icon={<UserPlus className="h-5 w-5" />}
+          title="Afiliados"
+          text="Cadastros, códigos e gestão de afiliados ficam concentrados na área de crescimento."
+          to="/admin/afiliados"
+        />
+        <SalesServiceCard
+          icon={<Trophy className="h-5 w-5" />}
+          title="Sorteios"
+          text="Apuração, auditoria e publicação de resultado ficam fora da tela de vendas."
+          to="/admin/sorteios"
+        />
+        <SalesServiceCard
+          icon={<MessageSquare className="h-5 w-5" />}
+          title="Suporte"
+          text="Atendimento, observações e histórico de contato ficam em atendimento."
+          to="/admin/suporte"
+        />
+        <SalesServiceCard
+          icon={<Download className="h-5 w-5" />}
+          title="Relatórios"
+          text="Exportações e análises ficam separadas para não poluir a operação diária."
+          to="/admin/operacoes"
+        />
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
        <section className="admin-card p-5">
@@ -684,7 +744,7 @@ export function AdminSales() {
                    </div>
                    <span className={cn(
                      "shrink-0 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest",
-                     isExpired ? "border-red-400/30 bg-red-400/10 text-red-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200"
+                     isExpired ? "border-red-400/30 bg-red-400/10 text-red-200" : "border-slate-200 bg-slate-100 text-slate-600"
                    )}>
                      {item.statusLabel}
                    </span>
@@ -731,7 +791,7 @@ export function AdminSales() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <div className="admin-card p-5 space-y-4 xl:col-span-2">
             <div className="flex items-center gap-3">
-              <Trophy className="w-5 h-5 text-amber-300" />
+              <Trophy className="w-5 h-5 text-slate-600" />
               <h2 className="text-xl font-display font-bold">Realizar sorteio por cota</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
@@ -746,7 +806,7 @@ export function AdminSales() {
                 <p className="text-sm text-slate-300">
                   Sorteio <strong className="text-white">{drawResult.raffle?.title}</strong> • Cota <strong className="text-white">#{String(drawResult.number).padStart(6, "0")}</strong>
                 </p>
-                <p className={cn("mt-2 text-sm font-bold", drawResult.status === "available" ? "text-emerald-300" : drawResult.status === "winner" ? "text-amber-300" : "text-cyan-300")}>
+                <p className={cn("mt-2 text-sm font-bold", drawResult.status === "available" ? "text-emerald-300" : drawResult.status === "winner" ? "text-slate-600" : "text-cyan-300")}>
                   {drawResult.message}
                 </p>
                 {drawResult.customer && (
@@ -763,7 +823,7 @@ export function AdminSales() {
 
           <div className="admin-card p-5 space-y-4">
             <div className="flex items-center gap-3">
-              <TicketCheck className="w-5 h-5 text-neon-cyan" />
+              <TicketCheck className="w-5 h-5 text-slate-700" />
              <h2 className="text-xl font-display font-bold">Buscar, reservar ou vender cota</h2>
            </div>
            <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
@@ -777,7 +837,7 @@ export function AdminSales() {
              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
                <p className="text-sm text-slate-300">
                  Cota <strong className="text-white">#{String(ticketResult.number).padStart(6, "0")}</strong>: {" "}
-                 <span className={ticketResult.status === "available" ? "text-emerald-300" : "text-amber-300"}>
+                 <span className={ticketResult.status === "available" ? "text-emerald-300" : "text-slate-600"}>
                    {ticketResult.status === "available" ? "disponivel" : ticketResult.status === "sold" ? "comprada" : "reservada"}
                  </span>
                </p>
@@ -790,7 +850,7 @@ export function AdminSales() {
                  <select value={assignCustomerId} onChange={e => setAssignCustomerId(e.target.value)} className="p-3">
                    {customers.map(customer => <option key={customer.id} value={customer.id}>{customer.name} • {customer.phone}</option>)}
                  </select>
-                 <button onClick={() => assignTicket("pending")} className="px-4 py-3 rounded-xl border border-amber-400/30 text-amber-200">Reservar</button>
+                 <button onClick={() => assignTicket("pending")} className="px-4 py-3 rounded-xl border border-slate-200 text-slate-600">Reservar</button>
                  <button onClick={() => assignTicket("paid")} className="px-4 py-3 rounded-xl border border-emerald-400/30 text-emerald-200">Comprar</button>
                </div>
              </div>
@@ -1176,8 +1236,8 @@ export function AdminSales() {
                <input type="number" value={editingCustomer.totalTickets || 0} disabled className="w-full p-3 opacity-60" />
              </label>
            </div>
-           <label className="block space-y-2 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
-             <span className="text-xs font-bold uppercase text-amber-100">Motivo obrigatório para auditoria</span>
+           <label className="block space-y-2 rounded-2xl border border-slate-200 bg-slate-100 p-4">
+             <span className="text-xs font-bold uppercase text-slate-600">Motivo obrigatório para auditoria</span>
              <textarea
                value={customerEditReason}
                onChange={event => setCustomerEditReason(event.target.value)}
@@ -1307,14 +1367,14 @@ export function AdminSales() {
                      </tr>
                   ) : filteredPurchases.map((p, i) => (
                      <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="py-4 px-6 text-neon-cyan">Venda {i + 1}</td>
+                        <td className="py-4 px-6 text-slate-700">Venda {i + 1}</td>
                         <td className="py-4 px-6 text-slate-300">{p.contact || "Anônimo"}</td>
                         <td className="py-4 px-6 text-center">
                           <span className={cn(
                             "text-[10px] px-3 py-1 font-bold rounded-sm tracking-widest uppercase",
                             p.status === 'paid' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
                             p.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                            'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                            'bg-slate-1000/10 text-slate-600 border border-slate-2000/20'
                           )}>
                             {purchaseStatusLabel(p.status)}
                           </span>
@@ -1382,6 +1442,23 @@ function RecoveryField({ label, value }: { label: string; value: string }) {
   );
 }
 
+function SalesServiceCard({ icon, title, text, to }: { icon: ReactNode; title: string; text: string; to: string }) {
+  return (
+    <article className="admin-card p-5">
+      <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--admin-primary)] text-black">{icon}</span>
+      <h2 className="mt-4 text-lg font-black text-[var(--admin-text)]">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-[var(--admin-muted)]">{text}</p>
+      <Link to={to} className="admin-button-secondary mt-4 h-10 justify-center">
+        Abrir
+      </Link>
+    </article>
+  );
+}
+
+function shouldUseSeparatedSalesLayout() {
+  return true;
+}
+
 function formatDateTime(value: string) {
   if (!value) return "-";
   const date = new Date(value);
@@ -1411,3 +1488,4 @@ function WalletButton({ label, onClick, danger = false }: { label: string; onCli
     </button>
   );
 }
+

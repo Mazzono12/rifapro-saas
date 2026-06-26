@@ -50,6 +50,7 @@ import { inferMediaType, type MediaType } from "../utils/media";
 type CheckoutStep = "review" | "payment" | "ticket";
 type CountdownParts = { days: number; hours: number; minutes: number; seconds: number; ended: boolean };
 type CheckoutCustomerForm = { name: string; phone: string; cpf: string; city: string; state: string; accessPassword: string; knownCustomer: boolean };
+type BuyerRankingItem = { name: string; phone: string; tickets: number; amount: number; position?: number; orderCount?: number; lastPurchaseAt?: string; prizeLabel?: string; prizeType?: string; prizeDescription?: string };
 type TopSellerRankingItem = {
   affiliateName?: string;
   affiliate?: string;
@@ -195,7 +196,7 @@ export function RaffleDetails() {
   const [paymentResult, setPaymentResult] = useState<"approved" | "rejected" | null>(null);
   const [showNumbers, setShowNumbers] = useState(false);
   const [showLootboxModal, setShowLootboxModal] = useState(false);
-  const [ranking, setRanking] = useState<Array<{ name: string; phone: string; tickets: number; amount: number }>>([]);
+  const [ranking, setRanking] = useState<BuyerRankingItem[]>([]);
   const [topSellers, setTopSellers] = useState<TopSellerRankingItem[]>([]);
   const [latestWinners, setLatestWinners] = useState<Winner[]>([]);
   const [instantPrizeNumbers, setInstantPrizeNumbers] = useState<Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }>>([]);
@@ -736,7 +737,7 @@ function RafflePremiumPage({
   onQuickSelect: (qty: number) => void;
   onParticipate: () => void;
   isSubmitting: boolean;
-  ranking: Array<{ name: string; tickets: number; phone: string }>;
+  ranking: BuyerRankingItem[];
   topSellers: TopSellerRankingItem[];
   latestWinners: Winner[];
   prizes: Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }>;
@@ -904,7 +905,7 @@ function RaffleCountdownPanel({ countdown }: { countdown: CountdownParts }) {
   );
 }
 
-function RaffleTopBuyersPanel({ ranking }: { ranking: Array<{ name: string; tickets: number; phone: string }> }) {
+function RaffleTopBuyersPanel({ ranking }: { ranking: BuyerRankingItem[] }) {
   const buyers = ranking.slice(0, 3);
   return (
     <section className="cfx-panel cfx-detail-ranking">
@@ -916,9 +917,9 @@ function RaffleTopBuyersPanel({ ranking }: { ranking: Array<{ name: string; tick
         <div>
           {buyers.map((buyer, index) => (
             <article key={`${buyer.phone}-${index}`}>
-              <span>{index + 1}</span>
+              <span>{buyer.position || index + 1}</span>
               <b>{maskName(buyer.name)}</b>
-              <small>{Number(buyer.tickets || 0).toLocaleString("pt-BR")} cotas</small>
+              <small>{formatCurrency(Number(buyer.amount || 0))}{buyer.prizeLabel ? " · " + buyer.prizeLabel : ""}</small>
             </article>
           ))}
         </div>
@@ -943,7 +944,7 @@ function RaffleTopSellersPanel({ ranking }: { ranking: TopSellerRankingItem[] })
           <article key={`${seller.refCode}-${index}`}>
             <span>{seller.position || index + 1}</span>
             <b>{seller.affiliateName || seller.affiliate || seller.refCode}</b>
-            <small>{seller.prizeLabel || `${Number(seller.paidPurchasesCount ?? seller.sales ?? 0).toLocaleString("pt-BR")} vendas diretas`}</small>
+            <small>{formatCurrency(Number(seller.totalSold || 0))} vendidos{seller.prizeLabel ? " · " + seller.prizeLabel : ""}</small>
           </article>
         ))}
       </div>
@@ -955,7 +956,7 @@ function RaffleRankingsPanel({
   buyers,
   sellers
 }: {
-  buyers: Array<{ name: string; tickets: number; phone: string }>;
+  buyers: BuyerRankingItem[];
   sellers: TopSellerRankingItem[];
 }) {
   const buyerRows = buyers.slice(0, 3);
@@ -983,9 +984,9 @@ function RaffleRankingsPanel({
           <h3>Top compradores</h3>
           {buyerRows.length ? buyerRows.map((buyer, index) => (
             <article key={`${buyer.phone}-${index}`}>
-              <span>{index + 1}</span>
+              <span>{buyer.position || index + 1}</span>
               <b>{maskName(buyer.name)}</b>
-              <small>{Number(buyer.tickets || 0).toLocaleString("pt-BR")} cotas</small>
+              <small>{formatCurrency(Number(buyer.amount || 0))}{buyer.prizeLabel ? " · " + buyer.prizeLabel : ""}</small>
             </article>
           )) : <p>Em formação.</p>}
         </div>
@@ -995,7 +996,7 @@ function RaffleRankingsPanel({
             <article key={`${seller.refCode}-${index}`}>
               <span>{seller.position || index + 1}</span>
               <b>{seller.affiliateName || seller.affiliate || seller.refCode}</b>
-              <small>{seller.prizeLabel || `${Number(seller.paidPurchasesCount ?? seller.sales ?? 0).toLocaleString("pt-BR")} vendas diretas`}</small>
+              <small>{formatCurrency(Number(seller.totalSold || 0))} vendidos{seller.prizeLabel ? " · " + seller.prizeLabel : ""}</small>
             </article>
           )) : <p>Em formação.</p>}
         </div>
@@ -1360,7 +1361,7 @@ function CheckoutModal(props: {
   acceptOrderBump: boolean;
   setAcceptOrderBump: (value: boolean) => void;
   prizes: Array<{ id: string; numeroPremiado: number; valorPremio: number; status: string }>;
-  ranking: Array<{ name: string; phone: string; tickets: number; amount: number }>;
+  ranking: BuyerRankingItem[];
   couponCode: string;
   setCouponCode: (value: string) => void;
   couponPreview: any;

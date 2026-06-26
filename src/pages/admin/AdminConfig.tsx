@@ -537,7 +537,7 @@ export function AdminConfig() {
          </div>
        </div>
 
-       <section className="space-y-6 rounded-3xl border border-amber-300/15 bg-amber-300/[0.035] p-4 sm:p-5">
+       <section className="space-y-6 rounded-3xl border border-slate-200 bg-slate-100 p-4 sm:p-5">
          <div>
            <p className="premium-eyebrow">Fonte oficial</p>
            <h2 className="text-2xl font-display font-medium text-white">Identidade visual e aparência</h2>
@@ -573,11 +573,11 @@ export function AdminConfig() {
             {/* UI Settings */}
             <div className="glass-card p-6 border border-white/5 rounded-3xl space-y-6">
                <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
-                  <Layout className="w-5 h-5 text-neon-cyan" />
+                  <Layout className="w-5 h-5 text-slate-700" />
                   <h2 className="text-xl font-display font-medium text-white">Tema operacional</h2>
                </div>
-               <div className="rounded-2xl border border-amber-300/20 bg-black/25 p-4 text-sm leading-6 text-slate-300">
-                 Nome, logo, cores públicas, favicon e posição da logo foram centralizados no bloco <strong className="text-amber-100">Identidade visual e aparência</strong> acima para evitar sobrescrita entre formulários.
+               <div className="rounded-2xl border border-slate-200 bg-black/25 p-4 text-sm leading-6 text-slate-300">
+                 Nome, logo, cores públicas, favicon e posição da logo foram centralizados no bloco <strong className="text-slate-600">Identidade visual e aparência</strong> acima para evitar sobrescrita entre formulários.
                </div>
 
                <div className="space-y-4">
@@ -841,7 +841,7 @@ export function AdminConfig() {
                    </AffiliateSection>
 
                    <AffiliateSection icon={Medal} title="Status visual do afiliado" description="Configure nomes e metas visuais. Estes status não alteram a comissão.">
-                     <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm font-semibold text-amber-100">
+                     <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4 text-sm font-semibold text-slate-600">
                        A comissão é definida apenas pela comissão padrão do programa ou pela comissão especial do afiliado.
                      </div>
                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -984,7 +984,7 @@ export function AdminConfig() {
                          <input type="number" min="0" step="0.01" value={minWithdrawAmount} onChange={e => updateAffiliateProgram({ minWithdrawAmount: Math.max(0, Number(e.target.value)) })} className="w-full p-3" placeholder="Ex.: 50.00" />
                        </AffiliateField>
                        <AffiliateField label="Aprovação automática" help="Saques continuam com aprovação manual para reduzir risco financeiro.">
-                         <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-3 text-sm font-bold text-amber-100">Manual e auditável</div>
+                         <div className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-3 text-sm font-bold text-slate-600">Manual e auditável</div>
                        </AffiliateField>
                        <AffiliateField label="Prazo para pagamento" help="O painel do afiliado mostra a próxima data útil prevista para pagamento.">
                          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-300">Próximo dia útil configurado pela operação</div>
@@ -1097,7 +1097,7 @@ export function AdminConfig() {
 
             <div className="glass-card p-6 border border-white/5 rounded-3xl space-y-6">
                <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
-                  <Layout className="w-5 h-5 text-neon-purple" />
+                  <Layout className="w-5 h-5 text-slate-700" />
                   <h2 className="text-xl font-display font-medium text-white">Rodapé & Institucional</h2>
                </div>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1130,14 +1130,14 @@ export function AdminConfig() {
             {/* Lootbox Economy Configuration */}
             <div className="glass-card p-6 border border-white/5 rounded-3xl space-y-6">
                <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
-                  <Package className="w-5 h-5 text-amber-400" />
+                  <Package className="w-5 h-5 text-slate-600" />
                   <h2 className="text-xl font-display font-medium text-white">Regras de Experiência Premiada</h2>
                </div>
                
                <div>
                  <div className="flex items-center justify-between mb-4">
                    <label className="block text-xs font-mono text-slate-400 uppercase tracking-widest">Caixinhas por cotas compradas</label>
-                   <button type="button" onClick={addBoxRule} className="text-xs text-amber-400 hover:text-white transition-colors bg-amber-400/10 px-2 py-1 rounded">+ Regra</button>
+                   <button type="button" onClick={addBoxRule} className="text-xs text-slate-600 hover:text-white transition-colors bg-slate-100 px-2 py-1 rounded">+ Regra</button>
                  </div>
                  <div className="space-y-3">
                    {(settings.lootboxEconomy.boxRules || [{ tickets: settings.lootboxEconomy.ticketsPerBox, boxes: 1 }]).map((rule: any, idx: number) => (
@@ -1160,7 +1160,7 @@ export function AdminConfig() {
                <div>
                  <div className="flex items-center justify-between mb-4 mt-6">
                     <label className="block text-xs font-mono text-slate-400 uppercase tracking-widest">Milestones de Premiação</label>
-                    <button type="button" onClick={addMilestone} className="text-xs text-amber-400 hover:text-white transition-colors bg-amber-400/10 px-2 py-1 rounded">
+                    <button type="button" onClick={addMilestone} className="text-xs text-slate-600 hover:text-white transition-colors bg-slate-100 px-2 py-1 rounded">
                       + Adicionar
                     </button>
                  </div>
@@ -1229,7 +1229,7 @@ export function AdminConfig() {
          </div>
          
          <div className="flex justify-end pt-4">
-           <button type="submit" className="neon-button px-8 py-4 rounded-xl flex items-center gap-2 text-sm uppercase tracking-widest font-bold">
+           <button type="submit" className="admin-action-button px-8 py-4 rounded-xl flex items-center gap-2 text-sm uppercase tracking-widest font-bold">
               <Save className="w-4 h-4" /> Salvar Configurações
            </button>
          </div>
@@ -1237,3 +1237,4 @@ export function AdminConfig() {
     </div>
   );
 }
+

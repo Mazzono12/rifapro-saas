@@ -275,7 +275,7 @@ export function AdminTickets() {
           <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
             <div className="space-y-2">
               {(selected.messages || []).map(item => (
-                <div key={item.id} className={`rounded-[8px] border p-3 text-sm ${item.internal_note ? "border-amber-300/30 bg-amber-300/10" : "border-[var(--admin-border)] bg-black/10"}`}>
+                <div key={item.id} className={`rounded-[8px] border p-3 text-sm ${item.internal_note ? "border-slate-200 bg-slate-100" : "border-[var(--admin-border)] bg-black/10"}`}>
                   <p className="mb-1 text-xs font-bold uppercase text-[var(--admin-muted)]">{item.author_type} · {formatDate(item.created_at)}{item.internal_note ? " · nota interna" : ""}</p>
                   <p className="whitespace-pre-wrap text-[var(--admin-text)]">{item.message}</p>
                 </div>
@@ -330,3 +330,4 @@ function TicketCard({ ticket, onSelect }: { ticket: SupportTicket; onSelect: (ti
     </button>
   );
 }
+

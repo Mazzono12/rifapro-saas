@@ -16,10 +16,10 @@ type ActivityEvent = {
 
 type RankingPayload = {
   enabled: boolean;
-  top_buyers: Array<{ name: string; tickets: number; amount: number }>;
-  weekly_buyers: Array<{ name: string; tickets: number; amount: number }>;
-  monthly_buyers: Array<{ name: string; tickets: number; amount: number }>;
-  top_affiliates: Array<{ name: string; conversions: number; revenue: number }>;
+  top_buyers: Array<{ position?: number; name: string; tickets: number; amount: number; prizeLabel?: string }>;
+  weekly_buyers: Array<{ position?: number; name: string; tickets: number; amount: number; prizeLabel?: string }>;
+  monthly_buyers: Array<{ position?: number; name: string; tickets: number; amount: number; prizeLabel?: string }>;
+  top_affiliates: Array<{ position?: number; name: string; sales?: number; buyers?: number; totalSold?: number; revenue: number; prizeLabel?: string }>;
   top_winners: Array<{ name: string; prize: string; value: number }>;
 };
 
@@ -92,8 +92,8 @@ function normalizeRanking(payload: unknown): RankingPayload {
   const normalizeBuyers = (items: unknown) => (
     Array.isArray(items)
       ? items
-        .filter((item): item is { name?: unknown; tickets?: unknown; amount?: unknown } => Boolean(item && typeof item === "object"))
-        .map(item => ({ name: String(item.name || "Cliente"), tickets: safeNumber(item.tickets), amount: safeNumber(item.amount) }))
+        .filter((item): item is { position?: unknown; name?: unknown; tickets?: unknown; amount?: unknown; prizeLabel?: unknown } => Boolean(item && typeof item === "object"))
+        .map(item => ({ position: Math.max(1, safeNumber(item.position, 1)), name: String(item.name || "Cliente"), tickets: safeNumber(item.tickets), amount: safeNumber(item.amount), prizeLabel: item.prizeLabel ? String(item.prizeLabel) : undefined }))
       : []
   );
   return {
@@ -229,8 +229,8 @@ export function PublicConversionWidgets({ raffleId, className }: { raffleId?: st
         <div className="mt-4 space-y-2">
           {featuredRanking.length ? featuredRanking.map((buyer, index) => (
             <div key={`${buyer.name}-${index}`} className="flex items-center justify-between rounded-2xl bg-black/25 px-3 py-2 text-sm">
-              <span className="truncate text-slate-200">{index + 1}. {buyer.name}</span>
-              <span className="font-black text-amber-100">{buyer.tickets.toLocaleString("pt-BR")} cotas</span>
+              <span className="min-w-0 truncate text-slate-200">{buyer.position || index + 1}. {buyer.name}{buyer.prizeLabel ? " · " + buyer.prizeLabel : ""}</span>
+              <span className="shrink-0 font-black text-amber-100">{buyer.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
             </div>
           )) : <p className="rounded-2xl bg-black/25 px-3 py-3 text-sm text-slate-400">Ranking em formacao.</p>}
         </div>

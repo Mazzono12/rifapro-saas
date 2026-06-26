@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-export const ADMIN_THEMES = ["dark", "light", "system"] as const;
+export const ADMIN_THEMES = ["light"] as const;
 export type AdminThemeId = typeof ADMIN_THEMES[number];
 
 type AdminTheme = {
@@ -10,87 +10,35 @@ type AdminTheme = {
   variables: Record<string, string>;
 };
 
+const lightVariables: Record<string, string> = {
+  "--admin-bg": "#f6f7f9",
+  "--admin-bg-soft": "#f8fafc",
+  "--admin-bg-deep": "#eef1f5",
+  "--admin-sidebar": "#f6f7f9",
+  "--admin-surface": "#ffffff",
+  "--admin-surface-strong": "#f8fafc",
+  "--admin-border": "#dde2e8",
+  "--admin-text": "#111827",
+  "--admin-muted": "#667085",
+  "--admin-secondary-text": "#344054",
+  "--admin-primary": "#111827",
+  "--admin-secondary": "#eef1f5",
+  "--admin-accent": "#e5e7eb",
+  "--admin-info": "#2563eb",
+  "--admin-success": "#16a34a",
+  "--admin-warning": "#d97706",
+  "--admin-danger": "#dc2626",
+  "--admin-button": "#111827",
+  "--admin-button-text": "#ffffff",
+  "--admin-glow": "rgba(17,24,39,0.08)"
+};
+
 export const adminThemes: AdminTheme[] = [
-  {
-    id: "dark",
-    name: "Escuro",
-    description: "CIFHER escuro operacional, denso e premium.",
-    variables: {
-      "--admin-bg": "#06020d",
-      "--admin-bg-soft": "#090514",
-      "--admin-bg-deep": "#10091f",
-      "--admin-sidebar": "#07030f",
-      "--admin-surface": "#120a22",
-      "--admin-surface-strong": "#170d2b",
-      "--admin-border": "rgba(168,85,247,0.24)",
-      "--admin-text": "#f5f3ff",
-      "--admin-muted": "#8b7bae",
-      "--admin-secondary-text": "#c4b5fd",
-      "--admin-primary": "#8b2cff",
-      "--admin-secondary": "#a855f7",
-      "--admin-accent": "#d946ef",
-      "--admin-info": "#38bdf8",
-      "--admin-success": "#34d399",
-      "--admin-warning": "#fbbf24",
-      "--admin-danger": "#fb7185",
-      "--admin-button": "linear-gradient(90deg, #8b2cff, #d946ef)",
-      "--admin-button-text": "#f5f3ff",
-      "--admin-glow": "rgba(139,44,255,0.32)"
-    }
-  },
   {
     id: "light",
     name: "Claro",
-    description: "CIFHER White operacional com superfícies claras.",
-    variables: {
-      "--admin-bg": "#f8f6ff",
-      "--admin-bg-soft": "#ffffff",
-      "--admin-bg-deep": "#f1edff",
-      "--admin-sidebar": "#ffffff",
-      "--admin-surface": "#ffffff",
-      "--admin-surface-strong": "#f7f3ff",
-      "--admin-border": "rgba(139,44,255,0.20)",
-      "--admin-text": "#211432",
-      "--admin-muted": "#8a7a9f",
-      "--admin-secondary-text": "#625178",
-      "--admin-primary": "#8b2cff",
-      "--admin-secondary": "#a855f7",
-      "--admin-accent": "#d946ef",
-      "--admin-info": "#38bdf8",
-      "--admin-success": "#12b76a",
-      "--admin-warning": "#fbbf24",
-      "--admin-danger": "#fb7185",
-      "--admin-button": "linear-gradient(90deg, #8b2cff, #d946ef)",
-      "--admin-button-text": "#ffffff",
-      "--admin-glow": "rgba(139,44,255,0.18)"
-    }
-  },
-  {
-    id: "system",
-    name: "Sistema",
-    description: "Acompanha o tema do dispositivo mantendo o padrão CIFHER.",
-    variables: {
-      "--admin-bg": "#06020d",
-      "--admin-bg-soft": "#090514",
-      "--admin-bg-deep": "#10091f",
-      "--admin-sidebar": "#07030f",
-      "--admin-surface": "#120a22",
-      "--admin-surface-strong": "#170d2b",
-      "--admin-border": "rgba(168,85,247,0.24)",
-      "--admin-text": "#f5f3ff",
-      "--admin-muted": "#8b7bae",
-      "--admin-secondary-text": "#c4b5fd",
-      "--admin-primary": "#8b2cff",
-      "--admin-secondary": "#a855f7",
-      "--admin-accent": "#d946ef",
-      "--admin-info": "#38bdf8",
-      "--admin-success": "#34d399",
-      "--admin-warning": "#fbbf24",
-      "--admin-danger": "#fb7185",
-      "--admin-button": "linear-gradient(90deg, #8b2cff, #d946ef)",
-      "--admin-button-text": "#f5f3ff",
-      "--admin-glow": "rgba(139,44,255,0.32)"
-    }
+    description: "Painel SaaS branco gelo, limpo e operacional.",
+    variables: lightVariables
   }
 ];
 
@@ -103,39 +51,21 @@ type AdminThemeContextValue = {
 const AdminThemeContext = createContext<AdminThemeContextValue | null>(null);
 const storageKey = "rifapro.admin.theme";
 
-function normalizeAdminThemeId(value: unknown): AdminThemeId {
-  const raw = String(value || "").trim();
-  if ((ADMIN_THEMES as readonly string[]).includes(raw)) return raw as AdminThemeId;
-  if (raw === "black") return "dark";
-  if (raw === "white") return "light";
-  if (raw === "neon_blue") return "system";
-  return "dark";
+function normalizeAdminThemeId(_value: unknown): AdminThemeId {
+  return "light";
 }
 
 export function AdminThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeId, setThemeIdState] = useState<AdminThemeId>(() => {
-    const stored = localStorage.getItem(storageKey);
-    return normalizeAdminThemeId(stored);
-  });
+  const [themeId, setThemeIdState] = useState<AdminThemeId>(() => normalizeAdminThemeId(localStorage.getItem(storageKey)));
 
-  const theme = useMemo(() => adminThemes.find(item => item.id === themeId) || adminThemes[0], [themeId]);
+  const theme = useMemo(() => adminThemes[0], []);
 
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.adminTheme = theme.id;
-    const applyVariables = () => {
-      const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
-      const systemTheme = prefersLight ? adminThemes[1] : adminThemes[0];
-      const variables = theme.id === "system" ? systemTheme.variables : theme.variables;
-      Object.entries(variables).forEach(([key, value]) => root.style.setProperty(key, String(value)));
-    };
-    applyVariables();
-    localStorage.setItem(storageKey, theme.id);
-    if (theme.id === "system") {
-      const query = window.matchMedia("(prefers-color-scheme: light)");
-      query.addEventListener("change", applyVariables);
-      return () => query.removeEventListener("change", applyVariables);
-    }
+    root.dataset.adminTheme = "light";
+    root.dataset.adminResolvedTheme = "light";
+    Object.entries(lightVariables).forEach(([key, value]) => root.style.setProperty(key, String(value)));
+    localStorage.setItem(storageKey, "light");
   }, [theme]);
 
   const value = useMemo(() => ({

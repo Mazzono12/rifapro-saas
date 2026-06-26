@@ -12,7 +12,7 @@ type PublicBrandMarkProps = {
 };
 
 function brandName(branding: ReturnType<typeof useTenantBranding>["branding"]) {
-  return String(branding.display_name || branding.header_name || branding.company_name || "").trim();
+  return String(branding.company_name || branding.display_name || branding.header_name || "RifaPro").trim();
 }
 
 export function PublicBrandMark({
@@ -23,15 +23,15 @@ export function PublicBrandMark({
   eager = false,
   inline = false
 }: PublicBrandMarkProps) {
-  const { branding } = useTenantBranding();
-  const name = brandName(branding);
+  const { branding, companyName, logoUrl } = useTenantBranding();
+  const name = companyName || brandName(branding);
   const shouldShowName = showName && branding.home_branding?.showName !== false && Boolean(name);
 
   return (
     <span className={cn("public-brand-mark", (inline || !shouldShowName) && "is-inline", !shouldShowName && "logo-only", className)}>
-      {branding.logo_url ? (
+      {logoUrl ? (
         <img
-          src={branding.logo_url}
+          src={logoUrl}
           alt={name || "Logo da marca"}
           loading={eager ? "eager" : "lazy"}
           decoding="async"

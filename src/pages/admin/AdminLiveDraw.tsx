@@ -170,7 +170,7 @@ export function AdminLiveDraw() {
 
       <div className="relative z-10 mx-auto max-w-6xl space-y-6">
         <div className="text-center">
-          <p className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">
+          <p className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
             <Sparkles className="h-4 w-4" /> Tema Sorteio
           </p>
           <h1 className="mt-5 font-sans text-5xl font-black uppercase tracking-[0.14em] text-white md:text-7xl">Número da SORTE</h1>
@@ -185,7 +185,7 @@ export function AdminLiveDraw() {
             <button onClick={prepareDraw} disabled={preparing} className="rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-6 py-4 font-bold text-cyan-100 disabled:opacity-50">
               <Lock className="mr-2 inline h-5 w-5" /> {preparing ? "Travando..." : "Preparar"}
             </button>
-            <button onClick={runDraw} disabled={drawing} className="neon-button rounded-xl px-8 py-4 disabled:opacity-50">
+            <button onClick={runDraw} disabled={drawing} className="admin-action-button rounded-xl px-8 py-4 disabled:opacity-50">
               <Search className="mr-2 inline h-5 w-5" /> {drawing ? "Apurando..." : "Executar"}
             </button>
             <button onClick={publishDraw} disabled={publishing || !result?.drawAudit?.server_seed_revealed} className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-6 py-4 font-bold text-emerald-100 disabled:opacity-50">
@@ -224,7 +224,7 @@ export function AdminLiveDraw() {
         </section>
 
         {result && (
-          <section className={cn("glass-card overflow-hidden p-6 text-center md:p-10", winner ? "border-amber-300/30 bg-amber-300/10" : "border-cyan-300/20 bg-cyan-300/5")}>
+          <section className={cn("glass-card overflow-hidden p-6 text-center md:p-10", winner ? "border-slate-200 bg-slate-100" : "border-cyan-300/20 bg-cyan-300/5")}>
             {result.drawAudit && (
               <div className="mb-6 rounded-2xl border border-white/10 bg-black/25 p-4 text-left">
                 <div className="grid gap-3 md:grid-cols-2">
@@ -242,12 +242,12 @@ export function AdminLiveDraw() {
             )}
             {winner ? (
               <>
-                <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-amber-300 text-black shadow-[0_0_80px_rgba(250,204,21,0.75)]">
+                <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-slate-100 text-black ">
                   <Trophy className="h-12 w-12" />
                 </div>
-                <p className="mt-6 text-xs font-mono uppercase tracking-[0.35em] text-amber-100">PARABÉNS</p>
+                <p className="mt-6 text-xs font-mono uppercase tracking-[0.35em] text-slate-600">PARABÉNS</p>
                 <h2 className="mt-2 font-display text-5xl font-black text-white md:text-7xl">{formatWinnerName(result.customer?.name)}</h2>
-                <p className="mt-3 font-mono text-xl text-amber-200">Cota sorteada #{String(result.number).padStart(6, "0")}</p>
+                <p className="mt-3 font-mono text-xl text-slate-600">Cota sorteada #{String(result.number).padStart(6, "0")}</p>
               </>
             ) : (
               <>
@@ -262,7 +262,7 @@ export function AdminLiveDraw() {
             {result.customer && (
               <div className="mt-8 grid gap-4 text-left lg:grid-cols-[0.9fr_1.1fr]">
                 <div className="rounded-2xl border border-white/10 bg-black/25 p-5">
-                  <h3 className="mb-4 flex items-center gap-2 font-display text-xl font-bold text-white"><Rocket className="h-5 w-5 text-amber-300" /> Dados do ganhador</h3>
+                  <h3 className="mb-4 flex items-center gap-2 font-display text-xl font-bold text-white"><Rocket className="h-5 w-5 text-slate-600" /> Dados do ganhador</h3>
                   <Info label="Nome" value={formatWinnerName(result.customer.name)} />
                   <Info label="Telefone" value={maskPhone(result.customer.phone)} />
                   <Info label="Cidade" value={`${result.customer.city || "Nao informado"} / ${result.customer.state || "UF"}`} />
@@ -273,7 +273,7 @@ export function AdminLiveDraw() {
                     {allWinnerTickets.length ? (
                       <div className="flex flex-wrap gap-2">
                         {allWinnerTickets.map((number: number, index: number) => (
-                          <span key={`${number}-${index}`} className={cn("rounded-xl border px-3 py-2 font-mono text-sm", Number(number) === Number(result.number) ? "border-amber-300 bg-amber-300/20 text-amber-100" : "border-white/10 bg-white/[0.04] text-slate-300")}>
+                          <span key={`${number}-${index}`} className={cn("rounded-xl border px-3 py-2 font-mono text-sm", Number(number) === Number(result.number) ? "border-slate-200 bg-slate-100 text-slate-600" : "border-white/10 bg-white/[0.04] text-slate-300")}>
                             {String(number).padStart(6, "0")}
                           </span>
                         ))}
@@ -364,3 +364,4 @@ function toDateTimeLocal(value: string) {
   const local = new Date(date.getTime() - offset * 60000);
   return local.toISOString().slice(0, 16);
 }
+

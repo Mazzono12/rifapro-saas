@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getReadableTextColor, normalizeReadableColor } from "../../lib/contrast";
+import { resolveTenantCompanyName, resolveTenantLogoUrl, sanitizeBrandingImageUrl, sanitizeBrandingText } from "../../utils/tenantBranding";
 
 export type PublicTenantBranding = {
   tenant_id?: string;
@@ -65,7 +66,9 @@ export type PublicTenantBranding = {
 };
 
 const fallbackBranding: PublicTenantBranding = {
-  header_name: "CIFHER Prime",
+  company_name: "RifaPro",
+  display_name: "RifaPro",
+  header_name: "RifaPro",
   logo_url: "",
   favicon_url: "",
   colors: {
@@ -75,10 +78,10 @@ const fallbackBranding: PublicTenantBranding = {
   },
   theme_mode: "vimeu_dark",
   slogan: "Tecnologia premium para gestao avancada",
-  footer_text: "CIFHER Prime",
+  footer_text: "RifaPro",
   support_whatsapp: "",
   login_logo_url: "",
-  login_title: "CIFHER Prime",
+  login_title: "RifaPro",
   login_subtitle: "Acesse seu ambiente exclusivo com segurança, controle e alta performance.",
   login_support_text: "Tecnologia premium para gestão inteligente, operação avançada e crescimento profissional.",
   login_background_url: "",
@@ -98,10 +101,14 @@ const fallbackBranding: PublicTenantBranding = {
 
 const TenantBrandingContext = createContext<{
   branding: PublicTenantBranding;
+  companyName: string;
+  logoUrl: string;
   loading: boolean;
   refresh: (force?: boolean) => Promise<void>;
 }>({
   branding: fallbackBranding,
+  companyName: "RifaPro",
+  logoUrl: "",
   loading: true,
   refresh: async (_force = false) => undefined
 });
@@ -116,9 +123,18 @@ function normalizeBranding(value: Partial<PublicTenantBranding> | null | undefin
   const source = objectOrEmpty<PublicTenantBranding>(value);
   const colors = objectOrEmpty<PublicTenantBranding["colors"]>(source.colors);
   const homeBranding = objectOrEmpty<NonNullable<PublicTenantBranding["home_branding"]>>(source.home_branding);
+  const companyName = resolveTenantCompanyName(source);
+  const logoUrl = resolveTenantLogoUrl(source);
   return {
     ...fallbackBranding,
     ...source,
+    company_name: sanitizeBrandingText(source.company_name, companyName, 120),
+    display_name: sanitizeBrandingText(source.display_name, companyName, 80),
+    header_name: sanitizeBrandingText(source.header_name, companyName, 80),
+    logo_url: logoUrl,
+    login_logo_url: sanitizeBrandingImageUrl(source.login_logo_url) || logoUrl,
+    favicon_url: sanitizeBrandingImageUrl(source.favicon_url),
+    login_background_url: sanitizeBrandingImageUrl(source.login_background_url),
     colors: {
       ...fallbackBranding.colors,
       ...colors
@@ -157,9 +173,9 @@ function applyBranding(branding: PublicTenantBranding) {
     document.head.appendChild(themeColor);
   }
   themeColor.content = primary;
-  const seoTitle = branding.seo?.meta_title || branding.display_name || branding.header_name;
+  const seoTitle = branding.seo?.meta_title || branding.company_name || branding.display_name || branding.header_name;
   const seoDescription = branding.seo?.meta_description || branding.slogan || "Sorteios premium com operacao profissional.";
-  document.title = seoTitle || "CIFHER Prime";
+  document.title = seoTitle || "RifaPro";
   const setMeta = (selector: string, attr: "name" | "property", key: string, content: string) => {
     let meta = document.querySelector<HTMLMetaElement>(selector);
     if (!meta) {
@@ -173,10 +189,11 @@ function applyBranding(branding: PublicTenantBranding) {
   setMeta('meta[name="keywords"]', "name", "keywords", branding.seo?.meta_keywords || "");
   setMeta('meta[property="og:title"]', "property", "og:title", branding.seo?.og_title || seoTitle || "");
   setMeta('meta[property="og:description"]', "property", "og:description", branding.seo?.og_description || seoDescription);
-  setMeta('meta[property="og:image"]', "property", "og:image", branding.seo?.og_image || branding.logo_url || "");
+  const safeLogoUrl = resolveTenantLogoUrl(branding);
+  setMeta('meta[property="og:image"]', "property", "og:image", branding.seo?.og_image || safeLogoUrl || "");
   setMeta('meta[name="twitter:title"]', "name", "twitter:title", branding.seo?.twitter_title || seoTitle || "");
   setMeta('meta[name="twitter:description"]', "name", "twitter:description", branding.seo?.twitter_description || seoDescription);
-  setMeta('meta[name="twitter:image"]', "name", "twitter:image", branding.seo?.twitter_image || branding.seo?.og_image || branding.logo_url || "");
+  setMeta('meta[name="twitter:image"]', "name", "twitter:image", branding.seo?.twitter_image || branding.seo?.og_image || safeLogoUrl || "");
   let customStyle = document.querySelector<HTMLStyleElement>('style[data-tenant-custom-css="true"]');
   if (!customStyle) {
     customStyle = document.createElement("style");
@@ -196,6 +213,7 @@ export function TenantBrandingProvider({ children }: { children: React.ReactNode
 
   const refresh = async (force = false) => {
     const cacheKey = window.location.host || "default";
+    if (force) cache.delete(cacheKey);
     const cached = cache.get(cacheKey);
     if (!force && cached && cached.expiresAt > Date.now()) {
       setBranding(cached.value);
@@ -203,7 +221,13 @@ export function TenantBrandingProvider({ children }: { children: React.ReactNode
       return;
     }
     try {
-      const response = await fetch("/api/public/branding", { headers: { Accept: "application/json" } });
+      const response = await fetch(`/api/public/branding${force ? `?t=${Date.now()}` : ""}`, {
+        cache: force ? "no-store" : "default",
+        headers: {
+          Accept: "application/json",
+          ...(force ? { "Cache-Control": "no-cache" } : {})
+        }
+      });
       if (!response.ok) throw new Error("branding_unavailable");
       const next = normalizeBranding(await response.json());
       cache.set(cacheKey, { value: next, expiresAt: Date.now() + 60_000 });
@@ -223,7 +247,9 @@ export function TenantBrandingProvider({ children }: { children: React.ReactNode
     applyBranding(branding);
   }, [branding]);
 
-  const value = useMemo(() => ({ branding, loading, refresh }), [branding, loading]);
+  const companyName = useMemo(() => resolveTenantCompanyName(branding), [branding]);
+  const logoUrl = useMemo(() => resolveTenantLogoUrl(branding), [branding]);
+  const value = useMemo(() => ({ branding, companyName, logoUrl, loading, refresh }), [branding, companyName, logoUrl, loading]);
   return <TenantBrandingContext.Provider value={value}>{children}</TenantBrandingContext.Provider>;
 }
 

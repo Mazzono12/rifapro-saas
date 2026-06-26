@@ -7,10 +7,10 @@ const home = readFileSync("src/pages/Home.tsx", "utf8");
 const raffleDetails = readFileSync("src/pages/RaffleDetails.tsx", "utf8");
 const affiliates = readFileSync("src/pages/Affiliates.tsx", "utf8");
 
-assert.match(server, /\/api\/raffles\/:id\/ranking[\s\S]*status === "paid"/, "Ranking da rifa deve considerar apenas compras pagas.");
+assert.match(server, /function isPaidRankingStatus[\s\S]*"paid"/, "Ranking da rifa deve considerar somente status pagos ou confirmados.");
 assert.match(server, /fazendinhaCompras\.filter\(item => item\.tenant_id === tenantId && item\.statusPagamento === "paid"\)/, "Ranking da Fazendinha deve ignorar reservas nao pagas.");
-assert.match(server, /buyerRanking[\s\S]*status === "paid"/, "Top compradores de gamificacao deve usar pedidos pagos.");
-assert.match(server, /sort\(\(a, b\) => b\.tickets - a\.tickets/, "Ranking deve ordenar por quantidade.");
+assert.match(server, /getBuyerRanking[\s\S]*isPaidRankingStatus\(purchase\.status\)/, "Top compradores deve usar pedidos pagos.");
+assert.match(server, /sort\(\(a, b\) => b\.amount - a\.amount/, "Ranking deve ordenar por valor pago em reais.");
 
 assert.match(server, /function normalizeTopSellerRewards[\s\S]*position[\s\S]*label[\s\S]*enabled/, "Premios Top Vendedores devem ser normalizados por posicao.");
 assert.match(server, /topSellerRewards: normalizeTopSellerRewards\(req\.body\.topSellerRewards/, "Admin deve persistir premios Top Vendedores por campanha.");
@@ -20,7 +20,7 @@ assert.match(server, /prizeLabel: reward\?\.enabled && reward\.label \? reward\.
 assert.match(server, /app\.get\("\/api\/raffles\/:id\/top-sellers"[\s\S]*buildAffiliateSellerRanking\(tenantId, \{ type: "raffle", id: raffle\.id \}/, "Endpoint publico de campanha deve retornar Top Vendedores por rifa.");
 assert.match(server, /app\.get\("\/api\/admin\/affiliates\/top-sellers"[\s\S]*buildAffiliateSellerRanking\(tenantId, \{ type: campaignType, id: campaignId \}/, "Endpoint admin deve retornar Top Vendedores por campanha.");
 
-for (const label of ["reward.position", "lugar", "Moto Pop 110", "iPhone", "R$ 1.000 Pix", "Premiação Top Vendedores"]) {
+for (const label of ["reward.position", "lugar", "Top Compradores", "Top Vendedores", "Adicionar posição", "Dinheiro", "Produto"]) {
   assert.ok(adminRaffles.includes(label), `Admin da campanha deve configurar ${label}`);
 }
 
