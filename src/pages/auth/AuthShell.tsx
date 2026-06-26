@@ -22,7 +22,7 @@ export function AuthShell({ title, subtitle, children }: { title?: string; subti
   ];
 
   return (
-    <PremiumPageLayout className="overflow-hidden">
+    <PremiumPageLayout className="auth-light-shell overflow-hidden">
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{

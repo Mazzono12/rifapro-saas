@@ -30806,3 +30806,149 @@ html body #root a.home-secondary-action-cta > span {
   background-image: none !important;
   text-shadow: none !important;
 }
+
+/* Admin/auth access screen: white premium shell, isolated from public dark theme locks. */
+html body #root .auth-light-shell,
+html body #root .auth-light-shell.premium-page,
+html body #root .auth-light-shell > .relative {
+  min-height: 100vh !important;
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+html body #root .auth-light-shell .premium-ambient,
+html body #root .auth-light-shell .absolute.inset-0 {
+  background: #f8fafc !important;
+  background-image: none !important;
+  opacity: 1 !important;
+}
+html body #root .auth-light-shell main {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+html body #root .auth-light-shell section {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12) !important;
+}
+html body #root .auth-light-shell section > div,
+html body #root .auth-light-shell form,
+html body #root .auth-light-shell label,
+html body #root .auth-light-shell span,
+html body #root .auth-light-shell p,
+html body #root .auth-light-shell h1,
+html body #root .auth-light-shell h2 {
+  background-color: transparent !important;
+  color: #0f172a !important;
+}
+html body #root .auth-light-shell .text-slate-300,
+html body #root .auth-light-shell .text-slate-400,
+html body #root .auth-light-shell .text-slate-500 {
+  color: #64748b !important;
+}
+html body #root .auth-light-shell input {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid #dbe3ef !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+html body #root .auth-light-shell input::placeholder {
+  color: #94a3b8 !important;
+}
+html body #root .auth-light-shell button[type="submit"],
+html body #root .auth-light-shell form > button {
+  background: #2563eb !important;
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 16px 36px rgba(37, 99, 235, 0.22) !important;
+}
+html body #root .auth-light-shell button[type="submit"] *,
+html body #root .auth-light-shell form > button * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Admin runtime shell: final white premium lock for the actual /admin app shell. */
+html body:has(#root .rp-admin-shell),
+html body:has(#root .rp-admin-shell) #root {
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  color: #111827 !important;
+  color-scheme: light !important;
+}
+
+html body #root .rp-admin-shell,
+html body #root .rp-admin-shell .rp-admin-main,
+html body #root .rp-admin-shell .rp-admin-content,
+html body #root .rp-admin-shell .rp-admin-page {
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  background-image: none !important;
+  color: #111827 !important;
+  color-scheme: light !important;
+}
+
+html body #root .rp-admin-shell .rp-admin-sidebar,
+html body #root .rp-admin-shell .rp-admin-brand,
+html body #root .rp-admin-shell .rp-admin-nav-group,
+html body #root .rp-admin-shell .rp-admin-topbar,
+html body #root .rp-admin-shell .rp-admin-search,
+html body #root .rp-admin-shell .rp-admin-profile,
+html body #root .rp-admin-shell .rp-admin-section,
+html body #root .rp-admin-shell .rp-admin-card,
+html body #root .rp-admin-shell .rp-admin-table-wrap,
+html body #root .rp-admin-shell .rp-admin-filters,
+html body #root .rp-admin-shell .rp-admin-tabs,
+html body #root .rp-admin-shell .admin-card,
+html body #root .rp-admin-shell .admin-table-shell,
+html body #root .rp-admin-shell .admin-page-shell {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+  box-shadow: none !important;
+}
+
+html body #root .rp-admin-shell .rp-admin-icon-button,
+html body #root .rp-admin-shell .rp-admin-sidebar-toggle,
+html body #root .rp-admin-shell button.rp-admin-icon-button {
+  background: #eff6ff !important;
+  background-color: #eff6ff !important;
+  background-image: none !important;
+  color: #2563eb !important;
+  border-color: #dbeafe !important;
+}
+
+html body #root .rp-admin-shell .rp-admin-icon-button svg,
+html body #root .rp-admin-shell .rp-admin-sidebar-toggle svg {
+  color: #2563eb !important;
+  stroke: #2563eb !important;
+}
+
+html body #root .rp-admin-shell input,
+html body #root .rp-admin-shell select,
+html body #root .rp-admin-shell textarea,
+html body #root .rp-admin-shell .rp-admin-input {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+  color-scheme: light !important;
+}
+
+html body #root .rp-admin-shell [class*="bg-black"],
+html body #root .rp-admin-shell [class*="from-black"],
+html body #root .rp-admin-shell [class*="to-black"],
+html body #root .rp-admin-shell [class*="via-black"],
+html body #root .rp-admin-shell [class*="bg-zinc-950"],
+html body #root .rp-admin-shell [class*="bg-neutral-950"],
+html body #root .rp-admin-shell [class*="bg-slate-950"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+}

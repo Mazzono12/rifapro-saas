@@ -58,6 +58,7 @@ import { PagbankProvider } from "./src/server/payments/PagbankProvider";
 import { MercadoPagoProvider } from "./src/server/payments/MercadoPagoProvider";
 import { CoraProvider } from "./src/server/payments/CoraProvider";
 import { PrimepagProvider } from "./src/server/payments/PrimepagProvider";
+import { INVALID_CPF_MESSAGE, invalidCpfApiResponse, isInvalidCpfGatewayError, isValidCpf } from "./src/utils/cpf";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10175,7 +10176,7 @@ async function startServer() {
 
     if (!payload.name || String(payload.name).trim().length < 3) throw new Error("Nome obrigatório");
     if (!phone || phone.length < 10) throw new Error("Telefone inválido");
-    if (!cpf || cpf.length !== 11) throw new Error("CPF inválido");
+    if (!cpf || !isValidCpf(cpf)) throw new Error(INVALID_CPF_MESSAGE);
     if (!accessPassword) throw new Error("Senha de 6 dígitos obrigatória");
     const customer: CustomerRecord = {
       id: createPublicId("C_"),
@@ -12060,6 +12061,59 @@ async function startServer() {
           { status: "cancelled", label: "Reserva expirada automaticamente", date: new Date().toISOString() }
         ];
       });
+  }
+
+  function findReusablePendingPixPurchaseForCpf(input: { tenantId: string; raffleId: string; cpf: string }) {
+    const cpf = normalizeCpf(input.cpf);
+    if (!cpf) return null;
+    const candidates = purchases
+      .filter(purchase =>
+        purchase.tenant_id === input.tenantId &&
+        purchase.raffleId === input.raffleId &&
+        purchase.status === "pending" &&
+        normalizeCpf(purchase.customer?.cpf || "") === cpf
+      )
+      .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime());
+
+    for (const purchase of candidates) {
+      if (isPastReservationExpiry(purchase.reservedUntil || purchase.pixExpiresAt)) {
+        const raffle = raffles.find(item => item.tenant_id === purchase.tenant_id && item.id === purchase.raffleId);
+        if (raffle && purchase.numeros.length) releaseReservedNumbers(raffle, purchase.numeros);
+        purchase.status = "cancelled";
+        purchase.rejectedReason = "Reserva expirada";
+        purchase.paymentHistory = [
+          ...(purchase.paymentHistory || []),
+          { status: "cancelled", label: "Reserva expirada automaticamente", date: new Date().toISOString() }
+        ];
+        continue;
+      }
+      if (purchase.pixPayload || purchase.pixQrCodeBase64 || purchase.externalPaymentId) return purchase;
+    }
+
+    return null;
+  }
+
+  function buildReusablePendingPixResponse(purchase: PurchaseRecord) {
+    const publicPurchase = sanitizePublicPurchase(purchase) as PurchaseRecord & Record<string, any>;
+    const pixPayload = String(publicPurchase.pixPayload || publicPurchase.pix_payload || publicPurchase.pix_copy_paste || publicPurchase.copyPaste || publicPurchase.paymentCode || "");
+    const pixQrCodeBase64 = String(publicPurchase.pixQrCodeBase64 || publicPurchase.qrCodeBase64 || publicPurchase.qr_code_base64 || publicPurchase.encodedImage || "");
+    const pixQrCode = String(publicPurchase.pixQrCode || publicPurchase.qrCode || (pixQrCodeBase64 ? (/^(data:image\/|https?:\/\/)/i.test(pixQrCodeBase64) ? pixQrCodeBase64 : `data:image/png;base64,${pixQrCodeBase64}`) : ""));
+    return stripSensitiveCustomerFields({
+      success: true,
+      reused: true,
+      reason: "PENDING_PIX_ALREADY_EXISTS",
+      orderId: purchase.purchaseId,
+      status: "pending",
+      paymentStatus: "pending",
+      pixPayload,
+      pixQrCode,
+      pixQrCodeBase64,
+      pixExpiresAt: purchase.pixExpiresAt || purchase.reservedUntil,
+      reservedUntil: purchase.reservedUntil,
+      redirectUrl: `/checkout/pedido/${encodeURIComponent(purchase.purchaseId)}`,
+      purchase: publicPurchase,
+      message: "Encontramos um PIX pendente para este CPF. Continue o pagamento para finalizar sua compra."
+    });
   }
 
   function expireNumberModeReservations(tenantId?: string, mode?: NumberModeId) {
@@ -14739,6 +14793,11 @@ async function startServer() {
       res.status(400).json({ error: "Quantidade inválida" });
       return;
     }
+    const checkoutCpf = normalizeCpf(req.body.customer?.cpf || "");
+    if (!isValidCpf(checkoutCpf)) {
+      res.status(400).json(invalidCpfApiResponse());
+      return;
+    }
     let customer: CustomerRecord;
     try {
       customer = findOrCreateCustomer({ ...req.body.customer, contact, campaignId: id, raffleId: id }, refCode, getBrowserIdFromRequest(req), tenantId);
@@ -14782,6 +14841,12 @@ async function startServer() {
       return;
     }
     expirePendingReservations(tenantId, id);
+    const reusablePendingPix = findReusablePendingPixPurchaseForCpf({ tenantId, raffleId: id, cpf: checkoutCpf });
+    if (reusablePendingPix) {
+      await refreshAsaasPixForPendingPurchase(tenantId, reusablePendingPix);
+      res.json(buildReusablePendingPixResponse(reusablePendingPix));
+      return;
+    }
 
     if (raffle.soldTickets + tickets > raffle.totalTickets) {
         res.status(400).json({ error: "Quantidade indisponível" });
@@ -14959,6 +15024,11 @@ async function startServer() {
       if (addonRaffle && addonReservedNumbers.length) releaseReservedNumbers(addonRaffle, addonReservedNumbers);
       purchase.status = "cancelled";
       const gateway = purchase.pixGateway || pixConfig.gateway || "pix";
+      if (isInvalidCpfGatewayError(error)) {
+        recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId, status: "failed", message: INVALID_CPF_MESSAGE, statusCode: 400, eventStatus: "INVALID_CPF" });
+        res.status(400).json(invalidCpfApiResponse());
+        return;
+      }
       const message = error instanceof Error ? error.message : `Falha ao criar PIX ${gateway}`;
       recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId, status: "failed", message, statusCode: 502, eventStatus: "PAYMENT_CREATE_FAILED" });
       const publicMessage = /configura/i.test(message) || /credencia/i.test(message) || /chave api/i.test(message)

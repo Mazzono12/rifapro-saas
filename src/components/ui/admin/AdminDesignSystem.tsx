@@ -12,8 +12,7 @@ import {
   LayoutDashboard,
   LogOut,
   Moon,
-  Package,
-  PanelLeftClose,
+  Package,  PanelLeftClose,
   PanelLeftOpen,
   Search,
   Settings,
@@ -76,7 +75,14 @@ const adminGroups: NavGroup[] = [
     items: [
       { label: "Promocoes", to: "/admin/promocoes", icon: Sparkles },
       { label: "Gamificacao", to: "/admin/gamificacao", icon: Trophy },
-      { label: "Relatorios", to: "/admin/relatorios", icon: FileBarChart },
+      { label: "Relatorios", to: "/admin/relatorios", icon: FileBarChart }
+    ]
+  },
+  {
+    title: "Sistema",
+    items: [
+      { label: "Aparencia", to: "/admin/aparencia", icon: Settings },
+      { label: "Integracoes", to: "/admin/integracoes", icon: Package },
       { label: "Configuracoes", to: "/admin/configuracoes", icon: Settings }
     ]
   }

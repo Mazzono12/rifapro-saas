@@ -21,6 +21,11 @@ export function BrandingSettingsForm({
   faviconEndpoint: string;
 }) {
   const set = (field: string, nextValue: any) => onChange({ ...value, [field]: nextValue });
+  const normalizePublicLink = (nextValue: string) => {
+    const trimmed = nextValue.trim();
+    if (!trimmed || trimmed.startsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return trimmed;
+    return "https://" + trimmed;
+  };
   const homeBranding = value.home_branding || value.homeBranding || value.metadata?.homeBranding || {};
   const mergeUploadedBranding = (uploaded: any) => {
     const nextLogoUrl = uploaded.logo_url || value.logo_url || "";
@@ -72,9 +77,11 @@ export function BrandingSettingsForm({
     });
   };
   const setHomeBranding = (field: string, nextValue: any) => {
+    const normalizedValue = typeof nextValue === "string" ? normalizePublicLink(nextValue) : nextValue;
     const nextHomeBranding = {
       ...homeBranding,
-      [field]: nextValue,
+      [field]: normalizedValue,
+      ...(field === "officialGroup" ? { group: normalizedValue } : {}),
       brandLayout: "inline",
       logoPosition: "left"
     };
@@ -127,9 +134,9 @@ export function BrandingSettingsForm({
             </div>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
-            <label className="grid gap-2 text-sm font-semibold text-slate-300">WhatsApp da Home<input value={homeBranding.whatsapp || ""} onChange={event => setHomeBranding("whatsapp", event.target.value)} className="admin-input" placeholder="https://wa.me/..." /></label>
-            <label className="grid gap-2 text-sm font-semibold text-slate-300">Instagram da Home<input value={homeBranding.instagram || ""} onChange={event => setHomeBranding("instagram", event.target.value)} className="admin-input" placeholder="https://instagram.com/..." /></label>
-            <label className="grid gap-2 text-sm font-semibold text-slate-300">Grupo Oficial<input value={homeBranding.officialGroup || ""} onChange={event => setHomeBranding("officialGroup", event.target.value)} className="admin-input" placeholder="https://chat.whatsapp.com/..." /></label>
+            <label className="grid gap-2 text-sm font-semibold text-slate-300">Link do WhatsApp da Home<input value={homeBranding.whatsapp || ""} onChange={event => setHomeBranding("whatsapp", event.target.value)} className="admin-input" placeholder="https://wa.me/5599999999999" /></label>
+            <label className="grid gap-2 text-sm font-semibold text-slate-300">Link do Instagram da Home<input value={homeBranding.instagram || ""} onChange={event => setHomeBranding("instagram", event.target.value)} className="admin-input" placeholder="https://instagram.com/suaempresa" /></label>
+            <label className="grid gap-2 text-sm font-semibold text-slate-300">Link do Grupo Oficial do WhatsApp<input value={homeBranding.officialGroup || homeBranding.group || ""} onChange={event => setHomeBranding("officialGroup", event.target.value)} className="admin-input" placeholder="https://chat.whatsapp.com/seu-grupo" /></label>
           </div>
         </div>
         <div className="mt-2 grid gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">

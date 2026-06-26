@@ -41,6 +41,7 @@ import { useTenantBranding } from "../context/tenant-branding/TenantBrandingCont
 import { PublicConversionWidgets } from "../components/PublicConversionWidgets";
 import { ResponsiveMediaFrame } from "../components/ResponsiveMediaFrame";
 import { inferMediaType, type MediaType } from "../utils/media";
+import { getCpfValidationError, INVALID_CPF_MESSAGE } from "../utils/cpf";
 
 /* clean-media contract: StandardRaffleMediaBlock CheckoutCampaignMedia */
 /* ui-contrast/mobile contract: Confirmar PIX premium-button Field label="Cidade" Field label="WhatsApp" FloatingActions */
@@ -210,6 +211,7 @@ export function RaffleDetails() {
   const [couponPreview, setCouponPreview] = useState<{ discount: number; bonusTickets: number; total: number; coupon?: { code: string } } | null>(null);
   const [useBalance, setUseBalance] = useState(false);
   const [customerForm, setCustomerForm] = useState<CheckoutCustomerForm>({ name: "", phone: "", cpf: "", city: "", state: "", accessPassword: "", knownCustomer: false });
+  const [cpfError, setCpfError] = useState("");
   const notifiedPrizePurchase = useRef<string | null>(null);
   const { purchase: polledPurchase } = usePurchasePolling(purchase?.purchaseId, 7000);
   const { detectedCity } = useCityDetection();
@@ -379,6 +381,13 @@ export function RaffleDetails() {
     if (!raffle) return;
     const form = resolvedCustomer ? { ...customerForm, ...resolvedCustomer, knownCustomer: true } : customerForm;
     const phone = (recognizedCustomer?.phone || form.phone || "").replace(/\D/g, "");
+    const cpfMessage = getCpfValidationError(recognizedCustomer?.cpf || form.cpf);
+    if (cpfMessage) {
+      setCpfError(cpfMessage);
+      toast.error(cpfMessage);
+      return false;
+    }
+    setCpfError("");
     if (!phone) {
       toast.error("Informe seu WhatsApp");
       return false;
@@ -454,7 +463,17 @@ export function RaffleDetails() {
         })
       });
       const data = normalizePixPurchase(await readJsonSafely(res));
-      if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Não foi possível gerar o PIX. Tente novamente ou fale com o suporte."));
+      if (!res.ok) {
+        if ((data as any)?.code === "INVALID_CPF" || (data as any)?.field === "cpf") {
+          const message = String((data as any)?.message || INVALID_CPF_MESSAGE);
+          setCpfError(message);
+          setCheckoutStep("review");
+          setCheckoutOpen(true);
+          setReceiptOpen(false);
+          throw new Error(message);
+        }
+        throw new Error(getFriendlyErrorMessage(data, "Não foi possível gerar o PIX. Tente novamente ou fale com o suporte."));
+      }
       const redirectUrl = getCheckoutRedirectUrl(data);
       if (data.status !== "paid" && !redirectUrl && !getPixPayload(data) && !getPixQrCodeBase64(data)) {
         throw new Error("Não foi possível gerar o PIX. Tente novamente ou fale com o suporte.");
@@ -466,8 +485,12 @@ export function RaffleDetails() {
       if (data.status === "paid") {
         setCheckoutStep("ticket");
       }
-      finishMetric("pix_generation", { raffleId: id, status: data.status });
-      toast.success("PIX gerado", { description: `${tickets} cotas reservadas para voce.` });
+      finishMetric("pix_generation", { raffleId: id, status: data.status, reused: Boolean((data as any)?.reused) });
+      if ((data as any)?.reused) {
+        toast.info("PIX pendente encontrado", { description: "Encontramos um PIX pendente para este CPF. Continue o pagamento para finalizar sua compra." });
+      } else {
+        toast.success("PIX gerado", { description: `${tickets} cotas reservadas para voce.` });
+      }
       if (data.status !== "paid" && redirectUrl) {
         navigate(redirectUrl);
         return;
@@ -619,6 +642,8 @@ export function RaffleDetails() {
         customer={recognizedCustomer}
         customerForm={customerForm}
         setCustomerForm={setCustomerForm}
+        cpfError={cpfError}
+        setCpfError={setCpfError}
         customerMode={customerMode}
         setCustomerMode={setCustomerMode}
         requireIdentity={requireIdentity}
@@ -1350,6 +1375,8 @@ function CheckoutModal(props: {
   customer: any;
   customerForm: any;
   setCustomerForm: React.Dispatch<React.SetStateAction<any>>;
+  cpfError: string;
+  setCpfError: (value: string) => void;
   customerMode: "register" | "login";
   setCustomerMode: (mode: "register" | "login") => void;
   requireIdentity: boolean;
@@ -1449,10 +1476,13 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         toast.error("Informe seu WhatsApp");
         return;
       }
-      if (cpfDigits.length !== 11) {
-        toast.error("Informe seu CPF para continuar");
+      const cpfMessage = getCpfValidationError(cpfDigits);
+      if (cpfMessage) {
+        props.setCpfError(cpfMessage);
+        toast.error(cpfMessage);
         return;
       }
+      props.setCpfError("");
       if (!props.customerForm.knownCustomer && !/^\d{6}$/.test(String(props.customerForm.accessPassword || ""))) {
         toast.error("Crie uma senha de acesso com 6 digitos");
         return;
@@ -1480,7 +1510,7 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
         <div className="cfx-review-buyer-form">
           <Field label="Nome completo" value={props.customerForm.name} onChange={value => props.setCustomerForm((current: any) => ({ ...current, name: value }))} autoComplete="name" />
           <Field label="WhatsApp" value={props.customerForm.phone} onChange={value => props.setCustomerForm((current: any) => ({ ...current, phone: value, knownCustomer: false }))} inputMode="tel" autoComplete="tel" />
-          <Field label="CPF" value={props.customerForm.cpf} onChange={value => props.setCustomerForm((current: any) => ({ ...current, cpf: value.replace(/\D/g, "").slice(0, 11), knownCustomer: false }))} required inputMode="numeric" maxLength={11} autoComplete="off" />
+          <Field label="CPF" value={props.customerForm.cpf} onChange={value => { props.setCpfError(""); props.setCustomerForm((current: any) => ({ ...current, cpf: value.replace(/\D/g, "").slice(0, 11), knownCustomer: false })); }} required inputMode="numeric" maxLength={11} autoComplete="off" error={props.cpfError} />
           <Field label="Senha de acesso com 6 digitos" value={props.customerForm.accessPassword} onChange={value => props.setCustomerForm((current: any) => ({ ...current, accessPassword: value.replace(/\D/g, "").slice(0, 6) }))} inputMode="numeric" maxLength={6} autoComplete="one-time-code" />
           <p className="cfx-review-cpf-hint">Se este CPF ou WhatsApp ja comprou antes, usamos seus dados salvos e seguimos para o recibo.</p>
         </div>
@@ -1912,11 +1942,12 @@ function InfoCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Field({ label, value, onChange, required, inputMode, maxLength, autoComplete }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]; maxLength?: number; autoComplete?: string }) {
+function Field({ label, value, onChange, required, inputMode, maxLength, autoComplete, error }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]; maxLength?: number; autoComplete?: string; error?: string }) {
   return (
     <label className="block">
       <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">{label}</span>
-      <input aria-label={label} value={value} onChange={e => onChange(e.target.value)} required={required} inputMode={inputMode} maxLength={maxLength} autoComplete={autoComplete} className="min-h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-[var(--theme-primary)] focus:ring-4 focus:ring-cyan-300/10" />
+      <input aria-label={label} value={value} onChange={e => onChange(e.target.value)} required={required} inputMode={inputMode} maxLength={maxLength} autoComplete={autoComplete} aria-invalid={Boolean(error)} className={cn("min-h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-[var(--theme-primary)] focus:ring-4 focus:ring-cyan-300/10", error && "border-red-400 bg-red-950/30")} />
+      {error && <small className="mt-2 block text-sm font-semibold text-red-200">{error}</small>}
     </label>
   );
 }
