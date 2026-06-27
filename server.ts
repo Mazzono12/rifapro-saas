@@ -11919,6 +11919,34 @@ async function startServer() {
     return Boolean(value) && new Date(value || "").getTime() <= Date.now();
   }
 
+  const criticalReservationLocks = new Map<string, Promise<void>>();
+
+  async function withCriticalReservationLocks<T>(keys: string[], task: () => Promise<T> | T): Promise<T> {
+    const lockKeys = Array.from(new Set(keys.map(key => String(key || "").trim()).filter(Boolean))).sort();
+    const releases: Array<() => void> = [];
+    for (const key of lockKeys) {
+      const previous = criticalReservationLocks.get(key) || Promise.resolve();
+      let release!: () => void;
+      const current = new Promise<void>(resolve => { release = resolve; });
+      const chained = previous.then(() => current);
+      criticalReservationLocks.set(key, chained);
+      await previous;
+      releases.push(() => {
+        release();
+        if (criticalReservationLocks.get(key) === chained) criticalReservationLocks.delete(key);
+      });
+    }
+    try {
+      return await task();
+    } finally {
+      releases.reverse().forEach(release => release());
+    }
+  }
+
+  async function persistCriticalReservationState(reason: string) {
+    await persistAllState(reason);
+  }
+
   function normalizeOptionalIsoDate(value: unknown) {
     if (value === null || value === undefined || value === "") return "";
     const date = new Date(String(value));
@@ -14934,10 +14962,19 @@ async function startServer() {
     let reservedNumbers: number[] = [];
     let addonReservedNumbers: number[] = [];
     try {
-      reservedNumbers = reserveAvailableNumbers(raffle, effectiveTickets);
-      if (addonRaffle && addonTickets > 0) {
-        addonReservedNumbers = reserveAvailableNumbers(addonRaffle, addonTickets);
-      }
+      await withCriticalReservationLocks([
+        `raffle:${tenantId}:${id}`,
+        ...(addonRaffle && addonTickets > 0 ? [`raffle:${tenantId}:${addonRaffle.id}`] : [])
+      ], async () => {
+        expirePendingReservations(tenantId, id);
+        if (addonRaffle) expirePendingReservations(tenantId, addonRaffle.id);
+        if (raffle.soldTickets + effectiveTickets > raffle.totalTickets) throw new Error("Quantidade com bonus indisponivel");
+        if (addonRaffle && addonRaffle.soldTickets + addonTickets > addonRaffle.totalTickets) throw new Error("Quantidade adicional indisponivel");
+        reservedNumbers = reserveAvailableNumbers(raffle, effectiveTickets);
+        if (addonRaffle && addonTickets > 0) {
+          addonReservedNumbers = reserveAvailableNumbers(addonRaffle, addonTickets);
+        }
+      });
     } catch (error) {
       if (reservedNumbers.length) releaseReservedNumbers(raffle, reservedNumbers);
       if (addonRaffle && addonReservedNumbers.length) releaseReservedNumbers(addonRaffle, addonReservedNumbers);
@@ -15007,6 +15044,10 @@ async function startServer() {
       }];
     }
 
+    purchases.push(purchase);
+    if (purchase.linkedPurchases) purchases.push(...purchase.linkedPurchases);
+    await persistCriticalReservationState("checkout-raffle-reservation-created");
+
     if (balancePayment > 0 && ownAffiliate) {
       debitAffiliateWallet(ownAffiliate, balancePayment);
       ownAffiliate.history.push({ amount: -balancePayment, type: "balance_purchase", date: new Date().toISOString() });
@@ -15036,7 +15077,9 @@ async function startServer() {
     } catch (error) {
       releaseReservedNumbers(raffle, reservedNumbers);
       if (addonRaffle && addonReservedNumbers.length) releaseReservedNumbers(addonRaffle, addonReservedNumbers);
+      purchases = purchases.filter(item => item.purchaseId !== purchase.purchaseId && !purchase.linkedPurchases?.some(linked => linked.purchaseId === item.purchaseId));
       purchase.status = "cancelled";
+      await persistCriticalReservationState("checkout-raffle-reservation-reverted");
       const gateway = purchase.pixGateway || pixConfig.gateway || "pix";
       if (isInvalidCpfGatewayError(error)) {
         recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId, status: "failed", message: INVALID_CPF_MESSAGE, statusCode: 400, eventStatus: "INVALID_CPF" });
@@ -15053,10 +15096,7 @@ async function startServer() {
     }
 
     if (coupon) coupon.used++;
-    
-    purchases.push(purchase);
-    if (purchase.linkedPurchases) purchases.push(...purchase.linkedPurchases);
-    schedulePersistentStateSave("checkout-purchase-created", 0);
+    await persistCriticalReservationState("checkout-purchase-created");
     notifyTenantAdmins({
       tenantId,
       type: "new_sale",
@@ -15303,7 +15343,7 @@ async function startServer() {
       res.status(403).json({ error: "Modalidade indisponivel no momento" });
       return;
     }
-    if (!gateways.pix?.enabled) {
+    if (!getTenantGateways(tenantId).pix?.enabled) {
       res.status(503).json({ error: "PIX temporariamente desabilitado pelo admin" });
       return;
     }
@@ -15316,14 +15356,6 @@ async function startServer() {
       res.status(400).json({ error: "Selecione ao menos um numero valido" });
       return;
     }
-    expireNumberModeReservations(tenantId, mode);
-    const sold = new Set(numberModeBets.filter(bet => bet.tenant_id === tenantId && bet.mode === mode && ["reserved", "paid"].includes(bet.status)).map(bet => bet.number));
-    const duplicate = numbers.find(number => sold.has(number));
-    if (duplicate) {
-      res.status(409).json({ error: `Numero ${duplicate} ja foi reservado ou vendido` });
-      return;
-    }
-
     let customer: CustomerRecord;
     try {
       customer = findOrCreateCustomer({ ...(req.body.customer || {}), campaignId: mode, modalityType: mode }, req.body.refCode, getBrowserIdFromRequest(req), tenantId);
@@ -15351,6 +15383,33 @@ async function startServer() {
       refCode: req.body.refCode
     };
     try {
+      await withCriticalReservationLocks(numbers.map(number => `number-mode:${tenantId}:${mode}:${number}`), async () => {
+        expireNumberModeReservations(tenantId, mode);
+        const sold = new Set(numberModeBets.filter(bet => bet.tenant_id === tenantId && bet.mode === mode && ["reserved", "paid"].includes(bet.status)).map(bet => bet.number));
+        const duplicate = numbers.find(number => sold.has(number));
+        if (duplicate) throw new Error(`Numero ${duplicate} ja foi reservado ou vendido`);
+        numberModePurchases.unshift(purchase);
+        numbers.forEach(number => {
+          numberModeBets.push({
+            id: createPublicId("AP_"),
+            tenant_id: tenantId,
+            mode,
+            number,
+            purchaseId: purchase.id,
+            customerId: customer.id,
+            status: purchase.status,
+            createdAt: purchase.createdAt,
+            reservedUntil: purchase.reservedUntil,
+            pixExpiresAt: purchase.pixExpiresAt
+          });
+        });
+        await persistCriticalReservationState("number-mode-reservation-created");
+      });
+    } catch (error) {
+      res.status(409).json({ error: error instanceof Error ? error.message : "Numeros ja reservados ou vendidos" });
+      return;
+    }
+    try {
       await attachActiveGatewayPixToOrder({
         tenantId,
         purchase,
@@ -15359,27 +15418,15 @@ async function startServer() {
         description: `Pedido ${purchase.id} - ${config.name}`,
         pixExpiresAt: fastExpiresAt
       });
+      await persistCriticalReservationState("number-mode-pix-created");
     } catch (error) {
+      numberModePurchases = numberModePurchases.filter(item => !(item.tenant_id === tenantId && item.id === purchase.id));
+      numberModeBets = numberModeBets.filter(bet => !(bet.tenant_id === tenantId && bet.purchaseId === purchase.id));
+      await persistCriticalReservationState("number-mode-reservation-reverted");
       recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "asaas", purchaseId: purchase.id, status: "failed", message: error instanceof Error ? error.message : "Falha ao criar PIX Asaas", statusCode: 502, eventStatus: "PAYMENT_CREATE_FAILED" });
       res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao criar PIX Asaas" });
       return;
     }
-    numberModePurchases.unshift(purchase);
-    numbers.forEach(number => {
-      numberModeBets.push({
-        id: createPublicId("AP_"),
-        tenant_id: tenantId,
-        mode,
-        number,
-        purchaseId: purchase.id,
-        customerId: customer.id,
-        status: purchase.status,
-        createdAt: purchase.createdAt,
-        reservedUntil: purchase.reservedUntil,
-        pixExpiresAt: purchase.pixExpiresAt
-      });
-    });
-    schedulePersistentStateSave("number-mode-reservation-created", 0);
 
     config.lootboxConfig = createScopedLootboxConfig(config.lootboxConfig);
     const earnedLootboxes = paid && config.lootboxEnabled
@@ -15437,11 +15484,6 @@ async function startServer() {
       .filter((group): group is FazendinhaGroup => Boolean(group));
     if (!selectedGroups.length || selectedGroups.length !== groupIds.length) {
       res.status(404).json({ error: "Selecione grupos validos da Fazendinha" });
-      return null;
-    }
-    const unavailable = selectedGroups.find(group => group.status !== "available");
-    if (unavailable) {
-      res.status(409).json({ error: `${unavailable.nomeBicho} ja foi reservado ou vendido` });
       return null;
     }
 
@@ -15508,6 +15550,27 @@ async function startServer() {
     }
 
     try {
+      await withCriticalReservationLocks(groupIds.map(groupId => `fazendinha:${tenantId}:${groupId}`), async () => {
+        expireFazendinhaReservations(tenantId);
+        const unavailable = selectedGroups.find(group => group.status !== "available");
+        if (unavailable) throw new Error(`${unavailable.nomeBicho} ja foi reservado ou vendido`);
+        selectedGroups.forEach(group => {
+          group.status = "reserved";
+          group.compradorId = customer.id;
+          group.compraId = purchase.id;
+        });
+        fazendinhaCompras.unshift(purchase);
+        await persistCriticalReservationState("fazendinha-reservation-created");
+      });
+    } catch (error) {
+      if (purchase.linkedPurchases?.length) {
+        purchases = purchases.filter(item => !purchase.linkedPurchases?.some(linked => linked.purchaseId === item.purchaseId));
+      }
+      res.status(409).json({ error: error instanceof Error ? error.message : "Grupo ja reservado ou vendido" });
+      return null;
+    }
+
+    try {
       await attachActiveGatewayPixToOrder({
         tenantId,
         purchase,
@@ -15525,10 +15588,20 @@ async function startServer() {
         linked.pixQrCodeBase64 = (purchase as FazendinhaPurchase & { pixQrCodeBase64?: string }).pixQrCodeBase64;
         linked.pixExpiresAt = purchase.pixExpiresAt;
       });
+      await persistCriticalReservationState("fazendinha-pix-created");
     } catch (error) {
+      selectedGroups.forEach(group => {
+        if (group.compraId === purchase.id) {
+          group.status = "available";
+          delete group.compradorId;
+          delete group.compraId;
+        }
+      });
+      fazendinhaCompras = fazendinhaCompras.filter(item => !(item.tenant_id === tenantId && item.id === purchase.id));
       if (purchase.linkedPurchases?.length) {
         purchases = purchases.filter(item => !purchase.linkedPurchases?.some(linked => linked.purchaseId === item.purchaseId));
       }
+      await persistCriticalReservationState("fazendinha-reservation-reverted");
       recordPaymentWebhookLog({ tenant_id: tenantId, gateway: "asaas", purchaseId: purchase.id, status: "failed", message: error instanceof Error ? error.message : "Falha ao criar PIX Asaas", statusCode: 502, eventStatus: "PAYMENT_CREATE_FAILED" });
       res.status(502).json({ error: error instanceof Error ? error.message : "Falha ao criar PIX Asaas" });
       return null;
@@ -15552,13 +15625,7 @@ async function startServer() {
         saleCreatedAt: purchase.dataCompra
       });
     }
-    selectedGroups.forEach(group => {
-      group.status = paid ? "sold" : "reserved";
-      group.compradorId = customer.id;
-      group.compraId = purchase.id;
-    });
-    fazendinhaCompras.unshift(purchase);
-    schedulePersistentStateSave("fazendinha-reservation-created", 0);
+
     const pixPayload = (purchase as FazendinhaPurchase & { pixPayload?: string }).pixPayload || "";
     if (purchase.statusPagamento !== "paid" && !pixPayload) {
       res.status(502).json({ error: "Gateway PIX nao retornou codigo copia e cola. Verifique a configuracao de producao." });
@@ -21747,11 +21814,19 @@ async function startServer() {
       if (modePurchase?.status === "reserved") {
         modePurchase.status = "cancelled";
         modePurchase.paymentStatus = "cancelled";
+        numberModeBets = numberModeBets.filter(bet => !(bet.tenant_id === tenantId && bet.purchaseId === modePurchase.id));
       }
       const farmPurchase = fazendinhaCompras.find(item => item.tenant_id === tenantId && item.id === orderToCancel);
       if (farmPurchase?.statusPagamento === "reserved") {
         farmPurchase.statusPagamento = "cancelled";
         farmPurchase.paymentStatus = "cancelled";
+        fazendinhaGroups
+          .filter(group => group.tenant_id === tenantId && group.compraId === farmPurchase.id && group.status === "reserved")
+          .forEach(group => {
+            group.status = "available";
+            delete group.compradorId;
+            delete group.compraId;
+          });
       }
       schedulePersistentStateSave("asaas-terminal-webhook", 0);
       recordPaymentWebhookLog({ tenant_id: tenantId, gateway, purchaseId: payment?.order_id || purchaseIdToConfirm, status: "ignored", message: `Asaas ${rawStatus}`, statusCode: 200, eventStatus: rawStatus });
@@ -27732,6 +27807,13 @@ async function startServer() {
 }
 
 startServer();
+
+
+
+
+
+
+
 
 
 
