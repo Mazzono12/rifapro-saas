@@ -430,6 +430,7 @@ function HomeV1Brand({ branding }: { branding: any }) {
       <PublicBrandMark
         eager
         inline
+        showName={false}
         logoClassName="cfx-v1-brand-logo"
         nameClassName="cfx-v1-brand-title"
       />

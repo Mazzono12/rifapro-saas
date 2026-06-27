@@ -118,6 +118,7 @@ export function Navbar() {
             <PublicBrandMark
               eager
               inline
+              showName={false}
               className="min-w-0"
               logoClassName="public-nav-brand-logo shrink-0"
               nameClassName="min-w-0 truncate font-display text-lg font-bold tracking-wide text-[var(--theme-text)] sm:text-xl"

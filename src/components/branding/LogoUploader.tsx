@@ -17,7 +17,7 @@ export function LogoUploader({ endpoint, onUploaded, label = "Enviar logo/GIF" }
   };
 
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white hover:bg-white/[0.08]">
+    <label className="inline-flex cursor-pointer items-center gap-2 rounded-[8px] border border-[var(--admin-border)] bg-white px-4 py-3 text-sm font-semibold text-[var(--admin-text)] hover:bg-slate-50">
       <Upload className="h-4 w-4" /> {label}
       <input type="file" accept=".png,.jpg,.jpeg,.webp,.svg,.gif,image/png,image/jpeg,image/webp,image/svg+xml,image/gif" className="sr-only" onChange={event => upload(event.target.files?.[0]).catch(error => alert(error.message))} />
     </label>

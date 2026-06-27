@@ -37,7 +37,7 @@ export function AdminAparencia() {
       const response = await fetch("/api/admin/branding", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(branding)
+        body: JSON.stringify({ ...branding, home_branding: { ...(branding.home_branding || {}), showName: false }, metadata: { ...(branding.metadata || {}), homeBranding: { ...((branding.metadata || {}).homeBranding || {}), showName: false } } })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Nao foi possivel salvar a aparencia");
@@ -94,14 +94,14 @@ export function AdminAparencia() {
         </div>
       </header>
 
-      <section className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4">
+      <section className="rounded-[8px] border border-[#e5e7eb] bg-white p-4 text-[#111827] shadow-sm">
         <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] border border-[var(--admin-border)] bg-white/[0.04]">
-            <Image className="h-5 w-5 text-[var(--admin-primary)]" />
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] border border-[#dbeafe] bg-[#eff6ff]">
+            <Image className="h-5 w-5 text-[#2563eb]" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-[var(--admin-text)]">Identidade centralizada do tenant</h2>
-            <p className="mt-1 text-sm text-[var(--admin-muted)]">
+            <h2 className="text-base font-semibold text-[#111827]">Identidade centralizada do tenant</h2>
+            <p className="mt-1 text-sm text-[#64748b]">
               A pagina reaproveita os campos oficiais `company_name`, `header_name`, `display_name` e `logo_url`. Uploads usam a galeria segura em `/api/admin/branding/logo`.
             </p>
           </div>
@@ -109,7 +109,7 @@ export function AdminAparencia() {
       </section>
 
       {loading ? (
-        <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-6 text-sm text-[var(--admin-muted)]">
+        <div className="rounded-[8px] border border-[#e5e7eb] bg-white p-6 text-sm text-[#64748b] shadow-sm">
           Carregando identidade visual...
         </div>
       ) : branding ? (
@@ -123,7 +123,7 @@ export function AdminAparencia() {
           faviconEndpoint="/api/admin/branding/favicon"
         />
       ) : (
-        <div className="rounded-[8px] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-6 text-sm text-[var(--admin-muted)]">
+        <div className="rounded-[8px] border border-[#e5e7eb] bg-white p-6 text-sm text-[#64748b] shadow-sm">
           Nao foi possivel carregar a configuracao de marca.
         </div>
       )}

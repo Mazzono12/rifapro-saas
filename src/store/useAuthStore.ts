@@ -1,11 +1,32 @@
 import { create } from 'zustand';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
+import { authStorageKey, supportSessionStorageKey } from '../lib/authSession';
 
 const mockSessionKey = 'nexusdraw_mock_session';
 const adminTokenKey = 'nexusdraw_admin_token';
 type AuthRole = 'superadmin' | 'tenant_admin' | 'tenant_user';
 
+function sanitizeStoredMockSession(session: { user?: any; profile?: any }) {
+  return {
+    user: session.user ? {
+      id: session.user.id,
+      user_metadata: session.user.user_metadata
+    } : null,
+    profile: session.profile ? {
+      role: session.profile.role,
+      name: session.profile.name || null,
+      phone: session.profile.phone || null,
+      tenantId: session.profile.tenantId || session.profile.tenant_id || null
+    } : null
+  };
+}
+function clearStoredAuthArtifacts() {
+  localStorage.removeItem(adminTokenKey);
+  localStorage.removeItem(mockSessionKey);
+  localStorage.removeItem(authStorageKey);
+  localStorage.removeItem(supportSessionStorageKey);
+}
 function shouldAttachAuthToken(input: RequestInfo | URL) {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.pathname : input.url;
   return url.startsWith('/api/admin') ||
@@ -52,7 +73,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
       localStorage.setItem(adminTokenKey, data.token);
-      localStorage.setItem(mockSessionKey, JSON.stringify({ user: data.user, profile: data.profile }));
+      localStorage.setItem(mockSessionKey, JSON.stringify(sanitizeStoredMockSession({ user: data.user, profile: data.profile })));
       set({ user: data.user, profile: data.profile, loading: false });
       return;
     }
@@ -87,7 +108,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       await supabase.auth.signOut();
     }
     localStorage.removeItem(adminTokenKey);
-    localStorage.removeItem(mockSessionKey);
+    clearStoredAuthArtifacts();
     set({ user: null, profile: null });
   },
   checkAuth: async () => {
@@ -100,12 +121,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
       if (res.ok) {
         const session = await res.json();
-        localStorage.setItem(mockSessionKey, JSON.stringify(session));
+        localStorage.setItem(mockSessionKey, JSON.stringify(sanitizeStoredMockSession(session)));
         set({ user: session.user, profile: session.profile, loading: false });
         return;
       }
       localStorage.removeItem(adminTokenKey);
-      localStorage.removeItem(mockSessionKey);
+      clearStoredAuthArtifacts();
     }
 
     if (isSupabaseConfigured) {
@@ -121,7 +142,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ user: session.user, profile: session.profile, loading: false });
         return;
       }
-      localStorage.removeItem(mockSessionKey);
+      clearStoredAuthArtifacts();
     }
 
     set({ loading: false });

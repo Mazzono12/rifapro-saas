@@ -68,6 +68,7 @@ loadEnv();
 const APP_VERSION = process.env.APP_VERSION || process.env.npm_package_version || "0.0.0";
 const SINGLE_PROCESS_SAFE = true;
 const MULTI_INSTANCE_SAFE = false;
+const SINGLE_INSTANCE_PRODUCTION_CONFIRMATION = "Produção pública exige MULTI_INSTANCE_SAFE=true ou execução single instance explicitamente confirmada.";
 const SECRET_VALUE_PATTERN = /(api[_-]?key|secret|token|password|service[_-]?role|database[_-]?url|jwt|authorization)/i;
 
 function maskSecretText(input: string) {
@@ -229,7 +230,10 @@ async function startServer() {
         configuredStorageDriver !== "postgres" ? "STORAGE_DRIVER deve ser postgres em producao; persistent e apenas local/dev" : "",
         publicDebugEnabled ? "ENABLE_PUBLIC_DEBUG deve ser false em producao" : "",
         !strongSecret(process.env.JWT_SECRET) ? "JWT_SECRET deve ser forte (32+ caracteres, sem placeholder)" : "",
-        !strongSecret(process.env.SESSION_SECRET) ? "SESSION_SECRET deve ser forte (32+ caracteres, sem placeholder)" : ""
+        !strongSecret(process.env.SESSION_SECRET) ? "SESSION_SECRET deve ser forte (32+ caracteres, sem placeholder)" : "",
+        !String(process.env.ASAAS_WEBHOOK_TOKEN || process.env.WEBHOOK_SECRET || "").trim() ? "ASAAS_WEBHOOK_TOKEN ou WEBHOOK_SECRET obrigatorio em producao para webhooks Pix" : "",
+        !MULTI_INSTANCE_SAFE && process.env.ALLOW_SINGLE_INSTANCE_PRODUCTION !== "true" ? `${SINGLE_INSTANCE_PRODUCTION_CONFIRMATION} Defina ALLOW_SINGLE_INSTANCE_PRODUCTION=true somente se a VPS rodar exatamente 1 processo backend.` : "",
+        MULTI_INSTANCE_SAFE && !String(process.env.REDIS_URL || process.env.RATE_LIMIT_REDIS_URL || "").trim() ? "MULTI_INSTANCE_SAFE=true exige REDIS_URL ou RATE_LIMIT_REDIS_URL para rate limit compartilhado" : ""
       ].filter(Boolean)
     : [];
 
@@ -238,7 +242,7 @@ async function startServer() {
     process.exit(1);
   }
   if (isNodeProduction && !MULTI_INSTANCE_SAFE) {
-    console.warn("multiInstanceSafe=false: deploy permitido apenas com 1 processo backend. Nao use cluster, PM2 cluster mode ou multiplas instancias.");
+    console.warn(`${SINGLE_INSTANCE_PRODUCTION_CONFIRMATION} Nao use cluster, PM2 cluster mode ou multiplas instancias sem storage/rate limit compartilhado.`);
   }
 
   const allowedCorsOrigins = new Set(
@@ -1467,8 +1471,13 @@ async function startServer() {
     const fileName = String(req.headers["x-file-name"] || kind).replace(/[^\w.\-]+/g, "-");
     const contentType = String(req.headers["content-type"] || "").split(";")[0].toLowerCase();
     const ext = path.extname(fileName).toLowerCase();
-    const allowedExtensions = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]);
-    const allowedMime = new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"]);
+    const productionSafeImageMessage = "SVG não é permitido por segurança. Use PNG, JPG ou WebP.";
+    const allowedExtensions = isProductionRuntime
+      ? new Set([".jpg", ".jpeg", ".png", ".webp"])
+      : new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"]);
+    const allowedMime = isProductionRuntime
+      ? new Set(["image/jpeg", "image/png", "image/webp"])
+      : new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"]);
     const maxBytes = Number(process.env.TENANT_BRANDING_MAX_BYTES || 4 * 1024 * 1024);
     const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
     if (!body.length) throw new Error("Arquivo vazio");
@@ -1477,8 +1486,13 @@ async function startServer() {
       (error as Error & { statusCode?: number }).statusCode = 413;
       throw error;
     }
+    if (isProductionRuntime && (ext === ".svg" || contentType === "image/svg+xml")) {
+      const error = new Error(productionSafeImageMessage);
+      (error as Error & { statusCode?: number }).statusCode = 415;
+      throw error;
+    }
     if (!allowedExtensions.has(ext) || !allowedMime.has(contentType)) {
-      const error = new Error("Formato nao suportado. Use PNG, JPG, JPEG, WEBP, SVG seguro ou GIF animado.");
+      const error = new Error(isProductionRuntime ? "Formato nao suportado. Use PNG, JPG ou WebP." : "Formato nao suportado. Use PNG, JPG, JPEG, WEBP, SVG seguro ou GIF animado.");
       (error as Error & { statusCode?: number }).statusCode = 415;
       throw error;
     }
@@ -10467,7 +10481,7 @@ async function startServer() {
     return {
       environment,
       apiKey,
-      webhookToken: String(config.webhook_secret || legacyAsaasConfig.webhookSecret || process.env.ASAAS_WEBHOOK_TOKEN || ""),
+      webhookToken: String(config.webhook_secret || legacyAsaasConfig.webhookSecret || process.env.ASAAS_WEBHOOK_TOKEN || process.env.WEBHOOK_SECRET || ""),
       userAgent: String(configJson.userAgent || credentials.userAgent || legacyAsaasConfig.userAgent || "CIFHER Plataforma"),
       releaseMode: String(configJson.releaseMode || credentials.releaseMode || legacyAsaasConfig.releaseMode || "PAYMENT_RECEIVED") === "PAYMENT_CONFIRMED" ? "PAYMENT_CONFIRMED" as const : "PAYMENT_RECEIVED" as const,
       paymentMode: String(configJson.paymentMode || credentials.paymentMode || legacyAsaasConfig.paymentMode || "pix_direct"),

@@ -35,6 +35,26 @@ export type AuthSessionState = {
 export const authStorageKey = "rifapro_saas_auth_session";
 export const supportSessionStorageKey = "rifapro_superadmin_support_session";
 
+function sanitizeStoredAuthSession(session: AuthSessionState): AuthSessionState {
+  return {
+    access_token: session.access_token || "",
+    refresh_token: "",
+    token: session.token || session.access_token || "",
+    expires_at: session.expires_at,
+    token_type: session.token_type,
+    user: session.user ? {
+      id: session.user.id,
+      email: "",
+      user_metadata: session.user.user_metadata
+    } : null,
+    profile: session.profile ? {
+      role: session.profile.role,
+      name: session.profile.name || null,
+      tenantId: session.profile.tenantId || session.profile.tenant_id || null,
+      tenant_id: session.profile.tenant_id || session.profile.tenantId || null
+    } : null
+  };
+}
 export function normalizeRole(role?: string | null): AuthRole {
   if (role === "tenant_admin") return "admin";
   if (role === "tenant_user") return "operador";
@@ -71,11 +91,13 @@ export function setStoredAuthSession(session: AuthSessionState | null) {
   if (typeof window === "undefined") return;
   if (!session) {
     localStorage.removeItem(authStorageKey);
+    localStorage.removeItem(supportSessionStorageKey);
     localStorage.removeItem("nexusdraw_admin_token");
     return;
   }
-  localStorage.setItem(authStorageKey, JSON.stringify(session));
-  if (session.token) localStorage.setItem("nexusdraw_admin_token", session.token);
+  const safeSession = sanitizeStoredAuthSession(session);
+  localStorage.setItem(authStorageKey, JSON.stringify(safeSession));
+  if (safeSession.token) localStorage.setItem("nexusdraw_admin_token", safeSession.token);
 }
 
 export function getAuthAccessToken() {
