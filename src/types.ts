@@ -318,6 +318,7 @@ export interface Purchase {
   amount: number;
   status: 'pending' | 'paid' | 'cancelled';
   pixPayload: string;
+  resumeToken?: string;
   pixGateway?: PixGatewayId | string;
   pixWebhookUrl?: string;
   createdAt: string;
@@ -640,6 +641,7 @@ export interface FazendinhaPurchase {
   dataCompra: string;
   reservedUntil?: string;
   pixExpiresAt?: string;
+  resumeToken?: string;
   customer: Customer;
   earnedLootboxes?: number;
   linkedPurchases?: Purchase[];
@@ -701,6 +703,7 @@ export interface NumberModePurchase {
   createdAt: string;
   reservedUntil?: string;
   pixExpiresAt?: string;
+  resumeToken?: string;
   customer: Customer;
   earnedLootboxes?: number;
 }
@@ -731,4 +734,6 @@ export interface ModalidadesState {
   fazendinha: FazendinhaConfig & { id: 'fazendinha'; mediaUrl: string; mediaType: 'image' | 'video' | 'youtube' | 'vimeo' | 'bunny'; ranking: any[] };
   numberModes: Array<NumberModeConfig & { ranking: any[] }>;
 }
+
+
 

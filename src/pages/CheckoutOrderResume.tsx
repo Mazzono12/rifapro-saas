@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Clock3, Coins, Copy, FileText, MessageCircle, RefreshCw, ShieldCheck, Ticket, User, Users, WalletCards, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PixPaymentCard, PremiumPageLayout } from "../components/premium/PremiumUI";
@@ -28,6 +28,8 @@ const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 
 export function CheckoutOrderResume() {
   const { orderId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+  const resumeToken = searchParams.get("token") || "";
   const { branding } = useTenantBranding();
   const [status, setStatus] = useState<ResumeStatus | null>(null);
   const [settings, setSettings] = useState<any>(null);
@@ -62,7 +64,8 @@ export function CheckoutOrderResume() {
     else setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/checkout/orders/${orderId}/status`);
+      const tokenQuery = resumeToken ? `?token=${encodeURIComponent(resumeToken)}` : "";
+      const response = await fetch(`/api/checkout/orders/${orderId}/status${tokenQuery}`);
       const data = await response.json().catch(() => null);
       if (!response.ok || !data) throw new Error(data?.error || "Pedido nao encontrado");
       setStatus(data);
@@ -77,7 +80,7 @@ export function CheckoutOrderResume() {
 
   useEffect(() => {
     void loadStatus();
-  }, [orderId]);
+  }, [orderId, resumeToken]);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -402,3 +405,5 @@ async function copyTextToClipboard(text: string) {
     return false;
   }
 }
+
+

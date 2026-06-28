@@ -78,7 +78,7 @@ export function FazendinhaSection() {
   const [requireIdentity, setRequireIdentity] = useState(false);
   const [addonSuggestion, setAddonSuggestion] = useState<{ raffle: Raffle; tickets: number; amount: number } | null>(null);
   const [acceptAddon, setAcceptAddon] = useState(false);
-  const [pendingPix, setPendingPix] = useState<{ purchase: FazendinhaPurchase; pixPayload: string } | null>(null);
+  const [pendingPix, setPendingPix] = useState<{ purchase: FazendinhaPurchase; pixPayload: string; resumeToken?: string; redirectUrl?: string } | null>(null);
   const [copiedPix, setCopiedPix] = useState(false);
   const [lootboxReward, setLootboxReward] = useState({ open: false, count: 0, contact: "" });
   const [pendingLootbox, setPendingLootbox] = useState({ count: 0, contact: "" });
@@ -238,7 +238,7 @@ export function FazendinhaSection() {
       if (!result?.purchase || !result.pixPayload) throw new Error("Resposta de PIX incompleta");
       if (result.purchase?.customer) setCustomer(result.purchase.customer);
       setReceiptOpen(false);
-      setPendingPix({ purchase: result.purchase, pixPayload: result.pixPayload });
+      setPendingPix({ purchase: result.purchase, pixPayload: result.pixPayload, resumeToken: result.resumeToken || result.purchase?.resumeToken, redirectUrl: result.redirectUrl });
       setCopiedPix(false);
       toast.success("PIX gerado para a Fazendinha", {
         description: "Após confirmar o pagamento, a caixinha será liberada."
@@ -274,7 +274,7 @@ export function FazendinhaSection() {
     if (!pendingPix) return;
     setBuying(true);
     try {
-      const status = await checkoutService.checkPixPaymentStatus(pendingPix.purchase.id);
+      const status = await checkoutService.checkPixPaymentStatus(pendingPix.purchase.id, pendingPix.resumeToken || pendingPix.purchase.resumeToken);
       if (!status.paid) {
         toast.info(status.message || "Aguardando pagamento", { description: "Assim que o pagamento for confirmado, seu bilhete sera liberado." });
         return;

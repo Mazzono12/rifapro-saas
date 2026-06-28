@@ -2617,6 +2617,7 @@ async function startServer() {
     externalReference?: string;
     externalPaymentId?: string;
     pixQrCodeBase64?: string;
+    resumeToken?: string;
     createdAt: string;
     customer?: CustomerRecord;
     linkedPurchases?: PurchaseRecord[];
@@ -2724,6 +2725,7 @@ async function startServer() {
     dataCompra: string;
     reservedUntil?: string;
     pixExpiresAt?: string;
+    resumeToken?: string;
     customer: CustomerRecord;
     refCode?: string;
     earnedLootboxes?: number;
@@ -2785,6 +2787,7 @@ async function startServer() {
     createdAt: string;
     reservedUntil?: string;
     pixExpiresAt?: string;
+    resumeToken?: string;
     customer: CustomerRecord;
     refCode?: string;
     earnedLootboxes?: number;
@@ -12200,6 +12203,47 @@ async function startServer() {
       });
   }
 
+  function createOrderResumeToken() {
+    return randomBytes(32).toString("hex");
+  }
+
+  function ensureOrderResumeToken(order: { resumeToken?: string }) {
+    if (!order.resumeToken) order.resumeToken = createOrderResumeToken();
+    return order.resumeToken;
+  }
+
+  function buildOrderResumeUrl(orderId: string, resumeToken: string) {
+    return `/checkout/pedido/${encodeURIComponent(orderId)}?token=${encodeURIComponent(resumeToken)}`;
+  }
+
+  function getRequestResumeToken(req: express.Request) {
+    const headerToken = req.headers["x-order-resume-token"] || req.headers["x-resume-token"];
+    return String(req.query.token || headerToken || "").trim();
+  }
+
+  function secureCompareToken(a: string, b: string) {
+    const left = Buffer.from(a);
+    const right = Buffer.from(b);
+    return left.length === right.length && timingSafeEqual(left, right);
+  }
+
+  function hasValidOrderResumeToken(req: express.Request, order: { resumeToken?: string }) {
+    const provided = getRequestResumeToken(req);
+    return Boolean(provided && order.resumeToken && secureCompareToken(provided, order.resumeToken));
+  }
+
+  function buildOrderResumeTokenRequiredResponse(orderId: string, status: string, paymentStatus: string, paid: boolean, expired: boolean, message?: string) {
+    return {
+      success: false,
+      code: "RESUME_TOKEN_REQUIRED",
+      orderId,
+      status,
+      paymentStatus,
+      paid,
+      expired,
+      message: message || "Token de retomada necessario para exibir dados do PIX."
+    };
+  }
   function findReusablePendingPixPurchaseForCpf(input: { tenantId: string; raffleId: string; cpf: string }) {
     const cpf = normalizeCpf(input.cpf);
     if (!cpf) return null;
@@ -12231,6 +12275,7 @@ async function startServer() {
   }
 
   function buildReusablePendingPixResponse(purchase: PurchaseRecord) {
+    const resumeToken = ensureOrderResumeToken(purchase);
     const publicPurchase = sanitizePublicPurchase(purchase) as PurchaseRecord & Record<string, any>;
     const pixPayload = String(publicPurchase.pixPayload || publicPurchase.pix_payload || publicPurchase.pix_copy_paste || publicPurchase.copyPaste || publicPurchase.paymentCode || "");
     const pixQrCodeBase64 = String(publicPurchase.pixQrCodeBase64 || publicPurchase.qrCodeBase64 || publicPurchase.qr_code_base64 || publicPurchase.encodedImage || "");
@@ -12240,6 +12285,7 @@ async function startServer() {
       reused: true,
       reason: "PENDING_PIX_ALREADY_EXISTS",
       orderId: purchase.purchaseId,
+      resumeToken,
       status: "pending",
       paymentStatus: "pending",
       pixPayload,
@@ -12247,7 +12293,7 @@ async function startServer() {
       pixQrCodeBase64,
       pixExpiresAt: purchase.pixExpiresAt || purchase.reservedUntil,
       reservedUntil: purchase.reservedUntil,
-      redirectUrl: `/checkout/pedido/${encodeURIComponent(purchase.purchaseId)}`,
+      redirectUrl: buildOrderResumeUrl(purchase.purchaseId, resumeToken),
       purchase: publicPurchase,
       message: "Encontramos um PIX pendente para este CPF. Continue o pagamento para finalizar sua compra."
     });
@@ -15108,6 +15154,7 @@ async function startServer() {
       pixPayload: "",
       pixGateway: pixConfig.gateway,
       pixWebhookUrl: pixConfig.webhookUrl,
+      resumeToken: createOrderResumeToken(),
       createdAt: new Date().toISOString(),
       customer,
       paidWithBalance: balancePayment,
@@ -15143,6 +15190,7 @@ async function startServer() {
         pixPayload: purchase.pixPayload,
         pixGateway: pixConfig.gateway,
         pixWebhookUrl: pixConfig.webhookUrl,
+        resumeToken: purchase.resumeToken,
         createdAt: purchase.createdAt,
         customer
       }];
@@ -15296,7 +15344,13 @@ async function startServer() {
       purchase.linkedPurchases?.forEach(confirmPurchase);
     }
 
-    res.json(sanitizePublicPurchase(purchase));
+    const resumeToken = ensureOrderResumeToken(purchase);
+    res.json({
+      ...sanitizePublicPurchase(purchase),
+      orderId: purchase.purchaseId,
+      resumeToken,
+      redirectUrl: buildOrderResumeUrl(purchase.purchaseId, resumeToken)
+    });
   });
 
   app.get("/api/raffles/:id/addon-suggestion", (req, res) => {
@@ -15484,6 +15538,7 @@ async function startServer() {
       createdAt: new Date().toISOString(),
       reservedUntil: fastExpiresAt,
       pixExpiresAt: fastExpiresAt,
+      resumeToken: createOrderResumeToken(),
       customer,
       refCode: req.body.refCode
     };
@@ -15557,7 +15612,17 @@ async function startServer() {
       res.status(502).json({ error: "Gateway PIX nao retornou codigo copia e cola. Verifique a configuracao de producao." });
       return;
     }
-    res.json(stripSensitiveCustomerFields({ purchase, pixPayload, pixExpiresAt: purchase.pixExpiresAt, reservedUntil: purchase.reservedUntil, earnedLootboxes }));
+    const resumeToken = ensureOrderResumeToken(purchase);
+    res.json(stripSensitiveCustomerFields({
+      purchase,
+      orderId: purchase.id,
+      resumeToken,
+      redirectUrl: buildOrderResumeUrl(purchase.id, resumeToken),
+      pixPayload,
+      pixExpiresAt: purchase.pixExpiresAt,
+      reservedUntil: purchase.reservedUntil,
+      earnedLootboxes
+    }));
   });
 
   app.post("/api/modalidades/purchases/:purchaseId/confirm-payment", (req, res) => {
@@ -15622,6 +15687,7 @@ async function startServer() {
       dataCompra: new Date().toISOString(),
       reservedUntil: fastExpiresAt,
       pixExpiresAt: fastExpiresAt,
+      resumeToken: createOrderResumeToken(),
       customer,
       refCode: req.body.refCode
     };
@@ -15646,6 +15712,7 @@ async function startServer() {
         reservedUntil: fastExpiresAt,
         pixExpiresAt: fastExpiresAt,
         pixPayload: "",
+        resumeToken: purchase.resumeToken,
         createdAt: purchase.dataCompra,
         customer
       };
@@ -15740,7 +15807,18 @@ async function startServer() {
     purchase.linkedPurchases?.forEach(linked => {
       linked.pixPayload = pixPayload;
     });
-    return { purchase, groups: selectedGroups, pixPayload, pixExpiresAt: purchase.pixExpiresAt, reservedUntil: purchase.reservedUntil, earnedLootboxes };
+    const resumeToken = ensureOrderResumeToken(purchase);
+    return {
+      purchase,
+      groups: selectedGroups,
+      orderId: purchase.id,
+      resumeToken,
+      redirectUrl: buildOrderResumeUrl(purchase.id, resumeToken),
+      pixPayload,
+      pixExpiresAt: purchase.pixExpiresAt,
+      reservedUntil: purchase.reservedUntil,
+      earnedLootboxes
+    };
   }
 
   function confirmFazendinhaPurchase(purchase: FazendinhaPurchase) {
@@ -22770,9 +22848,30 @@ async function startServer() {
     expireAllReservations(tenantId);
     const purchase = purchases.find(item => item.tenant_id === tenantId && item.purchaseId === orderId);
     if (purchase) {
-      await refreshAsaasPixForPendingPurchase(tenantId, purchase);
       const expired = (purchase.status === "pending" && isPastReservationExpiry(purchase.reservedUntil || purchase.pixExpiresAt)) || (purchase.status === "cancelled" && /expirada/i.test(String(purchase.rejectedReason || "")));
       const status = expired ? "expired" : purchase.status;
+      const paymentStatus = status;
+      const paid = purchase.status === "paid";
+      if (!hasValidOrderResumeToken(req, purchase)) {
+        if (paid) {
+          res.json(stripSensitiveCustomerFields({
+            success: true,
+            orderId,
+            type: "raffle",
+            status,
+            paymentStatus,
+            paid,
+            expired,
+            ticketUrl: buildPublicTicketUrl(purchase),
+            message: "Pagamento confirmado"
+          }));
+          return;
+        }
+        res.status(403).json(buildOrderResumeTokenRequiredResponse(orderId, status, paymentStatus, paid, expired, expired ? "PIX expirado" : "Token de retomada necessario para exibir dados do PIX."));
+        return;
+      }
+      await refreshAsaasPixForPendingPurchase(tenantId, purchase);
+      const resumeToken = ensureOrderResumeToken(purchase);
       const publicPurchase = sanitizePublicPurchase(purchase) as PurchaseRecord & Record<string, any>;
       const pixPayload = purchase.status === "pending" && !expired ? String(publicPurchase.pixPayload || publicPurchase.pix_payload || publicPurchase.copyPaste || publicPurchase.paymentCode || "") : "";
       const pixQrCode = purchase.status === "pending" && !expired ? String(publicPurchase.pixQrCode || publicPurchase.qrCode || "") : "";
@@ -22780,10 +22879,12 @@ async function startServer() {
       res.json(stripSensitiveCustomerFields({
         success: true,
         orderId,
+        resumeToken,
+        redirectUrl: buildOrderResumeUrl(orderId, resumeToken),
         type: "raffle",
         status,
-        paymentStatus: status,
-        paid: purchase.status === "paid",
+        paymentStatus,
+        paid,
         expired,
         gateway: "asaas",
         pixGateway: "asaas",
@@ -22795,8 +22896,8 @@ async function startServer() {
         pixExpiresAt: purchase.pixExpiresAt || purchase.reservedUntil,
         reservedUntil: purchase.reservedUntil,
         purchase: publicPurchase,
-        ticketUrl: purchase.status === "paid" ? buildPublicTicketUrl(purchase) : "",
-        message: purchase.status === "paid" ? "Pagamento confirmado" : expired ? "PIX expirado" : purchase.status === "cancelled" ? "Pedido cancelado" : "Aguardando pagamento"
+        ticketUrl: paid ? buildPublicTicketUrl(purchase) : "",
+        message: paid ? "Pagamento confirmado" : expired ? "PIX expirado" : purchase.status === "cancelled" ? "Pedido cancelado" : "Aguardando pagamento"
       }));
       return;
     }
@@ -22804,12 +22905,26 @@ async function startServer() {
     if (modePurchase) {
       const expired = modePurchase.status === "cancelled" || (modePurchase.status === "reserved" && isPastReservationExpiry(modePurchase.reservedUntil || modePurchase.pixExpiresAt));
       const status = expired ? "expired" : modePurchase.status;
+      const paymentStatus = modePurchase.status === "paid" ? "paid" : expired ? "expired" : "pending";
+      const paid = modePurchase.status === "paid";
+      if (!hasValidOrderResumeToken(req, modePurchase)) {
+        if (paid) {
+          res.json(stripSensitiveCustomerFields({ success: true, orderId, type: "modalidade", status, paymentStatus, paid, expired, message: "Pagamento confirmado" }));
+          return;
+        }
+        res.status(403).json(buildOrderResumeTokenRequiredResponse(orderId, status, paymentStatus, paid, expired, expired ? "PIX expirado" : "Token de retomada necessario para exibir dados do PIX."));
+        return;
+      }
+      const resumeToken = ensureOrderResumeToken(modePurchase);
       res.json(stripSensitiveCustomerFields({
+        success: true,
         orderId,
+        resumeToken,
+        redirectUrl: buildOrderResumeUrl(orderId, resumeToken),
         type: "modalidade",
         status,
-        paymentStatus: modePurchase.status === "paid" ? "paid" : expired ? "expired" : "pending",
-        paid: modePurchase.status === "paid",
+        paymentStatus,
+        paid,
         expired,
         gateway: "asaas",
         paymentProvider: "asaas",
@@ -22818,7 +22933,7 @@ async function startServer() {
         pixExpiresAt: modePurchase.pixExpiresAt || modePurchase.reservedUntil,
         reservedUntil: modePurchase.reservedUntil,
         purchase: modePurchase,
-        message: modePurchase.status === "paid" ? "Pagamento confirmado" : expired ? "PIX expirado" : "Aguardando pagamento"
+        message: paid ? "Pagamento confirmado" : expired ? "PIX expirado" : "Aguardando pagamento"
       }));
       return;
     }
@@ -22826,12 +22941,26 @@ async function startServer() {
     if (farmPurchase) {
       const expired = farmPurchase.statusPagamento === "cancelled" || (farmPurchase.statusPagamento === "reserved" && isPastReservationExpiry(farmPurchase.reservedUntil || farmPurchase.pixExpiresAt));
       const status = farmPurchase.statusPagamento === "paid" ? "paid" : expired ? "expired" : "reserved";
+      const paymentStatus = farmPurchase.statusPagamento === "paid" ? "paid" : expired ? "expired" : "pending";
+      const paid = farmPurchase.statusPagamento === "paid";
+      if (!hasValidOrderResumeToken(req, farmPurchase)) {
+        if (paid) {
+          res.json(stripSensitiveCustomerFields({ success: true, orderId, type: "fazendinha", status, paymentStatus, paid, expired, message: "Pagamento confirmado" }));
+          return;
+        }
+        res.status(403).json(buildOrderResumeTokenRequiredResponse(orderId, status, paymentStatus, paid, expired, expired ? "PIX expirado" : "Token de retomada necessario para exibir dados do PIX."));
+        return;
+      }
+      const resumeToken = ensureOrderResumeToken(farmPurchase);
       res.json(stripSensitiveCustomerFields({
+        success: true,
         orderId,
+        resumeToken,
+        redirectUrl: buildOrderResumeUrl(orderId, resumeToken),
         type: "fazendinha",
         status,
-        paymentStatus: farmPurchase.statusPagamento === "paid" ? "paid" : expired ? "expired" : "pending",
-        paid: farmPurchase.statusPagamento === "paid",
+        paymentStatus,
+        paid,
         expired,
         gateway: "asaas",
         paymentProvider: "asaas",
@@ -22840,7 +22969,7 @@ async function startServer() {
         pixExpiresAt: farmPurchase.pixExpiresAt || farmPurchase.reservedUntil,
         reservedUntil: farmPurchase.reservedUntil,
         purchase: farmPurchase,
-        message: farmPurchase.statusPagamento === "paid" ? "Pagamento confirmado" : expired ? "PIX expirado" : "Aguardando pagamento"
+        message: paid ? "Pagamento confirmado" : expired ? "PIX expirado" : "Aguardando pagamento"
       }));
       return;
     }

@@ -61,7 +61,7 @@ export function NumberModePage() {
   const [checkoutPreview, setCheckoutPreview] = useState<CheckoutPreview | null>(null);
   const [requireIdentity, setRequireIdentity] = useState(false);
   const [buying, setBuying] = useState(false);
-  const [pendingPix, setPendingPix] = useState<{ purchase: any; pixPayload: string } | null>(null);
+  const [pendingPix, setPendingPix] = useState<{ purchase: any; pixPayload: string; resumeToken?: string; redirectUrl?: string } | null>(null);
   const [confirmedReceipt, setConfirmedReceipt] = useState<{ purchase: any; numbers: string[] } | null>(null);
   const [copiedPix, setCopiedPix] = useState(false);
   const [lootboxReward, setLootboxReward] = useState({ open: false, count: 0, contact: "" });
@@ -148,7 +148,7 @@ export function NumberModePage() {
       setRequireIdentity(false);
       setReceiptOpen(false);
       setConfirmedReceipt(null);
-      setPendingPix({ purchase: result.purchase, pixPayload: result.pixPayload });
+      setPendingPix({ purchase: result.purchase, pixPayload: result.pixPayload, resumeToken: result.resumeToken || result.purchase?.resumeToken, redirectUrl: result.redirectUrl });
       setCopiedPix(false);
       toast.success("PIX gerado", { description: `${selected.length} número(s) em ${data?.config?.name || modeTitles[mode]}` });
       queryClient.invalidateQueries({ queryKey: ["number-mode"] });
@@ -169,7 +169,7 @@ export function NumberModePage() {
     if (!pendingPix) return;
     setBuying(true);
     try {
-      const status = await checkoutService.checkPixPaymentStatus(pendingPix.purchase.id);
+      const status = await checkoutService.checkPixPaymentStatus(pendingPix.purchase.id, pendingPix.resumeToken || pendingPix.purchase.resumeToken);
       if (!status.paid) {
         toast.info(status.message || "Aguardando pagamento", { description: "Assim que o pagamento for confirmado, seu bilhete sera liberado." });
         return;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Purchase } from '../types';
 
-export function usePurchasePolling(purchaseId: string | undefined, interval = 6000) {
+export function usePurchasePolling(purchaseId: string | undefined, interval = 6000, resumeToken?: string) {
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +20,8 @@ export function usePurchasePolling(purchaseId: string | undefined, interval = 60
 
     const checkStatus = async () => {
       try {
-        const res = await fetch(`/api/checkout/orders/${purchaseId}/status`);
+        const tokenQuery = resumeToken ? `?token=${encodeURIComponent(resumeToken)}` : "";
+        const res = await fetch(`/api/checkout/orders/${purchaseId}/status${tokenQuery}`);
         if (!res.ok) throw new Error('Falha ao buscar status do pedido');
         const data = await res.json();
         const nextPurchase = data.purchase || data;
@@ -54,7 +55,9 @@ export function usePurchasePolling(purchaseId: string | undefined, interval = 60
     timeoutId = setTimeout(poll, nextInterval());
 
     return () => clearTimeout(timeoutId);
-  }, [purchaseId, interval]);
+  }, [purchaseId, interval, resumeToken]);
 
   return { purchase, error };
 }
+
+

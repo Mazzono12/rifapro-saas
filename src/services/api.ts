@@ -84,8 +84,9 @@ export const checkoutService = {
     }>;
   },
 
-  async checkPixPaymentStatus(orderId: string) {
-    const res = await fetch(`/api/checkout/orders/${orderId}/status`);
+  async checkPixPaymentStatus(orderId: string, resumeToken?: string) {
+    const tokenQuery = resumeToken ? `?token=${encodeURIComponent(resumeToken)}` : "";
+    const res = await fetch(`/api/checkout/orders/${orderId}/status${tokenQuery}`);
     const data = await readJsonSafely(res);
     if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Nao foi possivel verificar o pagamento. Tente novamente."));
     return data as Promise<{
@@ -95,7 +96,11 @@ export const checkoutService = {
       paymentStatus: "pending" | "paid" | "cancelled" | "expired";
       paid: boolean;
       expired: boolean;
+      resumeToken?: string;
+      redirectUrl?: string;
       pixPayload?: string;
+      pixQrCode?: string;
+      pixQrCodeBase64?: string;
       pixExpiresAt?: string;
       reservedUntil?: string;
       purchase?: any;
@@ -162,7 +167,7 @@ export const fazendinhaService = {
     });
     const data = await readJsonSafely(res);
     if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Falha ao reservar. Tente novamente."));
-    return data as { purchase: FazendinhaPurchase; group: FazendinhaGroup; pixPayload: string; earnedLootboxes: number };
+    return data as { purchase: FazendinhaPurchase; group: FazendinhaGroup; orderId?: string; resumeToken?: string; redirectUrl?: string; pixPayload: string; earnedLootboxes: number };
   },
 
   async buyGroups(groupIds: string[], customer: CheckoutCustomerPayload, simulatePayment = true, addon?: { raffleId: string; tickets: number }) {
@@ -173,7 +178,7 @@ export const fazendinhaService = {
     });
     const data = await readJsonSafely(res);
     if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Falha ao gerar PIX. Tente novamente."));
-    return data as { purchase: FazendinhaPurchase; groups: FazendinhaGroup[]; pixPayload: string; earnedLootboxes: number };
+    return data as { purchase: FazendinhaPurchase; groups: FazendinhaGroup[]; orderId?: string; resumeToken?: string; redirectUrl?: string; pixPayload: string; earnedLootboxes: number };
   },
 
   async confirmPayment(purchaseId: string) {
@@ -183,7 +188,7 @@ export const fazendinhaService = {
     });
     const data = await readJsonSafely(res);
     if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Falha ao confirmar pagamento. Tente novamente."));
-    return data as { purchase: FazendinhaPurchase; groups: FazendinhaGroup[]; pixPayload: string; earnedLootboxes: number };
+    return data as { purchase: FazendinhaPurchase; groups: FazendinhaGroup[]; orderId?: string; resumeToken?: string; redirectUrl?: string; pixPayload: string; earnedLootboxes: number };
   },
 
   async getAddonSuggestion() {
@@ -296,7 +301,16 @@ export const modalidadesService = {
     });
     const data = await readJsonSafely(res);
     if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Falha ao gerar PIX. Tente novamente."));
-    return data;
+    return data as {
+      purchase: any;
+      orderId?: string;
+      resumeToken?: string;
+      redirectUrl?: string;
+      pixPayload: string;
+      pixExpiresAt?: string;
+      reservedUntil?: string;
+      earnedLootboxes?: number;
+    };
   },
 
   async confirmModePayment(purchaseId: string) {
@@ -324,6 +338,7 @@ export const modalidadesService = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Falha ao salvar modalidade");
     return data;
+
   },
 
   async publishOfficialResult(officialResult: string, origemResultado: string) {
@@ -335,6 +350,7 @@ export const modalidadesService = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Falha ao apurar resultado");
     return data;
+
   },
 
   async publishModeResult(mode: NumberModeId, resultNumber: string, origemResultado: string) {

@@ -108,10 +108,18 @@ function getCheckoutOrderId(result: any) {
   return String(result?.orderId || result?.order?.id || result?.purchaseId || result?.id || "").trim();
 }
 
+function getCheckoutResumeToken(result: any) {
+  return String(result?.resumeToken || result?.purchase?.resumeToken || result?.order?.resumeToken || "").trim();
+}
+
 function getCheckoutRedirectUrl(result: any) {
   const orderId = getCheckoutOrderId(result);
-  if (orderId) return `/checkout/pedido/${encodeURIComponent(orderId)}`;
-  const checkoutUrl = String(result?.checkoutUrl || result?.paymentUrl || "").trim();
+  const resumeToken = getCheckoutResumeToken(result);
+  if (orderId) {
+    const tokenQuery = resumeToken ? `?token=${encodeURIComponent(resumeToken)}` : "";
+    return `/checkout/pedido/${encodeURIComponent(orderId)}${tokenQuery}`;
+  }
+  const checkoutUrl = String(result?.redirectUrl || result?.checkoutUrl || result?.paymentUrl || "").trim();
   if (!checkoutUrl) return "";
   if (checkoutUrl.startsWith("/")) return checkoutUrl;
   try {
@@ -214,7 +222,7 @@ export function RaffleDetails() {
   const [cpfError, setCpfError] = useState("");
   const [checkoutHoneypot, setCheckoutHoneypot] = useState("");
   const notifiedPrizePurchase = useRef<string | null>(null);
-  const { purchase: polledPurchase } = usePurchasePolling(purchase?.purchaseId, 7000);
+  const { purchase: polledPurchase } = usePurchasePolling(purchase?.purchaseId, 7000, getCheckoutResumeToken(purchase));
   const { detectedCity } = useCityDetection();
   const raffleTenantId = String((raffle as any)?.tenant_id || (raffle as any)?.tenantId || "");
   const customerTenantId = String((customer as any)?.tenant_id || (customer as any)?.tenantId || "");
@@ -535,7 +543,7 @@ export function RaffleDetails() {
     }
     setConfirmingPix(true);
     try {
-      const status = await checkoutService.checkPixPaymentStatus(purchase.purchaseId);
+      const status = await checkoutService.checkPixPaymentStatus(purchase.purchaseId, getCheckoutResumeToken(purchase));
       const refreshedPurchase = normalizePixPurchase(status.purchase || purchase);
       setPurchase((current: any) => normalizePixPurchase({
         ...current,
@@ -548,7 +556,7 @@ export function RaffleDetails() {
         setPaymentResult("approved");
         setCheckoutStep("ticket");
         toast.success("Pagamento confirmado", { description: "Bilhete liberado pelo status seguro do pedido." });
-        navigate(`/checkout/pedido/${encodeURIComponent(refreshedPurchase.purchaseId || purchase.purchaseId)}`, { replace: true });
+        navigate(getCheckoutRedirectUrl({ ...refreshedPurchase, resumeToken: getCheckoutResumeToken(status) || getCheckoutResumeToken(purchase), orderId: refreshedPurchase.purchaseId || purchase.purchaseId }), { replace: true });
         return;
       }
       toast.info(status.message || "Pagamento ainda pendente", { description: "O sistema vai atualizar quando o pagamento for confirmado." });
