@@ -212,6 +212,7 @@ export function RaffleDetails() {
   const [useBalance, setUseBalance] = useState(false);
   const [customerForm, setCustomerForm] = useState<CheckoutCustomerForm>({ name: "", phone: "", cpf: "", city: "", state: "", accessPassword: "", knownCustomer: false });
   const [cpfError, setCpfError] = useState("");
+  const [checkoutHoneypot, setCheckoutHoneypot] = useState("");
   const notifiedPrizePurchase = useRef<string | null>(null);
   const { purchase: polledPurchase } = usePurchasePolling(purchase?.purchaseId, 7000);
   const { detectedCity } = useCityDetection();
@@ -422,7 +423,8 @@ export function RaffleDetails() {
         useBalance,
         couponCode: couponCode || undefined,
         addon: acceptAddon && addonSuggestion ? { raffleId: addonSuggestion.raffle.id, tickets: addonSuggestion.tickets } : undefined,
-        orderBumpAccepted: acceptOrderBump
+        orderBumpAccepted: acceptOrderBump,
+        companyWebsite: checkoutHoneypot
       });
       setCheckoutPreview(preview);
       setCheckoutOpen(false);
@@ -459,7 +461,8 @@ export function RaffleDetails() {
           useBalance,
           couponCode: couponCode || undefined,
           addon: acceptAddon && addonSuggestion ? { raffleId: addonSuggestion.raffle.id, tickets: addonSuggestion.tickets } : undefined,
-          orderBumpAccepted: acceptOrderBump
+          orderBumpAccepted: acceptOrderBump,
+        companyWebsite: checkoutHoneypot
         })
       });
       const data = normalizePixPurchase(await readJsonSafely(res));
@@ -642,6 +645,8 @@ export function RaffleDetails() {
         customer={recognizedCustomer}
         customerForm={customerForm}
         setCustomerForm={setCustomerForm}
+        checkoutHoneypot={checkoutHoneypot}
+        setCheckoutHoneypot={setCheckoutHoneypot}
         cpfError={cpfError}
         setCpfError={setCpfError}
         customerMode={customerMode}
@@ -1375,6 +1380,8 @@ function CheckoutModal(props: {
   customer: any;
   customerForm: any;
   setCustomerForm: React.Dispatch<React.SetStateAction<any>>;
+  checkoutHoneypot: string;
+  setCheckoutHoneypot: (value: string) => void;
   cpfError: string;
   setCpfError: (value: string) => void;
   customerMode: "register" | "login";
@@ -1493,6 +1500,16 @@ function CheckoutReview(props: Parameters<typeof CheckoutModal>[0]) {
 
   return (
     <form onSubmit={handleReviewSubmit} className="cfx-checkout-form cfx-review-premium cfx-fast-pix-checkout" data-checkout-mode="pix-rapido">
+      <label className="sr-only" aria-hidden="true">
+        Site da empresa
+        <input
+          tabIndex={-1}
+          autoComplete="off"
+          name="companyWebsite"
+          value={props.checkoutHoneypot}
+          onChange={event => props.setCheckoutHoneypot(event.target.value)}
+        />
+      </label>
       <header className="cfx-review-top">
         <button type="button" onClick={props.onClose} aria-label="Voltar para o sorteio">
           <ChevronLeft />
@@ -2042,3 +2059,4 @@ function formatReceiptDate(value?: string) {
 async function captureGeoLocation() {
   return GeoPrefillService.captureCoordinates();
 }
+

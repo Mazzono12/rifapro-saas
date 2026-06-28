@@ -158,7 +158,7 @@ export const fazendinhaService = {
     const res = await fetch(`/api/fazendinha/groups/${groupId}/buy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ customer, simulatePayment })
+      body: JSON.stringify({ customer, simulatePayment, companyWebsite: "" })
     });
     const data = await readJsonSafely(res);
     if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Falha ao reservar. Tente novamente."));
@@ -169,7 +169,7 @@ export const fazendinhaService = {
     const res = await fetch("/api/fazendinha/buy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ groupIds, customer, simulatePayment, addon })
+      body: JSON.stringify({ groupIds, customer, simulatePayment, addon, companyWebsite: "" })
     });
     const data = await readJsonSafely(res);
     if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Falha ao gerar PIX. Tente novamente."));
@@ -292,7 +292,7 @@ export const modalidadesService = {
     const res = await fetch(`/api/modalidades/${mode}/buy`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ numbers, customer, simulatePayment })
+      body: JSON.stringify({ numbers, customer, simulatePayment, companyWebsite: "" })
     });
     const data = await readJsonSafely(res);
     if (!res.ok) throw new Error(getFriendlyErrorMessage(data, "Falha ao gerar PIX. Tente novamente."));
@@ -348,3 +348,4 @@ export const modalidadesService = {
     return data;
   }
 };
+

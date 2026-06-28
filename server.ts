@@ -245,6 +245,10 @@ async function startServer() {
     console.warn(`${SINGLE_INSTANCE_PRODUCTION_CONFIRMATION} Nao use cluster, PM2 cluster mode ou multiplas instancias sem storage/rate limit compartilhado.`);
   }
 
+  if (isNodeProduction || String(process.env.TRUST_PROXY || "").toLowerCase() === "true") {
+    app.set("trust proxy", 1);
+  }
+
   const allowedCorsOrigins = new Set(
     [
       process.env.PUBLIC_BASE_URL,
@@ -292,6 +296,24 @@ async function startServer() {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()");
+    res.setHeader("Content-Security-Policy", [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https: http:",
+      "media-src 'self' data: blob: https: http:",
+      "font-src 'self' data:",
+      "connect-src 'self' https: http: ws: wss:",
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://player.mediadelivery.net",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'"
+    ].join("; "));
+    if (isNodeProduction) {
+      res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+    }
     next();
   });
   app.use("/uploads", express.static(path.join(process.cwd(), "public", "uploads"), {
@@ -3839,6 +3861,79 @@ async function startServer() {
     next();
   }
 
+  const checkoutScopedRequestCounts = new Map<string, { count: number; resetAt: number }>();
+  const credentialRequestCounts = new Map<string, { count: number; resetAt: number }>();
+  const rateLimitedResponse = { success: false, code: "RATE_LIMITED", message: "Muitas tentativas. Aguarde alguns minutos e tente novamente." };
+
+  function incrementScopedCounter(key: string, maxRequests: number, windowMs: number) {
+    const now = Date.now();
+    let record = checkoutScopedRequestCounts.get(key);
+    if (!record || record.resetAt <= now) {
+      record = { count: 1, resetAt: now + windowMs };
+      checkoutScopedRequestCounts.set(key, record);
+      return false;
+    }
+    record.count++;
+    return record.count > maxRequests;
+  }
+
+  function isCheckoutHoneypotFilled(body: Record<string, unknown>) {
+    return ["website", "companyWebsite", "homepage", "_gotcha", "contact_me_by_fax_only"]
+      .some(field => String(body?.[field] || "").trim().length > 0);
+  }
+
+  function enforceCheckoutAbuseLimits(req: express.Request, res: express.Response, input: { tenantId: string; campaignId?: string; cpf?: string; phone?: string; action?: string }) {
+    const ip = String(req.ip || req.socket.remoteAddress || "unknown");
+    const tenantId = String(input.tenantId || "unknown");
+    const campaignId = String(input.campaignId || "global");
+    const action = String(input.action || "checkout");
+    const cpf = normalizeCpf(String(input.cpf || req.body?.customer?.cpf || req.body?.cpf || ""));
+    const phone = normalizePhone(String(input.phone || req.body?.customer?.phone || req.body?.contact || req.body?.phone || ""));
+    const keys: Array<{ key: string; max: number; windowMs: number; detail: string }> = [
+      { key: `checkout:ip:${ip}:${action}`, max: 30, windowMs: 60 * 1000, detail: "ip" },
+      { key: `checkout:tenant-campaign:${tenantId}:${campaignId}:${action}`, max: 120, windowMs: 60 * 1000, detail: "tenant_campaign" }
+    ];
+    if (cpf) keys.push({ key: `checkout:cpf:${tenantId}:${campaignId}:${cpf}:${action}`, max: 6, windowMs: 5 * 60 * 1000, detail: "cpf" });
+    if (phone) keys.push({ key: `checkout:phone:${tenantId}:${campaignId}:${phone}:${action}`, max: 8, windowMs: 5 * 60 * 1000, detail: "phone" });
+
+    if (isCheckoutHoneypotFilled(req.body || {})) {
+      recordSecurityEvent({ tenant_id: tenantId, action: "CHECKOUT_HONEYPOT_BLOCKED", ip, status: "BLOCKED", severity: "high", detail: `${action}:${campaignId}` });
+      res.status(429).json({ ...rateLimitedResponse, code: "BOT_DETECTED" });
+      return false;
+    }
+
+    const blocked = keys.find(item => incrementScopedCounter(item.key, item.max, item.windowMs));
+    if (blocked) {
+      recordSecurityEvent({ tenant_id: tenantId, action: "CHECKOUT_SCOPED_RATE_LIMIT_BLOCKED", ip, status: "BLOCKED", severity: "high", detail: `${blocked.detail}:${action}:${campaignId}` });
+      res.status(429).json(rateLimitedResponse);
+      return false;
+    }
+    return true;
+  }
+
+  function credentialRateLimiter(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const ip = String(req.ip || req.socket.remoteAddress || "unknown");
+    const identifier = String(req.body?.email || req.body?.login || req.body?.phone || req.body?.cpf || req.body?.username || "anonymous").trim().toLowerCase().replace(/\s+/g, "");
+    const key = `credential:${req.path}:${ip}:${identifier}`;
+    const now = Date.now();
+    const windowMs = 10 * 60 * 1000;
+    const maxRequests = 8;
+    let record = credentialRequestCounts.get(key);
+    if (!record || record.resetAt <= now) {
+      record = { count: 1, resetAt: now + windowMs };
+      credentialRequestCounts.set(key, record);
+      next();
+      return;
+    }
+    record.count++;
+    if (record.count > maxRequests) {
+      recordSecurityEvent({ tenant_id: "unknown", action: "CREDENTIAL_RATE_LIMIT_BLOCKED", ip, status: "BLOCKED", severity: "high", detail: req.path });
+      res.status(429).json(rateLimitedResponse);
+      return;
+    }
+    next();
+  }
+
   const apiRequestCounts = new Map<string, { count: number; resetAt: number }>();
   const allTenantApiKeyScopes: TenantApiKeyScope[] = ["raffles:read", "raffles:write", "orders:read", "customers:read", "affiliates:read", "reports:read", "webhooks:write"];
 
@@ -5417,8 +5512,8 @@ async function startServer() {
     }
   });
 
-  app.post("/api/auth/login", rateLimiter, handleSecureLogin);
-  app.post("/api/auth/admin/login", rateLimiter, handleSecureLogin);
+  app.post("/api/auth/login", rateLimiter, credentialRateLimiter, handleSecureLogin);
+  app.post("/api/auth/admin/login", rateLimiter, credentialRateLimiter, handleSecureLogin);
 
   app.post("/api/auth/refresh", rateLimiter, async (req, res) => {
     try {
@@ -5450,7 +5545,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/auth/reset-password", rateLimiter, async (req, res) => {
+  app.post("/api/auth/reset-password", rateLimiter, credentialRateLimiter, async (req, res) => {
     try {
       const email = String(req.body.email || "").trim().toLowerCase();
       const redirectTo = req.body.redirectTo ? String(req.body.redirectTo) : undefined;
@@ -13019,7 +13114,7 @@ async function startServer() {
     });
   });
 
-  app.post("/api/customers/login", (req, res) => {
+  app.post("/api/customers/login", credentialRateLimiter, (req, res) => {
     const tenantId = resolveRequestTenantId(req);
     const identifier = String(req.body?.identifier || req.body?.cpf || req.body?.phone || "").replace(/\D/g, "");
     const accessPassword = normalizeAccessPassword(req.body?.accessPassword || req.body?.password);
@@ -13248,7 +13343,7 @@ async function startServer() {
     res.json({ ...message, read: true });
   });
 
-  app.post("/api/customers/password-reset/request", (req, res) => {
+  app.post("/api/customers/password-reset/request", credentialRateLimiter, (req, res) => {
     const phone = normalizePhone(req.body.phone);
     const tenantId = resolveRequestTenantId(req);
     const customer = findCustomerByPhone(phone, tenantId);
@@ -13275,7 +13370,7 @@ async function startServer() {
     });
   });
 
-  app.post("/api/customers/password-reset/confirm", (req, res) => {
+  app.post("/api/customers/password-reset/confirm", credentialRateLimiter, (req, res) => {
     const phone = normalizePhone(req.body.phone);
     const code = String(req.body.code || "").replace(/\D/g, "");
     const newPassword = normalizeAccessPassword(req.body.accessPassword || req.body.password);
@@ -14637,6 +14732,14 @@ async function startServer() {
     }
 
     const type = String(req.body.type || "raffle");
+    const checkoutCampaignId = type === "raffle"
+      ? String(req.body.raffleId || req.body.id || "")
+      : type === "modalidade"
+        ? String(req.body.mode || "modalidade")
+        : type === "fazendinha"
+          ? `fazendinha:${Array.isArray(req.body.groupIds) ? req.body.groupIds.map(String).sort().join(",") : "geral"}`
+          : type;
+    if (!enforceCheckoutAbuseLimits(req, res, { tenantId, campaignId: checkoutCampaignId, action: "preview" })) return;
     const warnings: string[] = [];
     const defaultGateway = getDefaultPaymentGatewayConfig(tenantId);
     const tenantPixGateways = getTenantGateways(tenantId);
@@ -14828,6 +14931,7 @@ async function startServer() {
     const tickets = normalizeTickets(req.body.tickets);
     const addonTickets = normalizeTickets(req.body.addon?.tickets) || 0;
     const { contact, refCode, useBalance } = req.body;
+    if (!enforceCheckoutAbuseLimits(req, res, { tenantId, campaignId: id, cpf: req.body.customer?.cpf, phone: req.body.customer?.phone || contact, action: "buy" })) return;
     
     // Anti-fraud validation
     const ip = (req.ip || req.socket.remoteAddress) as string;
@@ -15356,6 +15460,7 @@ async function startServer() {
       res.status(400).json({ error: "Selecione ao menos um numero valido" });
       return;
     }
+    if (!enforceCheckoutAbuseLimits(req, res, { tenantId, campaignId: mode, cpf: req.body.customer?.cpf, phone: req.body.customer?.phone, action: "buy" })) return;
     let customer: CustomerRecord;
     try {
       customer = findOrCreateCustomer({ ...(req.body.customer || {}), campaignId: mode, modalityType: mode }, req.body.refCode, getBrowserIdFromRequest(req), tenantId);
@@ -15478,6 +15583,7 @@ async function startServer() {
       return null;
     }
     const groupIds = Array.from(new Set(requestedGroupIds.filter(Boolean)));
+    if (!enforceCheckoutAbuseLimits(req, res, { tenantId, campaignId: `fazendinha:${groupIds.sort().join(",") || "geral"}`, cpf: req.body.customer?.cpf, phone: req.body.customer?.phone, action: "buy" })) return null;
     expireFazendinhaReservations(tenantId);
     const selectedGroups = groupIds
       .map(groupId => fazendinhaGroups.find(item => item.tenant_id === tenantId && item.id === groupId))
@@ -27807,26 +27913,4 @@ async function startServer() {
 }
 
 startServer();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
