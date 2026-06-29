@@ -18,19 +18,19 @@ const lightVariables: Record<string, string> = {
   "--admin-surface": "#ffffff",
   "--admin-surface-strong": "#f8fafc",
   "--admin-border": "#dde2e8",
-  "--admin-text": "#111827",
+  "--admin-text": "#1f2937",
   "--admin-muted": "#667085",
-  "--admin-secondary-text": "#344054",
-  "--admin-primary": "#111827",
+  "--admin-secondary-text": "#475569",
+  "--admin-primary": "#2563eb",
   "--admin-secondary": "#eef1f5",
   "--admin-accent": "#e5e7eb",
   "--admin-info": "#2563eb",
   "--admin-success": "#16a34a",
   "--admin-warning": "#d97706",
   "--admin-danger": "#dc2626",
-  "--admin-button": "#111827",
+  "--admin-button": "#2563eb",
   "--admin-button-text": "#ffffff",
-  "--admin-glow": "rgba(17,24,39,0.08)"
+  "--admin-glow": "rgba(37,99,235,0.10)"
 };
 
 export const adminThemes: AdminTheme[] = [
@@ -82,3 +82,5 @@ export function useAdminTheme() {
   if (!context) throw new Error("useAdminTheme must be used inside AdminThemeProvider");
   return context;
 }
+
+

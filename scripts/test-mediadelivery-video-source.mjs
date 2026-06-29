@@ -41,6 +41,7 @@ assert(!mediaPicker.includes("Player externo não suportado neste campo"), "Medi
 assert(types.includes("'bunny'"), "Tipos globais devem manter suporte a bunny/MediaDelivery");
 assert(server.includes(`const TEST_VIDEO_URL = "${sample}"`), "Seed backend deve usar o link MediaDelivery solicitado");
 assert(server.includes('const TEST_VIDEO_MEDIA_TYPE = "bunny"'), "Seed backend deve salvar MediaDelivery como tipo bunny");
+assert(server.includes("https://iframe.mediadelivery.net"), "CSP deve permitir iframe.mediadelivery.net para o embed MediaDelivery da Home publica");
 assert(server.includes("normalizeMediaPayload(req.body)"), "Backend deve normalizar MediaDelivery em salvamentos admin");
 assert(!adminRaffles.includes("DEFAULT_MEDIADELIVERY_VIDEO_URL"), "Nova rifa nao deve nascer com midia automatica");
 assert(!adminRaffles.includes('checkoutMediaUrl: DEFAULT_MEDIADELIVERY_VIDEO_URL'), "Checkout nao deve receber MediaDelivery automaticamente");

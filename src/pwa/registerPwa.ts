@@ -1,12 +1,35 @@
 export async function registerCifherServiceWorker() {
-  if (!("serviceWorker" in navigator)) return;
-  if (window.location.protocol !== "https:" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") return;
-
   try {
+    if (!("serviceWorker" in navigator)) return;
+
+    if (import.meta.env.DEV) {
+      await unregisterDevelopmentServiceWorkers();
+      return;
+    }
+
+    if (!import.meta.env.PROD) return;
+    if (window.location.protocol !== "https:") return;
+
     await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
   } catch (error) {
-    await navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => null);
-    if (import.meta.env.DEV) console.warn("Falha ao registrar PWA", error);
+    if (import.meta.env.PROD) {
+      await navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => null);
+    }
+    if (import.meta.env.DEV) console.warn("Falha ao preparar PWA em desenvolvimento", error);
+  }
+}
+
+async function unregisterDevelopmentServiceWorkers() {
+  const registrations = await navigator.serviceWorker.getRegistrations().catch(() => []);
+  await Promise.all(registrations.map(registration => registration.unregister().catch(() => false)));
+
+  if ("caches" in window) {
+    const keys = await caches.keys().catch(() => []);
+    await Promise.all(
+      keys
+        .filter(key => key.startsWith("rifapro-"))
+        .map(key => caches.delete(key).catch(() => false))
+    );
   }
 }
 
@@ -65,3 +88,4 @@ export async function unsubscribeFromEnterprisePush() {
   await subscription.unsubscribe();
   return true;
 }
+

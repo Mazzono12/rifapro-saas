@@ -299,13 +299,13 @@ async function startServer() {
     res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()");
     res.setHeader("Content-Security-Policy", [
       "default-src 'self'",
-      "script-src 'self'",
+      isNodeProduction ? "script-src 'self'" : "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https: http:",
       "media-src 'self' data: blob: https: http:",
       "font-src 'self' data:",
       "connect-src 'self' https: http: ws: wss:",
-      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://player.mediadelivery.net",
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://player.mediadelivery.net https://iframe.mediadelivery.net",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

@@ -1008,3 +1008,365 @@ body:has(.rp-admin-shell),
   background-image: none !important;
   color: #111827 !important;
 }
+
+/* Admin/Superadmin light-theme regression guard: keep legacy dark classes out of the private dashboard only. */
+.rp-admin-shell {
+  --rp-bg: #f8fafc !important;
+  --rp-surface: #ffffff !important;
+  --rp-border: #e5e7eb !important;
+  --rp-text: #111827 !important;
+  --rp-muted: #64748b !important;
+  --rp-primary: #2563eb !important;
+  --admin-bg: #f8fafc !important;
+  --admin-bg-soft: #f8fafc !important;
+  --admin-bg-deep: #eef2f7 !important;
+  --admin-sidebar: #ffffff !important;
+  --admin-surface: #ffffff !important;
+  --admin-surface-strong: #f8fafc !important;
+  --admin-border: #e5e7eb !important;
+  --admin-text: #111827 !important;
+  --admin-muted: #64748b !important;
+  --admin-secondary-text: #334155 !important;
+  --admin-primary: #2563eb !important;
+  --admin-button: #2563eb !important;
+  --admin-button-text: #ffffff !important;
+  color-scheme: light !important;
+}
+
+.rp-admin-shell,
+.rp-admin-shell :is(.rp-admin-main,.rp-admin-content,.rp-admin-page,.admin-page-container) {
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  background-image: none !important;
+  color: #111827 !important;
+}
+
+.rp-admin-shell :is(.rp-admin-sidebar,.admin-collapsible-sidebar,.premium-admin-sidebar,.rp-admin-topbar,.admin-page-panel,.admin-card,.rp-admin-card,.rp-admin-section,.admin-table-shell,.rp-admin-table-wrap,.admin-empty-state,.admin-notification-menu,.rp-admin-notification-menu) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #e5e7eb !important;
+  color: #111827 !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035) !important;
+  backdrop-filter: none !important;
+}
+
+.rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,input,select,textarea,table,thead,tbody,tr,td,th,span)[class*="bg-black"],
+.rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,input,select,textarea,table,thead,tbody,tr,td,th,span)[class*="bg-slate-950"],
+.rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,input,select,textarea,table,thead,tbody,tr,td,th,span)[class*="bg-slate-900"],
+.rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,input,select,textarea,table,thead,tbody,tr,td,th,span)[class*="bg-gray-900"],
+.rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,input,select,textarea,table,thead,tbody,tr,td,th,span)[class*="bg-zinc-950"],
+.rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,input,select,textarea,table,thead,tbody,tr,td,th,span)[class*="bg-zinc-900"],
+.rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,input,select,textarea,table,thead,tbody,tr,td,th,span)[class*="glass"],
+.rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,input,select,textarea,table,thead,tbody,tr,td,th,span)[class*="neon"],
+.rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,input,select,textarea,table,thead,tbody,tr,td,th,span)[class*="dark"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #e5e7eb !important;
+  color: #111827 !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035) !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+.rp-admin-shell :is(input,select,textarea,.admin-input,.rp-admin-input)[class*="bg-black"],
+.rp-admin-shell :is(input,select,textarea,.admin-input,.rp-admin-input)[class*="bg-slate-900"],
+.rp-admin-shell :is(input,select,textarea,.admin-input,.rp-admin-input)[class*="bg-gray-900"] {
+  min-height: 42px !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid #dbe3ed !important;
+  color: #111827 !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell :is(input,select,textarea,.admin-input,.rp-admin-input)::placeholder {
+  color: #94a3b8 !important;
+}
+
+.rp-admin-shell :is(h1,h2,h3,h4,p,span,small,strong,td,th,label,a,button)[class*="text-white"],
+.rp-admin-shell :is(h1,h2,h3,h4,p,span,small,strong,td,th,label,a,button)[class*="text-yellow"],
+.rp-admin-shell :is(h1,h2,h3,h4,p,span,small,strong,td,th,label,a,button)[class*="text-amber"],
+.rp-admin-shell :is(h1,h2,h3,h4,p,span,small,strong,td,th,label,a,button)[class*="text-gold"] {
+  color: #111827 !important;
+}
+
+.rp-admin-shell :is(.admin-button,.admin-button-primary,.rp-admin-button.is-primary,button.admin-button-primary) {
+  background: #2563eb !important;
+  background-color: #2563eb !important;
+  background-image: none !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.16) !important;
+}
+
+.rp-admin-shell :is(.admin-button,.admin-button-primary,.rp-admin-button.is-primary,button.admin-button-primary) :is(svg,span) {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.rp-admin-shell :is(.admin-button-secondary,.admin-icon-button,.rp-admin-icon-button,.rp-admin-sidebar-toggle,button.rp-admin-sidebar-toggle,button:not(.admin-button):not(.admin-button-primary):not(.rp-admin-button):not(.checkout-primary-action-button)) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #dbe3ed !important;
+  color: #334155 !important;
+  box-shadow: none !important;
+}
+
+.rp-admin-shell :is(.admin-button-secondary,.admin-icon-button,.rp-admin-icon-button,.rp-admin-sidebar-toggle,button.rp-admin-sidebar-toggle,button:not(.admin-button):not(.admin-button-primary):not(.rp-admin-button):not(.checkout-primary-action-button)):hover {
+  background: #eff6ff !important;
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+}
+
+.rp-admin-shell :is(.rp-admin-sidebar-toggle,button.rp-admin-sidebar-toggle) svg,
+.rp-admin-shell :is(.admin-icon-button,.rp-admin-icon-button) svg {
+  color: #2563eb !important;
+  stroke: #2563eb !important;
+  fill: none !important;
+}
+
+.rp-admin-shell :is(.admin-sidebar-menu-button,.rp-admin-nav-link).is-active,
+.rp-admin-shell :is(.admin-sidebar-menu-button,.rp-admin-nav-link)[aria-current="page"] {
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  border-color: #dbeafe !important;
+}
+
+.rp-admin-shell :is(.admin-sidebar-menu-button,.rp-admin-nav-link).is-active svg,
+.rp-admin-shell :is(.admin-sidebar-menu-button,.rp-admin-nav-link)[aria-current="page"] svg {
+  color: #2563eb !important;
+  stroke: #2563eb !important;
+}
+
+.rp-admin-shell :is(.rp-admin-table,.admin-table-shell table) :is(thead,tr,th,td) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #e5e7eb !important;
+  color: #111827 !important;
+}
+
+.rp-admin-shell :is(.rp-admin-table,.admin-table-shell table) thead,
+.rp-admin-shell :is(.rp-admin-table,.admin-table-shell table) th {
+  background: #f8fafc !important;
+  color: #64748b !important;
+}
+
+.rp-admin-shell [style*="background: black"],
+.rp-admin-shell [style*="background:black"],
+.rp-admin-shell [style*="background-color: black"],
+.rp-admin-shell [style*="background-color:black"],
+.rp-admin-shell [style*="background: #000"],
+.rp-admin-shell [style*="background:#000"],
+.rp-admin-shell [style*="background-color: #000"],
+.rp-admin-shell [style*="background-color:#000"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #111827 !important;
+}
+
+/* Admin/Superadmin typography softening: remove harsh pure-black impression. */
+.rp-admin-shell {
+  --rp-text: #1f2937 !important;
+  --rp-muted: #64748b !important;
+  --admin-text: #1f2937 !important;
+  --admin-secondary-text: #475569 !important;
+  --admin-muted: #64748b !important;
+}
+
+.rp-admin-shell :is(.rp-admin-main,.rp-admin-content,.rp-admin-page,.admin-page-container,.admin-card,.rp-admin-card,.rp-admin-section) {
+  color: #1f2937 !important;
+}
+
+.rp-admin-shell :is(h1,h2,h3,h4,.admin-card-heading,.rp-admin-page h1,.rp-admin-page h2) {
+  color: #1f2937 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+}
+
+.rp-admin-shell :is(p,span,label,small,td,th,a,button,input,select,textarea) {
+  color: #334155 !important;
+}
+
+.rp-admin-shell :is(.text-\[var\(--admin-text\)\],.text-\[var\(--rp-text\)\]) {
+  color: #1f2937 !important;
+}
+
+.rp-admin-shell :is(.text-\[var\(--admin-muted\)\],.text-\[var\(--rp-muted\)\],.admin-sidebar-group-label) {
+  color: #64748b !important;
+}
+
+.rp-admin-shell :is(.font-black,h1.font-black,h2.font-black,h3.font-black,p.font-black,span.font-black) {
+  font-weight: 700 !important;
+}
+
+.rp-admin-shell :is(.rp-admin-button.is-primary,.admin-button-primary,.admin-button,.rp-admin-topbar .rp-admin-notification-count) {
+  color: #ffffff !important;
+}
+
+.rp-admin-shell :is(.rp-admin-button.is-primary,.admin-button-primary,.admin-button) :is(span,svg) {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.rp-admin-shell :is(.admin-sidebar-menu-button.is-active,.rp-admin-nav-link.is-active,[aria-current="page"]) {
+  color: #2563eb !important;
+}
+
+.rp-admin-shell :is(.admin-sidebar-menu-button.is-active,.rp-admin-nav-link.is-active,[aria-current="page"]) :is(span,svg) {
+  color: #2563eb !important;
+  stroke: #2563eb !important;
+}
+
+.rp-admin-shell :is(.admin-input,.rp-admin-input,input,select,textarea)::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Admin campaign media picker: force white premium surface over legacy dark media styles. */
+html body #root .rp-admin-shell .admin-media-picker,
+html body #root .rp-admin-shell .admin-media-picker .admin-media-link-panel,
+html body #root .rp-admin-shell .admin-media-picker .admin-media-preview,
+html body #root .rp-admin-shell .admin-media-picker label,
+html body #root .rp-admin-shell .admin-media-picker [data-media-usage] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #e5e7eb !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  text-shadow: none !important;
+}
+
+html body #root .rp-admin-shell .admin-media-picker .admin-media-link-panel,
+html body #root .rp-admin-shell .admin-media-picker .admin-media-preview {
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+}
+
+html body #root .rp-admin-shell .admin-media-picker [data-media-usage] {
+  background: #eff6ff !important;
+  background-color: #eff6ff !important;
+  border-color: #dbeafe !important;
+}
+
+html body #root .rp-admin-shell .admin-media-picker :is(p,span,small,strong,label,button,input,select,textarea) {
+  color: #334155 !important;
+  -webkit-text-fill-color: initial !important;
+}
+
+html body #root .rp-admin-shell .admin-media-picker :is(p.font-black,span.font-black,[data-media-usage] p) {
+  color: #1f2937 !important;
+  font-weight: 700 !important;
+}
+
+html body #root .rp-admin-shell .admin-media-picker :is(svg) {
+  color: #2563eb !important;
+  stroke: #2563eb !important;
+}
+
+html body #root .rp-admin-shell .admin-media-picker :is(input,select,textarea,.admin-input) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #dbe3ef !important;
+  color: #1f2937 !important;
+  -webkit-text-fill-color: #1f2937 !important;
+  box-shadow: none !important;
+}
+
+html body #root .rp-admin-shell .admin-media-picker :is(input,select,textarea,.admin-input)::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+}
+
+html body #root .rp-admin-shell .admin-media-picker button,
+html body #root .rp-admin-shell .admin-media-picker label:has(input[type="file"]) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #dbe3ef !important;
+  color: #1f2937 !important;
+  -webkit-text-fill-color: #1f2937 !important;
+}
+
+html body #root .rp-admin-shell .admin-media-picker button:hover,
+html body #root .rp-admin-shell .admin-media-picker label:has(input[type="file"]):hover {
+  background: #eff6ff !important;
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+  -webkit-text-fill-color: #2563eb !important;
+}
+
+html body #root .rp-admin-shell .admin-media-picker .responsive-media-frame {
+  background: #f1f5f9 !important;
+  background-color: #f1f5f9 !important;
+  background-image: none !important;
+}
+
+/* Final admin light-theme cleanup: neutralize legacy dark/gold surfaces inside Admin only. */
+html body #root .rp-admin-shell .admin-media-picker .admin-media-detection,
+html body #root .rp-admin-shell .admin-media-picker .admin-media-help {
+  background: #ffffff !important;
+  color: #475569 !important;
+  border-color: #e5e7eb !important;
+  box-shadow: none !important;
+}
+
+html body #root .rp-admin-shell .admin-media-picker .admin-media-detection strong {
+  color: #1f2937 !important;
+}
+
+html body #root .rp-admin-shell .admin-media-picker .responsive-media-frame,
+html body #root .rp-admin-shell .admin-media-picker .responsive-media-frame > div {
+  background: #f8fafc !important;
+}
+
+html body #root .rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,table,thead,tbody,tr,td,th,span,p)[class*="bg-black"],
+html body #root .rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,table,thead,tbody,tr,td,th,span,p)[class*="bg-slate-900"],
+html body #root .rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,table,thead,tbody,tr,td,th,span,p)[class*="bg-gray-900"],
+html body #root .rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,table,thead,tbody,tr,td,th,span,p)[class*="bg-zinc-900"],
+html body #root .rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,table,thead,tbody,tr,td,th,span,p)[class*="bg-cyber"],
+html body #root .rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,table,thead,tbody,tr,td,th,span,p)[class*="glass"],
+html body #root .rp-admin-shell :is(div,section,article,aside,header,nav,form,label,button,a,table,thead,tbody,tr,td,th,span,p)[class*="neon"] {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #1f2937 !important;
+  border-color: #e5e7eb !important;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06) !important;
+  text-shadow: none !important;
+}
+
+html body #root .rp-admin-shell :is(input,select,textarea,.admin-input,.rp-admin-input)[class*="bg-black"],
+html body #root .rp-admin-shell :is(input,select,textarea,.admin-input,.rp-admin-input)[class*="bg-slate-900"],
+html body #root .rp-admin-shell :is(input,select,textarea,.admin-input,.rp-admin-input)[class*="bg-gray-900"],
+html body #root .rp-admin-shell :is(input,select,textarea,.admin-input,.rp-admin-input)[class*="bg-cyber"] {
+  background: #ffffff !important;
+  color: #1f2937 !important;
+  border-color: #dbe3ef !important;
+  box-shadow: none !important;
+}
+
+html body #root .rp-admin-shell :is(h1,h2,h3,h4,h5,p,span,small,strong,td,th,label,a,button)[class*="text-white"],
+html body #root .rp-admin-shell :is(h1,h2,h3,h4,h5,p,span,small,strong,td,th,label,a,button)[class*="text-yellow"],
+html body #root .rp-admin-shell :is(h1,h2,h3,h4,h5,p,span,small,strong,td,th,label,a,button)[class*="text-amber"],
+html body #root .rp-admin-shell :is(h1,h2,h3,h4,h5,p,span,small,strong,td,th,label,a,button)[class*="text-gold"] {
+  color: #334155 !important;
+  text-shadow: none !important;
+}
+
+html body #root .rp-admin-shell :is(button,a).bg-\[var\(--admin-primary\)\],
+html body #root .rp-admin-shell .rp-admin-button-primary,
+html body #root .rp-admin-shell .admin-button-primary {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+}
+
+html body #root .rp-admin-shell :is(.font-black,h1.font-black,h2.font-black,h3.font-black,p.font-black,span.font-black,strong.font-black) {
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+}

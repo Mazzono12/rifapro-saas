@@ -4,18 +4,22 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
+  DollarSign,
   Crown,
   Gift,
   Globe2,
   Handshake,
   Instagram,
   MessageCircle,
+  PlayCircle,
   Rocket,
+  Search,
   ShieldCheck,
   Sparkles,
   Star,
   Ticket,
   Trophy,
+  Users,
   Zap
 } from "lucide-react";
 import { useRaffles } from "../hooks/useRaffles";
@@ -392,7 +396,7 @@ function HomeContent() {
 
   return (
     <PremiumPageLayout className="cfx-home-page cfx-home-premium-v1">
-      <main className="cfx-v1-shell" aria-label="Home publica premium V1">
+      <main className="cfx-home-mobile-shell cfx-v1-shell" aria-label="Home publica premium V1">
         <HomeV1Brand branding={branding} />
         <HomeV1Hero raffle={featuredRaffle} />
         <HomeV1Meta raffle={featuredRaffle} />
@@ -404,6 +408,14 @@ function HomeContent() {
         <HomeV1StayInside branding={branding} settings={settings} />
         <HomeV1TrustStrip />
       </main>
+      <HomeDesktopDashboard
+        branding={branding}
+        featuredRaffle={featuredRaffle}
+        activeRaffles={activeRaffles}
+        ranking={ranking}
+        topSellers={topSellers}
+        livePurchases={livePurchases}
+      />
     </PremiumPageLayout>
   );
 }
@@ -697,6 +709,153 @@ function HomeV1TrustStrip() {
   );
 }
 
+
+type HomeDesktopDashboardProps = {
+  branding: any;
+  featuredRaffle: Raffle;
+  activeRaffles: Raffle[];
+  ranking: RankingBuyer[];
+  topSellers: TopSellerRankingItem[];
+  livePurchases: RankingBuyer[];
+};
+
+function HomeDesktopDashboard({ branding, featuredRaffle, activeRaffles, ranking, topSellers, livePurchases }: HomeDesktopDashboardProps) {
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleRaffles = useMemo(() => {
+    if (!normalizedQuery) return activeRaffles;
+    return activeRaffles.filter(raffle => [raffle.title, raffle.description, raffle.homeTitle, raffle.homeSubtitle].some(value => safeText(value, "").toLowerCase().includes(normalizedQuery)));
+  }, [activeRaffles, normalizedQuery]);
+
+  const dashboardMetrics = useMemo(() => {
+    const totalSold = activeRaffles.reduce((sum, raffle) => sum + safeNumber(raffle.soldTickets), 0);
+    const grossRevenue = activeRaffles.reduce((sum, raffle) => sum + safeNumber(raffle.price) * safeNumber(raffle.soldTickets), 0);
+    const participantKeys = new Set<string>();
+    [...ranking, ...livePurchases].forEach(item => {
+      const key = safeText(item.phone || item.name, "").toLowerCase();
+      if (key) participantKeys.add(key);
+    });
+    return { grossRevenue, totalSold, activeCount: activeRaffles.length, participants: participantKeys.size };
+  }, [activeRaffles, livePurchases, ranking]);
+
+  const heroTitle = safeText(featuredRaffle.homeTitle || featuredRaffle.title, "Sorteio em destaque");
+  const heroSubtitle = safeText(featuredRaffle.homeSubtitle || featuredRaffle.description, "Participe dos sorteios ativos e acompanhe tudo em tempo real.");
+  const featuredMedia = resolveHomeHeroMedia(featuredRaffle);
+
+  return (
+    <main className="cfx-home-desktop-dashboard" aria-label="Dashboard web de sorteios ativos">
+      <header className="cfx-home-desktop-topbar">
+        <Link to="/" className="cfx-home-desktop-brand" aria-label="Início">
+          <PublicBrandMark showName={false} logoClassName="cfx-home-desktop-logo" />
+        </Link>
+        <nav aria-label="Navegação principal">
+          <a href="#inicio">Início</a>
+          <a href="#rifas">Rifas</a>
+          <a href="#como-funciona">Como funciona</a>
+          <a href="#vantagens">Vantagens</a>
+          <a href="#ajuda">Ajuda</a>
+        </nav>
+        <label className="cfx-home-desktop-search">
+          <Search />
+          <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar rifas..." aria-label="Buscar rifas" />
+        </label>
+      </header>
+
+      <section id="inicio" className="cfx-home-desktop-hero">
+        <div className="cfx-home-desktop-hero-copy">
+          <span className="cfx-home-desktop-eyebrow">Plataforma de sorteios online</span>
+          <h1>{heroTitle}</h1>
+          <p>{heroSubtitle}</p>
+          <div className="cfx-home-desktop-trust-row">
+            <span><ShieldCheck /> Ambiente protegido</span>
+            <span><Zap /> PIX imediato</span>
+            <span><Trophy /> Prêmios reais</span>
+            <span><MessageCircle /> Suporte humano</span>
+          </div>
+          <div className="cfx-home-desktop-actions">
+            <Link to="/sorteios">Ver todas as rifas <ChevronRight /></Link>
+            <a href="#como-funciona"><PlayCircle /> Como funciona</a>
+          </div>
+        </div>
+        <div className="cfx-home-desktop-hero-media">
+          <HomeDesktopMediaPreview raffle={featuredRaffle} media={featuredMedia} className={'cfx-home-desktop-media-block'} />
+        </div>
+        <aside className="cfx-home-desktop-top-prizes" aria-label="Top prêmios">
+          <h2><Trophy /> Top prêmios</h2>
+          {activeRaffles.slice(0, 3).map((raffle, index) => (
+            <Link key={raffle.id} to={`/raffle/${raffle.id}`}>
+              <span>{index + 1}º</span>
+              <div><strong>{safeText(raffle.title, "Sorteio ativo")}</strong><small>{safeProgress(raffle).toFixed(0)}% vendido</small><i><b style={{ width: `${safeProgress(raffle)}%` }} /></i></div>
+            </Link>
+          ))}
+        </aside>
+      </section>
+
+      <section className="cfx-home-desktop-metrics" aria-label="Indicadores dos sorteios ativos">
+        <HomeDesktopMetric icon={<DollarSign />} label="Faturamento estimado" value={homeDashboardCurrency(dashboardMetrics.grossRevenue)} note="Base em sorteios ativos" />
+        <HomeDesktopMetric icon={<Ticket />} label="Números vendidos" value={String(dashboardMetrics.totalSold.toLocaleString("pt-BR"))} note="Dados das campanhas ativas" />
+        <HomeDesktopMetric icon={<Star />} label="Rifas ativas" value={String(dashboardMetrics.activeCount)} note="Disponíveis agora" />
+        <HomeDesktopMetric icon={<Users />} label="Participantes" value={dashboardMetrics.participants ? dashboardMetrics.participants.toLocaleString("pt-BR") : "Sem dados"} note="Base em rankings carregados" />
+      </section>
+
+      <section id="rifas" className="cfx-home-desktop-grid">
+        <div className="cfx-home-desktop-panel cfx-home-desktop-raffles-panel"><header><h2>Rifas em destaque</h2><Link to="/sorteios">Ver todas</Link></header>{visibleRaffles.length ? <div className="cfx-home-desktop-raffles">{visibleRaffles.slice(0, 4).map(raffle => <React.Fragment key={raffle.id}><HomeDesktopRaffleCard raffle={raffle} /></React.Fragment>)}</div> : <div className="cfx-home-desktop-empty">Nenhuma rifa ativa encontrada para esta busca.</div>}</div>
+        <aside className="cfx-home-desktop-panel cfx-home-desktop-ranking-panel"><header><h2>Top compradores</h2><Link to="/sorteios">Ver ranking</Link></header>{ranking.length ? ranking.slice(0, 5).map((buyer, index) => <div key={`${buyer.phone || buyer.name}-${index}`} className="cfx-home-desktop-ranking-row"><span>{index + 1}</span><div><strong>{maskBuyerName(buyer.name)}</strong><small>{Number(buyer.tickets || 0).toLocaleString("pt-BR")} números</small></div><b>{homeDashboardCurrency(buyer.amount || 0)}</b></div>) : <div className="cfx-home-desktop-empty">Ranking ainda sem dados.</div>}</aside>
+        <aside className="cfx-home-desktop-panel cfx-home-desktop-live-panel"><header><h2>Sorteios ao vivo</h2><Link to="/sorteios">Ver todos</Link></header><HomeDesktopLiveCard raffle={featuredRaffle} /></aside>
+      </section>
+
+      <section id="vantagens" className="cfx-home-desktop-benefits"><span><Sparkles /> Diversas modalidades</span><span><ShieldCheck /> Pagamento seguro</span><span><CheckCircle2 /> Sorteios transparentes</span><span><Trophy /> Prêmios configurados</span><span><Handshake /> Plataforma completa</span></section>
+      <section id="como-funciona" className="cfx-home-desktop-how-it-works"><h2>Como funciona</h2><div><article><span>1</span><strong>Escolha uma rifa ativa</strong><p>Use os cards com informações reais dos sorteios disponíveis.</p></article><article><span>2</span><strong>Participe com segurança</strong><p>A compra segue o checkout existente, com PIX e confirmação automática.</p></article><article><span>3</span><strong>Acompanhe o resultado</strong><p>Ranking, ganhadores e detalhes aparecem conforme a campanha evolui.</p></article></div></section>
+    </main>
+  );
+}
+
+function HomeDesktopMetric({ icon, label, value, note }: { icon: ReactNode; label: string; value: string; note: string }) {
+  return <article><span>{icon}</span><div><small>{label}</small><strong>{value}</strong><em>{note}</em></div></article>;
+}
+
+function HomeDesktopMediaPreview({ raffle, media, className }: { raffle: Raffle; media: ReturnType<typeof resolveHomeHeroMedia>; className: string }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const fallbackImage = safeText(raffle.image || (raffle as any).imageUrl || (raffle as any).thumbnailUrl, '');
+  const imageUrl = media.isVideo ? fallbackImage : safeText(media.mediaUrl || fallbackImage, '');
+  const hasImage = Boolean(imageUrl && !imageFailed);
+
+  return (
+    <div className={'cfx-home-desktop-static-media ' + className} aria-label={'Midia de ' + safeText(raffle.title, 'sorteio')}>
+      {hasImage ? (
+        <img src={imageUrl} alt={safeText(raffle.title, 'Sorteio ativo')} loading='lazy' onError={() => setImageFailed(true)} />
+      ) : (
+        <div className='cfx-home-desktop-static-placeholder'>
+          <Sparkles />
+          <strong>Midia do sorteio</strong>
+          <span>{media.isVideo ? 'Video disponivel na pagina da campanha.' : 'Imagem sera exibida assim que for publicada.'}</span>
+        </div>
+      )}
+      {media.isVideo && (
+        <span className='cfx-home-desktop-play-badge' aria-hidden='true'>
+          <PlayCircle />
+        </span>
+      )}
+    </div>
+  );
+}
+
+function HomeDesktopRaffleCard({ raffle }: { raffle: Raffle }) {
+  const progress = safeProgress(raffle);
+  const media = resolveHomeHeroMedia(raffle);
+  return <article className='cfx-home-desktop-raffle-card'><Link to={'/raffle/' + raffle.id} className='cfx-home-desktop-card-media'><HomeDesktopMediaPreview raffle={raffle} media={media} className={'cfx-home-desktop-card-media-block'} /></Link><div><h3>{safeText(raffle.title, 'Sorteio ativo')}</h3><p>{safeText(raffle.homeSubtitle || raffle.description, 'Sorteio disponível')}</p><i><b style={{ width: progress.toFixed(0) + '%' }} /></i><small>{progress.toFixed(0)}% vendido</small><strong>{homeDashboardCurrency(raffle.price)}</strong><Link to={'/raffle/' + raffle.id}>Participar</Link></div></article>;
+}
+
+function HomeDesktopLiveCard({ raffle }: { raffle: Raffle }) {
+  const media = resolveHomeHeroMedia(raffle);
+  return <article className='cfx-home-desktop-live-card'><HomeDesktopMediaPreview raffle={raffle} media={media} className={'cfx-home-desktop-live-media'} /><strong>{safeText(raffle.title, 'Sorteio ativo')}</strong><small>{countdownText(raffle)}</small><Link to={'/raffle/' + raffle.id}>Assistir agora</Link></article>;
+}
+
+function homeDashboardCurrency(value: unknown) {
+  const parsed = Number(value);
+  const safeValue = Number.isFinite(parsed) ? parsed : 0;
+  return safeValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 async function safeJson(url: string) {
   const res = await fetch(url);
   if (!res.ok) return null;
@@ -878,3 +1037,8 @@ function maskBuyerName(name?: string) {
   if (parts.length <= 1) return parts[0] || "Participante";
   return `${parts[0]} ${parts[1].slice(0, 1)}.`;
 }
+
+
+
+
+

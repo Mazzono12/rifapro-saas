@@ -622,6 +622,7 @@ export function RaffleDetails() {
       <div className="relative z-10">
         <RafflePremiumPage
           raffle={raffle}
+          branding={branding}
           mediaUrl={heroMedia.mediaUrl}
           mediaType={heroMedia.mediaType}
           progress={progress}
@@ -746,6 +747,7 @@ export function RaffleDetails() {
 
 function RafflePremiumPage({
   raffle,
+  branding,
   mediaUrl,
   mediaType,
   progress,
@@ -764,6 +766,7 @@ function RafflePremiumPage({
   gamification
 }: {
   raffle: Raffle;
+  branding?: any;
   mediaUrl: string;
   mediaType?: any;
   progress: number;
@@ -788,7 +791,21 @@ function RafflePremiumPage({
 
   return (
     <main className="cfx-raffle-shell cfx-detail-shell">
-      <div className="cfx-detail-layout cfx-detail-layout--single">
+      <WebRafflePurchaseDesktop
+        raffle={raffle}
+        branding={branding}
+        mediaUrl={mediaUrl}
+        mediaType={mediaType}
+        progress={progress}
+        tickets={tickets}
+        minPurchaseTickets={minPurchaseTickets}
+        totalValue={totalValue}
+        onSelectTickets={onSelectTickets}
+        onQuickSelect={onQuickSelect}
+        onParticipate={onParticipate}
+        isSubmitting={isSubmitting}
+      />
+      <div className="cfx-detail-layout cfx-detail-layout--single cfx-mobile-raffle-flow">
         <section className="cfx-detail-main">
           <RafflePremiumHero raffle={raffle} mediaUrl={mediaUrl} mediaType={mediaType} />
           <RaffleTitleBlock
@@ -818,6 +835,203 @@ function RafflePremiumPage({
         <span>{prizes.length}</span>
       </div>
     </main>
+  );
+}
+
+
+function WebRafflePurchaseDesktop({
+  raffle,
+  branding,
+  mediaUrl,
+  mediaType,
+  progress,
+  tickets,
+  minPurchaseTickets,
+  totalValue,
+  onSelectTickets,
+  onQuickSelect,
+  onParticipate,
+  isSubmitting
+}: {
+  raffle: Raffle;
+  branding?: any;
+  mediaUrl: string;
+  mediaType?: MediaType | string | null;
+  progress: number;
+  tickets: number;
+  minPurchaseTickets: number;
+  totalValue: number;
+  onSelectTickets: (value: number) => void;
+  onQuickSelect: (qty: number) => void;
+  onParticipate: () => void;
+  isSubmitting: boolean;
+}) {
+  const totalTickets = Math.max(1, Number(raffle.totalTickets || 1));
+  const soldTickets = Math.max(0, Number(raffle.soldTickets || 0));
+  const remaining = Math.max(0, totalTickets - soldTickets);
+  const unitPrice = Number(raffle.price || 0);
+  const minimum = Math.max(1, Math.floor(Number(minPurchaseTickets || 1)));
+  const maxQuantity = Math.max(minimum, Math.floor(remaining || minimum));
+  const quickAmounts = (minimum <= 5 ? [5, 10, 20, 50, 100] : [minimum, minimum * 2, minimum * 4, minimum * 10, minimum * 20])
+    .map(value => Math.min(Math.max(value, minimum), maxQuantity))
+    .filter((value, index, list) => list.indexOf(value) === index);
+  const brandLogo = branding?.logoUrl || branding?.logo_url || branding?.headerLogoUrl || "";
+  const progressLabel = progress.toFixed(0).replace(".", ",") + "%";
+  const updateQuantity = (value: number) => {
+    onSelectTickets(Math.min(maxQuantity, Math.max(minimum, Math.floor(Number(value) || minimum))));
+  };
+
+  return (
+    <section className="cfx-web-purchase" aria-label="Comprar cotas">
+      <header className="cfx-web-purchase-topbar">
+        <Link to="/" className="cfx-web-brand" aria-label="Voltar para a home">
+          {brandLogo ? <img src={brandLogo} alt="Logo" /> : <span>RifaPro</span>}
+        </Link>
+        <nav aria-label="Navegação da compra">
+          <Link to="/">Início</Link>
+          <Link to="/sorteios" aria-current="page">Rifas</Link>
+          <a href="#como-funciona">Como funciona</a>
+          <a href="#vantagens">Vantagens</a>
+        </nav>
+        <div className="cfx-web-safe"><ShieldCheck /> Compra 100% segura</div>
+      </header>
+
+      <div className="cfx-web-purchase-back">
+        <Link to="/sorteios"><ChevronLeft /> Voltar para a rifa</Link>
+      </div>
+
+      <div className="cfx-web-purchase-title">
+        <div>
+          <h1>Comprar cotas - Rifa Aleatória</h1>
+          <p>As cotas serão geradas automaticamente após a confirmação do pagamento.</p>
+        </div>
+      </div>
+
+      <div className="cfx-web-purchase-grid">
+        <div className="cfx-web-purchase-main">
+          <section className="cfx-web-raffle-card">
+            <div className="cfx-web-raffle-media">
+              {mediaUrl ? (
+                <ResponsiveMediaFrame
+                  src={mediaUrl}
+                  type={mediaType}
+                  alt={raffle.title}
+                  preferredFit={(raffle.mediaFit || "contain") as any}
+                  aspectMode={(raffle.mediaAspect || "auto") as any}
+                  autoPlay={false}
+                  muted
+                  loop={false}
+                  controls={inferMediaType(mediaUrl) !== "image"}
+                  interactive={false}
+                  className="h-full w-full rounded-[inherit]"
+                  mediaClassName="h-full w-full"
+                />
+              ) : (
+                <Gift />
+              )}
+            </div>
+            <div className="cfx-web-raffle-info">
+              <span className="cfx-web-prize-badge">Super prêmio</span>
+              <h2>{raffle.title}</h2>
+              {(raffle.subtitle || raffle.description) && <p>{raffle.subtitle || raffle.description}</p>}
+              <div className="cfx-web-raffle-stats">
+                <span><Clock3 /> Sorteio <strong>{formatDate(raffle.drawDate)}</strong></span>
+                <span><Ticket /> Total de cotas <strong>{totalTickets.toLocaleString("pt-BR")}</strong></span>
+                <span><Trophy /> Cotas vendidas <strong>{soldTickets.toLocaleString("pt-BR")}</strong></span>
+                <span><Gift /> Valor da cota <strong>{formatCurrency(unitPrice)}</strong></span>
+              </div>
+              <div className="cfx-web-progress">
+                <i><span style={{ width: String(progress) + "%" }} /></i>
+                <div><strong>{soldTickets.toLocaleString("pt-BR")} vendidas</strong><small>Faltam {remaining.toLocaleString("pt-BR")} cotas</small></div>
+              </div>
+            </div>
+          </section>
+
+          <section className="cfx-web-random-note" id="como-funciona">
+            <span><Ticket /></span>
+            <div>
+              <strong>Rifa Aleatória</strong>
+              <p>Ao finalizar sua compra, o sistema gerará suas cotas de forma aleatória e única.</p>
+            </div>
+          </section>
+
+          <section className="cfx-web-quantity">
+            <header>
+              <span>1</span>
+              <div>
+                <h2>Escolha a quantidade de cotas</h2>
+                <p>Selecione quantas cotas deseja comprar</p>
+              </div>
+            </header>
+            <div className="cfx-web-quick-grid">
+              {quickAmounts.map(amount => (
+                <button type="button" key={amount} onClick={() => onQuickSelect(amount)} disabled={amount > maxQuantity}>
+                  <strong>+{amount.toLocaleString("pt-BR")}</strong>
+                  <small>{formatCurrency(amount * unitPrice)}</small>
+                </button>
+              ))}
+            </div>
+            <div className="cfx-web-quantity-row">
+              <label>
+                <span>Quantidade desejada</span>
+                <div className="cfx-web-stepper">
+                  <button type="button" onClick={() => updateQuantity(tickets - 1)} disabled={tickets <= minimum} aria-label="Diminuir quantidade"><Minus /></button>
+                  <input type="number" value={tickets} min={minimum} max={maxQuantity} onChange={event => updateQuantity(Number(event.target.value))} />
+                  <button type="button" onClick={() => updateQuantity(tickets + 1)} disabled={tickets >= maxQuantity} aria-label="Aumentar quantidade"><Plus /></button>
+                </div>
+              </label>
+              <div className="cfx-web-total-box">
+                <span>Valor total</span>
+                <strong>{formatCurrency(totalValue)}</strong>
+              </div>
+            </div>
+            <section className="cfx-web-inline-payment" aria-label="Resumo do pagamento">
+              <header>
+                <h3>Resumo da compra</h3>
+                <strong>{formatCurrency(totalValue)}</strong>
+              </header>
+              <dl>
+                <div><dt>Quantidade</dt><dd>{tickets.toLocaleString("pt-BR")} cotas</dd></div>
+                <div><dt>Valor da cota</dt><dd>{formatCurrency(unitPrice)}</dd></div>
+                <div><dt>Subtotal</dt><dd>{formatCurrency(tickets * unitPrice)}</dd></div>
+              </dl>
+              <p><ShieldCheck /> Seus dados estão protegidos com criptografia SSL.</p>
+            </section>
+            <button type="button" onClick={onParticipate} disabled={isSubmitting || maxQuantity <= 0} className="cfx-web-primary-action cfx-web-primary-action--inline">
+              <Lock /> {isSubmitting ? "Abrindo checkout..." : "Comprar"}
+            </button>
+          </section>
+
+          <section className="cfx-web-trust-strip" id="vantagens">
+            <TrustItem icon={<ShieldCheck />} title="100% Seguro" text="Ambiente protegido" />
+            <TrustItem icon={<Trophy />} title="Sorteio ao vivo" text="Transparência total" />
+            <TrustItem icon={<Gift />} title="Prêmios garantidos" text="Entrega acompanhada" />
+            <TrustItem icon={<Headphones />} title="Suporte 24/7" text="Atendimento humano" />
+          </section>
+        </div>
+
+        <aside className="cfx-web-summary">
+          <h2>Resumo da compra</h2>
+          <dl>
+            <div><dt>Quantidade de cotas</dt><dd>{tickets.toLocaleString("pt-BR")} cotas</dd></div>
+            <div><dt>Valor da cota</dt><dd>{formatCurrency(unitPrice)}</dd></div>
+            <div><dt>Subtotal</dt><dd>{formatCurrency(tickets * unitPrice)}</dd></div>
+          </dl>
+          <section className="cfx-web-summary-note">
+            <Ticket />
+            <strong>Suas cotas serão geradas automaticamente após a confirmação do pagamento.</strong>
+          </section>
+          <div className="cfx-web-pay-total">
+            <span>Total a pagar</span>
+            <strong>{formatCurrency(totalValue)}</strong>
+          </div>
+          <button type="button" onClick={onParticipate} disabled={isSubmitting || maxQuantity <= 0} className="cfx-web-primary-action">
+            <Lock /> {isSubmitting ? "Abrindo checkout..." : "Comprar"}
+          </button>
+          <p className="cfx-web-ssl"><ShieldCheck /> Seus dados estão protegidos com criptografia SSL.</p>
+        </aside>
+      </div>
+    </section>
   );
 }
 
@@ -2067,4 +2281,8 @@ function formatReceiptDate(value?: string) {
 async function captureGeoLocation() {
   return GeoPrefillService.captureCoordinates();
 }
+
+
+
+
 

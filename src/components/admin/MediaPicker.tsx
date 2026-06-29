@@ -163,7 +163,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
   };
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="admin-media-picker rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-xs font-semibold text-[var(--admin-muted)]">
           <ImagePlus className="h-4 w-4 text-[var(--admin-primary)]" /> {label}
@@ -194,7 +194,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
             className="sr-only"
           />
         </label>
-        {allowExternalLink && <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+        {allowExternalLink && <div className="admin-media-link-panel rounded-lg border border-slate-200 bg-slate-50 p-3">
           <label className="block space-y-2">
             <span className="flex items-center gap-2 text-xs font-semibold text-[var(--admin-muted)]">
               <Link2 className="h-4 w-4" /> URL de mídia da campanha
@@ -241,7 +241,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
               </select>
             </label>
           </div>
-          <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+          <div className="admin-media-preview mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
             <ResponsiveMediaFrame
               src={value}
               type={(mediaType as MediaType) || inferMediaType(value)}
@@ -252,7 +252,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
               onAspectDetected={setDetectedAspect}
             />
           </div>
-          <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-[var(--admin-muted)]">
+          <div className="admin-media-detection mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-[var(--admin-muted)]">
             Orientação detectada: <strong className="text-[var(--admin-text)]">{detectedAspect?.orientation || "aguardando mídia"}</strong>
             {detectedAspect && <span> · ratio {detectedAspect.ratio.toFixed(2)} · fit sugerido {detectedAspect.recommendedFit}</span>}
           </div>
@@ -263,7 +263,7 @@ export function MediaPicker({ label, value = "", mediaType, onChange, aspectValu
           {lastError}
         </div>
       )}
-      <p className="mt-2 text-xs text-[var(--admin-muted)]">
+      <p className="admin-media-help mt-2 text-xs text-[var(--admin-muted)]">
         Arquivos aceitos: {accept.toUpperCase()}. Tipo atual: {mediaType || inferMediaType(value)}.
         {allowExternalLink ? (allowExternalVideo ? " Aceita imagem, GIF, vídeo e players externos por link." : " Aceita imagem por link.") : ""}
       </p>
